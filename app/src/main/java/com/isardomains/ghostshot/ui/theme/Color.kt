@@ -2,10 +2,17 @@ package com.isardomains.ghostshot.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+/** Primary accent: Slider active track and thumb, interactive highlights. */
+val GhostShotAccent = Color(0xFF4F8CFF)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+/** Primary text and icon colour on all dark camera overlay surfaces. */
+val GhostShotTextPrimary = Color(0xFFFFFFFF)
+
+/** Secondary label colour on dark camera overlay surfaces (e.g. "Opacity", "Reference"). */
+val GhostShotTextSecondary = Color(0xFFCCCCCC)
+
+/** Slider inactive track. */
+val GhostShotSliderInactive = Color(0xFF666666)
+
+/** Semi-transparent scrim applied to overlay surfaces above the camera preview (~70 % black). */
+val GhostShotOverlayScrim = Color(0xB3000000)

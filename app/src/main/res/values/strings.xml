@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">GhostShot</string>
+
+    <!-- Camera permission screens -->
+    <string name="camera_permission_rationale">Camera access is required to use GhostShot.</string>
+    <string name="grant_permission">Grant permission</string>
+    <string name="camera_permission_denied">Camera permission was permanently denied. Please enable it in the app settings.</string>
+    <string name="open_settings">Open settings</string>
+
+    <!-- Reference image overlay -->
+    <string name="select_reference_image">Select reference image</string>
+    <string name="select_reference_image_label">Reference</string>
+    <string name="overlay_content_description">Reference photo overlay</string>
+    <string name="overlay_opacity_label">Opacity</string>
+    <string name="reset_overlay_label">Reset</string>
 </resources>
