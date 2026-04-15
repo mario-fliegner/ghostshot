@@ -7,6 +7,12 @@
     <string name="camera_permission_denied">Camera permission was permanently denied. Please enable it in the app settings.</string>
     <string name="open_settings">Open settings</string>
 
+    <!-- Capture -->
+    <string name="capture_button_content_description">Take photo</string>
+    <string name="capture_button_label">Capture</string>
+    <string name="capture_saved">Photo saved</string>
+    <string name="capture_failed">Could not save photo</string>
+
     <!-- Reference image overlay -->
     <string name="select_reference_image">Select reference image</string>
     <string name="select_reference_image_label">Reference</string>

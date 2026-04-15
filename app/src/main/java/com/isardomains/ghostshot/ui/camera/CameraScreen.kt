@@ -10,6 +10,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -28,12 +31,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -159,6 +165,40 @@ fun CameraScreen(
             val isLandscape =
                 LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+            val imageCapture = remember { ImageCapture.Builder().build() }
+            val snackbarHostState = remember { SnackbarHostState() }
+
+            LaunchedEffect(viewModel) {
+                viewModel.uiEvent.collect { event ->
+                    when (event) {
+                        is UiEvent.ShowSnackbar ->
+                            snackbarHostState.showSnackbar(event.message)
+                    }
+                }
+            }
+
+            val executor = ContextCompat.getMainExecutor(context)
+            val onCapture: () -> Unit = {
+                imageCapture.takePicture(
+                    executor,
+                    object : ImageCapture.OnImageCapturedCallback() {
+                        override fun onCaptureSuccess(image: ImageProxy) {
+                            try {
+                                val bitmap = image.toBitmap()
+                                val rotation = image.imageInfo.rotationDegrees
+                                viewModel.onPhotoCaptured(bitmap, rotation)
+                            } finally {
+                                image.close()
+                            }
+                        }
+
+                        override fun onError(exception: ImageCaptureException) {
+                            viewModel.onPhotoCaptureError()
+                        }
+                    }
+                )
+            }
+
             Box(modifier = Modifier.fillMaxSize()) {
 
                 // ── Layer 1: Full-screen camera preview ───────────────────────────────
@@ -178,7 +218,8 @@ fun CameraScreen(
                                 cameraProvider.bindToLifecycle(
                                     lifecycleOwner,
                                     CameraSelector.DEFAULT_BACK_CAMERA,
-                                    preview
+                                    preview,
+                                    imageCapture
                                 )
                             },
                             ContextCompat.getMainExecutor(ctx)
@@ -203,12 +244,10 @@ fun CameraScreen(
                 // full-screen touch area of the composable is unaffected by the current
                 // overlay position, so drag detection works uniformly across the viewport.
                 //
-                // detectDragGestures checks whether a drag change was already consumed by a
-                // higher-Z composable (Layer 4: Slider, IconButton). If consumed, the drag
-                // is cancelled before onDrag fires, so UI controls and overlay drag never
-                // interfere. Pixel deltas are divided by PointerInputScope.size before
-                // being forwarded to the ViewModel, converting them to the same normalised
-                // fraction space used for storage.
+                // detectTransformGestures receives pan and zoom simultaneously. Pan deltas
+                // are divided by PointerInputScope.size before being forwarded to the
+                // ViewModel, converting them to the same normalised fraction space used
+                // for storage. Zoom is forwarded as a multiplicative scale step.
                 if (referenceUri != null) {
                     AsyncImage(
                         model = referenceUri,
@@ -263,12 +302,22 @@ fun CameraScreen(
                         )
                     },
                     onResetOverlay = { viewModel.onOverlayReset() },
+                    onCapture = onCapture,
                     isLandscape = isLandscape,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .background(GhostShotOverlayScrim)
                         .navigationBarsPadding()
+                )
+
+                // ── Layer 5: Snackbar ─────────────────────────────────────────────────
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 72.dp)
                 )
             }
         }
@@ -342,11 +391,13 @@ private fun CameraBottomOverlay(
     onAlphaChange: (Float) -> Unit,
     onSelectReferenceImage: () -> Unit,
     onResetOverlay: () -> Unit,
+    onCapture: () -> Unit,
     isLandscape: Boolean,
     modifier: Modifier = Modifier
 ) {
     if (isLandscape) {
-        // Single row: picker icon on the left, reset + slider when overlay is active.
+        // Single row: picker icon on the left, reset + slider when overlay is active,
+        // shutter button at the right end.
         // padding(vertical = 8.dp) gives natural breathing room without forcing a height.
         Row(
             modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -378,6 +429,13 @@ private fun CameraBottomOverlay(
                         .semantics { contentDescription = opacityLabel }
                 )
             }
+            IconButton(onClick = onCapture) {
+                Icon(
+                    imageVector = Icons.Filled.PhotoCamera,
+                    contentDescription = stringResource(R.string.capture_button_content_description),
+                    tint = GhostShotTextPrimary
+                )
+            }
         }
     } else {
         // Vertical stack: opacity controls above the action bar.
@@ -391,7 +449,8 @@ private fun CameraBottomOverlay(
             CameraBottomBar(
                 onSelectReferenceImage = onSelectReferenceImage,
                 isOverlayActive = referenceUri != null,
-                onResetOverlay = onResetOverlay
+                onResetOverlay = onResetOverlay,
+                onCapture = onCapture
             )
         }
     }
@@ -401,7 +460,7 @@ private fun CameraBottomOverlay(
  * Context-sensitive controls shown above the bottom bar in portrait when a reference
  * overlay is active.
  *
- * Currently contains only the opacity slider. Additional per-overlay controls
+ * Currently, contains only the opacity slider. Additional per-overlay controls
  * (e.g. scale indicator) can be added to the Row in future steps.
  */
 @Composable
@@ -431,9 +490,8 @@ private fun OverlayContextControls(
 /**
  * Primary action bar used in portrait layout.
  *
- * Uses [Arrangement.SpaceEvenly] so that additional actions (grid toggle,
- * zoom mode, capture) can be inserted alongside the existing items without
- * layout changes.
+ * Uses [Arrangement.SpaceEvenly] so that actions sit evenly across the bar.
+ * Button order: [Reference] [Shutter] [Reset (conditional)].
  *
  * The reset button is only shown when an overlay is active ([isOverlayActive] is true).
  */
@@ -442,6 +500,7 @@ private fun CameraBottomBar(
     onSelectReferenceImage: () -> Unit,
     isOverlayActive: Boolean,
     onResetOverlay: () -> Unit,
+    onCapture: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -461,6 +520,20 @@ private fun CameraBottomBar(
             }
             Text(
                 text = stringResource(R.string.select_reference_image_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = GhostShotTextSecondary
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            IconButton(onClick = onCapture) {
+                Icon(
+                    imageVector = Icons.Filled.PhotoCamera,
+                    contentDescription = stringResource(R.string.capture_button_content_description),
+                    tint = GhostShotTextPrimary
+                )
+            }
+            Text(
+                text = stringResource(R.string.capture_button_label),
                 style = MaterialTheme.typography.labelSmall,
                 color = GhostShotTextSecondary
             )

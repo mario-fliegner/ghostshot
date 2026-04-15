@@ -12,7 +12,7 @@ class CameraViewModelTest {
 
     @Before
     fun setUp() {
-        viewModel = CameraViewModel()
+        viewModel = CameraViewModel(mock())
     }
 
     // --- onReferenceImageSelected ---
