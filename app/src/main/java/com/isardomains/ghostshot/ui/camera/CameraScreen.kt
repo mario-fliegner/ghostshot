@@ -14,7 +14,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -219,14 +219,16 @@ fun CameraScreen(
                             .graphicsLayer {
                                 translationX = uiState.overlayOffsetX * size.width
                                 translationY = uiState.overlayOffsetY * size.height
+                                scaleX = uiState.overlayScale
+                                scaleY = uiState.overlayScale
                             }
                             .pointerInput(Unit) {
-                                detectDragGestures { change, dragAmount ->
-                                    change.consume()
+                                detectTransformGestures { _, pan, zoom, _ ->
                                     viewModel.onOverlayDragged(
-                                        dx = dragAmount.x / size.width,
-                                        dy = dragAmount.y / size.height
+                                        dx = pan.x / size.width,
+                                        dy = pan.y / size.height
                                     )
+                                    viewModel.onOverlayScaled(zoom)
                                 }
                             },
                         contentScale = ContentScale.Fit,

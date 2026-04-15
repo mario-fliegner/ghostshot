@@ -36,6 +36,7 @@ enum class InteractionMode {
  * @param overlayOffsetY Vertical position as a normalised fraction of the container height.
  *   Same semantics as [overlayOffsetX].
  * @param overlayScale Scale factor applied to the overlay. 1.0 represents the default fit size.
+ *   Clamped to [CameraViewModel.MIN_SCALE, CameraViewModel.MAX_SCALE].
  * @param overlayAlpha Opacity of the overlay, clamped to [0.1, 0.9]. Default is 0.5.
  * @param isGridVisible Whether the 3x3 rule-of-thirds grid is currently shown.
  * @param interactionMode The currently active gesture interaction mode.
@@ -64,6 +65,13 @@ class CameraViewModel @Inject constructor() : ViewModel() {
 
     /** Observed by [CameraScreen] to render the current UI state. */
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
+
+    companion object {
+        /** Minimum allowed scale for the reference image overlay. */
+        const val MIN_SCALE = 0.5f
+        /** Maximum allowed scale for the reference image overlay. */
+        const val MAX_SCALE = 3.0f
+    }
 
     /**
      * Called when the user selects a reference image via the photo picker.
@@ -111,6 +119,23 @@ class CameraViewModel @Inject constructor() : ViewModel() {
                 overlayOffsetX = (it.overlayOffsetX + dx).coerceIn(-0.5f, 0.5f),
                 overlayOffsetY = (it.overlayOffsetY + dy).coerceIn(-0.5f, 0.5f)
             )
+        }
+    }
+
+    /**
+     * Called on each pinch event while the user scales the reference image overlay.
+     *
+     * [scaleFactor] is the multiplicative zoom step emitted by the gesture detector for
+     * this single event (e.g. 1.1 = 10% larger, 0.9 = 10% smaller). It is applied
+     * cumulatively to [CameraUiState.overlayScale] and the result is clamped to
+     * [MIN_SCALE, MAX_SCALE].
+     *
+     * @param scaleFactor Multiplicative scale step from the pinch gesture (zoom field of
+     *   detectTransformGestures).
+     */
+    fun onOverlayScaled(scaleFactor: Float) {
+        _uiState.update {
+            it.copy(overlayScale = (it.overlayScale * scaleFactor).coerceIn(MIN_SCALE, MAX_SCALE))
         }
     }
 

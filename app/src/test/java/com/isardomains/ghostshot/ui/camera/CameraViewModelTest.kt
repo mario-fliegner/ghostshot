@@ -98,4 +98,43 @@ class CameraViewModelTest {
         viewModel.onOverlayReset()
         assertEquals(0.8f, viewModel.uiState.value.overlayAlpha)
     }
+
+    // --- onOverlayScaled ---
+
+    @Test
+    fun onOverlayScaled_validFactor_updatesScale() {
+        viewModel.onOverlayScaled(1.5f)
+        assertEquals(1.5f, viewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun onOverlayScaled_clampsAtMin() {
+        // 1.0 * 0.1 = 0.1, clamped to 0.5
+        viewModel.onOverlayScaled(0.1f)
+        assertEquals(0.5f, viewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun onOverlayScaled_clampsAtMax() {
+        // 1.0 * 4.0 = 4.0, clamped to 3.0
+        viewModel.onOverlayScaled(4.0f)
+        assertEquals(3.0f, viewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun onOverlayScaled_doesNotAffectOtherState() {
+        viewModel.onOverlayAlphaChanged(0.7f)
+        viewModel.onOverlayDragged(0.1f, 0.1f)
+        viewModel.onOverlayScaled(1.5f)
+        assertEquals(0.7f, viewModel.uiState.value.overlayAlpha)
+        assertEquals(0.1f, viewModel.uiState.value.overlayOffsetX)
+        assertEquals(0.1f, viewModel.uiState.value.overlayOffsetY)
+    }
+
+    @Test
+    fun onOverlayReset_resetsScaleToDefault() {
+        viewModel.onOverlayScaled(2.0f)
+        viewModel.onOverlayReset()
+        assertEquals(1f, viewModel.uiState.value.overlayScale)
+    }
 }
