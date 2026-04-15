@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(find /c/data/work/privat/git-repos/ghostshot/app/src/main/res/mipmap-* -type f)"
-    ]
-  }
-}
