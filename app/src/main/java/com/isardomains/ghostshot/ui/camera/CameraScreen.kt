@@ -35,7 +35,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -318,19 +317,7 @@ fun CameraScreen(
                     }
                 }
 
-                // ── Layer 3: Top zone ─────────────────────────────────────────────────
-                // Structurally reserved for future secondary actions (grid toggle,
-                // interaction mode switch, etc.). Currently only provides the status
-                // bar inset; zero visible height without content.
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .fillMaxWidth()
-                        .background(GhostShotOverlayScrim)
-                        .statusBarsPadding()
-                )
-
-                // ── Layer 4: Camera controls overlay ─────────────────────────────────
+                // ── Layer 3: Camera controls overlay ─────────────────────────────────
                 CameraControlsOverlay(
                     referenceUri = referenceUri,
                     alpha = uiState.overlayAlpha,
@@ -348,7 +335,7 @@ fun CameraScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // ── Layer 5: Snackbar ─────────────────────────────────────────────────
+                // ── Layer 4: Snackbar ─────────────────────────────────────────────────
                 successMessage?.let { message ->
                     SaveSuccessOverlay(
                         message = message,
@@ -461,6 +448,7 @@ internal fun CameraControlsOverlay(
 ) {
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
     val bottomPadding = if (isLandscape) 18.dp else 24.dp
+    val referenceBottomPadding = if (isLandscape) bottomPadding else 38.dp
     val sliderBottomPadding = if (isLandscape) bottomPadding else 128.dp
 
     Box(modifier = modifier) {
@@ -508,7 +496,7 @@ internal fun CameraControlsOverlay(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .navigationBarsPadding()
-                .padding(start = horizontalPadding, bottom = bottomPadding)
+                .padding(start = horizontalPadding, bottom = referenceBottomPadding)
         )
 
         ShutterButton(
