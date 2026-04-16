@@ -45,6 +45,8 @@ class CameraControlsOverlayTest {
         composeRule.onNodeWithContentDescription(captureDescription()).assertIsDisplayed()
         composeRule.onAllNodesWithContentDescription(resetDescription()).assertCountEquals(0)
         composeRule.onAllNodesWithContentDescription(opacityDescription()).assertCountEquals(0)
+        composeRule.onAllNodesWithContentDescription(displayModeDescription()).assertCountEquals(0)
+        composeRule.onAllNodesWithContentDescription(mismatchDescription()).assertCountEquals(0)
     }
 
     @Test
@@ -55,6 +57,8 @@ class CameraControlsOverlayTest {
         composeRule.onNodeWithContentDescription(captureDescription()).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(resetDescription()).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(opacityDescription()).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(displayModeDescription()).assertIsDisplayed()
+        composeRule.onAllNodesWithContentDescription(mismatchDescription()).assertCountEquals(0)
     }
 
     @Test
@@ -65,9 +69,25 @@ class CameraControlsOverlayTest {
         composeRule.onNodeWithContentDescription(captureDescription()).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(resetDescription()).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(opacityDescription()).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(displayModeDescription()).assertIsDisplayed()
     }
 
-    private fun setControlsContent(referenceUri: Uri?, isLandscape: Boolean) {
+    @Test
+    fun controls_withMismatch_showMismatchHint() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).assertIsDisplayed()
+    }
+
+    private fun setControlsContent(
+        referenceUri: Uri?,
+        isLandscape: Boolean,
+        hasViewportMismatch: Boolean = false
+    ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario?.onActivity { activity ->
@@ -84,6 +104,9 @@ class CameraControlsOverlayTest {
                         onAlphaChange = {},
                         onSelectReferenceImage = {},
                         onResetOverlay = {},
+                        displayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+                        hasViewportMismatch = hasViewportMismatch,
+                        onToggleDisplayMode = {},
                         onCapture = {},
                         isLandscape = isLandscape,
                         modifier = Modifier.fillMaxSize()
@@ -108,4 +131,8 @@ class CameraControlsOverlayTest {
     private fun resetDescription() = context.getString(R.string.reset_overlay_label)
 
     private fun opacityDescription() = context.getString(R.string.overlay_opacity_label)
+
+    private fun displayModeDescription() = context.getString(R.string.toggle_reference_display_mode)
+
+    private fun mismatchDescription() = context.getString(R.string.reference_viewport_mismatch)
 }

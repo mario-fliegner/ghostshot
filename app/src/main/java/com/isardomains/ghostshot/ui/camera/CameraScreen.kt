@@ -28,21 +28,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,16 +66,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
@@ -85,6 +92,7 @@ import com.isardomains.ghostshot.ui.theme.GhostShotOverlayScrim
 import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
 import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
 import kotlinx.coroutines.delay
+import kotlin.math.max
 
 /**
  * Represents the four distinct states of the CAMERA permission lifecycle.
@@ -180,7 +188,6 @@ fun CameraScreen(
             val referenceUri = uiState.referenceImageUri
             val isLandscape =
                 LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-
             val activeAspectRatio = uiState.activeAspectRatio
             val imageCaptureState = remember { mutableStateOf<ImageCapture?>(null) }
             val snackbarHostState = remember { SnackbarHostState() }
@@ -239,7 +246,13 @@ fun CameraScreen(
                 )
             }
 
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { size ->
+                        viewModel.onReferenceViewportChanged(size.width, size.height)
+                    }
+            ) {
 
                 // ── Camera viewport (Layer 1 + Layer 2) ──────────────────────────────
                 // Keyed by activeAspectRatio so that the ImageCapture use case and
@@ -289,29 +302,19 @@ fun CameraScreen(
                         // Shares the same viewport container as the preview. Position and scale
                         // use normalised fractions so gesture math in the ViewModel is unchanged.
                         if (referenceUri != null) {
-                            AsyncImage(
-                                model = referenceUri,
-                                contentDescription = stringResource(R.string.overlay_content_description),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .align(Alignment.Center)
-                                    .graphicsLayer {
-                                        translationX = uiState.overlayOffsetX * size.width
-                                        translationY = uiState.overlayOffsetY * size.height
-                                        scaleX = uiState.overlayScale
-                                        scaleY = uiState.overlayScale
-                                    }
-                                    .pointerInput(Unit) {
-                                        detectTransformGestures { _, pan, zoom, _ ->
-                                            viewModel.onOverlayDragged(
-                                                dx = pan.x / size.width,
-                                                dy = pan.y / size.height
-                                            )
-                                            viewModel.onOverlayScaled(zoom)
-                                        }
-                                    },
-                                contentScale = ContentScale.Fit,
+                            ReferenceImageOverlay(
+                                referenceUri = referenceUri,
+                                metadata = uiState.referenceImageMetadata,
+                                displayMode = uiState.referenceImageDisplayMode,
+                                offsetX = uiState.overlayOffsetX,
+                                offsetY = uiState.overlayOffsetY,
+                                scale = uiState.overlayScale,
                                 alpha = uiState.overlayAlpha,
+                                onDragged = { dx, dy ->
+                                    viewModel.onOverlayDragged(dx = dx, dy = dy)
+                                },
+                                onScaled = { zoom -> viewModel.onOverlayScaled(zoom) },
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     }
@@ -330,6 +333,9 @@ fun CameraScreen(
                         )
                     },
                     onResetOverlay = { viewModel.onOverlayReset() },
+                    displayMode = uiState.referenceImageDisplayMode,
+                    hasViewportMismatch = uiState.referenceImageHasViewportMismatch,
+                    onToggleDisplayMode = { viewModel.onReferenceImageDisplayModeToggle() },
                     onCapture = onCapture,
                     isLandscape = isLandscape,
                     modifier = Modifier.fillMaxSize()
@@ -403,6 +409,151 @@ fun CameraScreen(
     }
 }
 
+@Composable
+private fun ReferenceImageOverlay(
+    referenceUri: Uri,
+    metadata: ReferenceImageMetadata?,
+    displayMode: ReferenceImageDisplayMode,
+    offsetX: Float,
+    offsetY: Float,
+    scale: Float,
+    alpha: Float,
+    onDragged: (dx: Float, dy: Float) -> Unit,
+    onScaled: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var viewportSize by remember { mutableStateOf(IntSize.Zero) }
+    val overlayDescription = stringResource(R.string.overlay_content_description)
+
+    Box(
+        modifier = modifier
+            .clipToBounds()
+            .onSizeChanged { viewportSize = it }
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    if (size.width > 0 && size.height > 0) {
+                        onDragged(
+                            pan.x / size.width,
+                            pan.y / size.height
+                        )
+                        onScaled(zoom)
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            displayMode == ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW && metadata != null -> {
+                CompareReferenceImage(
+                    referenceUri = referenceUri,
+                    metadata = metadata,
+                    viewportSize = viewportSize,
+                    offsetX = offsetX,
+                    offsetY = offsetY,
+                    scale = scale,
+                    alpha = alpha,
+                    contentDescription = overlayDescription
+                )
+            }
+
+            displayMode == ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW -> {
+                AsyncImage(
+                    model = referenceUri,
+                    contentDescription = overlayDescription,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationX = offsetX * size.width
+                            translationY = offsetY * size.height
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                    contentScale = ContentScale.Crop,
+                    alpha = alpha,
+                )
+            }
+
+            else -> {
+                AsyncImage(
+                    model = referenceUri,
+                    contentDescription = overlayDescription,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationX = offsetX * size.width
+                            translationY = offsetY * size.height
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                    contentScale = ContentScale.Fit,
+                    alpha = alpha,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompareReferenceImage(
+    referenceUri: Uri,
+    metadata: ReferenceImageMetadata,
+    viewportSize: IntSize,
+    offsetX: Float,
+    offsetY: Float,
+    scale: Float,
+    alpha: Float,
+    contentDescription: String
+) {
+    if (
+        viewportSize.width <= 0 ||
+        viewportSize.height <= 0 ||
+        metadata.orientedWidth <= 0 ||
+        metadata.orientedHeight <= 0
+    ) {
+        AsyncImage(
+            model = referenceUri,
+            contentDescription = contentDescription,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = alpha,
+        )
+        return
+    }
+
+    val density = LocalDensity.current
+    val imageWidth = metadata.orientedWidth.toFloat()
+    val imageHeight = metadata.orientedHeight.toFloat()
+    val viewportWidth = viewportSize.width.toFloat()
+    val viewportHeight = viewportSize.height.toFloat()
+    val fillScale = max(viewportWidth / imageWidth, viewportHeight / imageHeight)
+    val displayedWidth = imageWidth * fillScale
+    val displayedHeight = imageHeight * fillScale
+    val scaledWidth = displayedWidth * scale
+    val scaledHeight = displayedHeight * scale
+    val maxTranslationX = max(0f, (scaledWidth - viewportWidth) / 2f)
+    val maxTranslationY = max(0f, (scaledHeight - viewportHeight) / 2f)
+    val translationX = (offsetX * viewportWidth).coerceIn(-maxTranslationX, maxTranslationX)
+    val translationY = (offsetY * viewportHeight).coerceIn(-maxTranslationY, maxTranslationY)
+
+    AsyncImage(
+        model = referenceUri,
+        contentDescription = contentDescription,
+        modifier = Modifier
+            .requiredSize(
+                width = with(density) { displayedWidth.toDp() },
+                height = with(density) { displayedHeight.toDp() }
+            )
+            .graphicsLayer {
+                this.translationX = translationX
+                this.translationY = translationY
+                scaleX = scale
+                scaleY = scale
+            },
+        contentScale = ContentScale.FillBounds,
+        alpha = alpha,
+    )
+}
+
 /**
  * Short save confirmation shown away from the camera controls.
  */
@@ -442,6 +593,9 @@ internal fun CameraControlsOverlay(
     onAlphaChange: (Float) -> Unit,
     onSelectReferenceImage: () -> Unit,
     onResetOverlay: () -> Unit,
+    displayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+    hasViewportMismatch: Boolean = false,
+    onToggleDisplayMode: () -> Unit = {},
     onCapture: () -> Unit,
     isLandscape: Boolean,
     modifier: Modifier = Modifier
@@ -450,9 +604,51 @@ internal fun CameraControlsOverlay(
     val bottomPadding = if (isLandscape) 18.dp else 24.dp
     val referenceBottomPadding = if (isLandscape) bottomPadding else 38.dp
     val sliderBottomPadding = if (isLandscape) bottomPadding else 128.dp
+    val mismatchDescription = stringResource(R.string.reference_viewport_mismatch)
 
     Box(modifier = modifier) {
         if (referenceUri != null) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .systemBarsPadding()
+                    .padding(top = 12.dp, start = horizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onToggleDisplayMode,
+                    modifier = Modifier.background(GhostShotOverlayScrim, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = when (displayMode) {
+                            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW -> Icons.Default.CropFree
+                            ReferenceImageDisplayMode.SHOW_FULL_IMAGE -> Icons.Default.AspectRatio
+                        },
+                        contentDescription = stringResource(R.string.toggle_reference_display_mode),
+                        tint = GhostShotTextPrimary
+                    )
+                }
+
+                if (hasViewportMismatch) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(GhostShotOverlayScrim, CircleShape)
+                            .semantics {
+                                contentDescription = mismatchDescription
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = GhostShotTextPrimary
+                        )
+                    }
+                }
+            }
+
             IconButton(
                 onClick = onResetOverlay,
                 modifier = Modifier

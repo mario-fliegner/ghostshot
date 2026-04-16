@@ -19,4 +19,6 @@
     <string name="overlay_content_description">Reference photo overlay</string>
     <string name="overlay_opacity_label">Opacity</string>
     <string name="reset_overlay_label">Reset</string>
+    <string name="toggle_reference_display_mode">Toggle reference display mode</string>
+    <string name="reference_viewport_mismatch">Reference image differs from the current viewport</string>
 </resources>

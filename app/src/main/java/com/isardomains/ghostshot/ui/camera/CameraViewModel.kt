@@ -2,7 +2,6 @@ package com.isardomains.ghostshot.ui.camera
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.annotation.StringRes
@@ -43,6 +42,14 @@ enum class InteractionMode {
     CAMERA_ZOOM
 }
 
+data class ReferenceImageMetadata(
+    val rawWidth: Int,
+    val rawHeight: Int,
+    val orientedWidth: Int,
+    val orientedHeight: Int,
+    val exifOrientation: Int?
+)
+
 /**
  * Represents the complete UI state for the camera screen during an active session.
  *
@@ -69,7 +76,10 @@ data class CameraUiState(
     val overlayAlpha: Float = 0.5f,
     val isGridVisible: Boolean = false,
     val interactionMode: InteractionMode = InteractionMode.OVERLAY_ADJUST,
-    val activeAspectRatio: TargetAspectRatio = TargetAspectRatio.RATIO_16_9
+    val activeAspectRatio: TargetAspectRatio = TargetAspectRatio.RATIO_16_9,
+    val referenceImageDisplayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+    val referenceImageHasViewportMismatch: Boolean = false,
+    val referenceImageMetadata: ReferenceImageMetadata? = null
 )
 
 /**
@@ -98,30 +108,23 @@ class CameraViewModel @Inject constructor(
 
     private var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
-    private var imageDimensionReader: (Uri) -> Pair<Int, Int>? = { uri ->
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        val success = try {
-            val stream = context.contentResolver.openInputStream(uri)
-            if (stream != null) {
-                stream.use { BitmapFactory.decodeStream(it, null, opts) }
-                true
-            } else {
-                false
-            }
-        } catch (_: Exception) {
-            false
+    private var referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata? = { uri ->
+        ReferenceImageMetadataReader.read {
+            context.contentResolver.openInputStream(uri)
         }
-        if (success && opts.outWidth > 0 && opts.outHeight > 0) Pair(opts.outWidth, opts.outHeight) else null
     }
 
-    /** Used in unit tests to inject a controlled dispatcher and dimension reader. */
+    private var viewportSize: Pair<Int, Int>? = null
+    private var displayModeChangedByUser = false
+
+    /** Used in unit tests to inject a controlled dispatcher and metadata reader. */
     internal constructor(
         context: Context,
         ioDispatcher: CoroutineDispatcher,
-        imageDimensionReader: (Uri) -> Pair<Int, Int>?
+        referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata?
     ) : this(context) {
         this.ioDispatcher = ioDispatcher
-        this.imageDimensionReader = imageDimensionReader
+        this.referenceImageMetadataReader = referenceImageMetadataReader
     }
 
     private val _uiState = MutableStateFlow(CameraUiState())
@@ -152,26 +155,61 @@ class CameraViewModel @Inject constructor(
     fun onReferenceImageSelected(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch(ioDispatcher) {
-            val dimensions = imageDimensionReader(uri) ?: return@launch
-            val longer = maxOf(dimensions.first, dimensions.second).toFloat()
-            val shorter = minOf(dimensions.first, dimensions.second).toFloat()
+            val metadata = referenceImageMetadataReader(uri) ?: return@launch
+            val longer = maxOf(metadata.orientedWidth, metadata.orientedHeight).toFloat()
+            val shorter = minOf(metadata.orientedWidth, metadata.orientedHeight).toFloat()
             val ratio = longer / shorter
             val newAspectRatio = if (abs(ratio - 4f / 3f) <= abs(ratio - 16f / 9f)) {
                 TargetAspectRatio.RATIO_4_3
             } else {
                 TargetAspectRatio.RATIO_16_9
             }
+            val recommendation = getDisplayRecommendation(metadata, viewportSize)
+            displayModeChangedByUser = false
             _uiState.update { current ->
                 val formatChanged = current.activeAspectRatio != newAspectRatio
                 current.copy(
                     referenceImageUri = uri,
                     activeAspectRatio = newAspectRatio,
+                    referenceImageMetadata = metadata,
+                    referenceImageHasViewportMismatch = recommendation.hasStrongMismatch,
+                    referenceImageDisplayMode = recommendation.startMode,
                     overlayOffsetX = if (formatChanged) 0f else current.overlayOffsetX,
                     overlayOffsetY = if (formatChanged) 0f else current.overlayOffsetY,
                     overlayScale = if (formatChanged) 1f else current.overlayScale
                 )
             }
         }
+    }
+
+    fun onReferenceViewportChanged(width: Int, height: Int) {
+        if (width <= 0 || height <= 0) return
+        viewportSize = Pair(width, height)
+        _uiState.update { current ->
+            val metadata = current.referenceImageMetadata ?: return@update current
+            val recommendation = getDisplayRecommendation(metadata, viewportSize)
+            current.copy(
+                referenceImageHasViewportMismatch = recommendation.hasStrongMismatch,
+                referenceImageDisplayMode = if (!displayModeChangedByUser) {
+                    recommendation.startMode
+                } else {
+                    current.referenceImageDisplayMode
+                }
+            )
+        }
+    }
+
+    fun onReferenceImageDisplayModeChanged(displayMode: ReferenceImageDisplayMode) {
+        displayModeChangedByUser = true
+        _uiState.update { it.copy(referenceImageDisplayMode = displayMode) }
+    }
+
+    fun onReferenceImageDisplayModeToggle() {
+        val next = when (_uiState.value.referenceImageDisplayMode) {
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW -> ReferenceImageDisplayMode.SHOW_FULL_IMAGE
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE -> ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW
+        }
+        onReferenceImageDisplayModeChanged(next)
     }
 
     /**
@@ -220,16 +258,24 @@ class CameraViewModel @Inject constructor(
     /**
      * Resets the overlay position and scale to their default values.
      *
-     * Only [CameraUiState.overlayOffsetX], [CameraUiState.overlayOffsetY], and
-     * [CameraUiState.overlayScale] are affected. The reference image URI and
+     * Resets position and scale, and restores the automatically recommended display
+     * mode for the current reference image and viewport. The reference image URI and
      * opacity are intentionally preserved.
      */
     fun onOverlayReset() {
-        _uiState.update {
-            it.copy(
+        displayModeChangedByUser = false
+        _uiState.update { current ->
+            val recommendation = current.referenceImageMetadata?.let { metadata ->
+                getDisplayRecommendation(metadata, viewportSize)
+            }
+            current.copy(
                 overlayOffsetX = 0f,
                 overlayOffsetY = 0f,
-                overlayScale = 1f
+                overlayScale = 1f,
+                referenceImageDisplayMode = recommendation?.startMode
+                    ?: current.referenceImageDisplayMode,
+                referenceImageHasViewportMismatch = recommendation?.hasStrongMismatch
+                    ?: current.referenceImageHasViewportMismatch
             )
         }
     }
@@ -277,4 +323,21 @@ class CameraViewModel @Inject constructor(
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
+    private fun getDisplayRecommendation(
+        metadata: ReferenceImageMetadata,
+        viewportSize: Pair<Int, Int>?
+    ): ReferenceImageDisplayRecommendation {
+        val (viewportWidth, viewportHeight) = viewportSize
+            ?: return ReferenceImageDisplayRecommendation(
+                cropLoss = 0f,
+                hasStrongMismatch = false,
+                startMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW
+            )
+        return ReferenceImageMismatchHeuristic.evaluate(
+            orientedImageWidth = metadata.orientedWidth,
+            orientedImageHeight = metadata.orientedHeight,
+            viewportWidth = viewportWidth,
+            viewportHeight = viewportHeight
+        )
+    }
 }

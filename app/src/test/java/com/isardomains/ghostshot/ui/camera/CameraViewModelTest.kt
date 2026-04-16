@@ -33,7 +33,7 @@ class CameraViewModelTest {
 
     @Test
     fun onReferenceImageSelected_setsUri() = runTest {
-        val testViewModel = CameraViewModel(mock(), UnconfinedTestDispatcher(), { Pair(1920, 1080) })
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
         val uri = mock<Uri>()
         testViewModel.onReferenceImageSelected(uri)
         assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
@@ -41,11 +41,133 @@ class CameraViewModelTest {
 
     @Test
     fun onReferenceImageSelected_null_preservesExistingUri() = runTest {
-        val testViewModel = CameraViewModel(mock(), UnconfinedTestDispatcher(), { Pair(1920, 1080) })
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
         val uri = mock<Uri>()
         testViewModel.onReferenceImageSelected(uri)
         testViewModel.onReferenceImageSelected(null)
         assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
+    }
+
+    @Test
+    fun onReferenceImageSelected_normalViewport_startsCompareMode() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+
+        testViewModel.onReferenceImageSelected(mock())
+
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(false, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onReferenceImageSelected_strongViewportMismatch_startsFullImageMode() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+
+        testViewModel.onReferenceImageSelected(mock())
+
+        assertEquals(
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(true, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onReferenceImageSelected_exifRotatedDimensions_driveStartMode() = runTest {
+        val testViewModel = testViewModelWithMetadata(
+            rawWidth = 1920,
+            rawHeight = 1080,
+            orientedWidth = 1080,
+            orientedHeight = 1920,
+            exifOrientation = 6
+        )
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+
+        testViewModel.onReferenceImageSelected(mock())
+
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(false, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onReferenceViewportChanged_withoutReference_keepsDefaultReferenceState() {
+        viewModel.onReferenceViewportChanged(1080, 1920)
+
+        assertEquals(null, viewModel.uiState.value.referenceImageUri)
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            viewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(false, viewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onReferenceImageDisplayModeChanged_updatesUiState() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+
+        assertEquals(
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+    }
+
+    @Test
+    fun onReferenceImageDisplayModeToggle_switchesBetweenModes() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onReferenceImageDisplayModeToggle()
+        assertEquals(
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+
+        testViewModel.onReferenceImageDisplayModeToggle()
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+    }
+
+    @Test
+    fun onReferenceViewportChanged_withReferenceReevaluatesStartModeAndMismatch() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onReferenceViewportChanged(1920, 1080)
+
+        assertEquals(
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(true, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onReferenceViewportChanged_afterManualModeChangeKeepsManualModeButUpdatesMismatch() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW)
+
+        testViewModel.onReferenceViewportChanged(1920, 1080)
+
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(true, testViewModel.uiState.value.referenceImageHasViewportMismatch)
     }
 
     // --- onOverlayAlphaChanged ---
@@ -92,6 +214,7 @@ class CameraViewModelTest {
     @Test
     fun onOverlayReset_resetsPositionAndScale() {
         viewModel.onOverlayDragged(0.3f, 0.3f)
+        viewModel.onOverlayScaled(2.0f)
         viewModel.onOverlayReset()
         assertEquals(0f, viewModel.uiState.value.overlayOffsetX)
         assertEquals(0f, viewModel.uiState.value.overlayOffsetY)
@@ -100,7 +223,7 @@ class CameraViewModelTest {
 
     @Test
     fun onOverlayReset_preservesReferenceImageUri() = runTest {
-        val testViewModel = CameraViewModel(mock(), UnconfinedTestDispatcher(), { Pair(1920, 1080) })
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
         val uri = mock<Uri>()
         testViewModel.onReferenceImageSelected(uri)
         testViewModel.onOverlayDragged(0.1f, 0.1f)
@@ -114,6 +237,60 @@ class CameraViewModelTest {
         viewModel.onOverlayDragged(0.1f, 0.1f)
         viewModel.onOverlayReset()
         assertEquals(0.8f, viewModel.uiState.value.overlayAlpha)
+    }
+
+    @Test
+    fun onOverlayReset_withStrongMismatch_restoresFullImageStartMode() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW)
+        testViewModel.onOverlayDragged(0.2f, -0.2f)
+        testViewModel.onOverlayScaled(1.5f)
+
+        testViewModel.onOverlayReset()
+
+        assertEquals(
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(true, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+        assertEquals(0f, testViewModel.uiState.value.overlayOffsetX)
+        assertEquals(0f, testViewModel.uiState.value.overlayOffsetY)
+        assertEquals(1f, testViewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun onOverlayReset_withNormalMatch_restoresCompareStartMode() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+
+        testViewModel.onOverlayReset()
+
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(false, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onOverlayReset_afterManualModeChange_allowsFutureViewportAutoUpdates() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+
+        testViewModel.onOverlayReset()
+        testViewModel.onReferenceViewportChanged(1920, 1080)
+
+        assertEquals(
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(true, testViewModel.uiState.value.referenceImageHasViewportMismatch)
     }
 
     // --- onOverlayScaled ---
@@ -153,5 +330,27 @@ class CameraViewModelTest {
         viewModel.onOverlayScaled(2.0f)
         viewModel.onOverlayReset()
         assertEquals(1f, viewModel.uiState.value.overlayScale)
+    }
+
+    private fun testViewModelWithMetadata(
+        rawWidth: Int,
+        rawHeight: Int,
+        orientedWidth: Int = rawWidth,
+        orientedHeight: Int = rawHeight,
+        exifOrientation: Int? = null
+    ): CameraViewModel {
+        return CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            {
+                ReferenceImageMetadata(
+                    rawWidth = rawWidth,
+                    rawHeight = rawHeight,
+                    orientedWidth = orientedWidth,
+                    orientedHeight = orientedHeight,
+                    exifOrientation = exifOrientation
+                )
+            }
+        )
     }
 }
