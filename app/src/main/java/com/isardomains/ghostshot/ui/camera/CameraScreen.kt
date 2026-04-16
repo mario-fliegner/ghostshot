@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -23,14 +24,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -38,8 +42,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,6 +65,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
@@ -165,19 +173,38 @@ fun CameraScreen(
             val isLandscape =
                 LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-            val imageCapture = remember { ImageCapture.Builder().build() }
+            val imageCapture = remember {
+                ImageCapture.Builder()
+                    .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                    .build()
+            }
             val snackbarHostState = remember { SnackbarHostState() }
+            var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
 
             LaunchedEffect(viewModel) {
                 viewModel.uiEvent.collect { event ->
-                    when (event) {
-                        is UiEvent.ShowSnackbar ->
-                            snackbarHostState.showSnackbar(event.message)
+                    if (event is UiEvent.ShowSnackbar) {
+                        pendingSnackbarEvent = event
                     }
                 }
             }
 
-            val executor = ContextCompat.getMainExecutor(context)
+            val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
+            val pendingIsSuccess = pendingSnackbarEvent?.isSuccess ?: false
+
+            LaunchedEffect(pendingSnackbarEvent) {
+                if (pendingMessage != null) {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    if (pendingIsSuccess) {
+                        snackbarHostState.showSnackbar(SuccessSnackbarVisuals(pendingMessage))
+                    } else {
+                        snackbarHostState.showSnackbar(pendingMessage)
+                    }
+                    pendingSnackbarEvent = null
+                }
+            }
+
+            val executor = remember { java.util.concurrent.Executors.newSingleThreadExecutor() }
             val onCapture: () -> Unit = {
                 imageCapture.takePicture(
                     executor,
@@ -201,78 +228,77 @@ fun CameraScreen(
 
             Box(modifier = Modifier.fillMaxSize()) {
 
-                // ── Layer 1: Full-screen camera preview ───────────────────────────────
-                // Always fills the entire screen. Never constrained by UI zones above it.
-                AndroidView(
-                    factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                        cameraProviderFuture.addListener(
-                            {
-                                val cameraProvider = cameraProviderFuture.get()
-                                val preview = Preview.Builder().build().also {
-                                    it.setSurfaceProvider(previewView.surfaceProvider)
-                                }
-                                // Unbind all use cases before rebinding to avoid conflicts.
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    CameraSelector.DEFAULT_BACK_CAMERA,
-                                    preview,
-                                    imageCapture
-                                )
-                            },
-                            ContextCompat.getMainExecutor(ctx)
+                // ── 4:3 camera viewport (Layer 1 + Layer 2) ──────────────────────────
+                // Both the preview and the overlay share this container so that their
+                // coordinate spaces are identical. matchHeightConstraintsFirst ensures the
+                // container fits within the screen in both orientations without overflow.
+                Box(
+                    modifier = Modifier
+                        .semantics { testTag = "viewport_4_3" }
+                        .aspectRatio(
+                            ratio = if (isLandscape) 4f / 3f else 3f / 4f,
+                            matchHeightConstraintsFirst = !isLandscape
                         )
-                        previewView
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // ── Layer 2: Reference image overlay ──────────────────────────────────
-                // Composited over the full preview. Only present when the user has
-                // selected a reference image.
-                //
-                // Position is stored as normalised fractions in the ViewModel so that the
-                // overlay survives rotation without drifting off-screen. The graphicsLayer
-                // lambda multiplies each fraction by GraphicsLayerScope.size (the actual
-                // draw size of this composable at the time of drawing) to produce pixel
-                // translations. This is resolved per-frame, so the correct size is always
-                // used after a configuration change without any external size tracking.
-                //
-                // Keeping graphicsLayer translation separate from layout bounds means the
-                // full-screen touch area of the composable is unaffected by the current
-                // overlay position, so drag detection works uniformly across the viewport.
-                //
-                // detectTransformGestures receives pan and zoom simultaneously. Pan deltas
-                // are divided by PointerInputScope.size before being forwarded to the
-                // ViewModel, converting them to the same normalised fraction space used
-                // for storage. Zoom is forwarded as a multiplicative scale step.
-                if (referenceUri != null) {
-                    AsyncImage(
-                        model = referenceUri,
-                        contentDescription = stringResource(R.string.overlay_content_description),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .align(Alignment.Center)
-                            .graphicsLayer {
-                                translationX = uiState.overlayOffsetX * size.width
-                                translationY = uiState.overlayOffsetY * size.height
-                                scaleX = uiState.overlayScale
-                                scaleY = uiState.overlayScale
-                            }
-                            .pointerInput(Unit) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    viewModel.onOverlayDragged(
-                                        dx = pan.x / size.width,
-                                        dy = pan.y / size.height
+                        .align(Alignment.Center)
+                ) {
+                    // ── Layer 1: Camera preview ───────────────────────────────────────
+                    AndroidView(
+                        factory = { ctx ->
+                            val previewView = PreviewView(ctx)
+                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                            cameraProviderFuture.addListener(
+                                {
+                                    val cameraProvider = cameraProviderFuture.get()
+                                    val preview = Preview.Builder()
+                                        .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                                        .build().also {
+                                        it.setSurfaceProvider(previewView.surfaceProvider)
+                                    }
+                                    // Unbind all use cases before rebinding to avoid conflicts.
+                                    cameraProvider.unbindAll()
+                                    cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        CameraSelector.DEFAULT_BACK_CAMERA,
+                                        preview,
+                                        imageCapture
                                     )
-                                    viewModel.onOverlayScaled(zoom)
-                                }
-                            },
-                        contentScale = ContentScale.Fit,
-                        alpha = uiState.overlayAlpha,
+                                },
+                                ContextCompat.getMainExecutor(ctx)
+                            )
+                            previewView
+                        },
+                        modifier = Modifier.fillMaxSize()
                     )
+
+                    // ── Layer 2: Reference image overlay ──────────────────────────────
+                    // Shares the same 4:3 container as the preview. Position and scale use
+                    // normalised fractions so gesture math in the ViewModel is unchanged.
+                    if (referenceUri != null) {
+                        AsyncImage(
+                            model = referenceUri,
+                            contentDescription = stringResource(R.string.overlay_content_description),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .align(Alignment.Center)
+                                .graphicsLayer {
+                                    translationX = uiState.overlayOffsetX * size.width
+                                    translationY = uiState.overlayOffsetY * size.height
+                                    scaleX = uiState.overlayScale
+                                    scaleY = uiState.overlayScale
+                                }
+                                .pointerInput(Unit) {
+                                    detectTransformGestures { _, pan, zoom, _ ->
+                                        viewModel.onOverlayDragged(
+                                            dx = pan.x / size.width,
+                                            dy = pan.y / size.height
+                                        )
+                                        viewModel.onOverlayScaled(zoom)
+                                    }
+                                },
+                            contentScale = ContentScale.Fit,
+                            alpha = uiState.overlayAlpha,
+                        )
+                    }
                 }
 
                 // ── Layer 3: Top zone ─────────────────────────────────────────────────
@@ -317,7 +343,23 @@ fun CameraScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(bottom = 72.dp)
+                        .padding(bottom = 96.dp),
+                    snackbar = { data ->
+                        if (data.visuals is SuccessSnackbarVisuals) {
+                            Snackbar {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(data.visuals.message)
+                                }
+                            }
+                        } else {
+                            Snackbar(snackbarData = data)
+                        }
+                    }
                 )
             }
         }
@@ -556,3 +598,10 @@ private fun CameraBottomBar(
         }
     }
 }
+
+private class SuccessSnackbarVisuals(
+    override val message: String,
+    override val actionLabel: String? = null,
+    override val withDismissAction: Boolean = false,
+    override val duration: SnackbarDuration = SnackbarDuration.Short
+) : SnackbarVisuals

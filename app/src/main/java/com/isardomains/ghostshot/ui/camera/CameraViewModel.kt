@@ -2,10 +2,9 @@ package com.isardomains.ghostshot.ui.camera
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
-
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.ghostshot.R
@@ -69,8 +68,8 @@ data class CameraUiState(
  * persistent UI state.
  */
 sealed interface UiEvent {
-    /** Display a Snackbar with the given message. */
-    data class ShowSnackbar(val message: String) : UiEvent
+    /** Display a Snackbar with the given message. [isSuccess] controls visual style. */
+    data class ShowSnackbar(@StringRes val messageResId: Int, val isSuccess: Boolean = false) : UiEvent
 }
 
 /**
@@ -189,27 +188,15 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val corrected = rotateBitmap(bitmap, rotationDegrees)
-                val state = _uiState.value
-                val final = if (state.referenceImageUri != null) {
-                    val ref = loadBitmap(state.referenceImageUri)
-                    if (ref == null) {
-                        _uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.capture_failed)))
-                        return@launch
-                    }
-                    ImageCompositor.composite(corrected, ref, state)
-                } else {
-                    corrected
-                }
-                val result = MediaStoreWriter.save(context.contentResolver, final)
+                val result = MediaStoreWriter.save(context.contentResolver, corrected)
                 _uiEvent.emit(
                     UiEvent.ShowSnackbar(
-                        context.getString(
-                            if (result.isSuccess) R.string.capture_saved else R.string.capture_failed
-                        )
+                        messageResId = if (result.isSuccess) R.string.capture_saved else R.string.capture_failed,
+                        isSuccess = result.isSuccess
                     )
                 )
             } catch (e: Exception) {
-                _uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.capture_failed)))
+                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
             }
         }
     }
@@ -220,7 +207,7 @@ class CameraViewModel @Inject constructor(
      */
     fun onPhotoCaptureError() {
         viewModelScope.launch {
-            _uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.capture_failed)))
+            _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
         }
     }
 
@@ -230,9 +217,4 @@ class CameraViewModel @Inject constructor(
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    private fun loadBitmap(uri: Uri): Bitmap? = try {
-        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
-    } catch (e: Exception) {
-        null
-    }
 }
