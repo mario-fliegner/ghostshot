@@ -18,7 +18,11 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,8 +34,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -43,10 +50,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,6 +63,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -78,6 +85,7 @@ import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotOverlayScrim
 import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
 import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
+import kotlinx.coroutines.delay
 
 /**
  * Represents the four distinct states of the CAMERA permission lifecycle.
@@ -178,27 +186,35 @@ fun CameraScreen(
             val imageCaptureState = remember { mutableStateOf<ImageCapture?>(null) }
             val snackbarHostState = remember { SnackbarHostState() }
             var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
+            var successMessageResId by remember { mutableStateOf<Int?>(null) }
 
             LaunchedEffect(viewModel) {
                 viewModel.uiEvent.collect { event ->
                     if (event is UiEvent.ShowSnackbar) {
-                        pendingSnackbarEvent = event
+                        if (event.isSuccess) {
+                            successMessageResId = event.messageResId
+                        } else {
+                            pendingSnackbarEvent = event
+                        }
                     }
                 }
             }
 
             val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
-            val pendingIsSuccess = pendingSnackbarEvent?.isSuccess ?: false
+            val successMessage = successMessageResId?.let { stringResource(it) }
 
             LaunchedEffect(pendingSnackbarEvent) {
                 if (pendingMessage != null) {
                     snackbarHostState.currentSnackbarData?.dismiss()
-                    if (pendingIsSuccess) {
-                        snackbarHostState.showSnackbar(SuccessSnackbarVisuals(pendingMessage))
-                    } else {
-                        snackbarHostState.showSnackbar(pendingMessage)
-                    }
+                    snackbarHostState.showSnackbar(pendingMessage)
                     pendingSnackbarEvent = null
+                }
+            }
+
+            LaunchedEffect(successMessageResId) {
+                if (successMessageResId != null) {
+                    delay(1200)
+                    successMessageResId = null
                 }
             }
 
@@ -314,10 +330,8 @@ fun CameraScreen(
                         .statusBarsPadding()
                 )
 
-                // ── Layer 4: Bottom overlay ───────────────────────────────────────────
-                // Orientation-aware: portrait stacks controls vertically; landscape
-                // collapses them into a single compact row to preserve preview area.
-                CameraBottomOverlay(
+                // ── Layer 4: Camera controls overlay ─────────────────────────────────
+                CameraControlsOverlay(
                     referenceUri = referenceUri,
                     alpha = uiState.overlayAlpha,
                     onAlphaChange = { viewModel.onOverlayAlphaChanged(it) },
@@ -331,36 +345,24 @@ fun CameraScreen(
                     onResetOverlay = { viewModel.onOverlayReset() },
                     onCapture = onCapture,
                     isLandscape = isLandscape,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(GhostShotOverlayScrim)
-                        .navigationBarsPadding()
+                    modifier = Modifier.fillMaxSize()
                 )
 
                 // ── Layer 5: Snackbar ─────────────────────────────────────────────────
+                successMessage?.let { message ->
+                    SaveSuccessOverlay(
+                        message = message,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
                 SnackbarHost(
                     hostState = snackbarHostState,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
                         .padding(bottom = 96.dp),
-                    snackbar = { data ->
-                        if (data.visuals is SuccessSnackbarVisuals) {
-                            Snackbar {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = null
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(data.visuals.message)
-                                }
-                            }
-                        } else {
-                            Snackbar(snackbarData = data)
-                        }
-                    }
+                    snackbar = { data -> Snackbar(snackbarData = data) }
                 )
             }
         }
@@ -415,20 +417,39 @@ fun CameraScreen(
 }
 
 /**
- * Orientation-aware bottom overlay combining context controls and the primary action bar.
- *
- * Portrait: vertical stack — opacity slider above the action bar, matching the natural
- * reading order and giving the slider full width for comfortable interaction.
- *
- * Landscape: single horizontal row — picker button, optional reset button, and opacity
- * slider sit side-by-side, keeping vertical height minimal so the preview area stays
- * as large as possible.
- *
- * The [modifier] supplied by the caller carries background, alignment, and inset
- * handling so both branches inherit identical surface treatment.
+ * Short save confirmation shown away from the camera controls.
  */
 @Composable
-private fun CameraBottomOverlay(
+private fun SaveSuccessOverlay(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.46f))
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Check,
+            contentDescription = null,
+            tint = GhostShotTextPrimary
+        )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = GhostShotTextPrimary
+        )
+    }
+}
+
+/**
+ * Camera-style controls layered over the fullscreen preview.
+ */
+@Composable
+internal fun CameraControlsOverlay(
     referenceUri: Uri?,
     alpha: Float,
     onAlphaChange: (Float) -> Unit,
@@ -438,171 +459,152 @@ private fun CameraBottomOverlay(
     isLandscape: Boolean,
     modifier: Modifier = Modifier
 ) {
-    if (isLandscape) {
-        // Single row: picker icon on the left, reset + slider when overlay is active,
-        // shutter button at the right end.
-        // padding(vertical = 8.dp) gives natural breathing room without forcing a height.
-        Row(
-            modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconButton(onClick = onSelectReferenceImage) {
+    val horizontalPadding = if (isLandscape) 28.dp else 24.dp
+    val bottomPadding = if (isLandscape) 18.dp else 24.dp
+    val sliderBottomPadding = if (isLandscape) bottomPadding else 128.dp
+
+    Box(modifier = modifier) {
+        if (referenceUri != null) {
+            IconButton(
+                onClick = onResetOverlay,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .systemBarsPadding()
+                    .padding(top = 12.dp, end = horizontalPadding)
+                    .background(GhostShotOverlayScrim, CircleShape)
+            ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.select_reference_image),
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.reset_overlay_label),
                     tint = GhostShotTextPrimary
                 )
             }
-            if (referenceUri != null) {
-                IconButton(onClick = onResetOverlay) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.reset_overlay_label),
-                        tint = GhostShotTextPrimary
-                    )
+
+            FloatingOpacitySlider(
+                alpha = alpha,
+                onAlphaChange = onAlphaChange,
+                modifier = if (isLandscape) {
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                        .padding(end = horizontalPadding, bottom = sliderBottomPadding)
+                        .fillMaxWidth(0.3f)
+                        .widthIn(max = 280.dp)
+                } else {
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(
+                            start = horizontalPadding,
+                            end = horizontalPadding,
+                            bottom = sliderBottomPadding
+                        )
                 }
-                val opacityLabel = stringResource(R.string.overlay_opacity_label)
-                Slider(
-                    value = alpha,
-                    onValueChange = onAlphaChange,
-                    valueRange = 0.1f..0.9f,
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics { contentDescription = opacityLabel }
-                )
-            }
-            IconButton(onClick = onCapture) {
-                Icon(
-                    imageVector = Icons.Filled.PhotoCamera,
-                    contentDescription = stringResource(R.string.capture_button_content_description),
-                    tint = GhostShotTextPrimary
-                )
-            }
-        }
-    } else {
-        // Vertical stack: opacity controls above the action bar.
-        Column(modifier = modifier) {
-            if (referenceUri != null) {
-                OverlayContextControls(
-                    alpha = alpha,
-                    onAlphaChange = onAlphaChange
-                )
-            }
-            CameraBottomBar(
-                onSelectReferenceImage = onSelectReferenceImage,
-                isOverlayActive = referenceUri != null,
-                onResetOverlay = onResetOverlay,
-                onCapture = onCapture
             )
         }
+
+        ReferenceAction(
+            onSelectReferenceImage = onSelectReferenceImage,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .navigationBarsPadding()
+                .padding(start = horizontalPadding, bottom = bottomPadding)
+        )
+
+        ShutterButton(
+            onCapture = onCapture,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = bottomPadding)
+        )
     }
 }
 
 /**
- * Context-sensitive controls shown above the bottom bar in portrait when a reference
- * overlay is active.
- *
- * Currently, contains only the opacity slider. Additional per-overlay controls
- * (e.g. scale indicator) can be added to the Row in future steps.
+ * Floating opacity control shown above the shutter when a reference overlay is active.
  */
 @Composable
-private fun OverlayContextControls(
+private fun FloatingOpacitySlider(
     alpha: Float,
     onAlphaChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val opacityLabel = stringResource(R.string.overlay_opacity_label)
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 18.dp, vertical = 6.dp)
     ) {
         Slider(
             value = alpha,
             onValueChange = onAlphaChange,
             valueRange = 0.1f..0.9f,
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .semantics { contentDescription = opacityLabel }
         )
     }
 }
 
 /**
- * Primary action bar used in portrait layout.
- *
- * Uses [Arrangement.SpaceEvenly] so that actions sit evenly across the bar.
- * Button order: [Reference] [Shutter] [Reset (conditional)].
- *
- * The reset button is only shown when an overlay is active ([isOverlayActive] is true).
+ * Larger reference picker target placed at the bottom-left of the camera overlay.
  */
 @Composable
-private fun CameraBottomBar(
+private fun ReferenceAction(
     onSelectReferenceImage: () -> Unit,
-    isOverlayActive: Boolean,
-    onResetOverlay: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(GhostShotOverlayScrim)
+            .clickable(onClick = onSelectReferenceImage)
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = stringResource(R.string.select_reference_image),
+            tint = GhostShotTextPrimary
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.select_reference_image_label),
+            style = MaterialTheme.typography.labelSmall,
+            color = GhostShotTextSecondary
+        )
+    }
+}
+
+/**
+ * Large centered shutter target for the primary capture action.
+ */
+@Composable
+private fun ShutterButton(
     onCapture: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+            .size(96.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onCapture),
+        contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(onClick = onSelectReferenceImage) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.select_reference_image),
-                    tint = GhostShotTextPrimary
-                )
-            }
-            Text(
-                text = stringResource(R.string.select_reference_image_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = GhostShotTextSecondary
+        Box(
+            modifier = Modifier
+                .size(78.dp)
+                .background(Color.White, CircleShape)
+                .border(width = 4.dp, color = Color.White.copy(alpha = 0.45f), shape = CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.PhotoCamera,
+                contentDescription = stringResource(R.string.capture_button_content_description),
+                tint = Color.Black
             )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(onClick = onCapture) {
-                Icon(
-                    imageVector = Icons.Filled.PhotoCamera,
-                    contentDescription = stringResource(R.string.capture_button_content_description),
-                    tint = GhostShotTextPrimary
-                )
-            }
-            Text(
-                text = stringResource(R.string.capture_button_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = GhostShotTextSecondary
-            )
-        }
-        if (isOverlayActive) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                IconButton(onClick = onResetOverlay) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.reset_overlay_label),
-                        tint = GhostShotTextPrimary
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.reset_overlay_label),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = GhostShotTextSecondary
-                )
-            }
         }
     }
 }
 
-private class SuccessSnackbarVisuals(
-    override val message: String,
-    override val actionLabel: String? = null,
-    override val withDismissAction: Boolean = false,
-    override val duration: SnackbarDuration = SnackbarDuration.Short
-) : SnackbarVisuals
