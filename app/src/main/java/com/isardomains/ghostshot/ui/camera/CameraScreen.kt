@@ -52,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -173,11 +174,8 @@ fun CameraScreen(
             val isLandscape =
                 LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-            val imageCapture = remember {
-                ImageCapture.Builder()
-                    .setTargetAspectRatio(AspectRatio.RATIO_4_3)
-                    .build()
-            }
+            val activeAspectRatio = uiState.activeAspectRatio
+            val imageCaptureState = remember { mutableStateOf<ImageCapture?>(null) }
             val snackbarHostState = remember { SnackbarHostState() }
             var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
 
@@ -206,7 +204,7 @@ fun CameraScreen(
 
             val executor = remember { java.util.concurrent.Executors.newSingleThreadExecutor() }
             val onCapture: () -> Unit = {
-                imageCapture.takePicture(
+                imageCaptureState.value?.takePicture(
                     executor,
                     object : ImageCapture.OnImageCapturedCallback() {
                         override fun onCaptureSuccess(image: ImageProxy) {
@@ -228,76 +226,79 @@ fun CameraScreen(
 
             Box(modifier = Modifier.fillMaxSize()) {
 
-                // ── 4:3 camera viewport (Layer 1 + Layer 2) ──────────────────────────
-                // Both the preview and the overlay share this container so that their
-                // coordinate spaces are identical. matchHeightConstraintsFirst ensures the
-                // container fits within the screen in both orientations without overflow.
-                Box(
-                    modifier = Modifier
-                        .semantics { testTag = "viewport_4_3" }
-                        .aspectRatio(
-                            ratio = if (isLandscape) 4f / 3f else 3f / 4f,
-                            matchHeightConstraintsFirst = !isLandscape
-                        )
-                        .align(Alignment.Center)
-                ) {
-                    // ── Layer 1: Camera preview ───────────────────────────────────────
-                    AndroidView(
-                        factory = { ctx ->
-                            val previewView = PreviewView(ctx)
-                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                            cameraProviderFuture.addListener(
-                                {
-                                    val cameraProvider = cameraProviderFuture.get()
-                                    val preview = Preview.Builder()
-                                        .setTargetAspectRatio(AspectRatio.RATIO_4_3)
-                                        .build().also {
-                                        it.setSurfaceProvider(previewView.surfaceProvider)
-                                    }
-                                    // Unbind all use cases before rebinding to avoid conflicts.
-                                    cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(
-                                        lifecycleOwner,
-                                        CameraSelector.DEFAULT_BACK_CAMERA,
-                                        preview,
-                                        imageCapture
-                                    )
-                                },
-                                ContextCompat.getMainExecutor(ctx)
-                            )
-                            previewView
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                    // ── Layer 2: Reference image overlay ──────────────────────────────
-                    // Shares the same 4:3 container as the preview. Position and scale use
-                    // normalised fractions so gesture math in the ViewModel is unchanged.
-                    if (referenceUri != null) {
-                        AsyncImage(
-                            model = referenceUri,
-                            contentDescription = stringResource(R.string.overlay_content_description),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .align(Alignment.Center)
-                                .graphicsLayer {
-                                    translationX = uiState.overlayOffsetX * size.width
-                                    translationY = uiState.overlayOffsetY * size.height
-                                    scaleX = uiState.overlayScale
-                                    scaleY = uiState.overlayScale
-                                }
-                                .pointerInput(Unit) {
-                                    detectTransformGestures { _, pan, zoom, _ ->
-                                        viewModel.onOverlayDragged(
-                                            dx = pan.x / size.width,
-                                            dy = pan.y / size.height
+                // ── Camera viewport (Layer 1 + Layer 2) ──────────────────────────────
+                // Keyed by activeAspectRatio so that the ImageCapture use case and
+                // the CameraX binding are fully recreated when the target ratio changes.
+                key(activeAspectRatio) {
+                    val cameraXRatio = when (activeAspectRatio) {
+                        TargetAspectRatio.RATIO_4_3 -> AspectRatio.RATIO_4_3
+                        TargetAspectRatio.RATIO_16_9 -> AspectRatio.RATIO_16_9
+                    }
+                    val imageCapture = remember {
+                        ImageCapture.Builder()
+                            .setTargetAspectRatio(cameraXRatio)
+                            .build()
+                            .also { imageCaptureState.value = it }
+                    }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // ── Layer 1: Camera preview ───────────────────────────────────────
+                        AndroidView(
+                            factory = { ctx ->
+                                val previewView = PreviewView(ctx)
+                                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                                cameraProviderFuture.addListener(
+                                    {
+                                        val cameraProvider = cameraProviderFuture.get()
+                                        val preview = Preview.Builder()
+                                            .setTargetAspectRatio(cameraXRatio)
+                                            .build().also {
+                                            it.setSurfaceProvider(previewView.surfaceProvider)
+                                        }
+                                        // Unbind all use cases before rebinding to avoid conflicts.
+                                        cameraProvider.unbindAll()
+                                        cameraProvider.bindToLifecycle(
+                                            lifecycleOwner,
+                                            CameraSelector.DEFAULT_BACK_CAMERA,
+                                            preview,
+                                            imageCapture
                                         )
-                                        viewModel.onOverlayScaled(zoom)
-                                    }
-                                },
-                            contentScale = ContentScale.Fit,
-                            alpha = uiState.overlayAlpha,
+                                    },
+                                    ContextCompat.getMainExecutor(ctx)
+                                )
+                                previewView
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
+
+                        // ── Layer 2: Reference image overlay ──────────────────────────────
+                        // Shares the same viewport container as the preview. Position and scale
+                        // use normalised fractions so gesture math in the ViewModel is unchanged.
+                        if (referenceUri != null) {
+                            AsyncImage(
+                                model = referenceUri,
+                                contentDescription = stringResource(R.string.overlay_content_description),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .align(Alignment.Center)
+                                    .graphicsLayer {
+                                        translationX = uiState.overlayOffsetX * size.width
+                                        translationY = uiState.overlayOffsetY * size.height
+                                        scaleX = uiState.overlayScale
+                                        scaleY = uiState.overlayScale
+                                    }
+                                    .pointerInput(Unit) {
+                                        detectTransformGestures { _, pan, zoom, _ ->
+                                            viewModel.onOverlayDragged(
+                                                dx = pan.x / size.width,
+                                                dy = pan.y / size.height
+                                            )
+                                            viewModel.onOverlayScaled(zoom)
+                                        }
+                                    },
+                                contentScale = ContentScale.Fit,
+                                alpha = uiState.overlayAlpha,
+                            )
+                        }
                     }
                 }
 

@@ -2,6 +2,7 @@ package com.isardomains.ghostshot.ui.camera
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.annotation.StringRes
@@ -18,8 +19,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.abs
+
+/**
+ * The two supported target aspect ratios for the camera viewport, capture, and overlay alignment.
+ *
+ * Maps reference image proportions to one of two well-supported CameraX sensor ratios.
+ * Orientation (portrait vs landscape) is determined by the device at render time, not stored here.
+ */
+enum class TargetAspectRatio { RATIO_4_3, RATIO_16_9 }
 
 /**
  * Controls how touch gestures are interpreted on the camera screen.
@@ -57,7 +68,8 @@ data class CameraUiState(
     val overlayScale: Float = 1f,
     val overlayAlpha: Float = 0.5f,
     val isGridVisible: Boolean = false,
-    val interactionMode: InteractionMode = InteractionMode.OVERLAY_ADJUST
+    val interactionMode: InteractionMode = InteractionMode.OVERLAY_ADJUST,
+    val activeAspectRatio: TargetAspectRatio = TargetAspectRatio.RATIO_16_9
 )
 
 /**
@@ -83,6 +95,34 @@ sealed interface UiEvent {
 class CameraViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    private var imageDimensionReader: (Uri) -> Pair<Int, Int>? = { uri ->
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        val success = try {
+            val stream = context.contentResolver.openInputStream(uri)
+            if (stream != null) {
+                stream.use { BitmapFactory.decodeStream(it, null, opts) }
+                true
+            } else {
+                false
+            }
+        } catch (_: Exception) {
+            false
+        }
+        if (success && opts.outWidth > 0 && opts.outHeight > 0) Pair(opts.outWidth, opts.outHeight) else null
+    }
+
+    /** Used in unit tests to inject a controlled dispatcher and dimension reader. */
+    internal constructor(
+        context: Context,
+        ioDispatcher: CoroutineDispatcher,
+        imageDimensionReader: (Uri) -> Pair<Int, Int>?
+    ) : this(context) {
+        this.ioDispatcher = ioDispatcher
+        this.imageDimensionReader = imageDimensionReader
+    }
 
     private val _uiState = MutableStateFlow(CameraUiState())
 
@@ -111,7 +151,27 @@ class CameraViewModel @Inject constructor(
      */
     fun onReferenceImageSelected(uri: Uri?) {
         if (uri == null) return
-        _uiState.update { it.copy(referenceImageUri = uri) }
+        viewModelScope.launch(ioDispatcher) {
+            val dimensions = imageDimensionReader(uri) ?: return@launch
+            val longer = maxOf(dimensions.first, dimensions.second).toFloat()
+            val shorter = minOf(dimensions.first, dimensions.second).toFloat()
+            val ratio = longer / shorter
+            val newAspectRatio = if (abs(ratio - 4f / 3f) <= abs(ratio - 16f / 9f)) {
+                TargetAspectRatio.RATIO_4_3
+            } else {
+                TargetAspectRatio.RATIO_16_9
+            }
+            _uiState.update { current ->
+                val formatChanged = current.activeAspectRatio != newAspectRatio
+                current.copy(
+                    referenceImageUri = uri,
+                    activeAspectRatio = newAspectRatio,
+                    overlayOffsetX = if (formatChanged) 0f else current.overlayOffsetX,
+                    overlayOffsetY = if (formatChanged) 0f else current.overlayOffsetY,
+                    overlayScale = if (formatChanged) 1f else current.overlayScale
+                )
+            }
+        }
     }
 
     /**

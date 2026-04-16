@@ -1,35 +1,51 @@
 package com.isardomains.ghostshot.ui.camera
 
 import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CameraViewModelTest {
 
     private lateinit var viewModel: CameraViewModel
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         viewModel = CameraViewModel(mock())
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     // --- onReferenceImageSelected ---
 
     @Test
-    fun onReferenceImageSelected_setsUri() {
+    fun onReferenceImageSelected_setsUri() = runTest {
+        val testViewModel = CameraViewModel(mock(), UnconfinedTestDispatcher(), { Pair(1920, 1080) })
         val uri = mock<Uri>()
-        viewModel.onReferenceImageSelected(uri)
-        assertEquals(uri, viewModel.uiState.value.referenceImageUri)
+        testViewModel.onReferenceImageSelected(uri)
+        assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
     }
 
     @Test
-    fun onReferenceImageSelected_null_preservesExistingUri() {
+    fun onReferenceImageSelected_null_preservesExistingUri() = runTest {
+        val testViewModel = CameraViewModel(mock(), UnconfinedTestDispatcher(), { Pair(1920, 1080) })
         val uri = mock<Uri>()
-        viewModel.onReferenceImageSelected(uri)
-        viewModel.onReferenceImageSelected(null)
-        assertEquals(uri, viewModel.uiState.value.referenceImageUri)
+        testViewModel.onReferenceImageSelected(uri)
+        testViewModel.onReferenceImageSelected(null)
+        assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
     }
 
     // --- onOverlayAlphaChanged ---
@@ -83,12 +99,13 @@ class CameraViewModelTest {
     }
 
     @Test
-    fun onOverlayReset_preservesReferenceImageUri() {
+    fun onOverlayReset_preservesReferenceImageUri() = runTest {
+        val testViewModel = CameraViewModel(mock(), UnconfinedTestDispatcher(), { Pair(1920, 1080) })
         val uri = mock<Uri>()
-        viewModel.onReferenceImageSelected(uri)
-        viewModel.onOverlayDragged(0.1f, 0.1f)
-        viewModel.onOverlayReset()
-        assertEquals(uri, viewModel.uiState.value.referenceImageUri)
+        testViewModel.onReferenceImageSelected(uri)
+        testViewModel.onOverlayDragged(0.1f, 0.1f)
+        testViewModel.onOverlayReset()
+        assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
     }
 
     @Test
