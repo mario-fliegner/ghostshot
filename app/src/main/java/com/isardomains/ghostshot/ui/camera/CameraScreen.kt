@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -93,6 +94,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -105,6 +107,9 @@ import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
 import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
 import kotlinx.coroutines.delay
 import kotlin.math.max
+
+private val CameraShutterButtonSize = 96.dp
+private val CameraBottomControlGap = 16.dp
 
 /**
  * Represents the four distinct states of the CAMERA permission lifecycle.
@@ -416,13 +421,10 @@ fun CameraScreen(
                     )
                 }
 
-                SnackbarHost(
+                CameraSnackbarHost(
                     hostState = snackbarHostState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 96.dp),
-                    snackbar = { data -> Snackbar(snackbarData = data) }
+                    isLandscape = isLandscape,
+                    modifier = Modifier.align(Alignment.BottomCenter)
                 )
 
             }
@@ -653,6 +655,28 @@ private fun SaveSuccessOverlay(
     }
 }
 
+@Composable
+internal fun CameraSnackbarHost(
+    hostState: SnackbarHostState,
+    isLandscape: Boolean,
+    modifier: Modifier = Modifier
+) {
+    SnackbarHost(
+        hostState = hostState,
+        modifier = modifier
+            .navigationBarsPadding()
+            .padding(bottom = cameraSnackbarBottomPadding(isLandscape))
+            .testTag("camera_snackbar_host"),
+        snackbar = { data -> Snackbar(snackbarData = data) }
+    )
+}
+
+private fun cameraBottomPadding(isLandscape: Boolean): Dp =
+    if (isLandscape) 18.dp else 24.dp
+
+private fun cameraSnackbarBottomPadding(isLandscape: Boolean): Dp =
+    cameraBottomPadding(isLandscape) + CameraShutterButtonSize + CameraBottomControlGap
+
 /**
  * Camera-style controls layered over the fullscreen preview.
  */
@@ -672,8 +696,8 @@ internal fun CameraControlsOverlay(
     modifier: Modifier = Modifier
 ) {
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
-    val bottomPadding = if (isLandscape) 18.dp else 24.dp
-    val referenceBottomPadding = if (isLandscape) bottomPadding else 38.dp
+    val referenceStartPadding = 16.dp
+    val bottomPadding = cameraBottomPadding(isLandscape)
     val mismatchDescription = stringResource(R.string.reference_viewport_mismatch)
 
     var isStackVisible by remember { mutableStateOf(false) }
@@ -718,7 +742,7 @@ internal fun CameraControlsOverlay(
 
             // Opacity slider — fixed position above bottom controls, hidden when stack is open
             AnimatedVisibility(
-                visible = !isStackVisible,
+                visible = isLandscape || !isStackVisible,
                 modifier = if (isLandscape) {
                     Modifier
                         .align(Alignment.BottomEnd)
@@ -726,6 +750,7 @@ internal fun CameraControlsOverlay(
                         .padding(end = horizontalPadding, bottom = bottomPadding)
                         .fillMaxWidth(0.3f)
                         .widthIn(max = 280.dp)
+                        .height(CameraShutterButtonSize)
                 } else {
                     Modifier
                         .align(Alignment.BottomCenter)
@@ -735,17 +760,56 @@ internal fun CameraControlsOverlay(
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
+                if (isLandscape) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
+                    }
+                } else {
+                    FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
+                }
             }
         }
 
-        // Bottom-left: reference button with action stack opening above it
+        val referenceClick = {
+            if (referenceUri == null) {
+                onSelectReferenceImage()
+            } else {
+                isStackVisible = !isStackVisible
+            }
+        }
+        val referenceStack = @Composable {
+            ReferenceActionStack(
+                onReset = {
+                    isStackVisible = false
+                    onResetOverlay()
+                },
+                displayMode = displayMode,
+                onToggleDisplayMode = {
+                    isStackVisible = false
+                    onToggleDisplayMode()
+                },
+                onReplace = {
+                    isStackVisible = false
+                    onSelectReferenceImage()
+                },
+                onRemove = {
+                    isStackVisible = false
+                    onRemoveReferenceImage()
+                },
+                isCompact = isLandscape
+            )
+        }
+
+        // Bottom-left: reference button with action stack anchored to it.
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .navigationBarsPadding()
-                .padding(start = horizontalPadding, bottom = referenceBottomPadding),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                .padding(start = referenceStartPadding, bottom = bottomPadding),
+            verticalArrangement = Arrangement.spacedBy(if (isLandscape) 6.dp else 8.dp),
             horizontalAlignment = Alignment.Start
         ) {
             AnimatedVisibility(
@@ -753,35 +817,19 @@ internal fun CameraControlsOverlay(
                 enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
                 exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
             ) {
-                ReferenceActionStack(
-                    onReset = {
-                        isStackVisible = false
-                        onResetOverlay()
-                    },
-                    displayMode = displayMode,
-                    onToggleDisplayMode = {
-                        isStackVisible = false
-                        onToggleDisplayMode()
-                    },
-                    onReplace = {
-                        isStackVisible = false
-                        onSelectReferenceImage()
-                    },
-                    onRemove = {
-                        isStackVisible = false
-                        onRemoveReferenceImage()
-                    }
+                referenceStack()
+            }
+            Box(
+                modifier = Modifier
+                    .height(CameraShutterButtonSize)
+                    .testTag("reference_action_slot"),
+                contentAlignment = Alignment.Center
+            ) {
+                ReferenceAction(
+                    isActive = referenceUri != null,
+                    onClick = referenceClick
                 )
             }
-            ReferenceAction(
-                onClick = {
-                    if (referenceUri == null) {
-                        onSelectReferenceImage()
-                    } else {
-                        isStackVisible = true
-                    }
-                }
-            )
         }
 
         ShutterButton(
@@ -824,33 +872,69 @@ private fun FloatingOpacitySlider(
  */
 @Composable
 private fun ReferenceAction(
+    isActive: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val referenceLabel = stringResource(R.string.select_reference_image)
-    Column(
+    val optionsBadgeLabel = stringResource(R.string.reference_options_badge)
+    val optionsBadgeText = stringResource(R.string.reference_options_badge_text)
+    Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(GhostShotOverlayScrim)
+            .then(
+                if (isActive) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .testTag("reference_action")
-            .semantics(mergeDescendants = true) {
+            .semantics {
                 contentDescription = referenceLabel
             }
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = null,
-            tint = GhostShotTextPrimary
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.select_reference_image_label),
-            style = MaterialTheme.typography.labelSmall,
-            color = GhostShotTextSecondary
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = if (isActive) Icons.Filled.Check else Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.testTag(
+                    if (isActive) "reference_action_active_indicator" else "reference_action_add_indicator"
+                ),
+                tint = GhostShotTextPrimary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.select_reference_image_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isActive) GhostShotTextPrimary else GhostShotTextSecondary
+            )
+        }
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(18.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .testTag("reference_action_options_badge")
+                    .semantics { contentDescription = optionsBadgeLabel },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = optionsBadgeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = GhostShotTextPrimary
+                )
+            }
+        }
     }
 }
 
@@ -861,23 +945,32 @@ private fun ReferenceActionStack(
     onToggleDisplayMode: () -> Unit,
     onReplace: () -> Unit,
     onRemove: () -> Unit,
+    isCompact: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val resetLabel = stringResource(R.string.reset_overlay_label)
     val displayModeLabel = stringResource(R.string.toggle_reference_display_mode)
     val replaceLabel = stringResource(R.string.replace_reference_image)
     val removeLabel = stringResource(R.string.remove_reference_image)
+    val displayModeText = stringResource(
+        when (displayMode) {
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW -> R.string.action_stack_display_mode_compare_label
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE -> R.string.action_stack_display_mode_fit_label
+        }
+    )
+    val rowVerticalPadding = if (isCompact) 6.dp else 10.dp
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(GhostShotOverlayScrim)
-            .widthIn(min = 160.dp)
+            .testTag("reference_action_menu")
+            .widthIn(min = 176.dp, max = 216.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onReset)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
                 .semantics(mergeDescendants = true) { contentDescription = resetLabel },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -897,7 +990,7 @@ private fun ReferenceActionStack(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onToggleDisplayMode)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
                 .semantics(mergeDescendants = true) { contentDescription = displayModeLabel },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -911,7 +1004,7 @@ private fun ReferenceActionStack(
                 tint = GhostShotTextPrimary
             )
             Text(
-                text = stringResource(R.string.action_stack_display_mode_label),
+                text = displayModeText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = GhostShotTextPrimary
             )
@@ -920,13 +1013,13 @@ private fun ReferenceActionStack(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onReplace)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
                 .semantics(mergeDescendants = true) { contentDescription = replaceLabel },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Add,
+                imageVector = Icons.Default.SwapHoriz,
                 contentDescription = null,
                 tint = GhostShotTextPrimary
             )
@@ -941,7 +1034,7 @@ private fun ReferenceActionStack(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onRemove)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
                 .semantics(mergeDescendants = true) { contentDescription = removeLabel },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -970,7 +1063,7 @@ private fun ShutterButton(
 ) {
     Box(
         modifier = modifier
-            .size(96.dp)
+            .size(CameraShutterButtonSize)
             .clip(CircleShape)
             .clickable(onClick = onCapture),
         contentAlignment = Alignment.Center
