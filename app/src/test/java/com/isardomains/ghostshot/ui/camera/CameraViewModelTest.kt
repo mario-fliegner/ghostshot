@@ -3,12 +3,15 @@ package com.isardomains.ghostshot.ui.camera
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
@@ -98,6 +101,79 @@ class CameraViewModelTest {
             testViewModel.uiState.value.referenceImageDisplayMode
         )
         assertEquals(false, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onReferenceImageRemoveConfirmed_clearsReferenceStateAndDisplayDefaults() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        assertEquals(null, testViewModel.uiState.value.referenceImageUri)
+        assertEquals(null, testViewModel.uiState.value.referenceImageMetadata)
+        assertEquals(false, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+    }
+
+    @Test
+    fun onReferenceImageRemoveConfirmed_resetsOverlayTransform() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onOverlayDragged(0.2f, -0.2f)
+        testViewModel.onOverlayScaled(1.8f)
+
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        assertEquals(0f, testViewModel.uiState.value.overlayOffsetX)
+        assertEquals(0f, testViewModel.uiState.value.overlayOffsetY)
+        assertEquals(1f, testViewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun onReferenceImageRemoveConfirmed_preservesOverlayAlphaAndActiveAspectRatio() = runTest {
+        val testViewModel = testViewModelWithMetadata(1600, 1200)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onOverlayAlphaChanged(0.8f)
+
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        assertEquals(0.8f, testViewModel.uiState.value.overlayAlpha)
+        assertEquals(TargetAspectRatio.RATIO_4_3, testViewModel.uiState.value.activeAspectRatio)
+    }
+
+    @Test
+    fun onReferenceImageRemoveConfirmed_invalidatesPendingSelection() = runTest {
+        val uri = mock<Uri>()
+        lateinit var testViewModel: CameraViewModel
+        var removeTriggered = false
+
+        testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            {
+                if (!removeTriggered) {
+                    removeTriggered = true
+                    testViewModel.onReferenceImageRemoveConfirmed()
+                }
+                ReferenceImageMetadata(
+                    rawWidth = 1920,
+                    rawHeight = 1080,
+                    orientedWidth = 1920,
+                    orientedHeight = 1080,
+                    exifOrientation = null
+                )
+            }
+        )
+
+        testViewModel.onReferenceImageSelected(uri)
+
+        assertEquals(null, testViewModel.uiState.value.referenceImageUri)
+        assertEquals(null, testViewModel.uiState.value.referenceImageMetadata)
     }
 
     @Test
@@ -402,6 +478,120 @@ class CameraViewModelTest {
         viewModel.onPhotoCaptureError()
 
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+    }
+
+    // --- onReferenceImageRemoveUndo ---
+
+    @Test
+    fun removeUndo_restoresUriAndMetadata() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        val uri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(uri)
+        testViewModel.onOverlayDragged(0.2f, -0.1f)
+        testViewModel.onOverlayScaled(1.5f)
+        testViewModel.onOverlayAlphaChanged(0.8f)
+
+        testViewModel.onReferenceImageRemoveConfirmed()
+        assertNull(testViewModel.uiState.value.referenceImageUri)
+
+        testViewModel.onReferenceImageRemoveUndo()
+
+        assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
+        assertEquals(0.2f, testViewModel.uiState.value.overlayOffsetX)
+        assertEquals(-0.1f, testViewModel.uiState.value.overlayOffsetY)
+        assertEquals(1.5f, testViewModel.uiState.value.overlayScale)
+        assertEquals(0.8f, testViewModel.uiState.value.overlayAlpha)
+    }
+
+    @Test
+    fun removeUndo_noOp_whenNoSnapshot() = runTest {
+        viewModel.onReferenceImageRemoveUndo()
+        assertNull(viewModel.uiState.value.referenceImageUri)
+    }
+
+    @Test
+    fun removeUndo_isInvalidatedAfterNewReferenceLoad() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        val firstUri = mock<Uri>()
+        val secondUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(firstUri)
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        testViewModel.onReferenceImageSelected(secondUri)
+        testViewModel.onReferenceImageRemoveUndo()
+
+        // Undo snapshot was cleared by the new selection — URI stays as secondUri, not firstUri
+        assertEquals(secondUri, testViewModel.uiState.value.referenceImageUri)
+    }
+
+    @Test
+    fun removeUndo_remainsValidAfterPickerAbort() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        val uri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(uri)
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        testViewModel.onReferenceImageSelected(null) // picker aborted
+        testViewModel.onReferenceImageRemoveUndo()
+
+        assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
+    }
+
+    @Test
+    fun removeUndo_remainsValidAfterFailedReferenceLoad() = runTest {
+        val firstUri = mock<Uri>()
+        var loadCount = 0
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { uri ->
+                loadCount++
+                if (loadCount == 1) {
+                    // First load succeeds
+                    ReferenceImageMetadata(1920, 1080, 1920, 1080, null)
+                } else {
+                    // Second load fails (returns null)
+                    null
+                }
+            }
+        )
+        testViewModel.onReferenceImageSelected(firstUri)
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        val failingUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(failingUri) // metadata read fails
+        testViewModel.onReferenceImageRemoveUndo()
+
+        // Undo snapshot still valid because second load failed before committing
+        assertEquals(firstUri, testViewModel.uiState.value.referenceImageUri)
+    }
+
+    @Test
+    fun removeUndo_emitsUndoInvalidatedEvent_whenNewReferenceLoaded() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.onReferenceImageSelected(mock())
+
+        job.cancel()
+        assertEquals(1, events.filterIsInstance<UiEvent.UndoInvalidated>().size)
+    }
+
+    @Test
+    fun removeUndo_doesNotEmitUndoInvalidatedEvent_whenNoSnapshotExists() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+
+        val events = mutableListOf<UiEvent>()
+        val job = launch { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.onReferenceImageSelected(mock())
+
+        job.cancel()
+        assertEquals(0, events.filterIsInstance<UiEvent.UndoInvalidated>().size)
     }
 
     private fun testViewModelWithMetadata(

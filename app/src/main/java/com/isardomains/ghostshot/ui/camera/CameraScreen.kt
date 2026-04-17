@@ -17,10 +17,16 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
@@ -43,17 +49,20 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropFree
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +86,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -194,16 +204,41 @@ fun CameraScreen(
             val snackbarHostState = remember { SnackbarHostState() }
             var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
             var successMessageResId by remember { mutableStateOf<Int?>(null) }
+            var undoAvailable by remember { mutableStateOf(false) }
+            var pendingUndoSnackbarTrigger by remember { mutableStateOf(0) }
+            val removeSnackbarMessage = stringResource(R.string.reference_removed_snackbar)
+            val removeSnackbarUndo = stringResource(R.string.reference_removed_undo)
 
             LaunchedEffect(viewModel) {
                 viewModel.uiEvent.collect { event ->
-                    if (event is UiEvent.ShowSnackbar) {
-                        if (event.isSuccess) {
-                            successMessageResId = event.messageResId
-                        } else {
-                            pendingSnackbarEvent = event
+                    when (event) {
+                        is UiEvent.ShowSnackbar -> {
+                            if (event.isSuccess) {
+                                successMessageResId = event.messageResId
+                            } else {
+                                pendingSnackbarEvent = event
+                            }
+                        }
+                        is UiEvent.UndoInvalidated -> {
+                            undoAvailable = false
+                            snackbarHostState.currentSnackbarData?.dismiss()
                         }
                     }
+                }
+            }
+
+            LaunchedEffect(pendingUndoSnackbarTrigger) {
+                if (pendingUndoSnackbarTrigger > 0) {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    val result = snackbarHostState.showSnackbar(
+                        message = removeSnackbarMessage,
+                        actionLabel = removeSnackbarUndo,
+                        duration = SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed && undoAvailable) {
+                        viewModel.onReferenceImageRemoveUndo()
+                    }
+                    undoAvailable = false
                 }
             }
 
@@ -360,6 +395,11 @@ fun CameraScreen(
                         )
                     },
                     onResetOverlay = { viewModel.onOverlayReset() },
+                    onRemoveReferenceImage = {
+                        viewModel.onReferenceImageRemoveConfirmed()
+                        undoAvailable = true
+                        pendingUndoSnackbarTrigger++
+                    },
                     displayMode = uiState.referenceImageDisplayMode,
                     hasViewportMismatch = uiState.referenceImageHasViewportMismatch,
                     onToggleDisplayMode = { viewModel.onReferenceImageDisplayModeToggle() },
@@ -384,6 +424,7 @@ fun CameraScreen(
                         .padding(bottom = 96.dp),
                     snackbar = { data -> Snackbar(snackbarData = data) }
                 )
+
             }
         }
 
@@ -622,6 +663,7 @@ internal fun CameraControlsOverlay(
     onAlphaChange: (Float) -> Unit,
     onSelectReferenceImage: () -> Unit,
     onResetOverlay: () -> Unit,
+    onRemoveReferenceImage: () -> Unit = {},
     displayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
     hasViewportMismatch: Boolean = false,
     onToggleDisplayMode: () -> Unit = {},
@@ -632,97 +674,115 @@ internal fun CameraControlsOverlay(
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
     val bottomPadding = if (isLandscape) 18.dp else 24.dp
     val referenceBottomPadding = if (isLandscape) bottomPadding else 38.dp
-    val sliderBottomPadding = if (isLandscape) bottomPadding else 128.dp
     val mismatchDescription = stringResource(R.string.reference_viewport_mismatch)
 
+    var isStackVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(referenceUri) {
+        if (referenceUri == null) isStackVisible = false
+    }
+
     Box(modifier = modifier) {
-        if (referenceUri != null) {
-            Row(
+        // Backdrop — lowest z, catches taps outside the stack to dismiss it
+        if (isStackVisible) {
+            Box(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .systemBarsPadding()
-                    .padding(top = 12.dp, start = horizontalPadding),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onToggleDisplayMode,
-                    modifier = Modifier.background(GhostShotOverlayScrim, CircleShape)
+                    .fillMaxSize()
+                    .semantics { testTag = "reference_menu_backdrop" }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { isStackVisible = false }
+            )
+        }
+
+        if (referenceUri != null) {
+            if (hasViewportMismatch) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .systemBarsPadding()
+                        .padding(top = 12.dp, start = horizontalPadding)
+                        .size(48.dp)
+                        .background(GhostShotOverlayScrim, CircleShape)
+                        .semantics { contentDescription = mismatchDescription },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = when (displayMode) {
-                            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW -> Icons.Default.CropFree
-                            ReferenceImageDisplayMode.SHOW_FULL_IMAGE -> Icons.Default.AspectRatio
-                        },
-                        contentDescription = stringResource(R.string.toggle_reference_display_mode),
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
                         tint = GhostShotTextPrimary
                     )
                 }
-
-                if (hasViewportMismatch) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(GhostShotOverlayScrim, CircleShape)
-                            .semantics {
-                                contentDescription = mismatchDescription
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = GhostShotTextPrimary
-                        )
-                    }
-                }
             }
 
-            IconButton(
-                onClick = onResetOverlay,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .systemBarsPadding()
-                    .padding(top = 12.dp, end = horizontalPadding)
-                    .background(GhostShotOverlayScrim, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(R.string.reset_overlay_label),
-                    tint = GhostShotTextPrimary
-                )
-            }
-
-            FloatingOpacitySlider(
-                alpha = alpha,
-                onAlphaChange = onAlphaChange,
+            // Opacity slider — fixed position above bottom controls, hidden when stack is open
+            AnimatedVisibility(
+                visible = !isStackVisible,
                 modifier = if (isLandscape) {
                     Modifier
                         .align(Alignment.BottomEnd)
                         .navigationBarsPadding()
-                        .padding(end = horizontalPadding, bottom = sliderBottomPadding)
+                        .padding(end = horizontalPadding, bottom = bottomPadding)
                         .fillMaxWidth(0.3f)
                         .widthIn(max = 280.dp)
                 } else {
                     Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(
-                            start = horizontalPadding,
-                            end = horizontalPadding,
-                            bottom = sliderBottomPadding
-                        )
-                }
-            )
+                        .padding(start = horizontalPadding, end = horizontalPadding, bottom = 128.dp)
+                },
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
+            }
         }
 
-        ReferenceAction(
-            onSelectReferenceImage = onSelectReferenceImage,
+        // Bottom-left: reference button with action stack opening above it
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .navigationBarsPadding()
-                .padding(start = horizontalPadding, bottom = referenceBottomPadding)
-        )
+                .padding(start = horizontalPadding, bottom = referenceBottomPadding),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            AnimatedVisibility(
+                visible = isStackVisible && referenceUri != null,
+                enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+            ) {
+                ReferenceActionStack(
+                    onReset = {
+                        isStackVisible = false
+                        onResetOverlay()
+                    },
+                    displayMode = displayMode,
+                    onToggleDisplayMode = {
+                        isStackVisible = false
+                        onToggleDisplayMode()
+                    },
+                    onReplace = {
+                        isStackVisible = false
+                        onSelectReferenceImage()
+                    },
+                    onRemove = {
+                        isStackVisible = false
+                        onRemoveReferenceImage()
+                    }
+                )
+            }
+            ReferenceAction(
+                onClick = {
+                    if (referenceUri == null) {
+                        onSelectReferenceImage()
+                    } else {
+                        isStackVisible = true
+                    }
+                }
+            )
+        }
 
         ShutterButton(
             onCapture = onCapture,
@@ -740,12 +800,11 @@ internal fun CameraControlsOverlay(
 @Composable
 private fun FloatingOpacitySlider(
     alpha: Float,
-    onAlphaChange: (Float) -> Unit,
-    modifier: Modifier = Modifier
+    onAlphaChange: (Float) -> Unit
 ) {
     val opacityLabel = stringResource(R.string.overlay_opacity_label)
     Box(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 18.dp, vertical = 6.dp)
     ) {
@@ -765,20 +824,25 @@ private fun FloatingOpacitySlider(
  */
 @Composable
 private fun ReferenceAction(
-    onSelectReferenceImage: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val referenceLabel = stringResource(R.string.select_reference_image)
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(GhostShotOverlayScrim)
-            .clickable(onClick = onSelectReferenceImage)
+            .testTag("reference_action")
+            .semantics(mergeDescendants = true) {
+                contentDescription = referenceLabel
+            }
+            .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = Icons.Default.Add,
-            contentDescription = stringResource(R.string.select_reference_image),
+            contentDescription = null,
             tint = GhostShotTextPrimary
         )
         Spacer(modifier = Modifier.height(4.dp))
@@ -787,6 +851,112 @@ private fun ReferenceAction(
             style = MaterialTheme.typography.labelSmall,
             color = GhostShotTextSecondary
         )
+    }
+}
+
+@Composable
+private fun ReferenceActionStack(
+    onReset: () -> Unit,
+    displayMode: ReferenceImageDisplayMode,
+    onToggleDisplayMode: () -> Unit,
+    onReplace: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val resetLabel = stringResource(R.string.reset_overlay_label)
+    val displayModeLabel = stringResource(R.string.toggle_reference_display_mode)
+    val replaceLabel = stringResource(R.string.replace_reference_image)
+    val removeLabel = stringResource(R.string.remove_reference_image)
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(GhostShotOverlayScrim)
+            .widthIn(min = 160.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onReset)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .semantics(mergeDescendants = true) { contentDescription = resetLabel },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                tint = GhostShotTextPrimary
+            )
+            Text(
+                text = stringResource(R.string.action_stack_reset_label),
+                style = MaterialTheme.typography.bodyMedium,
+                color = GhostShotTextPrimary
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggleDisplayMode)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .semantics(mergeDescendants = true) { contentDescription = displayModeLabel },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = when (displayMode) {
+                    ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW -> Icons.Default.CropFree
+                    ReferenceImageDisplayMode.SHOW_FULL_IMAGE -> Icons.Default.AspectRatio
+                },
+                contentDescription = null,
+                tint = GhostShotTextPrimary
+            )
+            Text(
+                text = stringResource(R.string.action_stack_display_mode_label),
+                style = MaterialTheme.typography.bodyMedium,
+                color = GhostShotTextPrimary
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onReplace)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .semantics(mergeDescendants = true) { contentDescription = replaceLabel },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = GhostShotTextPrimary
+            )
+            Text(
+                text = stringResource(R.string.action_stack_replace_label),
+                style = MaterialTheme.typography.bodyMedium,
+                color = GhostShotTextPrimary
+            )
+        }
+        HorizontalDivider(color = GhostShotTextPrimary.copy(alpha = 0.2f))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onRemove)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .semantics(mergeDescendants = true) { contentDescription = removeLabel },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+            Text(
+                text = stringResource(R.string.action_stack_remove_label),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
     }
 }
 

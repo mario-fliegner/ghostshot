@@ -95,7 +95,20 @@ data class CameraUiState(
 sealed interface UiEvent {
     /** Display a Snackbar with the given message. [isSuccess] controls visual style. */
     data class ShowSnackbar(@StringRes val messageResId: Int, val isSuccess: Boolean = false) : UiEvent
+    /** Notifies the UI that the pending undo snapshot has been invalidated by a new reference load. */
+    data object UndoInvalidated : UiEvent
 }
+
+private data class ReferenceUndoSnapshot(
+    val referenceImageUri: Uri,
+    val referenceImageMetadata: ReferenceImageMetadata?,
+    val referenceImageDisplayMode: ReferenceImageDisplayMode,
+    val overlayOffsetX: Float,
+    val overlayOffsetY: Float,
+    val overlayScale: Float,
+    val overlayAlpha: Float,
+    val displayModeChangedByUser: Boolean
+)
 
 /**
  * ViewModel for the camera screen.
@@ -119,6 +132,7 @@ class CameraViewModel @Inject constructor(
 
     private var viewportSize: Pair<Int, Int>? = null
     private var displayModeChangedByUser = false
+    private var undoSnapshot: ReferenceUndoSnapshot? = null
     private var referenceImageSelectionJob: Job? = null
     private var referenceImageSelectionRequestId = 0L
 
@@ -176,6 +190,8 @@ class CameraViewModel @Inject constructor(
                 TargetAspectRatio.RATIO_16_9
             }
             val recommendation = getDisplayRecommendation(metadata, viewportSize)
+            val hadUndo = undoSnapshot != null
+            undoSnapshot = null
             displayModeChangedByUser = false
             _uiState.update { current ->
                 val formatChanged = current.activeAspectRatio != newAspectRatio
@@ -190,6 +206,61 @@ class CameraViewModel @Inject constructor(
                     overlayScale = if (formatChanged) 1f else current.overlayScale
                 )
             }
+            if (hadUndo) {
+                _uiEvent.emit(UiEvent.UndoInvalidated)
+            }
+        }
+    }
+
+    fun onReferenceImageRemoveConfirmed() {
+        val current = _uiState.value
+        if (current.referenceImageUri != null) {
+            undoSnapshot = ReferenceUndoSnapshot(
+                referenceImageUri = current.referenceImageUri,
+                referenceImageMetadata = current.referenceImageMetadata,
+                referenceImageDisplayMode = current.referenceImageDisplayMode,
+                overlayOffsetX = current.overlayOffsetX,
+                overlayOffsetY = current.overlayOffsetY,
+                overlayScale = current.overlayScale,
+                overlayAlpha = current.overlayAlpha,
+                displayModeChangedByUser = displayModeChangedByUser
+            )
+        }
+        referenceImageSelectionJob?.cancel()
+        referenceImageSelectionJob = null
+        referenceImageSelectionRequestId++
+        displayModeChangedByUser = false
+        _uiState.update {
+            it.copy(
+                referenceImageUri = null,
+                referenceImageMetadata = null,
+                referenceImageHasViewportMismatch = false,
+                referenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+                overlayOffsetX = 0f,
+                overlayOffsetY = 0f,
+                overlayScale = 1f
+            )
+        }
+    }
+
+    fun onReferenceImageRemoveUndo() {
+        val snapshot = undoSnapshot ?: return
+        undoSnapshot = null
+        displayModeChangedByUser = snapshot.displayModeChangedByUser
+        _uiState.update { current ->
+            val recommendation = snapshot.referenceImageMetadata?.let { metadata ->
+                getDisplayRecommendation(metadata, viewportSize)
+            }
+            current.copy(
+                referenceImageUri = snapshot.referenceImageUri,
+                referenceImageMetadata = snapshot.referenceImageMetadata,
+                referenceImageDisplayMode = snapshot.referenceImageDisplayMode,
+                referenceImageHasViewportMismatch = recommendation?.hasStrongMismatch ?: false,
+                overlayOffsetX = snapshot.overlayOffsetX,
+                overlayOffsetY = snapshot.overlayOffsetY,
+                overlayScale = snapshot.overlayScale,
+                overlayAlpha = snapshot.overlayAlpha
+            )
         }
     }
 

@@ -19,6 +19,18 @@
     <string name="overlay_content_description">Reference photo overlay</string>
     <string name="overlay_opacity_label">Opacity</string>
     <string name="reset_overlay_label">Reset</string>
+    <string name="remove_reference_image">Remove reference image</string>
+    <string name="remove_reference_image_dialog_title">Remove reference image?</string>
+    <string name="remove_reference_image_dialog_message">This removes the current reference image from the camera overlay.</string>
+    <string name="remove_reference_image_confirm">Remove</string>
+    <string name="remove_reference_image_cancel">Cancel</string>
     <string name="toggle_reference_display_mode">Toggle reference display mode</string>
     <string name="reference_viewport_mismatch">Reference image differs from the current viewport</string>
+    <string name="reference_removed_snackbar">Reference image removed</string>
+    <string name="reference_removed_undo">Undo</string>
+    <string name="action_stack_reset_label">Reset</string>
+    <string name="action_stack_display_mode_label">Mode</string>
+    <string name="replace_reference_image">Replace image</string>
+    <string name="action_stack_replace_label">Replace image</string>
+    <string name="action_stack_remove_label">Remove</string>
 </resources>
