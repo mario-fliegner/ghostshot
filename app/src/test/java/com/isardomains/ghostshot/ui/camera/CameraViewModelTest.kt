@@ -49,6 +49,58 @@ class CameraViewModelTest {
     }
 
     @Test
+    fun onReferenceImageSelected_olderSelectionCannotOverwriteNewerSelection() = runTest {
+        val firstUri = mock<Uri>()
+        val secondUri = mock<Uri>()
+        lateinit var testViewModel: CameraViewModel
+        var secondSelectionTriggered = false
+
+        testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { uri ->
+                when {
+                    uri === firstUri -> {
+                        if (!secondSelectionTriggered) {
+                            secondSelectionTriggered = true
+                            testViewModel.onReferenceImageSelected(secondUri)
+                        }
+                        ReferenceImageMetadata(
+                            rawWidth = 1920,
+                            rawHeight = 1080,
+                            orientedWidth = 1920,
+                            orientedHeight = 1080,
+                            exifOrientation = null
+                        )
+                    }
+
+                    uri === secondUri -> ReferenceImageMetadata(
+                        rawWidth = 1080,
+                        rawHeight = 1920,
+                        orientedWidth = 1080,
+                        orientedHeight = 1920,
+                        exifOrientation = null
+                    )
+
+                    else -> error("Unexpected reference URI")
+                }
+            }
+        )
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+
+        testViewModel.onReferenceImageSelected(firstUri)
+
+        assertEquals(secondUri, testViewModel.uiState.value.referenceImageUri)
+        assertEquals(1080, testViewModel.uiState.value.referenceImageMetadata?.orientedWidth)
+        assertEquals(1920, testViewModel.uiState.value.referenceImageMetadata?.orientedHeight)
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+        assertEquals(false, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
     fun onReferenceImageSelected_normalViewport_startsCompareMode() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceViewportChanged(1080, 1920)
@@ -330,6 +382,26 @@ class CameraViewModelTest {
         viewModel.onOverlayScaled(2.0f)
         viewModel.onOverlayReset()
         assertEquals(1f, viewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun tryStartCapture_firstCallStartsSecondCallIsRejected() {
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+
+        assertEquals(true, viewModel.tryStartCapture())
+        assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
+
+        assertEquals(false, viewModel.tryStartCapture())
+        assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
+    }
+
+    @Test
+    fun onPhotoCaptureError_resetsCaptureInProgress() {
+        viewModel.tryStartCapture()
+
+        viewModel.onPhotoCaptureError()
+
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
     }
 
     private fun testViewModelWithMetadata(

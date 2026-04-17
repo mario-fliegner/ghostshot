@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -80,7 +81,8 @@ data class CameraUiState(
     val activeAspectRatio: TargetAspectRatio = TargetAspectRatio.RATIO_16_9,
     val referenceImageDisplayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
     val referenceImageHasViewportMismatch: Boolean = false,
-    val referenceImageMetadata: ReferenceImageMetadata? = null
+    val referenceImageMetadata: ReferenceImageMetadata? = null,
+    val isCaptureInProgress: Boolean = false
 )
 
 /**
@@ -117,6 +119,8 @@ class CameraViewModel @Inject constructor(
 
     private var viewportSize: Pair<Int, Int>? = null
     private var displayModeChangedByUser = false
+    private var referenceImageSelectionJob: Job? = null
+    private var referenceImageSelectionRequestId = 0L
 
     /** Used in unit tests to inject a controlled dispatcher and metadata reader. */
     internal constructor(
@@ -155,10 +159,14 @@ class CameraViewModel @Inject constructor(
      */
     fun onReferenceImageSelected(uri: Uri?) {
         if (uri == null) return
-        viewModelScope.launch {
+        referenceImageSelectionJob?.cancel()
+        val requestId = ++referenceImageSelectionRequestId
+        referenceImageSelectionJob = viewModelScope.launch {
             val metadata = withContext(ioDispatcher) {
                 referenceImageMetadataReader(uri)
             } ?: return@launch
+            if (requestId != referenceImageSelectionRequestId) return@launch
+
             val longer = maxOf(metadata.orientedWidth, metadata.orientedHeight).toFloat()
             val shorter = minOf(metadata.orientedWidth, metadata.orientedHeight).toFloat()
             val ratio = longer / shorter
@@ -283,6 +291,16 @@ class CameraViewModel @Inject constructor(
         }
     }
 
+    fun tryStartCapture(): Boolean {
+        while (true) {
+            val current = _uiState.value
+            if (current.isCaptureInProgress) return false
+            if (_uiState.compareAndSet(current, current.copy(isCaptureInProgress = true))) {
+                return true
+            }
+        }
+    }
+
     /**
      * Called by [CameraScreen] when [ImageCapture] delivers a captured frame successfully.
      *
@@ -318,6 +336,7 @@ class CameraViewModel @Inject constructor(
                 } else {
                     bitmap.recycle()
                 }
+                finishCapture()
             }
         }
     }
@@ -327,9 +346,14 @@ class CameraViewModel @Inject constructor(
      * before a frame could be delivered.
      */
     fun onPhotoCaptureError() {
+        finishCapture()
         viewModelScope.launch {
             _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
         }
+    }
+
+    private fun finishCapture() {
+        _uiState.update { it.copy(isCaptureInProgress = false) }
     }
 
     private fun rotateBitmap(bitmap: Bitmap, degrees: Int): Bitmap {

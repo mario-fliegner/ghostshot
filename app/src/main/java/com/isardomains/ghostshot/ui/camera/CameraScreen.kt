@@ -229,25 +229,37 @@ fun CameraScreen(
             DisposableEffect(Unit) {
                 onDispose { executor.shutdown() }
             }
-            val onCapture: () -> Unit = {
-                imageCaptureState.value?.takePicture(
-                    executor,
-                    object : ImageCapture.OnImageCapturedCallback() {
-                        override fun onCaptureSuccess(image: ImageProxy) {
-                            try {
-                                val bitmap = image.toBitmap()
-                                val rotation = image.imageInfo.rotationDegrees
-                                viewModel.onPhotoCaptured(bitmap, rotation)
-                            } finally {
-                                image.close()
+            val onCapture: () -> Unit = onCapture@{
+                val imageCapture = imageCaptureState.value ?: return@onCapture
+                if (!viewModel.tryStartCapture()) return@onCapture
+                try {
+                    imageCapture.takePicture(
+                        executor,
+                        object : ImageCapture.OnImageCapturedCallback() {
+                            override fun onCaptureSuccess(image: ImageProxy) {
+                                try {
+                                    val bitmap = image.toBitmap()
+                                    val rotation = image.imageInfo.rotationDegrees
+                                    viewModel.onPhotoCaptured(bitmap, rotation)
+                                } catch (_: Exception) {
+                                    viewModel.onPhotoCaptureError()
+                                } catch (_: OutOfMemoryError) {
+                                    viewModel.onPhotoCaptureError()
+                                } finally {
+                                    image.close()
+                                }
+                            }
+
+                            override fun onError(exception: ImageCaptureException) {
+                                viewModel.onPhotoCaptureError()
                             }
                         }
-
-                        override fun onError(exception: ImageCaptureException) {
-                            viewModel.onPhotoCaptureError()
-                        }
-                    }
-                )
+                    )
+                } catch (_: Exception) {
+                    viewModel.onPhotoCaptureError()
+                } catch (_: OutOfMemoryError) {
+                    viewModel.onPhotoCaptureError()
+                }
             }
 
             Box(
@@ -280,20 +292,31 @@ fun CameraScreen(
                                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                                 cameraProviderFuture.addListener(
                                     {
-                                        val cameraProvider = cameraProviderFuture.get()
-                                        val preview = Preview.Builder()
-                                            .setTargetAspectRatio(cameraXRatio)
-                                            .build().also {
-                                            it.setSurfaceProvider(previewView.surfaceProvider)
+                                        try {
+                                            val cameraProvider = cameraProviderFuture.get()
+                                            if (!cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) {
+                                                imageCaptureState.value = null
+                                                viewModel.onPhotoCaptureError()
+                                                return@addListener
+                                            }
+
+                                            val preview = Preview.Builder()
+                                                .setTargetAspectRatio(cameraXRatio)
+                                                .build().also {
+                                                it.setSurfaceProvider(previewView.surfaceProvider)
+                                            }
+                                            // Unbind all use cases before rebinding to avoid conflicts.
+                                            cameraProvider.unbindAll()
+                                            cameraProvider.bindToLifecycle(
+                                                lifecycleOwner,
+                                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                                preview,
+                                                imageCapture
+                                            )
+                                        } catch (_: Exception) {
+                                            imageCaptureState.value = null
+                                            viewModel.onPhotoCaptureError()
                                         }
-                                        // Unbind all use cases before rebinding to avoid conflicts.
-                                        cameraProvider.unbindAll()
-                                        cameraProvider.bindToLifecycle(
-                                            lifecycleOwner,
-                                            CameraSelector.DEFAULT_BACK_CAMERA,
-                                            preview,
-                                            imageCapture
-                                        )
                                     },
                                     ContextCompat.getMainExecutor(ctx)
                                 )
@@ -797,4 +820,3 @@ private fun ShutterButton(
         }
     }
 }
-
