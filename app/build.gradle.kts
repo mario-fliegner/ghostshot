@@ -28,6 +28,34 @@ android {
             )
         }
     }
+    testOptions {
+        managedDevices {
+            localDevices {
+                create("pixel2Api29") {
+                    device = "Pixel 2"
+                    sdkVersion = 29
+                    systemImageSource = "aosp"
+                }
+                create("pixel2Api33") {
+                    device = "Pixel 2"
+                    sdkVersion = 33
+                    systemImageSource = "aosp"
+                }
+                create("pixel2Api35") {
+                    device = "Pixel 2"
+                    sdkVersion = 35
+                    systemImageSource = "aosp"
+                }
+            }
+            groups {
+                create("allPixel2Devices") {
+                    targetDevices.add(localDevices["pixel2Api29"])
+                    targetDevices.add(localDevices["pixel2Api33"])
+                    targetDevices.add(localDevices["pixel2Api35"])
+                }
+            }
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
