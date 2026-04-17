@@ -22,10 +22,15 @@ Technical baseline:
 - Material 3
 - MVVM + Hilt
 - CameraX preview
-- minSdk 26 / targetSdk 35
+- minSdk 29 / targetSdk 35
 
 Permissions:
 - CAMERA only
+
+Storage baseline:
+- Android 10 / API 29+ only
+- MediaStore saves rely on scoped-storage-era behavior for app-created images
+- No Android 8/9 legacy storage compatibility path
 
 ---
 

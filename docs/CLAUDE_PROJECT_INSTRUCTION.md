@@ -37,9 +37,12 @@ Do not expand the product scope unless explicitly instructed.
 - No direct Camera2 implementation unless explicitly required
 - Single-Activity architecture
 - Navigation: Navigation Compose
-- minSdk = 26
+- minSdk = 29
 - targetSdk = 35
 - compileSdk = 35
+
+The app officially supports Android 10 / API 29 and newer. Do not add Android 8/9
+or pre-29 storage compatibility paths unless explicitly requested.
 
 Use modern Android best practices appropriate for a new app targeting current Android versions.
 
@@ -61,6 +64,8 @@ Forbidden unless explicitly approved by the user:
 - Any additional dangerous permission
 
 Do not introduce unnecessary permissions.
+Because the app requires API 29+, do not add legacy `WRITE_EXTERNAL_STORAGE`
+for MediaStore saves.
 
 ---
 
@@ -78,6 +83,8 @@ Do not use:
 - deprecated storage patterns
 
 Save exactly one file per capture.
+The save path relies on Android 10+ MediaStore behavior for app-created images;
+there is no pre-29 shared-storage fallback.
 
 ---
 
