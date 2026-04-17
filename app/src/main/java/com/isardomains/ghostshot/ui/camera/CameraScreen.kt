@@ -57,11 +57,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -133,8 +135,7 @@ fun CameraScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Safe: LocalContext in a Compose tree hosted by ComponentActivity is always an Activity.
-    val activity = context as android.app.Activity
+    val activity = context as? android.app.Activity
 
     val uiState by viewModel.uiState.collectAsState()
 
@@ -155,7 +156,7 @@ fun CameraScreen(
             // shouldShowRequestPermissionRationale is true only between the first denial
             // and a permanent denial. It is false both before any request AND after a
             // permanent denial, which is why CHECKING is needed to distinguish them.
-            ActivityCompat.shouldShowRequestPermissionRationale(
+            activity != null && ActivityCompat.shouldShowRequestPermissionRationale(
                 activity, Manifest.permission.CAMERA
             ) -> CameraPermissionState.SHOW_RATIONALE
             else -> CameraPermissionState.PERMANENTLY_DENIED
@@ -225,6 +226,9 @@ fun CameraScreen(
             }
 
             val executor = remember { java.util.concurrent.Executors.newSingleThreadExecutor() }
+            DisposableEffect(Unit) {
+                onDispose { executor.shutdown() }
+            }
             val onCapture: () -> Unit = {
                 imageCaptureState.value?.takePicture(
                     executor,
@@ -424,6 +428,8 @@ private fun ReferenceImageOverlay(
 ) {
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
     val overlayDescription = stringResource(R.string.overlay_content_description)
+    val currentOnDragged by rememberUpdatedState(onDragged)
+    val currentOnScaled by rememberUpdatedState(onScaled)
 
     Box(
         modifier = modifier
@@ -432,11 +438,11 @@ private fun ReferenceImageOverlay(
             .pointerInput(Unit) {
                 detectTransformGestures { _, pan, zoom, _ ->
                     if (size.width > 0 && size.height > 0) {
-                        onDragged(
+                        currentOnDragged(
                             pan.x / size.width,
                             pan.y / size.height
                         )
-                        onScaled(zoom)
+                        currentOnScaled(zoom)
                     }
                 }
             },

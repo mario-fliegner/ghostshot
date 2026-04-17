@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.math.abs
 
@@ -154,8 +155,10 @@ class CameraViewModel @Inject constructor(
      */
     fun onReferenceImageSelected(uri: Uri?) {
         if (uri == null) return
-        viewModelScope.launch(ioDispatcher) {
-            val metadata = referenceImageMetadataReader(uri) ?: return@launch
+        viewModelScope.launch {
+            val metadata = withContext(ioDispatcher) {
+                referenceImageMetadataReader(uri)
+            } ?: return@launch
             val longer = maxOf(metadata.orientedWidth, metadata.orientedHeight).toFloat()
             val shorter = minOf(metadata.orientedWidth, metadata.orientedHeight).toFloat()
             val ratio = longer / shorter
@@ -292,8 +295,12 @@ class CameraViewModel @Inject constructor(
      */
     fun onPhotoCaptured(bitmap: Bitmap, rotationDegrees: Int) {
         viewModelScope.launch(Dispatchers.IO) {
+            var corrected: Bitmap? = null
             try {
-                val corrected = rotateBitmap(bitmap, rotationDegrees)
+                corrected = rotateBitmap(bitmap, rotationDegrees)
+                if (corrected !== bitmap) {
+                    bitmap.recycle()
+                }
                 val result = MediaStoreWriter.save(context.contentResolver, corrected)
                 _uiEvent.emit(
                     UiEvent.ShowSnackbar(
@@ -303,6 +310,14 @@ class CameraViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
+            } catch (e: OutOfMemoryError) {
+                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
+            } finally {
+                if (corrected != null) {
+                    corrected.recycle()
+                } else {
+                    bitmap.recycle()
+                }
             }
         }
     }

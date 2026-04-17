@@ -59,7 +59,10 @@ object MediaStoreWriter {
 
             Result.success(uri)
         } catch (e: Exception) {
-            resolver.delete(uri, null, null)
+            try { resolver.delete(uri, null, null) } catch (_: Exception) { }
+            Result.failure(e)
+        } catch (e: OutOfMemoryError) {
+            try { resolver.delete(uri, null, null) } catch (_: Exception) { }
             Result.failure(e)
         }
     }

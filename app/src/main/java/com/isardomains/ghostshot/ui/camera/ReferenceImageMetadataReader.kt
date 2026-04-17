@@ -26,9 +26,9 @@ object ReferenceImageMetadataReader {
                     ExifInterface.TAG_ORIENTATION,
                     ExifInterface.ORIENTATION_UNDEFINED
                 )
-            }
+            } ?: return null
         } catch (_: Exception) {
-            null
+            return null
         }
 
         val isRotated = exifOrientation == ExifInterface.ORIENTATION_ROTATE_90 ||
