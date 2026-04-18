@@ -21,7 +21,7 @@ Technical baseline:
 - Jetpack Compose
 - Material 3
 - MVVM + Hilt
-- CameraX preview
+- CameraX preview + image capture
 - minSdk 29 / targetSdk 35
 
 Permissions:
@@ -36,10 +36,11 @@ Storage baseline:
 
 ## Implemented Features
 
-### Camera
-- CameraX Preview working reliably
+### Camera / Capture
+- CameraX preview working reliably
 - Back camera only
-- Lifecycle-safe preview handling
+- Capture and save via MediaStore implemented
+- Capture lock is lifecycle-safe across rotation / recreation
 
 ### Permissions
 - Full permission flow implemented:
@@ -47,21 +48,25 @@ Storage baseline:
   - rationale
   - permanent denial → app settings
 
-### Reference Image
+### Reference Image / Overlay
 - Android Photo Picker integration
 - Single image selection
 - Overlay displayed above preview
 - Picker cancellation does NOT remove existing overlay
-
-### Overlay Rendering
-- Overlay displayed centered using AsyncImage
+- Overlay drag implemented
+- Overlay pinch scaling implemented
 - Opacity adjustable via slider (0.1–0.9)
 - Overlay state stored in ViewModel
+- Reset restores sensible default alignment state
+- Remove reference image supported with undo flow
+- Undo state survives rotation correctly
+
+### Comparison / Display UX
+- Comparison display mode is available from the reference-image controls/menu
+- Format-mismatch hint uses a compact badge + local inline bubble
+- Bottom control zone and top hint behavior are stable in portrait and landscape
 
 ### Layout (IMPORTANT)
-
-The layout has been refactored to:
-
 - Fullscreen `Box` as root
 - Camera preview ALWAYS `fillMaxSize()`
 - UI is layered ABOVE the preview
@@ -71,12 +76,36 @@ This ensures:
 - Overlay scaling remains stable
 
 ### UI Structure
-
 - Bottom UI is an overlay (not part of layout flow)
-- Portrait:
-  - stacked controls (opacity + bottom bar)
-- Landscape:
-  - compact single-row controls (reference + opacity)
+- Portrait and landscape layouts are both actively supported
+- Existing snackbar feedback and local hint feedback are stable after lifecycle changes
+
+---
+
+## Product Decision: Comparison Output (CRITICAL)
+
+GhostShot does **not** promise only a saved camera photo.
+It promises a reproducible before/after comparison result.
+
+### Final decision
+- The reference image is the master for comparison alignment
+- The visible overlay state at capture time defines the exact comparison frame
+- "What the user sees is what the user gets"
+
+### Capture result model
+Each capture consists conceptually of:
+1. Full Capture Image
+2. Comparison Crop Definition
+
+The full image is still saved unchanged.
+The comparison frame is defined at capture time from overlay/view geometry and later used for comparison output.
+
+### Important implication
+A visually aligned overlay in the app must correspond to the later comparison result as closely as technically possible.
+The app must therefore maintain a reliable mapping between:
+- Compose viewport / preview space
+- overlay geometry
+- captured image space
 
 ---
 
@@ -85,47 +114,39 @@ This ensures:
 - The preview is the primary content → must stay dominant
 - UI must NOT resize or affect preview geometry
 - UI is always an overlay layer
-- Use dark semi-transparent surfaces (camera app pattern)
+- Use dark semi-transparent surfaces sparingly
 - Use a single accent color across the app
 - Avoid visual clutter
-
-Color rules:
-- Background overlays: black with alpha (~60–70%)
-- Primary text: white
-- Secondary text: light gray
-- Accent color: single consistent color (e.g. blue)
+- Comparison UX must stay understandable without exposing technical camera complexity
 
 ---
 
 ## Not Implemented Yet
 
-- Overlay drag (move)
-- Overlay pinch scaling
-- Camera zoom mode
-- Reset functionality
-- Overlay delete (with confirmation)
-- Grid overlay
-- Capture / save via MediaStore
-- Any persistence across app restarts
+- Optional 3x3 grid overlay
+- Comparison crop definition / preview-to-capture mapping implementation
+- Persisted storage of comparison crop metadata alongside captures
+- Any persistence across full app restarts
+- Any export flow built on top of the comparison crop definition
+- Live camera zoom as a comparison tool
 
 ---
 
 ## Immediate Next Step
 
 Next implementation step:
+- define and implement the comparison crop definition pipeline
 
-- Enable dragging (move) of the overlay
-
-Scope:
-- One-finger drag moves overlay
-- Position stored in ViewModel
-- State survives rotation within same session
+Scope direction:
+- derive the comparison frame from the visible overlay state at capture time
+- map preview coordinates into captured image coordinates
+- keep saving the full image unchanged
+- prepare deterministic crop metadata for later before/after comparison
 
 Not part of this step:
-- No scaling
-- No zoom mode
-- No reset/delete
-- No capture
+- no live camera zoom feature
+- no visual merge export
+- no website/export UI yet
 
 ---
 
@@ -142,23 +163,25 @@ Not part of this step:
 ### UI discipline
 - No layout that resizes preview
 - No hardcoded colors
-- Use central color definitions
+- No avoidable UX complexity for camera manipulation
 
 ### State
-- ViewModel is source of truth
+- ViewModel is source of truth for core behavior
 - No UI-only state for core behavior
 
 ### Testability
 - Keep logic testable
-- Do not introduce complex UI logic in Composables
+- Prefer deterministic state + geometry logic over UI-only heuristics
+- Comparison frame behavior must be testable without depending on visual screenshots
 
 ---
 
 ## Notes
 
-The project has reached a stable UI baseline.
+The project now has a stable camera UI baseline.
 
 Further work must:
-- build on top of the current overlay-based layout
-- avoid breaking preview stability
-- maintain clear separation between UI and logic
+- preserve lifecycle-safe behavior
+- preserve current overlay alignment behavior
+- avoid breaking the product promise around reproducible before/after comparison
+- build comparison output logic on top of the existing stable camera and overlay system

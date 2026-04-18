@@ -1,4 +1,4 @@
-# OverlayPast – Claude Superprompt / Project Instruction (v1)
+# OverlayPast – Claude Superprompt / Project Instruction (v2)
 
 ## ROLE
 You are implementing and modifying a production-ready Android app.
@@ -17,10 +17,14 @@ Core user flow:
 2. Adjust overlay
 3. Align live camera preview with reference
 4. Capture new image
-5. Save captured image
+5. Save captured image and a deterministic comparison frame definition
 
 The app must stay focused on this flow.
 Do not expand the product scope unless explicitly instructed.
+
+Product promise:
+- What the user aligns on screen must define the later before/after comparison result
+- The app captures the full camera image, but the comparison frame is defined by the visible overlay state at capture time
 
 ---
 
@@ -37,12 +41,9 @@ Do not expand the product scope unless explicitly instructed.
 - No direct Camera2 implementation unless explicitly required
 - Single-Activity architecture
 - Navigation: Navigation Compose
-- minSdk = 29
+- minSdk = 26
 - targetSdk = 35
 - compileSdk = 35
-
-The app officially supports Android 10 / API 29 and newer. Do not add Android 8/9
-or pre-29 storage compatibility paths unless explicitly requested.
 
 Use modern Android best practices appropriate for a new app targeting current Android versions.
 
@@ -64,8 +65,6 @@ Forbidden unless explicitly approved by the user:
 - Any additional dangerous permission
 
 Do not introduce unnecessary permissions.
-Because the app requires API 29+, do not add legacy `WRITE_EXTERNAL_STORAGE`
-for MediaStore saves.
 
 ---
 
@@ -83,8 +82,6 @@ Do not use:
 - deprecated storage patterns
 
 Save exactly one file per capture.
-The save path relies on Android 10+ MediaStore behavior for app-created images;
-there is no pre-29 shared-storage fallback.
 
 ---
 
@@ -143,23 +140,23 @@ It must require confirmation to prevent accidental loss.
 
 ## INTERACTION MODEL
 
-There must be a clear, explicit mode switch between two interaction modes.
+The interaction model is comparison-first, not camera-app-first.
 
-### Mode 1: Overlay Adjust Mode
-Gestures affect ONLY the overlay:
+### Overlay Interaction
+Gestures affect the overlay only:
 - One-finger drag = move overlay
 - Two-finger pinch = scale overlay
 
-### Mode 2: Camera Zoom Mode
-Gestures affect ONLY the live camera view through camera zoom:
-- Two-finger pinch = camera zoom
+### Comparison Display Mode
+The app may offer explicit comparison display modes for how the reference is shown inside the viewport.
+Examples include a fitted/default view and a comparison-oriented view.
 
 Important:
-- Do not mix overlay manipulation and camera zoom in the same gesture context
-- The user must always know which mode is active
-- The mode switch must be clearly visible in the UI
 - The live camera image is not a freely transformable image object
 - Do not implement free dragging of the live camera image
+- Do not add live camera zoom unless it is explicitly requested in a dedicated task
+- The primary user control is overlay alignment, not camera manipulation
+- Any comparison mode UI must be clear and low-friction
 
 ---
 
@@ -180,12 +177,36 @@ Do not implement in v1:
 
 ## CAPTURE BEHAVIOR
 
-- Capture saves ONLY the new camera image
+- Capture saves the new full camera image
 - The reference overlay must NOT be rendered into the saved output image
-- No comparison export
+- No visual merge of reference and live image
 - No collage export
 - No side-by-side export
-- No second output file
+- No second user-facing image file in v1
+
+### Comparison Output Definition (CRITICAL)
+
+The visible overlay state at the moment of capture defines the exact comparison frame.
+
+"What the user sees is what the user gets."
+
+Each capture produces:
+1. Full Camera Image
+   - the original photo captured via CameraX
+   - stored unchanged via MediaStore
+2. Comparison Crop Definition
+   - a deterministic description of the visible comparison area
+   - derived from:
+     - overlay position
+     - overlay scale
+     - viewport size
+     - preview-to-capture mapping
+
+Important constraints:
+- The overlay image is NEVER baked into the saved camera image
+- The comparison is defined by geometry, not by compositing pixels into the photo
+- The app must not silently change the comparison frame after capture
+- The later before/after slider result must match the alignment the user saw during capture as closely as technically possible
 
 After successful capture:
 - Stay on the camera screen
@@ -265,7 +286,7 @@ Core controls must be available and clearly reachable:
 - Camera preview
 - Reference image picker
 - Capture button
-- Mode toggle (Overlay Adjust / Camera Zoom)
+- Comparison display mode control, if such a mode is exposed in the UI
 - Transparency slider
 - Reset action
 - Grid toggle
@@ -323,15 +344,15 @@ Do not introduce heavy or unnecessary processing for v1.
 
 At minimum, the implementation must consider and support tests for:
 - rotation with active overlay
-- switching between Overlay Adjust and Camera Zoom modes
+- comparison display mode switching, where applicable
 - capture while overlay is active
 - picker cancellation
 - save failure handling
-- drag behavior in Overlay Adjust mode
-- pinch scaling in Overlay Adjust mode
-- pinch zoom in Camera Zoom mode
+- drag behavior for overlay alignment
+- pinch scaling for overlay alignment
 - reset behavior
 - grid toggle behavior
+- comparison crop definition behavior, where relevant
 
 Where relevant:
 - unit tests for logic
@@ -421,8 +442,8 @@ When building from scratch or extending the feature, prefer this order:
 2. Reference image picker
 3. Overlay rendering
 4. Overlay drag/scale gestures
-5. Camera zoom mode
-6. Capture and save
+5. Capture and save
+6. Comparison crop definition / preview-to-capture mapping
 7. Grid / reset / delete controls
 8. Error handling
 9. Tests
