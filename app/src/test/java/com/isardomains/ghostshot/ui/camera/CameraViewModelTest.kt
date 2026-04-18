@@ -118,6 +118,20 @@ class CameraViewModelTest {
             ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
             testViewModel.uiState.value.referenceImageDisplayMode
         )
+        assertEquals(true, testViewModel.uiState.value.canUndoReferenceRemoval)
+    }
+
+    @Test
+    fun onReferenceImageRemoveConfirmed_marksUndoAvailableAndAdvancesGeneration() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceImageSelected(mock())
+        val initialGeneration = testViewModel.uiState.value.referenceRemovalUndoGeneration
+
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        assertEquals(null, testViewModel.uiState.value.referenceImageUri)
+        assertEquals(true, testViewModel.uiState.value.canUndoReferenceRemoval)
+        assertEquals(initialGeneration + 1L, testViewModel.uiState.value.referenceRemovalUndoGeneration)
     }
 
     @Test
@@ -472,6 +486,27 @@ class CameraViewModelTest {
     }
 
     @Test
+    fun onCaptureInterrupted_releasesCaptureLock_whenCallbackDoesNotArrive() {
+        assertEquals(true, viewModel.tryStartCapture())
+        assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
+
+        viewModel.onCaptureInterrupted()
+
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+        assertEquals(true, viewModel.tryStartCapture())
+    }
+
+    @Test
+    fun onCaptureInterrupted_isHarmlessWhenNoCaptureIsActive() {
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+
+        viewModel.onCaptureInterrupted()
+
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+        assertEquals(true, viewModel.tryStartCapture())
+    }
+
+    @Test
     fun onPhotoCaptureError_resetsCaptureInProgress() {
         viewModel.tryStartCapture()
 
@@ -501,6 +536,7 @@ class CameraViewModelTest {
         assertEquals(-0.1f, testViewModel.uiState.value.overlayOffsetY)
         assertEquals(1.5f, testViewModel.uiState.value.overlayScale)
         assertEquals(0.8f, testViewModel.uiState.value.overlayAlpha)
+        assertEquals(false, testViewModel.uiState.value.canUndoReferenceRemoval)
     }
 
     @Test
@@ -522,6 +558,7 @@ class CameraViewModelTest {
 
         // Undo snapshot was cleared by the new selection — URI stays as secondUri, not firstUri
         assertEquals(secondUri, testViewModel.uiState.value.referenceImageUri)
+        assertEquals(false, testViewModel.uiState.value.canUndoReferenceRemoval)
     }
 
     @Test

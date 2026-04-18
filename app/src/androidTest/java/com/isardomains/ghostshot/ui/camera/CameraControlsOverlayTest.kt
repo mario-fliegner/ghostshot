@@ -8,10 +8,14 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -24,6 +28,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
@@ -595,6 +600,80 @@ class CameraControlsOverlayTest {
         assertNoOverlap(snackbarBounds, captureBounds)
     }
 
+    @Test
+    fun undoSnackbar_showsFromUndoState() {
+        setUndoSnackbarContent(canUndoReferenceRemoval = true, undoGeneration = 1L)
+
+        composeRule.onNodeWithText(referenceRemovedSnackbar()).assertIsDisplayed()
+        composeRule.onNodeWithText(referenceRemovedUndo()).assertIsDisplayed()
+    }
+
+    @Test
+    fun undoSnackbar_reappearsAfterContentRecreation_whenUndoStateStillAvailable() {
+        setUndoSnackbarContent(canUndoReferenceRemoval = true, undoGeneration = 1L)
+        composeRule.onNodeWithText(referenceRemovedSnackbar()).assertIsDisplayed()
+
+        setUndoSnackbarContent(canUndoReferenceRemoval = true, undoGeneration = 1L, reuseScenario = true)
+
+        composeRule.onNodeWithText(referenceRemovedSnackbar()).assertIsDisplayed()
+        composeRule.onNodeWithText(referenceRemovedUndo()).assertIsDisplayed()
+    }
+
+    @Test
+    fun undoSnackbar_doesNotDuplicateOnRecompositionWithSameGeneration() {
+        var forceRecompose: (() -> Unit)? = null
+        setUndoSnackbarTestContent {
+            var nonce by remember { mutableStateOf(0) }
+            forceRecompose = { nonce++ }
+            UndoSnackbarTestHost(
+                canUndoReferenceRemoval = true,
+                undoGeneration = 1L,
+                message = referenceRemovedSnackbar(),
+                actionLabel = referenceRemovedUndo(),
+                nonce = nonce
+            )
+        }
+        composeRule.onNodeWithText(referenceRemovedSnackbar()).assertIsDisplayed()
+
+        composeRule.runOnIdle { forceRecompose?.invoke() }
+        composeRule.waitForIdle()
+
+        composeRule.onAllNodesWithText(referenceRemovedSnackbar()).assertCountEquals(1)
+    }
+
+    @Test
+    fun undoSnackbar_newGenerationShowsNewSnackbar() {
+        var showNextGeneration: (() -> Unit)? = null
+        setUndoSnackbarTestContent {
+            var generation by remember { mutableStateOf(1L) }
+            showNextGeneration = { generation = 2L }
+            UndoSnackbarTestHost(
+                canUndoReferenceRemoval = true,
+                undoGeneration = generation,
+                message = "${referenceRemovedSnackbar()} $generation",
+                actionLabel = referenceRemovedUndo()
+            )
+        }
+        composeRule.onNodeWithText("${referenceRemovedSnackbar()} 1").assertIsDisplayed()
+
+        composeRule.runOnIdle { showNextGeneration?.invoke() }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("${referenceRemovedSnackbar()} 2")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        composeRule.onNodeWithText("${referenceRemovedSnackbar()} 2").assertIsDisplayed()
+    }
+
+    @Test
+    fun undoSnackbar_doesNotShowWhenUndoUnavailable() {
+        setUndoSnackbarContent(canUndoReferenceRemoval = false, undoGeneration = 0L)
+
+        composeRule.onAllNodesWithText(referenceRemovedSnackbar()).assertCountEquals(0)
+        composeRule.onAllNodesWithText(referenceRemovedUndo()).assertCountEquals(0)
+    }
+
     private fun assertMenuHidden() {
         composeRule.onAllNodesWithContentDescription(resetDescription()).assertCountEquals(0)
         composeRule.onAllNodesWithContentDescription(displayModeDescription()).assertCountEquals(0)
@@ -683,6 +762,72 @@ class CameraControlsOverlayTest {
         }
     }
 
+    private fun setUndoSnackbarContent(
+        canUndoReferenceRemoval: Boolean,
+        undoGeneration: Long,
+        reuseScenario: Boolean = false
+    ) {
+        setUndoSnackbarTestContent(reuseScenario = reuseScenario) {
+            UndoSnackbarTestHost(
+                canUndoReferenceRemoval = canUndoReferenceRemoval,
+                undoGeneration = undoGeneration,
+                message = referenceRemovedSnackbar(),
+                actionLabel = referenceRemovedUndo()
+            )
+        }
+    }
+
+    private fun setUndoSnackbarTestContent(
+        reuseScenario: Boolean = false,
+        content: @Composable () -> Unit
+    ) {
+        wakeTestDevice()
+        if (!reuseScenario || scenario == null) {
+            scenario?.close()
+            scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        }
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    content()
+                }
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    @Composable
+    private fun UndoSnackbarTestHost(
+        canUndoReferenceRemoval: Boolean,
+        undoGeneration: Long,
+        message: String,
+        actionLabel: String,
+        nonce: Int = 0
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            val snackbarHostState = remember { SnackbarHostState() }
+            ReferenceRemovalUndoSnackbarEffect(
+                canUndoReferenceRemoval = canUndoReferenceRemoval,
+                undoGeneration = undoGeneration,
+                hostState = snackbarHostState,
+                message = message,
+                actionLabel = actionLabel,
+                onUndo = {}
+            )
+            CameraSnackbarHost(
+                hostState = snackbarHostState,
+                isLandscape = false,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+            Box(modifier = Modifier.testTag("undo_snackbar_recompose_$nonce"))
+        }
+    }
+
     private fun setControlsContent(
         referenceUri: Uri?,
         isLandscape: Boolean,
@@ -753,4 +898,6 @@ class CameraControlsOverlayTest {
     private fun formatMismatchBubble() = context.getString(R.string.reference_format_mismatch_bubble)
 
     private fun referenceRemovedSnackbar() = context.getString(R.string.reference_removed_snackbar)
+
+    private fun referenceRemovedUndo() = context.getString(R.string.reference_removed_undo)
 }

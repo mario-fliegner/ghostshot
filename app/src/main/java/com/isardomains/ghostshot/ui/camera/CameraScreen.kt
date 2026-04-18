@@ -212,8 +212,6 @@ fun CameraScreen(
             val snackbarHostState = remember { SnackbarHostState() }
             var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
             var successMessageResId by remember { mutableStateOf<Int?>(null) }
-            var undoAvailable by remember { mutableStateOf(false) }
-            var pendingUndoSnackbarTrigger by remember { mutableStateOf(0) }
             val removeSnackbarMessage = stringResource(R.string.reference_removed_snackbar)
             val removeSnackbarUndo = stringResource(R.string.reference_removed_undo)
 
@@ -228,27 +226,20 @@ fun CameraScreen(
                             }
                         }
                         is UiEvent.UndoInvalidated -> {
-                            undoAvailable = false
                             snackbarHostState.currentSnackbarData?.dismiss()
                         }
                     }
                 }
             }
 
-            LaunchedEffect(pendingUndoSnackbarTrigger) {
-                if (pendingUndoSnackbarTrigger > 0) {
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                    val result = snackbarHostState.showSnackbar(
-                        message = removeSnackbarMessage,
-                        actionLabel = removeSnackbarUndo,
-                        duration = SnackbarDuration.Short
-                    )
-                    if (result == SnackbarResult.ActionPerformed && undoAvailable) {
-                        viewModel.onReferenceImageRemoveUndo()
-                    }
-                    undoAvailable = false
-                }
-            }
+            ReferenceRemovalUndoSnackbarEffect(
+                canUndoReferenceRemoval = uiState.canUndoReferenceRemoval,
+                undoGeneration = uiState.referenceRemovalUndoGeneration,
+                hostState = snackbarHostState,
+                message = removeSnackbarMessage,
+                actionLabel = removeSnackbarUndo,
+                onUndo = { viewModel.onReferenceImageRemoveUndo() }
+            )
 
             val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
             val successMessage = successMessageResId?.let { stringResource(it) }
@@ -270,7 +261,10 @@ fun CameraScreen(
 
             val executor = remember { java.util.concurrent.Executors.newSingleThreadExecutor() }
             DisposableEffect(Unit) {
-                onDispose { executor.shutdown() }
+                onDispose {
+                    viewModel.onCaptureInterrupted()
+                    executor.shutdown()
+                }
             }
             val onCapture: () -> Unit = onCapture@{
                 val imageCapture = imageCaptureState.value ?: return@onCapture
@@ -403,11 +397,7 @@ fun CameraScreen(
                         )
                     },
                     onResetOverlay = { viewModel.onOverlayReset() },
-                    onRemoveReferenceImage = {
-                        viewModel.onReferenceImageRemoveConfirmed()
-                        undoAvailable = true
-                        pendingUndoSnackbarTrigger++
-                    },
+                    onRemoveReferenceImage = { viewModel.onReferenceImageRemoveConfirmed() },
                     displayMode = uiState.referenceImageDisplayMode,
                     hasViewportMismatch = uiState.referenceImageHasViewportMismatch,
                     onToggleDisplayMode = { viewModel.onReferenceImageDisplayModeToggle() },
@@ -672,6 +662,30 @@ internal fun CameraSnackbarHost(
             .testTag("camera_snackbar_host"),
         snackbar = { data -> Snackbar(snackbarData = data) }
     )
+}
+
+@Composable
+internal fun ReferenceRemovalUndoSnackbarEffect(
+    canUndoReferenceRemoval: Boolean,
+    undoGeneration: Long,
+    hostState: SnackbarHostState,
+    message: String,
+    actionLabel: String,
+    onUndo: () -> Unit
+) {
+    LaunchedEffect(canUndoReferenceRemoval, undoGeneration) {
+        if (canUndoReferenceRemoval) {
+            hostState.currentSnackbarData?.dismiss()
+            val result = hostState.showSnackbar(
+                message = message,
+                actionLabel = actionLabel,
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                onUndo()
+            }
+        }
+    }
 }
 
 private fun cameraBottomPadding(isLandscape: Boolean): Dp =

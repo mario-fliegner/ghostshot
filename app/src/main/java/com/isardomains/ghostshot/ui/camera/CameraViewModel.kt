@@ -82,7 +82,9 @@ data class CameraUiState(
     val referenceImageDisplayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
     val referenceImageHasViewportMismatch: Boolean = false,
     val referenceImageMetadata: ReferenceImageMetadata? = null,
-    val isCaptureInProgress: Boolean = false
+    val isCaptureInProgress: Boolean = false,
+    val canUndoReferenceRemoval: Boolean = false,
+    val referenceRemovalUndoGeneration: Long = 0L
 )
 
 /**
@@ -203,7 +205,8 @@ class CameraViewModel @Inject constructor(
                     referenceImageDisplayMode = recommendation.startMode,
                     overlayOffsetX = if (formatChanged) 0f else current.overlayOffsetX,
                     overlayOffsetY = if (formatChanged) 0f else current.overlayOffsetY,
-                    overlayScale = if (formatChanged) 1f else current.overlayScale
+                    overlayScale = if (formatChanged) 1f else current.overlayScale,
+                    canUndoReferenceRemoval = false
                 )
             }
             if (hadUndo) {
@@ -214,7 +217,8 @@ class CameraViewModel @Inject constructor(
 
     fun onReferenceImageRemoveConfirmed() {
         val current = _uiState.value
-        if (current.referenceImageUri != null) {
+        val hasReference = current.referenceImageUri != null
+        if (hasReference) {
             undoSnapshot = ReferenceUndoSnapshot(
                 referenceImageUri = current.referenceImageUri,
                 referenceImageMetadata = current.referenceImageMetadata,
@@ -238,13 +242,22 @@ class CameraViewModel @Inject constructor(
                 referenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
                 overlayOffsetX = 0f,
                 overlayOffsetY = 0f,
-                overlayScale = 1f
+                overlayScale = 1f,
+                canUndoReferenceRemoval = if (hasReference) true else it.canUndoReferenceRemoval,
+                referenceRemovalUndoGeneration = if (hasReference) {
+                    it.referenceRemovalUndoGeneration + 1L
+                } else {
+                    it.referenceRemovalUndoGeneration
+                }
             )
         }
     }
 
     fun onReferenceImageRemoveUndo() {
-        val snapshot = undoSnapshot ?: return
+        val snapshot = undoSnapshot ?: run {
+            _uiState.update { it.copy(canUndoReferenceRemoval = false) }
+            return
+        }
         undoSnapshot = null
         displayModeChangedByUser = snapshot.displayModeChangedByUser
         _uiState.update { current ->
@@ -259,7 +272,8 @@ class CameraViewModel @Inject constructor(
                 overlayOffsetX = snapshot.overlayOffsetX,
                 overlayOffsetY = snapshot.overlayOffsetY,
                 overlayScale = snapshot.overlayScale,
-                overlayAlpha = snapshot.overlayAlpha
+                overlayAlpha = snapshot.overlayAlpha,
+                canUndoReferenceRemoval = false
             )
         }
     }
@@ -370,6 +384,14 @@ class CameraViewModel @Inject constructor(
                 return true
             }
         }
+    }
+
+    /**
+     * Releases an in-flight capture lock when the UI/camera composition is torn down
+     * before CameraX can reliably deliver its success or error callback.
+     */
+    fun onCaptureInterrupted() {
+        finishCapture()
     }
 
     /**
