@@ -1,0 +1,4 @@
+<resources>
+    <string name="reference_format_mismatch_description">Referenzformat weicht ab. Tippen fuer Info.</string>
+    <string name="reference_format_mismatch_bubble">Overlay leicht versetzt</string>
+</resources>

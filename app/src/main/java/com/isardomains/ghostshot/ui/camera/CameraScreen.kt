@@ -50,10 +50,10 @@ import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -87,11 +87,14 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
@@ -698,15 +701,13 @@ internal fun CameraControlsOverlay(
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
     val referenceStartPadding = 16.dp
     val bottomPadding = cameraBottomPadding(isLandscape)
-    val mismatchDescription = stringResource(R.string.reference_viewport_mismatch)
-
     var isStackVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(referenceUri) {
         if (referenceUri == null) isStackVisible = false
     }
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.testTag("camera_controls_root")) {
         // Backdrop — lowest z, catches taps outside the stack to dismiss it
         if (isStackVisible) {
             Box(
@@ -722,22 +723,12 @@ internal fun CameraControlsOverlay(
 
         if (referenceUri != null) {
             if (hasViewportMismatch) {
-                Box(
+                FormatMismatchHint(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .systemBarsPadding()
                         .padding(top = 12.dp, start = horizontalPadding)
-                        .size(48.dp)
-                        .background(GhostShotOverlayScrim, CircleShape)
-                        .semantics { contentDescription = mismatchDescription },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = GhostShotTextPrimary
-                    )
-                }
+                )
             }
 
             // Opacity slider — fixed position above bottom controls, hidden when stack is open
@@ -839,6 +830,86 @@ internal fun CameraControlsOverlay(
                 .navigationBarsPadding()
                 .padding(bottom = bottomPadding)
         )
+    }
+}
+
+@Composable
+private fun FormatMismatchHint(
+    modifier: Modifier = Modifier
+) {
+    val description = stringResource(R.string.reference_format_mismatch_description)
+    val bubbleText = stringResource(R.string.reference_format_mismatch_bubble)
+    val view = LocalView.current
+    var isBubbleVisible by remember { mutableStateOf(false) }
+    var hintRequest by remember { mutableStateOf(0) }
+
+    LaunchedEffect(hintRequest) {
+        if (hintRequest > 0) {
+            isBubbleVisible = true
+            view.announceForAccessibility(bubbleText)
+            delay(1800)
+            isBubbleVisible = false
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .width(180.dp)
+            .height(92.dp)
+            .testTag("format_mismatch_hint_container")
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .clickable { hintRequest++ }
+                .semantics(mergeDescendants = true) {
+                    contentDescription = description
+                    role = Role.Button
+                    testTag = "format_mismatch_hint"
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(GhostShotOverlayScrim.copy(alpha = 0.34f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(14.dp)
+                        .testTag("format_mismatch_hint_icon"),
+                    tint = GhostShotTextPrimary.copy(alpha = 0.82f)
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = isBubbleVisible,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 6.dp, top = 56.dp)
+                .testTag("format_mismatch_hint_bubble"),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(GhostShotOverlayScrim.copy(alpha = 0.68f))
+                    .padding(horizontal = 8.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = bubbleText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = GhostShotTextPrimary,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 
@@ -1001,6 +1072,7 @@ private fun ReferenceActionStack(
                     ReferenceImageDisplayMode.SHOW_FULL_IMAGE -> Icons.Default.AspectRatio
                 },
                 contentDescription = null,
+                modifier = Modifier.testTag("reference_display_mode_icon"),
                 tint = GhostShotTextPrimary
             )
             Text(

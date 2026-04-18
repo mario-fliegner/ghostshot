@@ -13,11 +13,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -47,6 +49,7 @@ class CameraControlsOverlayTest {
 
     @After
     fun tearDown() {
+        composeRule.mainClock.autoAdvance = true
         scenario?.close()
         scenario = null
     }
@@ -375,6 +378,173 @@ class CameraControlsOverlayTest {
         )
 
         composeRule.onNodeWithContentDescription(mismatchDescription()).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(mismatchDescription()).assertHasClickAction()
+        composeRule.onAllNodesWithText(formatMismatchBubble()).assertCountEquals(0)
+    }
+
+    @Test
+    fun formatMismatchBadge_usesSeparateIconFromDisplayModeMenu() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true
+        )
+
+        openReferenceMenu()
+
+        composeRule.onNodeWithTag("format_mismatch_hint_icon", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("reference_display_mode_icon", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onAllNodesWithTag("format_mismatch_hint_icon", useUnmergedTree = true).assertCountEquals(1)
+        composeRule.onAllNodesWithTag("reference_display_mode_icon", useUnmergedTree = true).assertCountEquals(1)
+    }
+
+    @Test
+    fun controls_withMismatchInLandscape_showHintInsideTopStartBounds() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = true,
+            hasViewportMismatch = true
+        )
+
+        val hintBounds = composeRule
+            .onNodeWithContentDescription(mismatchDescription())
+            .getUnclippedBoundsInRoot()
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
+
+        assert(hintBounds.left >= rootBounds.left)
+        assert(hintBounds.top >= rootBounds.top)
+        assert(hintBounds.right <= rootBounds.right)
+        assert(hintBounds.bottom <= rootBounds.bottom)
+    }
+
+    @Test
+    fun formatMismatchBubble_showsWhenBadgeTapped() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(formatMismatchBubble()).assertIsDisplayed()
+    }
+
+    @Test
+    fun formatMismatchBubble_disappearsAutomatically() {
+        composeRule.mainClock.autoAdvance = false
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).performClick()
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(formatMismatchBubble()).assertIsDisplayed()
+
+        composeRule.mainClock.advanceTimeBy(2_200)
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithText(formatMismatchBubble()).assertCountEquals(0)
+    }
+
+    @Test
+    fun formatMismatchBubble_repeatedTapResetsTimer() {
+        composeRule.mainClock.autoAdvance = false
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).performClick()
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithText(formatMismatchBubble()).assertCountEquals(1)
+
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.onNodeWithContentDescription(mismatchDescription()).performClick()
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithText(formatMismatchBubble()).assertCountEquals(1)
+
+        composeRule.mainClock.advanceTimeBy(1_200)
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithText(formatMismatchBubble()).assertCountEquals(0)
+    }
+
+    @Test
+    fun formatMismatchBubble_staysInsideScreenBounds() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).performClick()
+        composeRule.waitForIdle()
+
+        val bubbleBounds = composeRule
+            .onNodeWithTag("format_mismatch_hint_bubble")
+            .getUnclippedBoundsInRoot()
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
+
+        assert(bubbleBounds.left >= rootBounds.left)
+        assert(bubbleBounds.top >= rootBounds.top)
+        assert(bubbleBounds.right <= rootBounds.right)
+        assert(bubbleBounds.bottom <= rootBounds.bottom)
+    }
+
+    @Test
+    fun formatMismatchBubble_isBelowAndRightOfBadge() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).performClick()
+        composeRule.waitForIdle()
+
+        val badgeBounds = composeRule
+            .onNodeWithContentDescription(mismatchDescription())
+            .getUnclippedBoundsInRoot()
+        val bubbleBounds = composeRule
+            .onNodeWithTag("format_mismatch_hint_bubble")
+            .getUnclippedBoundsInRoot()
+
+        assert(bubbleBounds.top > badgeBounds.bottom)
+        assert(bubbleBounds.left > badgeBounds.left)
+    }
+
+    @Test
+    fun formatMismatchBubble_inLandscape_staysInsideScreenBounds() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = true,
+            hasViewportMismatch = true
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).performClick()
+        composeRule.waitForIdle()
+
+        val bubbleBounds = composeRule
+            .onNodeWithTag("format_mismatch_hint_bubble")
+            .getUnclippedBoundsInRoot()
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
+
+        assert(bubbleBounds.left >= rootBounds.left)
+        assert(bubbleBounds.top >= rootBounds.top)
+        assert(bubbleBounds.right <= rootBounds.right)
+        assert(bubbleBounds.bottom <= rootBounds.bottom)
     }
 
     @Test
@@ -578,5 +748,9 @@ class CameraControlsOverlayTest {
 
     private fun modeFitText() = context.getString(R.string.action_stack_display_mode_fit_label)
 
-    private fun mismatchDescription() = context.getString(R.string.reference_viewport_mismatch)
+    private fun mismatchDescription() = context.getString(R.string.reference_format_mismatch_description)
+
+    private fun formatMismatchBubble() = context.getString(R.string.reference_format_mismatch_bubble)
+
+    private fun referenceRemovedSnackbar() = context.getString(R.string.reference_removed_snackbar)
 }

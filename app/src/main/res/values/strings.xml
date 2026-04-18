@@ -26,6 +26,8 @@
     <string name="remove_reference_image_cancel">Cancel</string>
     <string name="toggle_reference_display_mode">Toggle reference display mode</string>
     <string name="reference_viewport_mismatch">Reference image differs from the current viewport</string>
+    <string name="reference_format_mismatch_description">Reference format differs. Tap for more info.</string>
+    <string name="reference_format_mismatch_bubble">Overlay slightly off</string>
     <string name="reference_removed_snackbar">Reference image removed</string>
     <string name="reference_removed_undo">Undo</string>
     <string name="reference_options_badge">Reference image options available</string>
