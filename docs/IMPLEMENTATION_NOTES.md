@@ -135,7 +135,20 @@ The app must therefore maintain a reliable mapping between:
 ## Immediate Next Step
 
 Next implementation step:
-- define and implement the comparison crop definition pipeline
+- implement ComparisonFrame v1 pipeline
+
+Details:
+- Introduce CaptureSnapshot (atomic at capture start)
+- Compute ComparisonFrame AFTER rotateBitmap()
+- Use pure Kotlin ComparisonFrameCalculator (unit-testable)
+- No ComparisonFrame if reference metadata is missing
+- No persistence yet (no JSON, no EXIF, no DB)
+
+Explicitly NOT part of this step:
+- No camera zoom
+- No UI usage of ComparisonFrame
+- No export logic
+
 
 Scope direction:
 - derive the comparison frame from the visible overlay state at capture time

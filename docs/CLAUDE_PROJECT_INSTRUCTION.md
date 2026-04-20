@@ -194,7 +194,20 @@ Each capture produces:
 1. Full Camera Image
    - the original photo captured via CameraX
    - stored unchanged via MediaStore
-2. Comparison Crop Definition
+2. Comparison Frame Definition (CRITICAL)
+
+Each capture produces:
+1. Full Camera Image
+2. ComparisonFrame:
+   - CaptureRect (normalized [0..1] in captured image)
+   - ReferenceRect (normalized [0..1] in reference image)
+
+Important:
+- The comparison frame is defined ONLY by the visible overlay state at capture time
+- The reference image is the alignment master
+- No live camera zoom is part of v1 interaction
+- The mapping must be deterministic and reproducible
+
    - a deterministic description of the visible comparison area
    - derived from:
      - overlay position
