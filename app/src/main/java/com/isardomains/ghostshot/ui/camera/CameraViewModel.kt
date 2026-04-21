@@ -136,6 +136,22 @@ internal data class CaptureSnapshot(
 )
 
 /**
+ * The internal result of a successfully completed capture pipeline run.
+ *
+ * Only produced when [MediaStoreWriter.save] succeeds. Both components describe
+ * the same capture event: [savedUri] identifies the stored file and [comparisonFrame]
+ * describes the alignment geometry at shutter time (null when no reference snapshot
+ * was available at capture start).
+ *
+ * @param savedUri URI of the image written to MediaStore.
+ * @param comparisonFrame Alignment geometry at capture time, or null if no reference was active.
+ */
+internal data class CaptureResult(
+    val savedUri: Uri,
+    val comparisonFrame: ComparisonFrame?
+)
+
+/**
  * ViewModel for the camera screen.
  *
  * Owns and exposes [CameraUiState] as a [StateFlow]. Because it is a ViewModel,
@@ -166,10 +182,11 @@ class CameraViewModel @Inject constructor(
     @Volatile
     internal var pendingCaptureSnapshot: CaptureSnapshot? = null
 
-    // Visible for testing — holds the ComparisonFrame from the most recent successful
-    // capture that had a valid snapshot. Null until the first such capture completes.
+    // Visible for testing — holds the result of the most recent successfully completed capture.
+    // Null until the first successful save, and reset to null on every new capture attempt
+    // (success, failure, error, or interrupt). Never reflects a failed or incomplete capture.
     @Volatile
-    internal var lastCaptureFrame: ComparisonFrame? = null
+    internal var lastCaptureResult: CaptureResult? = null
 
     /** Used in unit tests to inject a controlled dispatcher and metadata reader. */
     internal constructor(
@@ -440,6 +457,7 @@ class CameraViewModel @Inject constructor(
      */
     fun onCaptureInterrupted() {
         pendingCaptureSnapshot = null
+        lastCaptureResult = null
         finishCapture()
     }
 
@@ -448,7 +466,8 @@ class CameraViewModel @Inject constructor(
      *
      * Runs the full pipeline on [Dispatchers.IO]:
      * rotation correction → ComparisonFrame calculation → MediaStore save.
-     * Emits a [UiEvent.ShowSnackbar] with the outcome.
+     * Sets [lastCaptureResult] only on successful save. Emits a [UiEvent.ShowSnackbar]
+     * with the outcome.
      *
      * @param bitmap Raw bitmap from ImageProxy.toBitmap(), may require rotation correction.
      * @param rotationDegrees Clockwise degrees to apply, from ImageInfo.rotationDegrees.
@@ -465,7 +484,7 @@ class CameraViewModel @Inject constructor(
                 // Consume snapshot exactly once, immediately after reading.
                 val snapshot = pendingCaptureSnapshot
                 pendingCaptureSnapshot = null
-                lastCaptureFrame = if (snapshot != null) {
+                val frame: ComparisonFrame? = if (snapshot != null) {
                     ComparisonFrameCalculator.calculate(
                         CalculatorInput(
                             viewportWidth = snapshot.viewportWidth,
@@ -484,16 +503,24 @@ class CameraViewModel @Inject constructor(
                     null
                 }
 
-                val result = MediaStoreWriter.save(context.contentResolver, corrected)
+                val saveResult = MediaStoreWriter.save(context.contentResolver, corrected)
+                val savedUri = saveResult.getOrNull()
+                lastCaptureResult = if (savedUri != null) {
+                    CaptureResult(savedUri = savedUri, comparisonFrame = frame)
+                } else {
+                    null
+                }
                 _uiEvent.emit(
                     UiEvent.ShowSnackbar(
-                        messageResId = if (result.isSuccess) R.string.capture_saved else R.string.capture_failed,
-                        isSuccess = result.isSuccess
+                        messageResId = if (saveResult.isSuccess) R.string.capture_saved else R.string.capture_failed,
+                        isSuccess = saveResult.isSuccess
                     )
                 )
             } catch (e: Exception) {
+                lastCaptureResult = null
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
             } catch (e: OutOfMemoryError) {
+                lastCaptureResult = null
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
             } finally {
                 if (corrected != null) {
@@ -513,6 +540,7 @@ class CameraViewModel @Inject constructor(
      */
     fun onPhotoCaptureError() {
         pendingCaptureSnapshot = null
+        lastCaptureResult = null
         finishCapture()
         viewModelScope.launch {
             _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))

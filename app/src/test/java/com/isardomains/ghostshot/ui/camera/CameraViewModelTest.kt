@@ -784,15 +784,17 @@ class CameraViewModelTest {
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
     }
 
-    // --- lastCaptureFrame ---
+    // --- lastCaptureResult ---
 
     @Test
-    fun lastCaptureFrame_isNullInitially() {
-        assertNull(viewModel.lastCaptureFrame)
+    fun lastCaptureResult_isNullInitially() {
+        assertNull(viewModel.lastCaptureResult)
     }
 
     @Test
-    fun lastCaptureFrame_isSetAfterSuccessfulCaptureWithSnapshot() = runTest {
+    fun lastCaptureResult_isNullWhenSaveFails() = runTest {
+        // In unit tests MediaStoreWriter.save() always fails (mocked context → null resolver).
+        // Verifies that lastCaptureResult is null and not set to a stale value.
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceViewportChanged(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
@@ -803,12 +805,12 @@ class CameraViewModelTest {
         whenever(bitmap.height).thenReturn(1920)
         testViewModel.onPhotoCaptured(bitmap, 0)
 
-        assertNotNull(testViewModel.lastCaptureFrame)
+        assertNull(testViewModel.lastCaptureResult)
     }
 
     @Test
-    fun lastCaptureFrame_remainsNullWhenNoSnapshot() = runTest {
-        // No reference → no snapshot → lastCaptureFrame stays null after capture attempt.
+    fun lastCaptureResult_isNullWhenNoSnapshot() = runTest {
+        // No reference → no snapshot → save still attempted but fails → lastCaptureResult null.
         viewModel.onReferenceViewportChanged(1080, 1920)
         viewModel.tryStartCapture()
 
@@ -817,23 +819,49 @@ class CameraViewModelTest {
         whenever(bitmap.height).thenReturn(1920)
         viewModel.onPhotoCaptured(bitmap, 0)
 
-        assertNull(viewModel.lastCaptureFrame)
+        assertNull(viewModel.lastCaptureResult)
     }
 
     @Test
-    fun lastCaptureFrame_isClearedWhenSubsequentCaptureHasNoSnapshot() = runTest {
-        // First capture with valid snapshot sets lastCaptureFrame.
+    fun lastCaptureResult_isNullAfterInterrupt() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceViewportChanged(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+
+        testViewModel.onCaptureInterrupted()
+
+        assertNull(testViewModel.lastCaptureResult)
+    }
+
+    @Test
+    fun lastCaptureResult_isNullAfterCaptureError() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+
+        testViewModel.onPhotoCaptureError()
+
+        assertNull(testViewModel.lastCaptureResult)
+    }
+
+    @Test
+    fun lastCaptureResult_isResetOnEachNewCapture() = runTest {
+        // Verifies that no stale value survives across capture attempts.
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+
+        // First capture — save fails in unit tests → null.
         testViewModel.tryStartCapture()
         val bitmap1 = mock<Bitmap>()
         whenever(bitmap1.width).thenReturn(1080)
         whenever(bitmap1.height).thenReturn(1920)
         testViewModel.onPhotoCaptured(bitmap1, 0)
-        assertNotNull(testViewModel.lastCaptureFrame)
+        assertNull(testViewModel.lastCaptureResult)
 
-        // Second capture without metadata (reference removed) → snapshot is null → must clear.
+        // Second capture after reference removal → also null, not stale from first attempt.
         testViewModel.onReferenceImageRemoveConfirmed()
         testViewModel.tryStartCapture()
         val bitmap2 = mock<Bitmap>()
@@ -841,7 +869,7 @@ class CameraViewModelTest {
         whenever(bitmap2.height).thenReturn(1920)
         testViewModel.onPhotoCaptured(bitmap2, 0)
 
-        assertNull(testViewModel.lastCaptureFrame)
+        assertNull(testViewModel.lastCaptureResult)
     }
 
     // --- helpers ---
