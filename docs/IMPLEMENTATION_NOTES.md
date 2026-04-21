@@ -61,24 +61,30 @@ Storage baseline:
 - Remove reference image supported with undo flow
 - Undo state survives rotation correctly
 
-### Comparison / Display UX
-- Comparison display mode is available from the reference-image controls/menu
-- Format-mismatch hint uses a compact badge + local inline bubble
-- Bottom control zone and top hint behavior are stable in portrait and landscape
+### Comparison / Core Logic (NEW)
+- `ComparisonCropProcessor` implemented
+- Deterministic crop logic based on `ComparisonFrame`
+- Uses:
+  - CaptureRect → crop from capture bitmap
+  - ReferenceRect → crop from reference bitmap
+- Capture crop is scaled to exact reference crop size
+- Strict rounding rules:
+  - floor (left/top)
+  - ceil (right/bottom)
+  - hard clamp to bitmap bounds
+- No geometry recalculation
+- No EXIF / no URI / no pipeline logic inside processor
+- Fully isolated, testable core logic
 
-### Layout (IMPORTANT)
-- Fullscreen `Box` as root
-- Camera preview ALWAYS `fillMaxSize()`
-- UI is layered ABOVE the preview
-
-This ensures:
-- Preview size NEVER changes due to UI
-- Overlay scaling remains stable
-
-### UI Structure
-- Bottom UI is an overlay (not part of layout flow)
-- Portrait and landscape layouts are both actively supported
-- Existing snackbar feedback and local hint feedback are stable after lifecycle changes
+### Tests (NEW)
+- Full instrumentation test coverage for `ComparisonCropProcessor`
+- Covers:
+  - standard cases
+  - edge cases (rounding, bounds, small crops)
+  - error cases (degenerate rects)
+  - memory guarantees (inputs not recycled)
+- Uses synthetic Bitmaps only
+- No additional frameworks introduced
 
 ---
 
@@ -100,66 +106,37 @@ Each capture consists conceptually of:
 The full image is still saved unchanged.
 The comparison frame is defined at capture time from overlay/view geometry and later used for comparison output.
 
-### Important implication
-A visually aligned overlay in the app must correspond to the later comparison result as closely as technically possible.
-The app must therefore maintain a reliable mapping between:
-- Compose viewport / preview space
-- overlay geometry
-- captured image space
-
----
-
-## UI Design Principles (IMPORTANT)
-
-- The preview is the primary content → must stay dominant
-- UI must NOT resize or affect preview geometry
-- UI is always an overlay layer
-- Use dark semi-transparent surfaces sparingly
-- Use a single accent color across the app
-- Avoid visual clutter
-- Comparison UX must stay understandable without exposing technical camera complexity
-
 ---
 
 ## Not Implemented Yet
 
-- Optional 3x3 grid overlay
-- Comparison crop definition / preview-to-capture mapping implementation
-- Persisted storage of comparison crop metadata alongside captures
-- Any persistence across full app restarts
-- Any export flow built on top of the comparison crop definition
-- Live camera zoom as a comparison tool
+- Integration of `ComparisonCropProcessor` into capture flow
+- Comparison crop definition / preview-to-capture mapping usage in runtime
+- Persisted storage of comparison crop metadata
+- Any export flow based on comparison result
+- Debug preview of generated crops
 
 ---
 
 ## Immediate Next Step
 
 Next implementation step:
-- implement ComparisonFrame v1 pipeline
 
-Details:
-- Introduce CaptureSnapshot (atomic at capture start)
-- Compute ComparisonFrame AFTER rotateBitmap()
-- Use pure Kotlin ComparisonFrameCalculator (unit-testable)
-- No ComparisonFrame if reference metadata is missing
-- No persistence yet (no JSON, no EXIF, no DB)
+👉 Integrate `ComparisonCropProcessor` into capture flow (read-only)
 
-Explicitly NOT part of this step:
-- No camera zoom
-- No UI usage of ComparisonFrame
-- No export logic
+Scope:
+- Call processor after successful capture
+- Use existing:
+  - saved capture bitmap
+  - loaded reference bitmap
+  - existing ComparisonFrame
+- DO NOT:
+  - persist results yet
+  - add UI
+  - modify pipeline structure
 
-
-Scope direction:
-- derive the comparison frame from the visible overlay state at capture time
-- map preview coordinates into captured image coordinates
-- keep saving the full image unchanged
-- prepare deterministic crop metadata for later before/after comparison
-
-Not part of this step:
-- no live camera zoom feature
-- no visual merge export
-- no website/export UI yet
+Goal:
+- Validate visually that computed crops match overlay alignment
 
 ---
 
@@ -173,28 +150,6 @@ Not part of this step:
 - Keep changes minimal
 - No refactoring outside scope
 
-### UI discipline
-- No layout that resizes preview
-- No hardcoded colors
-- No avoidable UX complexity for camera manipulation
-
-### State
-- ViewModel is source of truth for core behavior
-- No UI-only state for core behavior
-
 ### Testability
-- Keep logic testable
-- Prefer deterministic state + geometry logic over UI-only heuristics
-- Comparison frame behavior must be testable without depending on visual screenshots
-
----
-
-## Notes
-
-The project now has a stable camera UI baseline.
-
-Further work must:
-- preserve lifecycle-safe behavior
-- preserve current overlay alignment behavior
-- avoid breaking the product promise around reproducible before/after comparison
-- build comparison output logic on top of the existing stable camera and overlay system
+- Core logic remains isolated and deterministic
+- No UI dependency in core logic

@@ -81,7 +81,8 @@ Do not use:
 - unmanaged filesystem paths
 - deprecated storage patterns
 
-Save exactly one file per capture.
+Save the captured image.
+Optionally, additional derived outputs (e.g. comparison images) may be saved if explicitly defined in scope.
 
 ---
 
@@ -179,10 +180,10 @@ Do not implement in v1:
 
 - Capture saves the new full camera image
 - The reference overlay must NOT be rendered into the saved output image
-- No visual merge of reference and live image
-- No collage export
-- No side-by-side export
-- No second user-facing image file in v1
+- No visual merge of reference and live image (unless explicitly defined in scope)
+- No collage export (unless explicitly defined in scope)
+- No side-by-side export (unless explicitly defined in scope)
+- Additional derived images (e.g. comparison outputs) are only allowed when explicitly defined in scope
 
 ### Comparison Output Definition (CRITICAL)
 
