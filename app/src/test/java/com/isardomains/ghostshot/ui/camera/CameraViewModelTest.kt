@@ -1,6 +1,7 @@
 // path: app/src/test/java/com/isardomains/ghostshot/ui/camera/CameraViewModelTest.kt
 package com.isardomains.ghostshot.ui.camera
 
+import android.graphics.Bitmap
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,6 +17,7 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CameraViewModelTest {
@@ -780,6 +782,66 @@ class CameraViewModelTest {
 
         assertNull(viewModel.pendingCaptureSnapshot)
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+    }
+
+    // --- lastCaptureFrame ---
+
+    @Test
+    fun lastCaptureFrame_isNullInitially() {
+        assertNull(viewModel.lastCaptureFrame)
+    }
+
+    @Test
+    fun lastCaptureFrame_isSetAfterSuccessfulCaptureWithSnapshot() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap, 0)
+
+        assertNotNull(testViewModel.lastCaptureFrame)
+    }
+
+    @Test
+    fun lastCaptureFrame_remainsNullWhenNoSnapshot() = runTest {
+        // No reference → no snapshot → lastCaptureFrame stays null after capture attempt.
+        viewModel.onReferenceViewportChanged(1080, 1920)
+        viewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        viewModel.onPhotoCaptured(bitmap, 0)
+
+        assertNull(viewModel.lastCaptureFrame)
+    }
+
+    @Test
+    fun lastCaptureFrame_isClearedWhenSubsequentCaptureHasNoSnapshot() = runTest {
+        // First capture with valid snapshot sets lastCaptureFrame.
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+        val bitmap1 = mock<Bitmap>()
+        whenever(bitmap1.width).thenReturn(1080)
+        whenever(bitmap1.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap1, 0)
+        assertNotNull(testViewModel.lastCaptureFrame)
+
+        // Second capture without metadata (reference removed) → snapshot is null → must clear.
+        testViewModel.onReferenceImageRemoveConfirmed()
+        testViewModel.tryStartCapture()
+        val bitmap2 = mock<Bitmap>()
+        whenever(bitmap2.width).thenReturn(1080)
+        whenever(bitmap2.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap2, 0)
+
+        assertNull(testViewModel.lastCaptureFrame)
     }
 
     // --- helpers ---

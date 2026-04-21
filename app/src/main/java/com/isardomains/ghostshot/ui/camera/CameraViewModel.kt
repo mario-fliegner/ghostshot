@@ -166,6 +166,11 @@ class CameraViewModel @Inject constructor(
     @Volatile
     internal var pendingCaptureSnapshot: CaptureSnapshot? = null
 
+    // Visible for testing — holds the ComparisonFrame from the most recent successful
+    // capture that had a valid snapshot. Null until the first such capture completes.
+    @Volatile
+    internal var lastCaptureFrame: ComparisonFrame? = null
+
     /** Used in unit tests to inject a controlled dispatcher and metadata reader. */
     internal constructor(
         context: Context,
@@ -460,7 +465,7 @@ class CameraViewModel @Inject constructor(
                 // Consume snapshot exactly once, immediately after reading.
                 val snapshot = pendingCaptureSnapshot
                 pendingCaptureSnapshot = null
-                if (snapshot != null) {
+                lastCaptureFrame = if (snapshot != null) {
                     ComparisonFrameCalculator.calculate(
                         CalculatorInput(
                             viewportWidth = snapshot.viewportWidth,
@@ -475,7 +480,8 @@ class CameraViewModel @Inject constructor(
                             displayMode = snapshot.displayMode
                         )
                     )
-                    // ComparisonFrame result is available here for future persistence/export (v2+).
+                } else {
+                    null
                 }
 
                 val result = MediaStoreWriter.save(context.contentResolver, corrected)

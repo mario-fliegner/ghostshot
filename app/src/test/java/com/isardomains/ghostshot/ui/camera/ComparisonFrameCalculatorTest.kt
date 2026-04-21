@@ -407,6 +407,45 @@ class ComparisonFrameCalculatorTest {
         assertFloat(1.0, result.referenceRect.bottom)
     }
 
+    @Test
+    fun showFullImage_narrowReference_captureRectFixedValues() {
+        // Viewport 1000x1000, capture 1000x1000, reference 500x1000, offset=0, scale=1.
+        //
+        // fitScale = min(1000/500, 1000/1000) = min(2.0, 1.0) = 1.0
+        // displayedWidth=500, displayedHeight=1000
+        // translationX=0, translationY=0  (no clamp in SHOW_FULL_IMAGE)
+        // imageCenterX=500, imageCenterY=500
+        // imgLeft=250, imgTop=0, imgRight=750, imgBottom=1000
+        // visLeft=250, visTop=0, visRight=750, visBottom=1000
+        //
+        // captureRect (previewScale = max(1000/1000, 1000/1000) = 1.0, capOriginX=0, capOriginY=0):
+        //   left   = (250-0)/1.0/1000 = 0.25
+        //   top    = (0  -0)/1.0/1000 = 0.0
+        //   right  = (750-0)/1.0/1000 = 0.75
+        //   bottom = (1000-0)/1.0/1000= 1.0
+        val result = ComparisonFrameCalculator.calculate(
+            CalculatorInput(
+                viewportWidth = 1000,
+                viewportHeight = 1000,
+                captureWidth = 1000,
+                captureHeight = 1000,
+                referenceOrientedWidth = 500,
+                referenceOrientedHeight = 1000,
+                overlayOffsetX = 0f,
+                overlayOffsetY = 0f,
+                overlayScale = 1f,
+                displayMode = ReferenceImageDisplayMode.SHOW_FULL_IMAGE
+            )
+        )
+        assertNotNull(result)
+        result!!
+        result.captureRect.assertValid()
+        assertEquals(0.25f, result.captureRect.left,   0.0001f)
+        assertEquals(0.0f,  result.captureRect.top,    0.0001f)
+        assertEquals(0.75f, result.captureRect.right,  0.0001f)
+        assertEquals(1.0f,  result.captureRect.bottom, 0.0001f)
+    }
+
     // ── PRECISION / ROBUSTNESS ────────────────────────────────────────────────────────────────
 
     @Test
