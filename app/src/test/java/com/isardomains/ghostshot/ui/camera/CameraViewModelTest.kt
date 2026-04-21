@@ -1,3 +1,4 @@
+// path: app/src/test/java/com/isardomains/ghostshot/ui/camera/CameraViewModelTest.kt
 package com.isardomains.ghostshot.ui.camera
 
 import android.net.Uri
@@ -248,6 +249,21 @@ class CameraViewModelTest {
             viewModel.uiState.value.referenceImageDisplayMode
         )
         assertEquals(false, viewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onReferenceViewportChanged_storesViewportInState() {
+        viewModel.onReferenceViewportChanged(1080, 1920)
+        assertEquals(1080, viewModel.uiState.value.viewportWidth)
+        assertEquals(1920, viewModel.uiState.value.viewportHeight)
+    }
+
+    @Test
+    fun onReferenceViewportChanged_invalidDimensions_doesNotUpdateState() {
+        viewModel.onReferenceViewportChanged(1080, 1920)
+        viewModel.onReferenceViewportChanged(0, 1920)
+        assertEquals(1080, viewModel.uiState.value.viewportWidth)
+        assertEquals(1920, viewModel.uiState.value.viewportHeight)
     }
 
     @Test
@@ -630,6 +646,143 @@ class CameraViewModelTest {
         job.cancel()
         assertEquals(0, events.filterIsInstance<UiEvent.UndoInvalidated>().size)
     }
+
+    // --- CaptureSnapshot lifecycle ---
+
+    @Test
+    fun tryStartCapture_withValidStateAndMetadata_createsCaptureSnapshot() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.tryStartCapture()
+
+        assertNotNull(testViewModel.pendingCaptureSnapshot)
+    }
+
+    @Test
+    fun tryStartCapture_snapshotReflectsLockedStateValues() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onOverlayDragged(0.2f, -0.1f)
+        testViewModel.onOverlayScaled(1.5f)
+
+        testViewModel.tryStartCapture()
+
+        val snapshot = testViewModel.pendingCaptureSnapshot
+        assertNotNull(snapshot)
+        assertEquals(1080, snapshot!!.viewportWidth)
+        assertEquals(1920, snapshot.viewportHeight)
+        assertEquals(1080, snapshot.referenceOrientedWidth)
+        assertEquals(1920, snapshot.referenceOrientedHeight)
+        assertEquals(0.2f, snapshot.overlayOffsetX)
+        assertEquals(-0.1f, snapshot.overlayOffsetY)
+        assertEquals(1.5f, snapshot.overlayScale)
+    }
+
+    @Test
+    fun tryStartCapture_noMetadata_doesNotCreateSnapshot() {
+        // Default viewModel has no reference image or metadata.
+        viewModel.onReferenceViewportChanged(1080, 1920)
+
+        viewModel.tryStartCapture()
+
+        assertNull(viewModel.pendingCaptureSnapshot)
+    }
+
+    @Test
+    fun tryStartCapture_viewportWidthZero_doesNotCreateSnapshot() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        // Do NOT call onReferenceViewportChanged → viewportWidth stays 0.
+
+        testViewModel.tryStartCapture()
+
+        assertNull(testViewModel.pendingCaptureSnapshot)
+    }
+
+    @Test
+    fun tryStartCapture_viewportHeightZero_doesNotCreateSnapshot() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        // Viewport not set → height is 0.
+
+        testViewModel.tryStartCapture()
+
+        assertNull(testViewModel.pendingCaptureSnapshot)
+    }
+
+    @Test
+    fun snapshotIsAtomicAgainstStateChangesAfterCaptureLock() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onOverlayDragged(0.1f, 0.1f)
+
+        testViewModel.tryStartCapture()
+        val snapshot = testViewModel.pendingCaptureSnapshot
+        assertNotNull(snapshot)
+
+        // Mutate overlay state after capture lock is acquired.
+        testViewModel.onOverlayDragged(0.4f, 0.4f)
+
+        // Snapshot must still hold the original values from before the lock.
+        assertEquals(0.1f, snapshot!!.overlayOffsetX)
+        assertEquals(0.1f, snapshot.overlayOffsetY)
+    }
+
+    @Test
+    fun onCaptureInterrupted_clearsPendingSnapshot() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+        assertNotNull(testViewModel.pendingCaptureSnapshot)
+
+        testViewModel.onCaptureInterrupted()
+
+        assertNull(testViewModel.pendingCaptureSnapshot)
+    }
+
+    @Test
+    fun onPhotoCaptureError_clearsPendingSnapshot() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+        assertNotNull(testViewModel.pendingCaptureSnapshot)
+
+        testViewModel.onPhotoCaptureError()
+
+        assertNull(testViewModel.pendingCaptureSnapshot)
+    }
+
+    @Test
+    fun noSnapshot_captureStillProceedsNormally() {
+        // No reference, no viewport → no snapshot, but capture lock should still work.
+        assertEquals(true, viewModel.tryStartCapture())
+        assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
+        assertNull(viewModel.pendingCaptureSnapshot)
+
+        viewModel.onPhotoCaptureError()
+
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+    }
+
+    @Test
+    fun snapshotIsNullAfterInterruptEvenWithNoMetadata() {
+        viewModel.onReferenceViewportChanged(1080, 1920)
+        viewModel.tryStartCapture()
+        assertNull(viewModel.pendingCaptureSnapshot)
+
+        viewModel.onCaptureInterrupted()
+
+        assertNull(viewModel.pendingCaptureSnapshot)
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+    }
+
+    // --- helpers ---
 
     private fun testViewModelWithMetadata(
         rawWidth: Int,

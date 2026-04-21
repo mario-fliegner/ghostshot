@@ -1,3 +1,4 @@
+// path: app/src/main/java/com/isardomains/ghostshot/ui/camera/CameraViewModel.kt
 package com.isardomains.ghostshot.ui.camera
 
 import android.content.Context
@@ -69,6 +70,8 @@ data class ReferenceImageMetadata(
  * @param overlayAlpha Opacity of the overlay, clamped to [0.1, 0.9]. Default is 0.5.
  * @param isGridVisible Whether the 3x3 rule-of-thirds grid is currently shown.
  * @param interactionMode The currently active gesture interaction mode.
+ * @param viewportWidth Width of the camera preview viewport in pixels. 0 until first layout.
+ * @param viewportHeight Height of the camera preview viewport in pixels. 0 until first layout.
  */
 data class CameraUiState(
     val referenceImageUri: Uri? = null,
@@ -84,7 +87,9 @@ data class CameraUiState(
     val referenceImageMetadata: ReferenceImageMetadata? = null,
     val isCaptureInProgress: Boolean = false,
     val canUndoReferenceRemoval: Boolean = false,
-    val referenceRemovalUndoGeneration: Long = 0L
+    val referenceRemovalUndoGeneration: Long = 0L,
+    val viewportWidth: Int = 0,
+    val viewportHeight: Int = 0
 )
 
 /**
@@ -113,6 +118,24 @@ private data class ReferenceUndoSnapshot(
 )
 
 /**
+ * An atomic snapshot of all state values needed to compute a [ComparisonFrame].
+ *
+ * Created immediately after the capture CAS lock succeeds, reading exclusively from
+ * the locked [CameraUiState] value. Only created when all values are valid.
+ * Cleared in all capture outcome paths (success, error, interrupt).
+ */
+internal data class CaptureSnapshot(
+    val viewportWidth: Int,
+    val viewportHeight: Int,
+    val referenceOrientedWidth: Int,
+    val referenceOrientedHeight: Int,
+    val overlayOffsetX: Float,
+    val overlayOffsetY: Float,
+    val overlayScale: Float,
+    val displayMode: ReferenceImageDisplayMode
+)
+
+/**
  * ViewModel for the camera screen.
  *
  * Owns and exposes [CameraUiState] as a [StateFlow]. Because it is a ViewModel,
@@ -132,11 +155,16 @@ class CameraViewModel @Inject constructor(
         }
     }
 
-    private var viewportSize: Pair<Int, Int>? = null
     private var displayModeChangedByUser = false
     private var undoSnapshot: ReferenceUndoSnapshot? = null
     private var referenceImageSelectionJob: Job? = null
     private var referenceImageSelectionRequestId = 0L
+
+    // Visible for testing — holds the atomic capture snapshot between tryStartCapture() and
+    // the capture outcome. Null when no capture is in flight or when conditions for
+    // ComparisonFrame were not met at capture start.
+    @Volatile
+    internal var pendingCaptureSnapshot: CaptureSnapshot? = null
 
     /** Used in unit tests to inject a controlled dispatcher and metadata reader. */
     internal constructor(
@@ -191,11 +219,11 @@ class CameraViewModel @Inject constructor(
             } else {
                 TargetAspectRatio.RATIO_16_9
             }
-            val recommendation = getDisplayRecommendation(metadata, viewportSize)
             val hadUndo = undoSnapshot != null
             undoSnapshot = null
             displayModeChangedByUser = false
             _uiState.update { current ->
+                val recommendation = getDisplayRecommendation(metadata, current.viewportWidth, current.viewportHeight)
                 val formatChanged = current.activeAspectRatio != newAspectRatio
                 current.copy(
                     referenceImageUri = uri,
@@ -262,7 +290,7 @@ class CameraViewModel @Inject constructor(
         displayModeChangedByUser = snapshot.displayModeChangedByUser
         _uiState.update { current ->
             val recommendation = snapshot.referenceImageMetadata?.let { metadata ->
-                getDisplayRecommendation(metadata, viewportSize)
+                getDisplayRecommendation(metadata, current.viewportWidth, current.viewportHeight)
             }
             current.copy(
                 referenceImageUri = snapshot.referenceImageUri,
@@ -280,13 +308,17 @@ class CameraViewModel @Inject constructor(
 
     fun onReferenceViewportChanged(width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
-        viewportSize = Pair(width, height)
         _uiState.update { current ->
-            val metadata = current.referenceImageMetadata ?: return@update current
-            val recommendation = getDisplayRecommendation(metadata, viewportSize)
+            val metadata = current.referenceImageMetadata
+            val recommendation = if (metadata != null) {
+                getDisplayRecommendation(metadata, width, height)
+            } else null
             current.copy(
-                referenceImageHasViewportMismatch = recommendation.hasStrongMismatch,
-                referenceImageDisplayMode = if (!displayModeChangedByUser) {
+                viewportWidth = width,
+                viewportHeight = height,
+                referenceImageHasViewportMismatch = recommendation?.hasStrongMismatch
+                    ?: current.referenceImageHasViewportMismatch,
+                referenceImageDisplayMode = if (recommendation != null && !displayModeChangedByUser) {
                     recommendation.startMode
                 } else {
                     current.referenceImageDisplayMode
@@ -362,7 +394,7 @@ class CameraViewModel @Inject constructor(
         displayModeChangedByUser = false
         _uiState.update { current ->
             val recommendation = current.referenceImageMetadata?.let { metadata ->
-                getDisplayRecommendation(metadata, viewportSize)
+                getDisplayRecommendation(metadata, current.viewportWidth, current.viewportHeight)
             }
             current.copy(
                 overlayOffsetX = 0f,
@@ -376,11 +408,22 @@ class CameraViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Atomically acquires the capture lock.
+     *
+     * If the lock is acquired, also creates a [CaptureSnapshot] from the locked state —
+     * but only when all prerequisites for a [ComparisonFrame] are present
+     * (valid viewport dimensions and reference metadata). Capture proceeds regardless.
+     *
+     * @return true if the lock was acquired, false if a capture is already in progress.
+     */
     fun tryStartCapture(): Boolean {
         while (true) {
             val current = _uiState.value
             if (current.isCaptureInProgress) return false
             if (_uiState.compareAndSet(current, current.copy(isCaptureInProgress = true))) {
+                // Read snapshot exclusively from the locked state value.
+                pendingCaptureSnapshot = buildSnapshot(current)
                 return true
             }
         }
@@ -391,6 +434,7 @@ class CameraViewModel @Inject constructor(
      * before CameraX can reliably deliver its success or error callback.
      */
     fun onCaptureInterrupted() {
+        pendingCaptureSnapshot = null
         finishCapture()
     }
 
@@ -398,20 +442,42 @@ class CameraViewModel @Inject constructor(
      * Called by [CameraScreen] when [ImageCapture] delivers a captured frame successfully.
      *
      * Runs the full pipeline on [Dispatchers.IO]:
-     * rotation correction → compositing with overlay (if active) → MediaStore save.
+     * rotation correction → ComparisonFrame calculation → MediaStore save.
      * Emits a [UiEvent.ShowSnackbar] with the outcome.
      *
      * @param bitmap Raw bitmap from ImageProxy.toBitmap(), may require rotation correction.
      * @param rotationDegrees Clockwise degrees to apply, from ImageInfo.rotationDegrees.
      */
     fun onPhotoCaptured(bitmap: Bitmap, rotationDegrees: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             var corrected: Bitmap? = null
             try {
                 corrected = rotateBitmap(bitmap, rotationDegrees)
                 if (corrected !== bitmap) {
                     bitmap.recycle()
                 }
+
+                // Consume snapshot exactly once, immediately after reading.
+                val snapshot = pendingCaptureSnapshot
+                pendingCaptureSnapshot = null
+                if (snapshot != null) {
+                    ComparisonFrameCalculator.calculate(
+                        CalculatorInput(
+                            viewportWidth = snapshot.viewportWidth,
+                            viewportHeight = snapshot.viewportHeight,
+                            captureWidth = corrected.width,
+                            captureHeight = corrected.height,
+                            referenceOrientedWidth = snapshot.referenceOrientedWidth,
+                            referenceOrientedHeight = snapshot.referenceOrientedHeight,
+                            overlayOffsetX = snapshot.overlayOffsetX,
+                            overlayOffsetY = snapshot.overlayOffsetY,
+                            overlayScale = snapshot.overlayScale,
+                            displayMode = snapshot.displayMode
+                        )
+                    )
+                    // ComparisonFrame result is available here for future persistence/export (v2+).
+                }
+
                 val result = MediaStoreWriter.save(context.contentResolver, corrected)
                 _uiEvent.emit(
                     UiEvent.ShowSnackbar(
@@ -429,6 +495,7 @@ class CameraViewModel @Inject constructor(
                 } else {
                     bitmap.recycle()
                 }
+                pendingCaptureSnapshot = null
                 finishCapture()
             }
         }
@@ -439,6 +506,7 @@ class CameraViewModel @Inject constructor(
      * before a frame could be delivered.
      */
     fun onPhotoCaptureError() {
+        pendingCaptureSnapshot = null
         finishCapture()
         viewModelScope.launch {
             _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
@@ -455,16 +523,39 @@ class CameraViewModel @Inject constructor(
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
+    /**
+     * Builds a [CaptureSnapshot] from the given state, or returns null if any prerequisite
+     * for a [ComparisonFrame] is missing (no metadata, or invalid viewport).
+     *
+     * In v1, null means: capture proceeds normally but no ComparisonFrame will be produced.
+     */
+    private fun buildSnapshot(state: CameraUiState): CaptureSnapshot? {
+        val metadata = state.referenceImageMetadata ?: return null
+        if (state.viewportWidth <= 0 || state.viewportHeight <= 0) return null
+        return CaptureSnapshot(
+            viewportWidth = state.viewportWidth,
+            viewportHeight = state.viewportHeight,
+            referenceOrientedWidth = metadata.orientedWidth,
+            referenceOrientedHeight = metadata.orientedHeight,
+            overlayOffsetX = state.overlayOffsetX,
+            overlayOffsetY = state.overlayOffsetY,
+            overlayScale = state.overlayScale,
+            displayMode = state.referenceImageDisplayMode
+        )
+    }
+
     private fun getDisplayRecommendation(
         metadata: ReferenceImageMetadata,
-        viewportSize: Pair<Int, Int>?
+        viewportWidth: Int,
+        viewportHeight: Int
     ): ReferenceImageDisplayRecommendation {
-        val (viewportWidth, viewportHeight) = viewportSize
-            ?: return ReferenceImageDisplayRecommendation(
+        if (viewportWidth <= 0 || viewportHeight <= 0) {
+            return ReferenceImageDisplayRecommendation(
                 cropLoss = 0f,
                 hasStrongMismatch = false,
                 startMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW
             )
+        }
         return ReferenceImageMismatchHeuristic.evaluate(
             orientedImageWidth = metadata.orientedWidth,
             orientedImageHeight = metadata.orientedHeight,
