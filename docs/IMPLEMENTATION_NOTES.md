@@ -60,8 +60,8 @@ Storage baseline:
 - Undo state survives rotation correctly
 
 ### Comparison / Core Logic (Variant B)
-- Geometry-based comparison output has been abandoned
-- `ComparisonFrame` / snapshot-based result generation is no longer part of the active runtime path
+
+- Comparison output is defined exclusively by Variant B bitmap normalization
 - `CenterCropNormalizer` is implemented
 - Capture bitmap is rotated before comparison normalization
 - Reference bitmap is EXIF-oriented before comparison normalization
@@ -69,7 +69,7 @@ Storage baseline:
   - center-crop to portrait 9:16
   - scale to fixed output size
 - The resulting normalized capture/reference pair is the current deterministic comparison basis
-- Overlay position, overlay scale, viewport size, and preview-to-capture mapping do NOT define comparison output anymore
+- Overlay position, overlay scale, viewport size, and preview-to-capture mapping do NOT define comparison output
 
 ### Logging
 - Internal debug logging is explicitly allowed and expected during development
@@ -79,8 +79,7 @@ Storage baseline:
 
 ### Tests
 - Bitmap recycle behavior is covered in `CameraViewModelBitmapRecycleTest`
-- Legacy snapshot/comparison-frame tests have been removed where they only covered obsolete logic
-- Current test focus should follow active Variant B runtime behavior, not dead geometry-based comparison behavior
+- Current test focus follows active Variant B runtime behavior
 
 ---
 
@@ -102,35 +101,15 @@ Comparison output follows **Variant B only**:
 Important:
 - The overlay is a visual aid only
 - The overlay does NOT define comparison output
-- No `ComparisonFrame`, `CaptureRect`, `ReferenceRect`, or preview/capture mapping is part of the current product model
+- Geometry-based comparison logic is not part of the current product model
 
 ---
 
 ## Not Implemented Yet
 
-- Full project-wide cleanup of obsolete geometry-based helper classes still left in the codebase
-- Final removal of unused legacy comparison classes and their remaining tests, where still present
 - Any user-facing comparison viewer / before-after slider output
 - Any persistence model for derived comparison metadata
 - Any export flow beyond the currently saved image(s)
-
----
-
-## Immediate Next Step
-
-Next implementation step:
-
-👉 Remove remaining obsolete geometry-based comparison classes and their directly related tests, but only where they are now fully unreferenced.
-
-Scope:
-- remove dead legacy comparison classes
-- remove dead legacy tests tied only to obsolete comparison-frame logic
-- do NOT change Variant B runtime behavior
-- do NOT change UI
-- do NOT add new features
-
-Goal:
-- make the codebase consistent with Variant B as the only active comparison model
 
 ---
 

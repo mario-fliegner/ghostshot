@@ -24,7 +24,7 @@ The app must stay focused on this flow.
 Do not expand the product scope unless explicitly instructed.
 
 ### Current product decision (CRITICAL)
-The app no longer uses overlay/view geometry, viewport mapping, or a `ComparisonFrame` model to define comparison output.
+Comparison output is defined exclusively by Variant B bitmap normalization. The overlay has no influence on comparison output.
 
 Instead, comparison output follows **Variant B** only:
 
@@ -38,7 +38,7 @@ Important:
 - The overlay is a visual alignment aid only
 - The overlay has **NO** influence on comparison output
 - Overlay position, overlay scale, viewport size, and preview-to-capture mapping are **NOT** part of the comparison model
-- Do not reintroduce `ComparisonFrame`, `CaptureRect`, `ReferenceRect`, or any geometry-based comparison definition unless explicitly instructed
+- Do not reintroduce geometry-based comparison logic unless explicitly instructed
 
 ---
 
