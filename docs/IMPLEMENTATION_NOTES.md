@@ -108,6 +108,7 @@ Important:
 ## Not Implemented Yet
 
 - Any user-facing comparison viewer / before-after slider output
+- Session-based storage for capture + reference image pairs
 - Any persistence model for derived comparison metadata
 - Any export flow beyond the currently saved image(s)
 

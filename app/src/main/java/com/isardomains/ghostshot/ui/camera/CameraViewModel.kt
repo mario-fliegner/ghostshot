@@ -470,6 +470,21 @@ class CameraViewModel @Inject constructor(
                     )
                 )
 
+                // Session storage: persists capture + reference as a matched pair in app-internal
+                // storage for later comparison. Only written when the main save succeeded and a
+                // reference image is present. Best-effort — failure here never affects the main save.
+                if (savedUri != null) {
+                    val referenceUri = _uiState.value.referenceImageUri
+                    if (referenceUri != null) {
+                        SessionStorage.saveSession(
+                            context = context,
+                            capturedBitmap = corrected,
+                            referenceUri = referenceUri,
+                            exifOrientation = _uiState.value.referenceImageMetadata?.exifOrientation
+                        )
+                    }
+                }
+
                 // --- Variant B: comparison crop normalization ---
                 var variantBCaptureCropped: Bitmap? = null
                 var variantBCaptureNormalized: Bitmap? = null
@@ -499,14 +514,6 @@ class CameraViewModel @Inject constructor(
                             )
                             Log.d(DEBUG_TAG, "variantB capture:   ${variantBCaptureNormalized.width}×${variantBCaptureNormalized.height}")
                             Log.d(DEBUG_TAG, "variantB reference: ${variantBReferenceNormalized.width}×${variantBReferenceNormalized.height}")
-                            val variantBSavedCaptureUri = MediaStoreWriter.save(
-                                context.contentResolver, variantBCaptureNormalized
-                            )
-                            val variantBSavedReferenceUri = MediaStoreWriter.save(
-                                context.contentResolver, variantBReferenceNormalized!!
-                            )
-                            Log.d(DEBUG_TAG, "variantB saved capture:   $variantBSavedCaptureUri")
-                            Log.d(DEBUG_TAG, "variantB saved reference: $variantBSavedReferenceUri")
                         }
                     }
                 } catch (e: Exception) {
