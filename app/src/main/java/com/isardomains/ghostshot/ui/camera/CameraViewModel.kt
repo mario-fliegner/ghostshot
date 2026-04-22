@@ -190,11 +190,6 @@ class CameraViewModel @Inject constructor(
         const val MAX_SCALE = 3.0f
 
         private const val DEBUG_TAG = "ComparisonCropDebug"
-
-        // Variant B normalization target: 9:16 portrait, fixed output size.
-        private const val COMPARISON_TARGET_RATIO = 9f / 16f
-        private const val COMPARISON_TARGET_WIDTH = 1080
-        private const val COMPARISON_TARGET_HEIGHT = 1920
     }
 
     /**
@@ -493,9 +488,9 @@ class CameraViewModel @Inject constructor(
                 var variantBReferenceCropped: Bitmap? = null
                 var variantBReferenceNormalized: Bitmap? = null
                 try {
-                    variantBCaptureCropped = CenterCropNormalizer.centerCrop(corrected, COMPARISON_TARGET_RATIO)
+                    variantBCaptureCropped = CenterCropNormalizer.centerCrop(corrected, CenterCropNormalizer.TARGET_RATIO)
                     variantBCaptureNormalized = CenterCropNormalizer.scaleTo(
-                        variantBCaptureCropped, COMPARISON_TARGET_WIDTH, COMPARISON_TARGET_HEIGHT
+                        variantBCaptureCropped, CenterCropNormalizer.TARGET_WIDTH, CenterCropNormalizer.TARGET_HEIGHT
                     )
 
                     val referenceUri = _uiState.value.referenceImageUri
@@ -507,10 +502,10 @@ class CameraViewModel @Inject constructor(
                         if (variantBRawReference != null) {
                             variantBOrientedReference = applyExifOrientation(variantBRawReference, exifOrientation)
                             variantBReferenceCropped = CenterCropNormalizer.centerCrop(
-                                variantBOrientedReference, COMPARISON_TARGET_RATIO
+                                variantBOrientedReference, CenterCropNormalizer.TARGET_RATIO
                             )
                             variantBReferenceNormalized = CenterCropNormalizer.scaleTo(
-                                variantBReferenceCropped, COMPARISON_TARGET_WIDTH, COMPARISON_TARGET_HEIGHT
+                                variantBReferenceCropped, CenterCropNormalizer.TARGET_WIDTH, CenterCropNormalizer.TARGET_HEIGHT
                             )
                             Log.d(DEBUG_TAG, "variantB capture:   ${variantBCaptureNormalized.width}×${variantBCaptureNormalized.height}")
                             Log.d(DEBUG_TAG, "variantB reference: ${variantBReferenceNormalized.width}×${variantBReferenceNormalized.height}")

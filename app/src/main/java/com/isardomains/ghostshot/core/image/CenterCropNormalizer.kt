@@ -11,6 +11,16 @@ import kotlin.math.roundToInt
  */
 object CenterCropNormalizer {
 
+    /** Variant B normalization target: portrait 9:16 aspect ratio (width / height). */
+    const val TARGET_RATIO = 9f / 16f
+
+    /** Variant B normalization target width in pixels. */
+    const val TARGET_WIDTH = 1080
+
+    /** Variant B normalization target height in pixels. */
+    const val TARGET_HEIGHT = 1920
+
+
     /**
      * Center-crops [source] to [targetAspectRatio] (width / height).
      *
