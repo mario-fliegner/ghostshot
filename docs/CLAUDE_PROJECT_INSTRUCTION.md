@@ -1,4 +1,4 @@
-# OverlayPast – Claude Superprompt / Project Instruction (v2)
+# OverlayPast – Claude Superprompt / Project Instruction (v3)
 
 ## ROLE
 You are implementing and modifying a production-ready Android app.
@@ -17,14 +17,28 @@ Core user flow:
 2. Adjust overlay
 3. Align live camera preview with reference
 4. Capture new image
-5. Save captured image and a deterministic comparison frame definition
+5. Save the captured image
+6. Optionally save deterministic comparison helper images derived from the capture and the reference
 
 The app must stay focused on this flow.
 Do not expand the product scope unless explicitly instructed.
 
-Product promise:
-- What the user aligns on screen must define the later before/after comparison result
-- The app captures the full camera image, but the comparison frame is defined by the visible overlay state at capture time
+### Current product decision (CRITICAL)
+The app no longer uses overlay/view geometry, viewport mapping, or a `ComparisonFrame` model to define comparison output.
+
+Instead, comparison output follows **Variant B** only:
+
+1. Rotate the captured bitmap correctly
+2. Apply EXIF orientation to the reference bitmap
+3. Normalize both images independently with center-crop to portrait 9:16
+4. Scale both normalized images to one fixed target size
+5. These two normalized bitmaps are the deterministic comparison pair
+
+Important:
+- The overlay is a visual alignment aid only
+- The overlay has **NO** influence on comparison output
+- Overlay position, overlay scale, viewport size, and preview-to-capture mapping are **NOT** part of the comparison model
+- Do not reintroduce `ComparisonFrame`, `CaptureRect`, `ReferenceRect`, or any geometry-based comparison definition unless explicitly instructed
 
 ---
 
@@ -81,8 +95,11 @@ Do not use:
 - unmanaged filesystem paths
 - deprecated storage patterns
 
-Save the captured image.
-Optionally, additional derived outputs (e.g. comparison images) may be saved if explicitly defined in scope.
+The app saves:
+1. The full captured camera image
+2. Optional additional derived comparison images only when explicitly in scope
+
+Do not store legacy comparison metadata models unless explicitly requested in a dedicated task.
 
 ---
 
@@ -141,7 +158,7 @@ It must require confirmation to prevent accidental loss.
 
 ## INTERACTION MODEL
 
-The interaction model is comparison-first, not camera-app-first.
+The interaction model is overlay-alignment-first.
 
 ### Overlay Interaction
 Gestures affect the overlay only:
@@ -180,47 +197,34 @@ Do not implement in v1:
 
 - Capture saves the new full camera image
 - The reference overlay must NOT be rendered into the saved output image
-- No visual merge of reference and live image (unless explicitly defined in scope)
-- No collage export (unless explicitly defined in scope)
-- No side-by-side export (unless explicitly defined in scope)
-- Additional derived images (e.g. comparison outputs) are only allowed when explicitly defined in scope
+- No visual merge of reference and live image unless explicitly defined in scope
+- No collage export unless explicitly defined in scope
+- No side-by-side export unless explicitly defined in scope
+- Additional derived images are only allowed when explicitly defined in scope
 
 ### Comparison Output Definition (CRITICAL)
 
-The visible overlay state at the moment of capture defines the exact comparison frame.
+Current valid comparison output model is **Variant B only**.
 
-"What the user sees is what the user gets."
-
-Each capture produces:
+Each successful capture may produce:
 1. Full Camera Image
    - the original photo captured via CameraX
-   - stored unchanged via MediaStore
-2. Comparison Frame Definition (CRITICAL)
+   - stored via MediaStore
+2. Variant B Comparison Pair
+   - normalized capture bitmap
+   - normalized reference bitmap
 
-Each capture produces:
-1. Full Camera Image
-2. ComparisonFrame:
-   - CaptureRect (normalized [0..1] in captured image)
-   - ReferenceRect (normalized [0..1] in reference image)
-
-Important:
-- The comparison frame is defined ONLY by the visible overlay state at capture time
-- The reference image is the alignment master
-- No live camera zoom is part of v1 interaction
-- The mapping must be deterministic and reproducible
-
-   - a deterministic description of the visible comparison area
-   - derived from:
-     - overlay position
-     - overlay scale
-     - viewport size
-     - preview-to-capture mapping
+The normalized pair is defined ONLY by:
+- capture rotation correction
+- reference EXIF orientation
+- center-crop to portrait 9:16
+- scaling to a fixed target size
 
 Important constraints:
 - The overlay image is NEVER baked into the saved camera image
-- The comparison is defined by geometry, not by compositing pixels into the photo
-- The app must not silently change the comparison frame after capture
-- The later before/after slider result must match the alignment the user saw during capture as closely as technically possible
+- The comparison is currently defined by deterministic bitmap normalization, not by viewport/overlay geometry
+- The app must not silently switch back to geometry-based comparison logic
+- Any future change away from Variant B requires an explicit product decision
 
 After successful capture:
 - Stay on the camera screen
@@ -366,7 +370,8 @@ At minimum, the implementation must consider and support tests for:
 - pinch scaling for overlay alignment
 - reset behavior
 - grid toggle behavior
-- comparison crop definition behavior, where relevant
+- Variant B normalization behavior, where relevant
+- bitmap lifecycle / recycle behavior, where relevant
 
 Where relevant:
 - unit tests for logic
@@ -392,6 +397,7 @@ Do not invent an oversized test matrix beyond scope, but do not ignore the criti
 - Unrequested visual redesigns
 - Unrequested refactors
 - Unrequested architectural rewrites
+- Reintroducing geometry-based comparison output without explicit approval
 
 ---
 
@@ -457,7 +463,7 @@ When building from scratch or extending the feature, prefer this order:
 3. Overlay rendering
 4. Overlay drag/scale gestures
 5. Capture and save
-6. Comparison crop definition / preview-to-capture mapping
+6. Variant B normalization and derived comparison outputs
 7. Grid / reset / delete controls
 8. Error handling
 9. Tests

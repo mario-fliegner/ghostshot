@@ -1,5 +1,3 @@
-# IMPLEMENTATION_NOTES.md
-
 ## Purpose
 This file supplements `CLAUDE_PROJECT_INSTRUCTION.md`.
 
@@ -61,60 +59,60 @@ Storage baseline:
 - Remove reference image supported with undo flow
 - Undo state survives rotation correctly
 
-### Comparison / Core Logic (NEW)
-- `ComparisonCropProcessor` implemented
-- Deterministic crop logic based on `ComparisonFrame`
-- Uses:
-  - CaptureRect → crop from capture bitmap
-  - ReferenceRect → crop from reference bitmap
-- Capture crop is scaled to exact reference crop size
-- Strict rounding rules:
-  - floor (left/top)
-  - ceil (right/bottom)
-  - hard clamp to bitmap bounds
-- No geometry recalculation
-- No EXIF / no URI / no pipeline logic inside processor
-- Fully isolated, testable core logic
+### Comparison / Core Logic (Variant B)
+- Geometry-based comparison output has been abandoned
+- `ComparisonFrame` / snapshot-based result generation is no longer part of the active runtime path
+- `CenterCropNormalizer` is implemented
+- Capture bitmap is rotated before comparison normalization
+- Reference bitmap is EXIF-oriented before comparison normalization
+- Both images are normalized independently:
+  - center-crop to portrait 9:16
+  - scale to fixed output size
+- The resulting normalized capture/reference pair is the current deterministic comparison basis
+- Overlay position, overlay scale, viewport size, and preview-to-capture mapping do NOT define comparison output anymore
 
-### Tests (NEW)
-- Full instrumentation test coverage for `ComparisonCropProcessor`
-- Covers:
-  - standard cases
-  - edge cases (rounding, bounds, small crops)
-  - error cases (degenerate rects)
-  - memory guarantees (inputs not recycled)
-- Uses synthetic Bitmaps only
-- No additional frameworks introduced
+### Logging
+- Internal debug logging is explicitly allowed and expected during development
+- Logging must remain non-user-facing
+- Logging must not create live-mode UI output
+- Logging should remain compatible with release/debug controls
+
+### Tests
+- Bitmap recycle behavior is covered in `CameraViewModelBitmapRecycleTest`
+- Legacy snapshot/comparison-frame tests have been removed where they only covered obsolete logic
+- Current test focus should follow active Variant B runtime behavior, not dead geometry-based comparison behavior
 
 ---
 
 ## Product Decision: Comparison Output (CRITICAL)
 
-GhostShot does **not** promise only a saved camera photo.
-It promises a reproducible before/after comparison result.
+GhostShot currently promises:
+1. A saved full camera image
+2. A deterministic comparison pair derived from the capture and the selected reference
 
 ### Final decision
-- The reference image is the master for comparison alignment
-- The visible overlay state at capture time defines the exact comparison frame
-- "What the user sees is what the user gets"
+Comparison output follows **Variant B only**:
 
-### Capture result model
-Each capture consists conceptually of:
-1. Full Capture Image
-2. Comparison Crop Definition
+- Capture bitmap is rotated correctly
+- Reference bitmap is EXIF-oriented correctly
+- Both images are center-cropped independently to portrait 9:16
+- Both images are scaled to one fixed target size
+- These two normalized bitmaps are the comparison basis
 
-The full image is still saved unchanged.
-The comparison frame is defined at capture time from overlay/view geometry and later used for comparison output.
+Important:
+- The overlay is a visual aid only
+- The overlay does NOT define comparison output
+- No `ComparisonFrame`, `CaptureRect`, `ReferenceRect`, or preview/capture mapping is part of the current product model
 
 ---
 
 ## Not Implemented Yet
 
-- Integration of `ComparisonCropProcessor` into capture flow
-- Comparison crop definition / preview-to-capture mapping usage in runtime
-- Persisted storage of comparison crop metadata
-- Any export flow based on comparison result
-- Debug preview of generated crops
+- Full project-wide cleanup of obsolete geometry-based helper classes still left in the codebase
+- Final removal of unused legacy comparison classes and their remaining tests, where still present
+- Any user-facing comparison viewer / before-after slider output
+- Any persistence model for derived comparison metadata
+- Any export flow beyond the currently saved image(s)
 
 ---
 
@@ -122,21 +120,17 @@ The comparison frame is defined at capture time from overlay/view geometry and l
 
 Next implementation step:
 
-👉 Integrate `ComparisonCropProcessor` into capture flow (read-only)
+👉 Remove remaining obsolete geometry-based comparison classes and their directly related tests, but only where they are now fully unreferenced.
 
 Scope:
-- Call processor after successful capture
-- Use existing:
-  - saved capture bitmap
-  - loaded reference bitmap
-  - existing ComparisonFrame
-- DO NOT:
-  - persist results yet
-  - add UI
-  - modify pipeline structure
+- remove dead legacy comparison classes
+- remove dead legacy tests tied only to obsolete comparison-frame logic
+- do NOT change Variant B runtime behavior
+- do NOT change UI
+- do NOT add new features
 
 Goal:
-- Validate visually that computed crops match overlay alignment
+- make the codebase consistent with Variant B as the only active comparison model
 
 ---
 
@@ -151,5 +145,6 @@ Goal:
 - No refactoring outside scope
 
 ### Testability
-- Core logic remains isolated and deterministic
+- Active logic must stay testable and deterministic
 - No UI dependency in core logic
+- Do not preserve dead tests only to protect obsolete architecture
