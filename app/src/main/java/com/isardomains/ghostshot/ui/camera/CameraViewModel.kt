@@ -3,12 +3,16 @@ package com.isardomains.ghostshot.ui.camera
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.util.Log
 import androidx.annotation.StringRes
+import android.media.ExifInterface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.ghostshot.R
+import com.isardomains.ghostshot.core.image.CenterCropNormalizer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -118,37 +122,14 @@ private data class ReferenceUndoSnapshot(
 )
 
 /**
- * An atomic snapshot of all state values needed to compute a [ComparisonFrame].
- *
- * Created immediately after the capture CAS lock succeeds, reading exclusively from
- * the locked [CameraUiState] value. Only created when all values are valid.
- * Cleared in all capture outcome paths (success, error, interrupt).
- */
-internal data class CaptureSnapshot(
-    val viewportWidth: Int,
-    val viewportHeight: Int,
-    val referenceOrientedWidth: Int,
-    val referenceOrientedHeight: Int,
-    val overlayOffsetX: Float,
-    val overlayOffsetY: Float,
-    val overlayScale: Float,
-    val displayMode: ReferenceImageDisplayMode
-)
-
-/**
  * The internal result of a successfully completed capture pipeline run.
  *
- * Only produced when [MediaStoreWriter.save] succeeds. Both components describe
- * the same capture event: [savedUri] identifies the stored file and [comparisonFrame]
- * describes the alignment geometry at shutter time (null when no reference snapshot
- * was available at capture start).
+ * Only produced when [MediaStoreWriter.save] succeeds.
  *
  * @param savedUri URI of the image written to MediaStore.
- * @param comparisonFrame Alignment geometry at capture time, or null if no reference was active.
  */
 internal data class CaptureResult(
-    val savedUri: Uri,
-    val comparisonFrame: ComparisonFrame?
+    val savedUri: Uri
 )
 
 /**
@@ -175,12 +156,6 @@ class CameraViewModel @Inject constructor(
     private var undoSnapshot: ReferenceUndoSnapshot? = null
     private var referenceImageSelectionJob: Job? = null
     private var referenceImageSelectionRequestId = 0L
-
-    // Visible for testing — holds the atomic capture snapshot between tryStartCapture() and
-    // the capture outcome. Null when no capture is in flight or when conditions for
-    // ComparisonFrame were not met at capture start.
-    @Volatile
-    internal var pendingCaptureSnapshot: CaptureSnapshot? = null
 
     // Visible for testing — holds the result of the most recent successfully completed capture.
     // Null until the first successful save, and reset to null on every new capture attempt
@@ -213,6 +188,13 @@ class CameraViewModel @Inject constructor(
         const val MIN_SCALE = 0.5f
         /** Maximum allowed scale for the reference image overlay. */
         const val MAX_SCALE = 3.0f
+
+        private const val DEBUG_TAG = "ComparisonCropDebug"
+
+        // Variant B normalization target: 9:16 portrait, fixed output size.
+        private const val COMPARISON_TARGET_RATIO = 9f / 16f
+        private const val COMPARISON_TARGET_WIDTH = 1080
+        private const val COMPARISON_TARGET_HEIGHT = 1920
     }
 
     /**
@@ -433,10 +415,6 @@ class CameraViewModel @Inject constructor(
     /**
      * Atomically acquires the capture lock.
      *
-     * If the lock is acquired, also creates a [CaptureSnapshot] from the locked state —
-     * but only when all prerequisites for a [ComparisonFrame] are present
-     * (valid viewport dimensions and reference metadata). Capture proceeds regardless.
-     *
      * @return true if the lock was acquired, false if a capture is already in progress.
      */
     fun tryStartCapture(): Boolean {
@@ -444,8 +422,6 @@ class CameraViewModel @Inject constructor(
             val current = _uiState.value
             if (current.isCaptureInProgress) return false
             if (_uiState.compareAndSet(current, current.copy(isCaptureInProgress = true))) {
-                // Read snapshot exclusively from the locked state value.
-                pendingCaptureSnapshot = buildSnapshot(current)
                 return true
             }
         }
@@ -456,7 +432,6 @@ class CameraViewModel @Inject constructor(
      * before CameraX can reliably deliver its success or error callback.
      */
     fun onCaptureInterrupted() {
-        pendingCaptureSnapshot = null
         lastCaptureResult = null
         finishCapture()
     }
@@ -465,7 +440,7 @@ class CameraViewModel @Inject constructor(
      * Called by [CameraScreen] when [ImageCapture] delivers a captured frame successfully.
      *
      * Runs the full pipeline on [Dispatchers.IO]:
-     * rotation correction → ComparisonFrame calculation → MediaStore save.
+     * rotation correction → MediaStore save → Variant B comparison crop normalization.
      * Sets [lastCaptureResult] only on successful save. Emits a [UiEvent.ShowSnackbar]
      * with the outcome.
      *
@@ -481,32 +456,10 @@ class CameraViewModel @Inject constructor(
                     bitmap.recycle()
                 }
 
-                // Consume snapshot exactly once, immediately after reading.
-                val snapshot = pendingCaptureSnapshot
-                pendingCaptureSnapshot = null
-                val frame: ComparisonFrame? = if (snapshot != null) {
-                    ComparisonFrameCalculator.calculate(
-                        CalculatorInput(
-                            viewportWidth = snapshot.viewportWidth,
-                            viewportHeight = snapshot.viewportHeight,
-                            captureWidth = corrected.width,
-                            captureHeight = corrected.height,
-                            referenceOrientedWidth = snapshot.referenceOrientedWidth,
-                            referenceOrientedHeight = snapshot.referenceOrientedHeight,
-                            overlayOffsetX = snapshot.overlayOffsetX,
-                            overlayOffsetY = snapshot.overlayOffsetY,
-                            overlayScale = snapshot.overlayScale,
-                            displayMode = snapshot.displayMode
-                        )
-                    )
-                } else {
-                    null
-                }
-
                 val saveResult = MediaStoreWriter.save(context.contentResolver, corrected)
                 val savedUri = saveResult.getOrNull()
                 lastCaptureResult = if (savedUri != null) {
-                    CaptureResult(savedUri = savedUri, comparisonFrame = frame)
+                    CaptureResult(savedUri = savedUri)
                 } else {
                     null
                 }
@@ -516,6 +469,62 @@ class CameraViewModel @Inject constructor(
                         isSuccess = saveResult.isSuccess
                     )
                 )
+
+                // --- Variant B: comparison crop normalization ---
+                var variantBCaptureCropped: Bitmap? = null
+                var variantBCaptureNormalized: Bitmap? = null
+                var variantBRawReference: Bitmap? = null
+                var variantBOrientedReference: Bitmap? = null
+                var variantBReferenceCropped: Bitmap? = null
+                var variantBReferenceNormalized: Bitmap? = null
+                try {
+                    variantBCaptureCropped = CenterCropNormalizer.centerCrop(corrected, COMPARISON_TARGET_RATIO)
+                    variantBCaptureNormalized = CenterCropNormalizer.scaleTo(
+                        variantBCaptureCropped, COMPARISON_TARGET_WIDTH, COMPARISON_TARGET_HEIGHT
+                    )
+
+                    val referenceUri = _uiState.value.referenceImageUri
+                    if (referenceUri != null) {
+                        val exifOrientation = _uiState.value.referenceImageMetadata?.exifOrientation
+                        variantBRawReference = context.contentResolver
+                            .openInputStream(referenceUri)
+                            ?.use { BitmapFactory.decodeStream(it) }
+                        if (variantBRawReference != null) {
+                            variantBOrientedReference = applyExifOrientation(variantBRawReference, exifOrientation)
+                            variantBReferenceCropped = CenterCropNormalizer.centerCrop(
+                                variantBOrientedReference, COMPARISON_TARGET_RATIO
+                            )
+                            variantBReferenceNormalized = CenterCropNormalizer.scaleTo(
+                                variantBReferenceCropped, COMPARISON_TARGET_WIDTH, COMPARISON_TARGET_HEIGHT
+                            )
+                            Log.d(DEBUG_TAG, "variantB capture:   ${variantBCaptureNormalized.width}×${variantBCaptureNormalized.height}")
+                            Log.d(DEBUG_TAG, "variantB reference: ${variantBReferenceNormalized.width}×${variantBReferenceNormalized.height}")
+                            val variantBSavedCaptureUri = MediaStoreWriter.save(
+                                context.contentResolver, variantBCaptureNormalized
+                            )
+                            val variantBSavedReferenceUri = MediaStoreWriter.save(
+                                context.contentResolver, variantBReferenceNormalized!!
+                            )
+                            Log.d(DEBUG_TAG, "variantB saved capture:   $variantBSavedCaptureUri")
+                            Log.d(DEBUG_TAG, "variantB saved reference: $variantBSavedReferenceUri")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d(DEBUG_TAG, "variantB error: ${e.message}")
+                } catch (e: OutOfMemoryError) {
+                    Log.d(DEBUG_TAG, "variantB OOM")
+                } finally {
+                    // corrected is owned by the outer scope — never recycle it here.
+                    if (variantBCaptureCropped !== corrected) variantBCaptureCropped?.recycle()
+                    variantBCaptureNormalized?.recycle()
+                    // Walk the reference chain: each level is only recycled if it is a distinct instance.
+                    if (variantBReferenceCropped !== variantBOrientedReference) variantBReferenceCropped?.recycle()
+                    if (variantBOrientedReference !== variantBRawReference) variantBOrientedReference?.recycle()
+                    variantBRawReference?.recycle()
+                    variantBReferenceNormalized?.recycle()
+                }
+                // --- End Variant B comparison crop normalization ---
+
             } catch (e: Exception) {
                 lastCaptureResult = null
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
@@ -528,7 +537,6 @@ class CameraViewModel @Inject constructor(
                 } else {
                     bitmap.recycle()
                 }
-                pendingCaptureSnapshot = null
                 finishCapture()
             }
         }
@@ -539,7 +547,6 @@ class CameraViewModel @Inject constructor(
      * before a frame could be delivered.
      */
     fun onPhotoCaptureError() {
-        pendingCaptureSnapshot = null
         lastCaptureResult = null
         finishCapture()
         viewModelScope.launch {
@@ -558,24 +565,38 @@ class CameraViewModel @Inject constructor(
     }
 
     /**
-     * Builds a [CaptureSnapshot] from the given state, or returns null if any prerequisite
-     * for a [ComparisonFrame] is missing (no metadata, or invalid viewport).
+     * Applies EXIF orientation to [source] and returns the correctly oriented bitmap.
      *
-     * In v1, null means: capture proceeds normally but no ComparisonFrame will be produced.
+     * Returns [source] unchanged if no transform is needed. Never recycles the input.
      */
-    private fun buildSnapshot(state: CameraUiState): CaptureSnapshot? {
-        val metadata = state.referenceImageMetadata ?: return null
-        if (state.viewportWidth <= 0 || state.viewportHeight <= 0) return null
-        return CaptureSnapshot(
-            viewportWidth = state.viewportWidth,
-            viewportHeight = state.viewportHeight,
-            referenceOrientedWidth = metadata.orientedWidth,
-            referenceOrientedHeight = metadata.orientedHeight,
-            overlayOffsetX = state.overlayOffsetX,
-            overlayOffsetY = state.overlayOffsetY,
-            overlayScale = state.overlayScale,
-            displayMode = state.referenceImageDisplayMode
-        )
+    private fun applyExifOrientation(source: Bitmap, exifOrientation: Int?): Bitmap {
+        val matrix = Matrix()
+        val needsTransform = when (exifOrientation) {
+            null,
+            ExifInterface.ORIENTATION_UNDEFINED,
+            ExifInterface.ORIENTATION_NORMAL -> false
+            ExifInterface.ORIENTATION_ROTATE_180 -> { matrix.postRotate(180f); true }
+            ExifInterface.ORIENTATION_ROTATE_90 -> { matrix.postRotate(90f); true }
+            ExifInterface.ORIENTATION_ROTATE_270 -> { matrix.postRotate(270f); true }
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> {
+                matrix.postScale(-1f, 1f, source.width / 2f, source.height / 2f); true
+            }
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> {
+                matrix.postScale(1f, -1f, source.width / 2f, source.height / 2f); true
+            }
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                matrix.postRotate(90f); matrix.postScale(-1f, 1f); true
+            }
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                matrix.postRotate(-90f); matrix.postScale(-1f, 1f); true
+            }
+            else -> false
+        }
+        return if (needsTransform) {
+            Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+        } else {
+            source
+        }
     }
 
     private fun getDisplayRecommendation(

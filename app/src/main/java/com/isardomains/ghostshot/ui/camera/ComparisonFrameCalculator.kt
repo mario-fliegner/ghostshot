@@ -123,10 +123,10 @@ object ComparisonFrameCalculator {
         // CaptureRect: which part of the capture bitmap corresponds to the viewport?
         // Preview uses FILL_CENTER (CENTER_CROP) semantics.
         val captureRect = captureRectFromViewport(
-            viewportLeft = 0.0,
-            viewportTop = 0.0,
-            viewportRight = vw,
-            viewportBottom = vh,
+            viewportLeft = visLeft,
+            viewportTop = visTop,
+            viewportRight = visRight,
+            viewportBottom = visBottom,
             viewportWidth = vw,
             viewportHeight = vh,
             captureWidth = input.captureWidth.toDouble(),
