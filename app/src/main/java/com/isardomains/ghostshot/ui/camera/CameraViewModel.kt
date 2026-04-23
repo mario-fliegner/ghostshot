@@ -92,6 +92,8 @@ data class CameraUiState(
     val isCaptureInProgress: Boolean = false,
     val canUndoReferenceRemoval: Boolean = false,
     val referenceRemovalUndoGeneration: Long = 0L,
+    val captureSuccessGeneration: Long = 0L,
+    val captureSuccessHadReference: Boolean = false,
     val viewportWidth: Int = 0,
     val viewportHeight: Int = 0
 )
@@ -458,18 +460,18 @@ class CameraViewModel @Inject constructor(
                 } else {
                     null
                 }
-                _uiEvent.emit(
-                    UiEvent.ShowSnackbar(
-                        messageResId = if (saveResult.isSuccess) R.string.capture_saved else R.string.capture_failed,
-                        isSuccess = saveResult.isSuccess
-                    )
-                )
 
-                // Session storage: persists capture + reference as a matched pair in app-internal
-                // storage for later comparison. Only written when the main save succeeded and a
-                // reference image is present. Best-effort — failure here never affects the main save.
                 if (savedUri != null) {
                     val referenceUri = _uiState.value.referenceImageUri
+                    _uiState.update { current ->
+                        current.copy(
+                            captureSuccessGeneration = current.captureSuccessGeneration + 1L,
+                            captureSuccessHadReference = referenceUri != null
+                        )
+                    }
+                    // Session storage: persists capture + reference as a matched pair in app-internal
+                    // storage for later comparison. Only written when the main save succeeded and a
+                    // reference image is present. Best-effort — failure here never affects the main save.
                     if (referenceUri != null) {
                         SessionStorage.saveSession(
                             context = context,
@@ -478,6 +480,8 @@ class CameraViewModel @Inject constructor(
                             exifOrientation = _uiState.value.referenceImageMetadata?.exifOrientation
                         )
                     }
+                } else {
+                    _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
                 }
 
                 // --- Variant B: comparison crop normalization ---

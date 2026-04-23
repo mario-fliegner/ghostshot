@@ -3,16 +3,10 @@ package com.isardomains.ghostshot.ui.camera
 import android.graphics.Bitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 /**
  * Verifies that [CameraViewModel.onPhotoCaptured] recycles all Bitmap objects it receives or
@@ -40,24 +34,9 @@ class CameraViewModelBitmapRecycleTest {
     @Test
     fun onPhotoCaptured_noRotation_recyclesBitmap() {
         val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-        val eventReceived = CountDownLatch(1)
-
-        // Register the collector before starting the capture so the SharedFlow emit
-        // is never missed (replay = 0).
-        CoroutineScope(Dispatchers.Default).launch {
-            viewModel.uiEvent.first()
-            eventReceived.countDown()
-        }
 
         viewModel.onPhotoCaptured(bitmap, rotationDegrees = 0)
 
-        assertTrue(
-            "UiEvent not received within timeout — capture coroutine may have stalled",
-            eventReceived.await(5, TimeUnit.SECONDS)
-        )
-
-        // recycle() runs in the finally block, which executes after emit() returns in the IO
-        // coroutine. The test thread may resume before the finally block completes; poll briefly.
         val deadline = System.currentTimeMillis() + 2_000
         while (!bitmap.isRecycled && System.currentTimeMillis() < deadline) {
             Thread.sleep(10)
@@ -67,29 +46,18 @@ class CameraViewModelBitmapRecycleTest {
 
     /**
      * rotationDegrees != 0: rotateBitmap creates a new Bitmap (corrected !== bitmap).
-     * The original bitmap must be recycled immediately after rotation (before save),
-     * and therefore before the UiEvent is emitted.
+     * The original bitmap must be recycled after rotation.
      */
     @Test
     fun onPhotoCaptured_withRotation_recyclesOriginalBitmap() {
-        // 4×3 source; 90° rotation produces a distinct 3×4 corrected Bitmap object.
         val bitmap = Bitmap.createBitmap(4, 3, Bitmap.Config.ARGB_8888)
-        val eventReceived = CountDownLatch(1)
-
-        CoroutineScope(Dispatchers.Default).launch {
-            viewModel.uiEvent.first()
-            eventReceived.countDown()
-        }
 
         viewModel.onPhotoCaptured(bitmap, rotationDegrees = 90)
 
-        assertTrue(
-            "UiEvent not received within timeout — capture coroutine may have stalled",
-            eventReceived.await(5, TimeUnit.SECONDS)
-        )
-
-        // The original bitmap is recycled immediately after rotateBitmap returns, before save()
-        // and emit(). It is guaranteed to be recycled by the time the event arrives.
+        val deadline = System.currentTimeMillis() + 2_000
+        while (!bitmap.isRecycled && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+        }
         assertTrue(
             "original bitmap must be recycled after a rotation capture",
             bitmap.isRecycled

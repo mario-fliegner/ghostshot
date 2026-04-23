@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
+import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -103,16 +104,23 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import coil.compose.AsyncImage
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotOverlayScrim
 import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
 import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.max
 
 private val CameraShutterButtonSize = 96.dp
 private val CameraBottomControlGap = 16.dp
+private val CameraOpacitySliderPortraitBottom = 128.dp
+private val CameraOpacitySliderHeight = 56.dp
+private const val CaptureSuccessSnackbarStateKey =
+    "com.isardomains.ghostshot.ui.camera.CaptureSuccessSnackbar"
+private const val CaptureSuccessSnackbarLastShownGenerationKey = "lastShownGeneration"
 
 /**
  * Represents the four distinct states of the CAMERA permission lifecycle.
@@ -211,19 +219,16 @@ fun CameraScreen(
             val imageCaptureState = remember { mutableStateOf<ImageCapture?>(null) }
             val snackbarHostState = remember { SnackbarHostState() }
             var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
-            var successMessageResId by remember { mutableStateOf<Int?>(null) }
             val removeSnackbarMessage = stringResource(R.string.reference_removed_snackbar)
             val removeSnackbarUndo = stringResource(R.string.reference_removed_undo)
+            val captureSavedMessage = stringResource(R.string.capture_saved)
+            val captureCompareAction = stringResource(R.string.capture_saved_compare_action)
 
             LaunchedEffect(viewModel) {
                 viewModel.uiEvent.collect { event ->
                     when (event) {
                         is UiEvent.ShowSnackbar -> {
-                            if (event.isSuccess) {
-                                successMessageResId = event.messageResId
-                            } else {
-                                pendingSnackbarEvent = event
-                            }
+                            pendingSnackbarEvent = event
                         }
                         is UiEvent.UndoInvalidated -> {
                             snackbarHostState.currentSnackbarData?.dismiss()
@@ -241,21 +246,22 @@ fun CameraScreen(
                 onUndo = { viewModel.onReferenceImageRemoveUndo() }
             )
 
+            CaptureSuccessSnackbarEffect(
+                captureSuccessGeneration = uiState.captureSuccessGeneration,
+                captureSuccessHadReference = uiState.captureSuccessHadReference,
+                hostState = snackbarHostState,
+                message = captureSavedMessage,
+                actionLabel = captureCompareAction,
+                onCompare = {}
+            )
+
             val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
-            val successMessage = successMessageResId?.let { stringResource(it) }
 
             LaunchedEffect(pendingSnackbarEvent) {
                 if (pendingMessage != null) {
                     snackbarHostState.currentSnackbarData?.dismiss()
                     snackbarHostState.showSnackbar(pendingMessage)
                     pendingSnackbarEvent = null
-                }
-            }
-
-            LaunchedEffect(successMessageResId) {
-                if (successMessageResId != null) {
-                    delay(1200)
-                    successMessageResId = null
                 }
             }
 
@@ -407,13 +413,6 @@ fun CameraScreen(
                 )
 
                 // ── Layer 4: Snackbar ─────────────────────────────────────────────────
-                successMessage?.let { message ->
-                    SaveSuccessOverlay(
-                        message = message,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
                 CameraSnackbarHost(
                     hostState = snackbarHostState,
                     isLandscape = isLandscape,
@@ -619,35 +618,6 @@ private fun CompareReferenceImage(
     )
 }
 
-/**
- * Short save confirmation shown away from the camera controls.
- */
-@Composable
-private fun SaveSuccessOverlay(
-    message: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.Black.copy(alpha = 0.46f))
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Check,
-            contentDescription = null,
-            tint = GhostShotTextPrimary
-        )
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = GhostShotTextPrimary
-        )
-    }
-}
-
 @Composable
 internal fun CameraSnackbarHost(
     hostState: SnackbarHostState,
@@ -688,11 +658,67 @@ internal fun ReferenceRemovalUndoSnackbarEffect(
     }
 }
 
+@Composable
+internal fun CaptureSuccessSnackbarEffect(
+    captureSuccessGeneration: Long,
+    captureSuccessHadReference: Boolean,
+    hostState: SnackbarHostState,
+    message: String,
+    actionLabel: String,
+    onCompare: () -> Unit
+) {
+    val savedStateRegistry = LocalSavedStateRegistryOwner.current.savedStateRegistry
+    var lastShownGeneration by remember(savedStateRegistry) {
+        mutableStateOf(
+            savedStateRegistry
+                .consumeRestoredStateForKey(CaptureSuccessSnackbarStateKey)
+                ?.getLong(CaptureSuccessSnackbarLastShownGenerationKey, 0L)
+                ?: 0L
+        )
+    }
+    val currentLastShownGeneration = rememberUpdatedState(lastShownGeneration)
+    DisposableEffect(savedStateRegistry) {
+        savedStateRegistry.registerSavedStateProvider(CaptureSuccessSnackbarStateKey) {
+            Bundle().apply {
+                putLong(
+                    CaptureSuccessSnackbarLastShownGenerationKey,
+                    currentLastShownGeneration.value
+                )
+            }
+        }
+        onDispose {
+            savedStateRegistry.unregisterSavedStateProvider(CaptureSuccessSnackbarStateKey)
+        }
+    }
+    LaunchedEffect(captureSuccessGeneration) {
+        if (captureSuccessGeneration > 0L && captureSuccessGeneration != lastShownGeneration) {
+            lastShownGeneration = captureSuccessGeneration
+            hostState.currentSnackbarData?.dismiss()
+            val durationMs = if (captureSuccessHadReference) 2500L else 2000L
+            launch {
+                val result = hostState.showSnackbar(
+                    message = message,
+                    actionLabel = if (captureSuccessHadReference) actionLabel else null,
+                    duration = SnackbarDuration.Indefinite
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    onCompare()
+                }
+            }
+            delay(durationMs)
+            hostState.currentSnackbarData?.dismiss()
+        }
+    }
+}
+
 private fun cameraBottomPadding(isLandscape: Boolean): Dp =
     if (isLandscape) 18.dp else 24.dp
 
 private fun cameraSnackbarBottomPadding(isLandscape: Boolean): Dp =
-    cameraBottomPadding(isLandscape) + CameraShutterButtonSize + CameraBottomControlGap
+    if (isLandscape)
+        cameraBottomPadding(true) + CameraShutterButtonSize + CameraBottomControlGap
+    else
+        CameraOpacitySliderPortraitBottom + CameraOpacitySliderHeight + 8.dp
 
 /**
  * Camera-style controls layered over the fullscreen preview.
@@ -811,7 +837,8 @@ internal fun CameraControlsOverlay(
         // Bottom-left: reference button with action stack anchored to it.
         Column(
             modifier = Modifier
-                .align(Alignment.BottomStart)
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(start = referenceStartPadding, bottom = bottomPadding),
             verticalArrangement = Arrangement.spacedBy(if (isLandscape) 6.dp else 8.dp),

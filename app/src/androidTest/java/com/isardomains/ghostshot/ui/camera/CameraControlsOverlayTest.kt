@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -601,6 +602,178 @@ class CameraControlsOverlayTest {
     }
 
     @Test
+    fun snackbar_inPortrait_doesNotOverlapOpacitySlider() {
+        val snackbarMessage = captureSavedText()
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        CameraControlsOverlay(
+                            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+                            alpha = 0.5f,
+                            onAlphaChange = {},
+                            onSelectReferenceImage = {},
+                            onResetOverlay = {},
+                            onRemoveReferenceImage = {},
+                            onCapture = {},
+                            isLandscape = false,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        val snackbarHostState = remember { SnackbarHostState() }
+                        LaunchedEffect(Unit) {
+                            snackbarHostState.showSnackbar(
+                                message = snackbarMessage,
+                                duration = SnackbarDuration.Indefinite
+                            )
+                        }
+                        CameraSnackbarHost(
+                            hostState = snackbarHostState,
+                            isLandscape = false,
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText(snackbarMessage).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        val snackbarBounds = composeRule
+            .onNodeWithTag("camera_snackbar_host")
+            .getUnclippedBoundsInRoot()
+        val sliderBounds = composeRule
+            .onNodeWithContentDescription(opacityDescription())
+            .getUnclippedBoundsInRoot()
+
+        assertNoOverlap(snackbarBounds, sliderBounds)
+    }
+
+    @Test
+    fun captureSuccess_doesNotReplayAfterRecreation() {
+        val savedText = context.getString(R.string.capture_saved)
+        val compareText = context.getString(R.string.capture_saved_compare_action)
+
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    CaptureSuccessSnackbarTestHost(
+                        captureSuccessGeneration = 1L,
+                        captureSuccessHadReference = false,
+                        message = savedText,
+                        actionLabel = compareText
+                    )
+                }
+            }
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText(savedText).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        scenario?.recreate()
+        composeRule.waitForIdle()
+
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    CaptureSuccessSnackbarTestHost(
+                        captureSuccessGeneration = 1L,
+                        captureSuccessHadReference = false,
+                        message = savedText,
+                        actionLabel = compareText
+                    )
+                }
+            }
+        }
+        // Advance clock past any initial frame delays to give the LaunchedEffect a chance to run
+        composeRule.mainClock.autoAdvance = false
+        composeRule.mainClock.advanceTimeBy(500)
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        composeRule.onAllNodesWithText(savedText).assertCountEquals(0)
+    }
+
+    @Test
+    fun captureSuccess_withoutReference_dismissesAfter2000ms() {
+        val savedText = context.getString(R.string.capture_saved)
+        val compareText = context.getString(R.string.capture_saved_compare_action)
+
+        composeRule.mainClock.autoAdvance = false
+        setCaptureSuccessTestContent {
+            CaptureSuccessSnackbarTestHost(
+                captureSuccessGeneration = 1L,
+                captureSuccessHadReference = false,
+                message = savedText,
+                actionLabel = compareText
+            )
+        }
+
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(savedText).assertIsDisplayed()
+
+        // Still visible just before the 2000 ms mark
+        composeRule.mainClock.advanceTimeBy(1_850) // t = 1950 ms
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(savedText).assertIsDisplayed()
+
+        // Past 2000 ms + exit animation buffer
+        composeRule.mainClock.advanceTimeBy(500) // t = 2450 ms
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithText(savedText).assertCountEquals(0)
+    }
+
+    @Test
+    fun captureSuccess_withReference_dismissesAfter2500ms() {
+        val savedText = context.getString(R.string.capture_saved)
+        val compareText = context.getString(R.string.capture_saved_compare_action)
+
+        composeRule.mainClock.autoAdvance = false
+        setCaptureSuccessTestContent {
+            CaptureSuccessSnackbarTestHost(
+                captureSuccessGeneration = 1L,
+                captureSuccessHadReference = true,
+                message = savedText,
+                actionLabel = compareText
+            )
+        }
+
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(savedText).assertIsDisplayed()
+
+        // Still visible just before the 2500 ms mark
+        composeRule.mainClock.advanceTimeBy(2_350) // t = 2450 ms
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(savedText).assertIsDisplayed()
+
+        // Past 2500 ms + exit animation buffer
+        composeRule.mainClock.advanceTimeBy(500) // t = 2950 ms
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithText(savedText).assertCountEquals(0)
+    }
+
+    @Test
     fun undoSnackbar_showsFromUndoState() {
         setUndoSnackbarContent(canUndoReferenceRemoval = true, undoGeneration = 1L)
 
@@ -672,6 +845,22 @@ class CameraControlsOverlayTest {
 
         composeRule.onAllNodesWithText(referenceRemovedSnackbar()).assertCountEquals(0)
         composeRule.onAllNodesWithText(referenceRemovedUndo()).assertCountEquals(0)
+    }
+
+    @Test
+    fun captureSuccess_withoutReference_showsSnackbarWithoutAction() {
+        setCaptureSuccessContent(captureSuccessGeneration = 1L, captureSuccessHadReference = false)
+
+        composeRule.onNodeWithText(captureSavedText()).assertIsDisplayed()
+        composeRule.onAllNodesWithText(captureCompareActionText()).assertCountEquals(0)
+    }
+
+    @Test
+    fun captureSuccess_withReference_showsSnackbarWithCompareAction() {
+        setCaptureSuccessContent(captureSuccessGeneration = 1L, captureSuccessHadReference = true)
+
+        composeRule.onNodeWithText(captureSavedText()).assertIsDisplayed()
+        composeRule.onNodeWithText(captureCompareActionText()).assertIsDisplayed()
     }
 
     private fun assertMenuHidden() {
@@ -801,6 +990,24 @@ class CameraControlsOverlayTest {
         composeRule.waitForIdle()
     }
 
+    private fun setCaptureSuccessTestContent(content: @Composable () -> Unit) {
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    content()
+                }
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
     @Composable
     private fun UndoSnackbarTestHost(
         canUndoReferenceRemoval: Boolean,
@@ -825,6 +1032,63 @@ class CameraControlsOverlayTest {
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
             Box(modifier = Modifier.testTag("undo_snackbar_recompose_$nonce"))
+        }
+    }
+
+    private fun setCaptureSuccessContent(
+        captureSuccessGeneration: Long,
+        captureSuccessHadReference: Boolean
+    ) {
+        val savedText = context.getString(R.string.capture_saved)
+        val compareText = context.getString(R.string.capture_saved_compare_action)
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    CaptureSuccessSnackbarTestHost(
+                        captureSuccessGeneration = captureSuccessGeneration,
+                        captureSuccessHadReference = captureSuccessHadReference,
+                        message = savedText,
+                        actionLabel = compareText
+                    )
+                }
+            }
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText(savedText)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+    }
+
+    @Composable
+    private fun CaptureSuccessSnackbarTestHost(
+        captureSuccessGeneration: Long,
+        captureSuccessHadReference: Boolean,
+        message: String,
+        actionLabel: String
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            val snackbarHostState = remember { SnackbarHostState() }
+            CaptureSuccessSnackbarEffect(
+                captureSuccessGeneration = captureSuccessGeneration,
+                captureSuccessHadReference = captureSuccessHadReference,
+                hostState = snackbarHostState,
+                message = message,
+                actionLabel = actionLabel,
+                onCompare = {}
+            )
+            CameraSnackbarHost(
+                hostState = snackbarHostState,
+                isLandscape = false,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 
@@ -900,4 +1164,8 @@ class CameraControlsOverlayTest {
     private fun referenceRemovedSnackbar() = context.getString(R.string.reference_removed_snackbar)
 
     private fun referenceRemovedUndo() = context.getString(R.string.reference_removed_undo)
+
+    private fun captureSavedText() = context.getString(R.string.capture_saved)
+
+    private fun captureCompareActionText() = context.getString(R.string.capture_saved_compare_action)
 }

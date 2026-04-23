@@ -10,7 +10,8 @@
     <!-- Capture -->
     <string name="capture_button_content_description">Take photo</string>
     <string name="capture_button_label">Capture</string>
-    <string name="capture_saved">Saved</string>
+    <string name="capture_saved">Bild gespeichert</string>
+    <string name="capture_saved_compare_action">Vergleich ansehen</string>
     <string name="capture_failed">Could not save photo</string>
 
     <!-- Reference image overlay -->
