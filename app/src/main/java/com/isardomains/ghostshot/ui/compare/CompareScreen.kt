@@ -2,34 +2,68 @@ package com.isardomains.ghostshot.ui.compare
 
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import coil.imageLoader
 import com.isardomains.ghostshot.R
+import kotlin.math.roundToInt
+
+private const val InitialSliderFraction = 0.5f
 
 /**
- * Fullscreen shell for the compare flow.
+ * Fullscreen compare screen for the V1 slider compare flow.
  *
- * Step 2 only establishes the destination, back navigation, and defensive input handling.
- * The slider-based compare viewport is added in the following step.
+ * Uses a single shared viewport for both images so reference and capture always
+ * render with the same container, alignment, and scaling logic.
  */
 @Composable
 fun CompareScreen(
@@ -81,10 +115,19 @@ fun CompareScreen(
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (hasValidInput) {
-                    CompareScreenShellContent()
-                } else {
-                    CompareMissingInputFallback()
+                when {
+                    !hasValidInput -> CompareMessageFallback(
+                        text = stringResource(R.string.compare_error_missing_images),
+                        testTag = "compare_missing_input_fallback"
+                    )
+
+                    else -> CompareSliderViewport(
+                        referenceImageUri = referenceImageUri!!,
+                        captureImageUri = captureImageUri!!,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("compare_screen_shell_content")
+                    )
                 }
             }
         }
@@ -92,18 +135,230 @@ fun CompareScreen(
 }
 
 @Composable
-private fun CompareScreenShellContent() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag("compare_screen_shell_content")
+private fun CompareSliderViewport(
+    referenceImageUri: Uri,
+    captureImageUri: Uri,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val imageLoader = context.imageLoader
+    val referencePainter = rememberAsyncImagePainter(
+        model = referenceImageUri,
+        imageLoader = imageLoader
     )
+    val capturePainter = rememberAsyncImagePainter(
+        model = captureImageUri,
+        imageLoader = imageLoader
+    )
+    var sliderFraction by rememberSaveable { mutableFloatStateOf(InitialSliderFraction) }
+    var viewportWidthPx by remember { mutableFloatStateOf(1f) }
+
+    val loadFailed =
+        referencePainter.state is AsyncImagePainter.State.Error ||
+            capturePainter.state is AsyncImagePainter.State.Error
+
+    if (loadFailed) {
+        CompareMessageFallback(
+            text = stringResource(R.string.compare_error_load_failed),
+            testTag = "compare_load_failed_fallback"
+        )
+        return
+    }
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.Black)
+                .onSizeChanged { size ->
+                    viewportWidthPx = size.width.coerceAtLeast(1).toFloat()
+                }
+                .pointerInput(viewportWidthPx) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        sliderFraction = (sliderFraction + (dragAmount.x / viewportWidthPx))
+                            .coerceIn(0f, 1f)
+                    }
+                }
+                .testTag("compare_viewport")
+                .semantics {
+                    testTag = "compare_viewport"
+                }
+        ) {
+            CompareViewportImage(
+                painter = referencePainter,
+                imageContentDescription = stringResource(R.string.compare_label_reference),
+                imageTestTag = "compare_reference_image",
+                renderSurfaceTestTag = "compare_reference_surface",
+                revealLeftFraction = sliderFraction,
+                modifier = Modifier.matchParentSize()
+            )
+            CompareViewportImage(
+                painter = capturePainter,
+                imageContentDescription = stringResource(R.string.compare_label_capture),
+                imageTestTag = "compare_capture_image",
+                renderSurfaceTestTag = "compare_capture_surface",
+                revealRightFraction = sliderFraction,
+                modifier = Modifier.matchParentSize()
+            )
+
+            CompareLabelsOverlay(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            )
+
+            CompareDivider(
+                sliderFraction = sliderFraction,
+                viewportWidthPx = viewportWidthPx,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxHeight()
+            )
+        }
+    }
 }
 
 @Composable
-private fun CompareMissingInputFallback() {
+private fun CompareViewportImage(
+    painter: AsyncImagePainter,
+    imageContentDescription: String,
+    imageTestTag: String,
+    renderSurfaceTestTag: String,
+    modifier: Modifier = Modifier,
+    revealLeftFraction: Float? = null,
+    revealRightFraction: Float? = null
+) {
+    val revealModifier = when {
+        revealLeftFraction != null -> Modifier.drawWithContent {
+            clipRect(right = size.width * revealLeftFraction) {
+                this@drawWithContent.drawContent()
+            }
+        }
+
+        revealRightFraction != null -> Modifier.drawWithContent {
+            clipRect(left = size.width * revealRightFraction) {
+                this@drawWithContent.drawContent()
+            }
+        }
+
+        else -> Modifier
+    }
+
+    Box(
+        modifier = modifier
+            .then(revealModifier)
+            .testTag(renderSurfaceTestTag)
+    ) {
+        androidx.compose.foundation.Image(
+            painter = painter,
+            contentDescription = imageContentDescription,
+            contentScale = ContentScale.Fit,
+            alignment = Alignment.Center,
+            modifier = Modifier
+                .matchParentSize()
+                .testTag(imageTestTag)
+        )
+    }
+}
+
+@Composable
+private fun CompareLabelsOverlay(
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CompareLabelBadge(
+            text = stringResource(R.string.compare_label_reference),
+            modifier = Modifier.testTag("compare_reference_label")
+        )
+        CompareLabelBadge(
+            text = stringResource(R.string.compare_label_capture),
+            modifier = Modifier.testTag("compare_capture_label")
+        )
+    }
+}
+
+@Composable
+private fun CompareLabelBadge(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.shadow(2.dp, RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun CompareDivider(
+    sliderFraction: Float,
+    viewportWidthPx: Float,
+    modifier: Modifier = Modifier
+) {
+    val dividerOffsetPx = (viewportWidthPx * sliderFraction).roundToInt()
+    val sliderDescription = stringResource(R.string.compare_slider_content_description)
+
+    Box(
+        modifier = modifier
+            .width(28.dp)
+            .offset {
+                IntOffset(
+                    x = dividerOffsetPx - (14.dp.roundToPx()),
+                    y = 0
+                )
+            }
+            .testTag("compare_slider")
+            .semantics {
+                contentDescription = sliderDescription
+                stateDescription = "${(sliderFraction * 100).roundToInt()}%"
+                progressBarRangeInfo = ProgressBarRangeInfo(sliderFraction, 0f..1f)
+            }
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxHeight()
+                .width(2.dp)
+                .padding(vertical = 16.dp)
+                .background(Color.White.copy(alpha = 0.9f))
+                .testTag("compare_divider_line")
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                .shadow(3.dp, CircleShape)
+                .testTag("compare_divider_handle")
+        )
+    }
+}
+
+@Composable
+private fun CompareMessageFallback(
+    text: String,
+    testTag: String
+) {
     Column(
-        modifier = Modifier.testTag("compare_missing_input_fallback"),
+        modifier = Modifier.testTag(testTag),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -114,7 +369,7 @@ private fun CompareMissingInputFallback() {
             modifier = Modifier.size(32.dp)
         )
         Text(
-            text = stringResource(R.string.compare_error_missing_images),
+            text = text,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground
         )

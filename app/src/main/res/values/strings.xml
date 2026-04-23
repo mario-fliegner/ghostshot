@@ -18,6 +18,9 @@
     <string name="compare_images">Compare Images</string>
     <string name="compare_screen_title">Compare</string>
     <string name="compare_back">Back to camera</string>
+    <string name="compare_label_reference">Reference</string>
+    <string name="compare_label_capture">Capture</string>
+    <string name="compare_slider_content_description">Compare slider</string>
     <string name="compare_error_missing_images">Reference and capture are required for comparison.</string>
     <string name="compare_error_load_failed">Could not load comparison images.</string>
 

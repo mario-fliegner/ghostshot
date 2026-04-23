@@ -1,5 +1,6 @@
 package com.isardomains.ghostshot.ui.camera
 
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.view.WindowManager
@@ -17,10 +18,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -34,6 +37,7 @@ import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class CompareNavigationTest {
@@ -43,12 +47,15 @@ class CompareNavigationTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private var scenario: ActivityScenario<ComponentActivity>? = null
+    private val tempFiles = mutableListOf<File>()
 
     @After
     fun tearDown() {
         composeRule.mainClock.autoAdvance = true
         scenario?.close()
         scenario = null
+        tempFiles.forEach { it.delete() }
+        tempFiles.clear()
     }
 
     @Test
@@ -118,9 +125,33 @@ class CompareNavigationTest {
         composeRule.onAllNodesWithText(savedText).assertCountEquals(0)
     }
 
+    @Test
+    fun backAfterSliderInteractionReturnsToCamera() {
+        setNavigationContent()
+
+        composeRule.onNodeWithTag("compare_images_entry").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("compare_slider").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(150f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_back_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("camera_session_marker").assertIsDisplayed()
+        composeRule.onNodeWithTag("reference_action_active_indicator", useUnmergedTree = true)
+            .assertIsDisplayed()
+    }
+
     private fun setNavigationContent(showCaptureSuccessSnackbar: Boolean = false) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        val compareInput = createCompareInput()
         scenario?.onActivity { activity ->
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -130,8 +161,6 @@ class CompareNavigationTest {
             activity.setContent {
                 GhostShotTheme {
                     val navController = rememberNavController()
-                    val referenceUri = remember { Uri.parse("content://ghostshot/reference") }
-                    val captureUri = remember { Uri.parse("content://ghostshot/capture") }
                     NavHost(
                         navController = navController,
                         startDestination = "camera"
@@ -144,8 +173,8 @@ class CompareNavigationTest {
                         }
                         composable("compare") {
                             CompareScreen(
-                                referenceImageUri = referenceUri,
-                                captureImageUri = captureUri,
+                                referenceImageUri = compareInput.referenceUri,
+                                captureImageUri = compareInput.captureUri,
                                 onBack = { navController.popBackStack() }
                             )
                         }
@@ -200,10 +229,34 @@ class CompareNavigationTest {
         }
     }
 
+    private fun createCompareInput(): CompareInput {
+        return CompareInput(
+            referenceUri = createImageUri("navigation_reference", android.graphics.Color.RED),
+            captureUri = createImageUri("navigation_capture", android.graphics.Color.BLUE)
+        )
+    }
+
+    private fun createImageUri(fileNamePrefix: String, color: Int): Uri {
+        val file = File.createTempFile(fileNamePrefix, ".png", context.cacheDir)
+        tempFiles += file
+        val bitmap = Bitmap.createBitmap(120, 200, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(color)
+        file.outputStream().use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        }
+        bitmap.recycle()
+        return Uri.fromFile(file)
+    }
+
     private fun wakeTestDevice() {
         InstrumentationRegistry.getInstrumentation()
             .uiAutomation
             .executeShellCommand("input keyevent KEYCODE_WAKEUP")
             .close()
     }
+
+    private data class CompareInput(
+        val referenceUri: Uri,
+        val captureUri: Uri
+    )
 }
