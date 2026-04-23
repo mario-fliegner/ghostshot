@@ -94,8 +94,19 @@ data class CameraUiState(
     val referenceRemovalUndoGeneration: Long = 0L,
     val captureSuccessGeneration: Long = 0L,
     val captureSuccessHadReference: Boolean = false,
+    val compareInput: CompareInput? = null,
     val viewportWidth: Int = 0,
     val viewportHeight: Int = 0
+)
+
+/**
+ * The current valid input pair for the fullscreen compare flow.
+ *
+ * The pair is only valid when both URIs belong to the same successful capture moment.
+ */
+data class CompareInput(
+    val referenceImageUri: Uri,
+    val captureImageUri: Uri
 )
 
 /**
@@ -235,7 +246,8 @@ class CameraViewModel @Inject constructor(
                     overlayOffsetX = if (formatChanged) 0f else current.overlayOffsetX,
                     overlayOffsetY = if (formatChanged) 0f else current.overlayOffsetY,
                     overlayScale = if (formatChanged) 1f else current.overlayScale,
-                    canUndoReferenceRemoval = false
+                    canUndoReferenceRemoval = false,
+                    compareInput = null
                 )
             }
             if (hadUndo) {
@@ -272,6 +284,7 @@ class CameraViewModel @Inject constructor(
                 overlayOffsetX = 0f,
                 overlayOffsetY = 0f,
                 overlayScale = 1f,
+                compareInput = null,
                 canUndoReferenceRemoval = if (hasReference) true else it.canUndoReferenceRemoval,
                 referenceRemovalUndoGeneration = if (hasReference) {
                     it.referenceRemovalUndoGeneration + 1L
@@ -418,7 +431,11 @@ class CameraViewModel @Inject constructor(
         while (true) {
             val current = _uiState.value
             if (current.isCaptureInProgress) return false
-            if (_uiState.compareAndSet(current, current.copy(isCaptureInProgress = true))) {
+            if (_uiState.compareAndSet(
+                    current,
+                    current.copy(isCaptureInProgress = true, compareInput = null)
+                )
+            ) {
                 return true
             }
         }
@@ -430,6 +447,7 @@ class CameraViewModel @Inject constructor(
      */
     fun onCaptureInterrupted() {
         lastCaptureResult = null
+        _uiState.update { it.copy(compareInput = null) }
         finishCapture()
     }
 
@@ -463,12 +481,7 @@ class CameraViewModel @Inject constructor(
 
                 if (savedUri != null) {
                     val referenceUri = _uiState.value.referenceImageUri
-                    _uiState.update { current ->
-                        current.copy(
-                            captureSuccessGeneration = current.captureSuccessGeneration + 1L,
-                            captureSuccessHadReference = referenceUri != null
-                        )
-                    }
+                    onCaptureSaved(savedUri)
                     // Session storage: persists capture + reference as a matched pair in app-internal
                     // storage for later comparison. Only written when the main save succeeded and a
                     // reference image is present. Best-effort — failure here never affects the main save.
@@ -533,9 +546,11 @@ class CameraViewModel @Inject constructor(
 
             } catch (e: Exception) {
                 lastCaptureResult = null
+                _uiState.update { it.copy(compareInput = null) }
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
             } catch (e: OutOfMemoryError) {
                 lastCaptureResult = null
+                _uiState.update { it.copy(compareInput = null) }
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
             } finally {
                 if (corrected != null) {
@@ -548,12 +563,29 @@ class CameraViewModel @Inject constructor(
         }
     }
 
+    internal fun onCaptureSaved(savedUri: Uri) {
+        val referenceUri = _uiState.value.referenceImageUri
+        _uiState.update { current ->
+            current.copy(
+                captureSuccessGeneration = current.captureSuccessGeneration + 1L,
+                captureSuccessHadReference = referenceUri != null,
+                compareInput = referenceUri?.let {
+                    CompareInput(
+                        referenceImageUri = it,
+                        captureImageUri = savedUri
+                    )
+                }
+            )
+        }
+    }
+
     /**
      * Called by [CameraScreen] when [ImageCapture] reports a hardware or session error
      * before a frame could be delivered.
      */
     fun onPhotoCaptureError() {
         lastCaptureResult = null
+        _uiState.update { it.copy(compareInput = null) }
         finishCapture()
         viewModelScope.launch {
             _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))

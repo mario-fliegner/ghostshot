@@ -1,4 +1,9 @@
 <resources>
+    <string name="compare_images">Bilder vergleichen</string>
+    <string name="compare_screen_title">Vergleich</string>
+    <string name="compare_back">Zurueck zur Kamera</string>
+    <string name="compare_error_missing_images">Referenz und Aufnahme werden fuer den Vergleich benoetigt.</string>
+    <string name="compare_error_load_failed">Vergleichsbilder konnten nicht geladen werden.</string>
     <string name="reference_format_mismatch_description">Referenzformat weicht ab. Tippen fuer Info.</string>
     <string name="reference_format_mismatch_bubble">Overlay leicht versetzt</string>
 </resources>

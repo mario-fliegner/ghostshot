@@ -669,6 +669,77 @@ class CameraViewModelTest {
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
     }
 
+    @Test
+    fun compareInput_isNullInitially() {
+        assertNull(viewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun compareInput_remainsNullWhenCaptureSavedWithoutReference() {
+        val captureUri = mock<Uri>()
+
+        viewModel.onCaptureSaved(captureUri)
+
+        assertNull(viewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun compareInput_isSetWhenCaptureSavedWithReference() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val referenceUri = mock<Uri>()
+        val captureUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(referenceUri)
+
+        testViewModel.onCaptureSaved(captureUri)
+
+        assertEquals(referenceUri, testViewModel.uiState.value.compareInput?.referenceImageUri)
+        assertEquals(captureUri, testViewModel.uiState.value.compareInput?.captureImageUri)
+    }
+
+    @Test
+    fun compareInput_isClearedWhenReferenceChanges() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock())
+
+        testViewModel.onReferenceImageSelected(mock())
+
+        assertNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun compareInput_isClearedWhenReferenceIsRemoved() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock())
+
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        assertNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun compareInput_isClearedWhenNewCaptureStarts() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock())
+
+        testViewModel.tryStartCapture()
+
+        assertNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun compareInput_isClearedAfterCaptureInterrupt() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock())
+
+        testViewModel.onCaptureInterrupted()
+
+        assertNull(testViewModel.uiState.value.compareInput)
+    }
+
     // --- lastCaptureResult ---
 
     @Test

@@ -14,6 +14,13 @@
     <string name="capture_saved_compare_action">Vergleich ansehen</string>
     <string name="capture_failed">Could not save photo</string>
 
+    <!-- Compare flow -->
+    <string name="compare_images">Compare Images</string>
+    <string name="compare_screen_title">Compare</string>
+    <string name="compare_back">Back to camera</string>
+    <string name="compare_error_missing_images">Reference and capture are required for comparison.</string>
+    <string name="compare_error_load_failed">Could not load comparison images.</string>
+
     <!-- Reference image overlay -->
     <string name="select_reference_image">Select reference image</string>
     <string name="select_reference_image_label">Reference</string>

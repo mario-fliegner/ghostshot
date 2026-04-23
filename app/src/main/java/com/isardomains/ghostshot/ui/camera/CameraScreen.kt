@@ -156,7 +156,8 @@ private enum class CameraPermissionState {
  */
 @Composable
 fun CameraScreen(
-    viewModel: CameraViewModel = hiltViewModel()
+    viewModel: CameraViewModel = hiltViewModel(),
+    onCompareImages: (CompareInput) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -223,6 +224,7 @@ fun CameraScreen(
             val removeSnackbarUndo = stringResource(R.string.reference_removed_undo)
             val captureSavedMessage = stringResource(R.string.capture_saved)
             val captureCompareAction = stringResource(R.string.capture_saved_compare_action)
+            val compareInput = uiState.compareInput
 
             LaunchedEffect(viewModel) {
                 viewModel.uiEvent.collect { event ->
@@ -252,7 +254,9 @@ fun CameraScreen(
                 hostState = snackbarHostState,
                 message = captureSavedMessage,
                 actionLabel = captureCompareAction,
-                onCompare = {}
+                onCompare = {
+                    compareInput?.let(onCompareImages)
+                }
             )
 
             val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
@@ -413,6 +417,20 @@ fun CameraScreen(
                 )
 
                 // ── Layer 4: Snackbar ─────────────────────────────────────────────────
+                CompareImagesEntry(
+                    isEnabled = compareInput != null,
+                    onClick = {
+                        compareInput?.let(onCompareImages)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .systemBarsPadding()
+                        .padding(
+                            top = 12.dp,
+                            end = if (isLandscape) 28.dp else 24.dp
+                        )
+                )
+
                 CameraSnackbarHost(
                     hostState = snackbarHostState,
                     isLandscape = isLandscape,
@@ -871,6 +889,21 @@ internal fun CameraControlsOverlay(
                 .navigationBarsPadding()
                 .padding(bottom = bottomPadding)
         )
+    }
+}
+
+@Composable
+internal fun CompareImagesEntry(
+    isEnabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        enabled = isEnabled,
+        modifier = modifier.testTag("compare_images_entry")
+    ) {
+        Text(stringResource(R.string.compare_images))
     }
 }
 
