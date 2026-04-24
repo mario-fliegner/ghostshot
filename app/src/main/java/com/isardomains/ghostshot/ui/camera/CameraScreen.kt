@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AspectRatio
@@ -397,6 +398,8 @@ fun CameraScreen(
                 // ── Layer 3: Camera controls overlay ─────────────────────────────────
                 CameraControlsOverlay(
                     referenceUri = referenceUri,
+                    compareInput = compareInput,
+                    onCompare = onCompareImages,
                     alpha = uiState.overlayAlpha,
                     onAlphaChange = { viewModel.onOverlayAlphaChanged(it) },
                     onSelectReferenceImage = {
@@ -417,20 +420,6 @@ fun CameraScreen(
                 )
 
                 // ── Layer 4: Snackbar ─────────────────────────────────────────────────
-                if (compareInput != null) {
-                    CompareImagesEntry(
-                        isEnabled = true,
-                        onClick = { onCompareImages(compareInput) },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .systemBarsPadding()
-                            .padding(
-                                top = 12.dp,
-                                end = if (isLandscape) 28.dp else 24.dp
-                            )
-                    )
-                }
-
                 CameraSnackbarHost(
                     hostState = snackbarHostState,
                     isLandscape = isLandscape,
@@ -744,6 +733,8 @@ private fun cameraSnackbarBottomPadding(isLandscape: Boolean): Dp =
 @Composable
 internal fun CameraControlsOverlay(
     referenceUri: Uri?,
+    compareInput: CompareInput? = null,
+    onCompare: (CompareInput) -> Unit = {},
     alpha: Float,
     onAlphaChange: (Float) -> Unit,
     onSelectReferenceImage: () -> Unit,
@@ -882,6 +873,24 @@ internal fun CameraControlsOverlay(
             }
         }
 
+        if (compareInput != null) {
+            CompareImagesEntry(
+                onClick = { onCompare(compareInput) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(
+                        end = horizontalPadding,
+                        bottom = if (isLandscape)
+                            bottomPadding + CameraShutterButtonSize + 8.dp
+                        else
+                            bottomPadding
+                    )
+                    .height(CameraShutterButtonSize)
+                    .wrapContentHeight(align = Alignment.CenterVertically)
+            )
+        }
+
         ShutterButton(
             onCapture = onCapture,
             modifier = Modifier
@@ -894,16 +903,33 @@ internal fun CameraControlsOverlay(
 
 @Composable
 internal fun CompareImagesEntry(
-    isEnabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Button(
-        onClick = onClick,
-        enabled = isEnabled,
-        modifier = modifier.testTag("compare_images_entry")
+    val label = stringResource(R.string.compare_entry_label)
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(GhostShotOverlayScrim)
+            .testTag("compare_images_entry")
+            .semantics { contentDescription = label }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(stringResource(R.string.compare_images))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.SwapHoriz,
+                contentDescription = null,
+                tint = GhostShotTextPrimary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = GhostShotTextPrimary
+            )
+        }
     }
 }
 

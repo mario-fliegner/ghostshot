@@ -5,9 +5,8 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -61,7 +60,7 @@ class CameraCompareEntryTest {
 
         composeRule.onNodeWithTag("compare_images_entry")
             .assertIsDisplayed()
-            .assertIsEnabled()
+            .assertHasClickAction()
             .performClick()
 
         composeRule.waitForIdle()
@@ -84,7 +83,6 @@ class CameraCompareEntryTest {
                 GhostShotTheme {
                     if (isCompareEnabled) {
                         CompareImagesEntry(
-                            isEnabled = true,
                             onClick = onCompareImages,
                             modifier = Modifier
                         )

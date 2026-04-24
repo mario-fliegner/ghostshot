@@ -16,6 +16,7 @@
 
     <!-- Compare flow -->
     <string name="compare_images">Compare Images</string>
+    <string name="compare_entry_label">Compare</string>
     <string name="compare_screen_title">Compare</string>
     <string name="compare_back">Back to camera</string>
     <string name="compare_label_reference">Reference</string>

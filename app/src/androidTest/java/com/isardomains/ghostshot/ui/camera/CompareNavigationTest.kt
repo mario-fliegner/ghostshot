@@ -206,9 +206,8 @@ class CompareNavigationTest {
                 modifier = Modifier.fillMaxSize()
             )
             CompareImagesEntry(
-                isEnabled = true,
                 onClick = onCompare,
-                modifier = Modifier.align(Alignment.TopEnd)
+                modifier = Modifier.align(Alignment.BottomEnd)
             )
             if (showCaptureSuccessSnackbar) {
                 val snackbarHostState = remember { SnackbarHostState() }
