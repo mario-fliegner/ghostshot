@@ -158,7 +158,8 @@ private enum class CameraPermissionState {
 @Composable
 fun CameraScreen(
     viewModel: CameraViewModel = hiltViewModel(),
-    onCompareImages: (CompareInput) -> Unit = {}
+    onCompareImages: (CompareInput) -> Unit = {},
+    onOpenCompareLibrary: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -226,6 +227,18 @@ fun CameraScreen(
             val captureSavedMessage = stringResource(R.string.capture_saved)
             val captureCompareAction = stringResource(R.string.capture_saved_compare_action)
             val compareInput = uiState.compareInput
+            val hasSavedSessions = uiState.savedSessions.isNotEmpty()
+            val onCompareClick: () -> Unit = {
+                if (compareInput != null) {
+                    onCompareImages(compareInput)
+                } else if (hasSavedSessions) {
+                    onOpenCompareLibrary()
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                viewModel.refreshSavedSessions()
+            }
 
             LaunchedEffect(viewModel) {
                 viewModel.uiEvent.collect { event ->
@@ -399,7 +412,8 @@ fun CameraScreen(
                 CameraControlsOverlay(
                     referenceUri = referenceUri,
                     compareInput = compareInput,
-                    onCompare = onCompareImages,
+                    hasSavedSessions = hasSavedSessions,
+                    onCompareClick = onCompareClick,
                     alpha = uiState.overlayAlpha,
                     onAlphaChange = { viewModel.onOverlayAlphaChanged(it) },
                     onSelectReferenceImage = {
@@ -734,7 +748,8 @@ private fun cameraSnackbarBottomPadding(isLandscape: Boolean): Dp =
 internal fun CameraControlsOverlay(
     referenceUri: Uri?,
     compareInput: CompareInput? = null,
-    onCompare: (CompareInput) -> Unit = {},
+    hasSavedSessions: Boolean = false,
+    onCompareClick: () -> Unit = {},
     alpha: Float,
     onAlphaChange: (Float) -> Unit,
     onSelectReferenceImage: () -> Unit,
@@ -873,9 +888,9 @@ internal fun CameraControlsOverlay(
             }
         }
 
-        if (compareInput != null) {
+        if (compareInput != null || hasSavedSessions) {
             CompareImagesEntry(
-                onClick = { onCompare(compareInput) },
+                onClick = onCompareClick,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()

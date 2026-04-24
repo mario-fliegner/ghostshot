@@ -1,5 +1,6 @@
 package com.isardomains.ghostshot.ui.camera
 
+import android.net.Uri
 import android.os.Build
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -98,5 +99,80 @@ class CameraCompareEntryTest {
             .uiAutomation
             .executeShellCommand("input keyevent KEYCODE_WAKEUP")
             .close()
+    }
+
+    private val fakeCompareInput = CompareInput(
+        referenceImageUri = Uri.parse("file:///fake/reference.jpg"),
+        captureImageUri = Uri.parse("file:///fake/capture.jpg")
+    )
+
+    private fun setOverlayContent(
+        compareInput: CompareInput? = null,
+        hasSavedSessions: Boolean = false,
+        onCompareClick: () -> Unit = {}
+    ) {
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    CameraControlsOverlay(
+                        referenceUri = null,
+                        compareInput = compareInput,
+                        hasSavedSessions = hasSavedSessions,
+                        onCompareClick = onCompareClick,
+                        alpha = 0.5f,
+                        onAlphaChange = {},
+                        onSelectReferenceImage = {},
+                        onResetOverlay = {},
+                        onCapture = {},
+                        isLandscape = false
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun compareEntry_notVisible_whenNoCompareInputAndNoSavedSessions() {
+        setOverlayContent(compareInput = null, hasSavedSessions = false)
+
+        composeRule.onNodeWithTag("compare_images_entry")
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun compareEntry_visible_whenCompareInputExists() {
+        setOverlayContent(compareInput = fakeCompareInput, hasSavedSessions = false)
+
+        composeRule.onNodeWithTag("compare_images_entry")
+            .assertIsDisplayed()
+            .assertHasClickAction()
+    }
+
+    @Test
+    fun compareEntry_visible_whenOnlySavedSessionsExist() {
+        setOverlayContent(compareInput = null, hasSavedSessions = true)
+
+        composeRule.onNodeWithTag("compare_images_entry")
+            .assertIsDisplayed()
+            .assertHasClickAction()
+    }
+
+    @Test
+    fun compareEntry_clickInvokesCallback() {
+        var callbackCount = 0
+        setOverlayContent(compareInput = fakeCompareInput, onCompareClick = { callbackCount++ })
+
+        composeRule.onNodeWithTag("compare_images_entry").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, callbackCount)
     }
 }

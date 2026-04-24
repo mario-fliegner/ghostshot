@@ -228,8 +228,8 @@ class CompareNavigationTest {
         }
     }
 
-    private fun createCompareInput(): CompareInput {
-        return CompareInput(
+    private fun createCompareInput(): TestNavigationInput {
+        return TestNavigationInput(
             referenceUri = createImageUri("navigation_reference", android.graphics.Color.RED),
             captureUri = createImageUri("navigation_capture", android.graphics.Color.BLUE)
         )
@@ -254,7 +254,138 @@ class CompareNavigationTest {
             .close()
     }
 
-    private data class CompareInput(
+    @Composable
+    private fun CameraRoutingTestContent(
+        compareInput: CompareInput? = null,
+        hasSavedSessions: Boolean = false,
+        onNavigateToCompare: () -> Unit = {},
+        onNavigateToLibrary: () -> Unit = {}
+    ) {
+        val onCompareClick: () -> Unit = {
+            if (compareInput != null) {
+                onNavigateToCompare()
+            } else if (hasSavedSessions) {
+                onNavigateToLibrary()
+            }
+        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = "camera-session",
+                modifier = Modifier.testTag("camera_session_marker")
+            )
+            CameraControlsOverlay(
+                referenceUri = null,
+                compareInput = compareInput,
+                hasSavedSessions = hasSavedSessions,
+                onCompareClick = onCompareClick,
+                alpha = 0.5f,
+                onAlphaChange = {},
+                onSelectReferenceImage = {},
+                onResetOverlay = {},
+                onCapture = {},
+                isLandscape = false,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+
+    private fun setRoutingNavigationContent(
+        compareInput: CompareInput? = null,
+        hasSavedSessions: Boolean = false
+    ) {
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    val navController = rememberNavController()
+                    NavHost(
+                        navController = navController,
+                        startDestination = "camera"
+                    ) {
+                        composable("camera") {
+                            CameraRoutingTestContent(
+                                compareInput = compareInput,
+                                hasSavedSessions = hasSavedSessions,
+                                onNavigateToCompare = { navController.navigate("compare") },
+                                onNavigateToLibrary = { navController.navigate("library") }
+                            )
+                        }
+                        composable("compare") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .testTag("compare_screen_stub")
+                            ) {}
+                        }
+                        composable("library") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .testTag("compare_library_stub")
+                            ) {}
+                        }
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun clickWithCompareInput_opensCompareScreen() {
+        setRoutingNavigationContent(
+            compareInput = CompareInput(
+                referenceImageUri = Uri.parse("file:///fake/reference.jpg"),
+                captureImageUri = Uri.parse("file:///fake/capture.jpg")
+            )
+        )
+
+        composeRule.onNodeWithTag("compare_images_entry").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_stub").assertIsDisplayed()
+    }
+
+    @Test
+    fun clickWithOnlySavedSessions_opensCompareLibrary() {
+        setRoutingNavigationContent(compareInput = null, hasSavedSessions = true)
+
+        composeRule.onNodeWithTag("compare_images_entry").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_stub").assertIsDisplayed()
+    }
+
+    @Test
+    fun clickWithCompareInputAndSavedSessions_opensCompareScreen() {
+        setRoutingNavigationContent(
+            compareInput = CompareInput(
+                referenceImageUri = Uri.parse("file:///fake/reference.jpg"),
+                captureImageUri = Uri.parse("file:///fake/capture.jpg")
+            ),
+            hasSavedSessions = true
+        )
+
+        composeRule.onNodeWithTag("compare_images_entry").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_stub").assertIsDisplayed()
+    }
+
+    @Test
+    fun initialSavedSessionsState_showsEntryWithoutCapture() {
+        setRoutingNavigationContent(compareInput = null, hasSavedSessions = true)
+
+        composeRule.onNodeWithTag("compare_images_entry").assertIsDisplayed()
+    }
+
+    private data class TestNavigationInput(
         val referenceUri: Uri,
         val captureUri: Uri
     )

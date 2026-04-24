@@ -57,6 +57,9 @@ class MainActivity : ComponentActivity() {
                                         captureImageUri = input.captureImageUri
                                     )
                                 )
+                            },
+                            onOpenCompareLibrary = {
+                                navController.navigate(ROUTE_COMPARE_LIBRARY)
                             }
                         )
                     }
