@@ -96,7 +96,8 @@ data class CameraUiState(
     val captureSuccessHadReference: Boolean = false,
     val compareInput: CompareInput? = null,
     val viewportWidth: Int = 0,
-    val viewportHeight: Int = 0
+    val viewportHeight: Int = 0,
+    val savedSessions: List<ScannedSession> = emptyList()
 )
 
 /**
@@ -165,6 +166,9 @@ class CameraViewModel @Inject constructor(
         }
     }
 
+    private var sessionScanner: (Context) -> List<ScannedSession> =
+        { ctx -> SessionScanner.scan(ctx) }
+
     private var displayModeChangedByUser = false
     private var undoSnapshot: ReferenceUndoSnapshot? = null
     private var referenceImageSelectionJob: Job? = null
@@ -180,10 +184,12 @@ class CameraViewModel @Inject constructor(
     internal constructor(
         context: Context,
         ioDispatcher: CoroutineDispatcher,
-        referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata?
+        referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata?,
+        sessionScanner: (Context) -> List<ScannedSession> = { ctx -> SessionScanner.scan(ctx) }
     ) : this(context) {
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
+        this.sessionScanner = sessionScanner
     }
 
     private val _uiState = MutableStateFlow(CameraUiState())
@@ -490,8 +496,12 @@ class CameraViewModel @Inject constructor(
                             context = context,
                             capturedBitmap = corrected,
                             referenceUri = referenceUri,
-                            exifOrientation = _uiState.value.referenceImageMetadata?.exifOrientation
+                            exifOrientation = _uiState.value.referenceImageMetadata?.exifOrientation,
+                            captureMediaStoreUri = savedUri,
+                            referencePickerUri = referenceUri
                         )
+                        val sessions = scanSavedSessionsSafely()
+                        _uiState.update { it.copy(savedSessions = sessions) }
                     }
                 } else {
                     _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
@@ -594,6 +604,21 @@ class CameraViewModel @Inject constructor(
 
     private fun finishCapture() {
         _uiState.update { it.copy(isCaptureInProgress = false) }
+    }
+
+    fun refreshSavedSessions() {
+        viewModelScope.launch(ioDispatcher) {
+            val sessions = scanSavedSessionsSafely()
+            _uiState.update { it.copy(savedSessions = sessions) }
+        }
+    }
+
+    private fun scanSavedSessionsSafely(): List<ScannedSession> {
+        return try {
+            sessionScanner(context)
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     private fun rotateBitmap(bitmap: Bitmap, degrees: Int): Bitmap {

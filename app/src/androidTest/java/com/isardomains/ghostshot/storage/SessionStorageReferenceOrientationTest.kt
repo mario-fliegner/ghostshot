@@ -54,7 +54,14 @@ class SessionStorageReferenceOrientationTest {
             )
         }
         val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-        SessionStorage.saveSession(appContext, captureBitmap, Uri.fromFile(tempFile), exifOrientation)
+        SessionStorage.saveSession(
+            context = appContext,
+            capturedBitmap = captureBitmap,
+            referenceUri = Uri.fromFile(tempFile),
+            exifOrientation = exifOrientation,
+            captureMediaStoreUri = Uri.parse("content://test/capture"),
+            referencePickerUri = Uri.fromFile(tempFile)
+        )
         captureBitmap.recycle()
 
         val sessionDir = sessionsDir.listFiles()?.firstOrNull()

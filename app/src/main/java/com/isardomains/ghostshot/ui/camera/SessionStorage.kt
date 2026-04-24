@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
 import android.util.Log
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -44,9 +45,12 @@ internal object SessionStorage {
         context: Context,
         capturedBitmap: Bitmap,
         referenceUri: Uri,
-        exifOrientation: Int?
+        exifOrientation: Int?,
+        captureMediaStoreUri: Uri,
+        referencePickerUri: Uri
     ) {
-        val baseName = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
+        val sessionTimestampMs = System.currentTimeMillis()
+        val baseName = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date(sessionTimestampMs))
         val sessionsRoot = File(context.filesDir, SESSIONS_DIR)
         val sessionDir = resolveUniqueDir(sessionsRoot, baseName)
         try {
@@ -55,6 +59,7 @@ internal object SessionStorage {
             }
             writeCapture(capturedBitmap, sessionDir)
             writeReference(context, referenceUri, exifOrientation, sessionDir)
+            writeMetadata(sessionDir, sessionTimestampMs, captureMediaStoreUri, referencePickerUri)
             Log.d(TAG, "Session saved: $sessionDir")
         } catch (e: Exception) {
             Log.w(TAG, "Session save failed, removing partial session: ${e.message}")
@@ -73,6 +78,23 @@ internal object SessionStorage {
             counter++
         }
         return candidate
+    }
+
+    private fun writeMetadata(
+        sessionDir: File,
+        sessionTimestampMs: Long,
+        captureMediaStoreUri: Uri,
+        referencePickerUri: Uri
+    ) {
+        val json = JSONObject().apply {
+            put("version", 1)
+            put("sessionTimestampMs", sessionTimestampMs)
+            put("referenceFile", "reference.jpg")
+            put("captureFile", "capture.jpg")
+            put("captureMediaStoreUri", captureMediaStoreUri.toString())
+            put("referencePickerUri", referencePickerUri.toString())
+        }
+        File(sessionDir, "metadata.json").writeText(json.toString())
     }
 
     private fun writeCapture(bitmap: Bitmap, sessionDir: File) {

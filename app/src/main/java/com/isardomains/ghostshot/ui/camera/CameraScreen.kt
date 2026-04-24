@@ -417,19 +417,19 @@ fun CameraScreen(
                 )
 
                 // ── Layer 4: Snackbar ─────────────────────────────────────────────────
-                CompareImagesEntry(
-                    isEnabled = compareInput != null,
-                    onClick = {
-                        compareInput?.let(onCompareImages)
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .systemBarsPadding()
-                        .padding(
-                            top = 12.dp,
-                            end = if (isLandscape) 28.dp else 24.dp
-                        )
-                )
+                if (compareInput != null) {
+                    CompareImagesEntry(
+                        isEnabled = true,
+                        onClick = { onCompareImages(compareInput) },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .systemBarsPadding()
+                            .padding(
+                                top = 12.dp,
+                                end = if (isLandscape) 28.dp else 24.dp
+                            )
+                    )
+                }
 
                 CameraSnackbarHost(
                     hostState = snackbarHostState,

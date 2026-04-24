@@ -1,17 +1,20 @@
 // path: app/src/test/java/com/isardomains/ghostshot/ui/camera/CameraViewModelTest.kt
 package com.isardomains.ghostshot.ui.camera
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -828,7 +831,85 @@ class CameraViewModelTest {
         assertNull(testViewModel.lastCaptureResult)
     }
 
+    // --- savedSessions / refreshSavedSessions ---
+
+    @Test
+    fun savedSessions_isEmptyInitially() {
+        assertEquals(emptyList<ScannedSession>(), viewModel.uiState.value.savedSessions)
+    }
+
+    @Test
+    fun refreshSavedSessions_updatesState() = runTest {
+        val fakeSession = ScannedSession(
+            sessionId = "session-1",
+            timestamp = 1000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock()
+        )
+        val testViewModel = testViewModelWithScanner { _ -> listOf(fakeSession) }
+
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        assertEquals(listOf(fakeSession), testViewModel.uiState.value.savedSessions)
+    }
+
+    @Test
+    fun refreshSavedSessions_withEmptyResult_setsEmptyList() = runTest {
+        val testViewModel = testViewModelWithScanner { _ -> emptyList() }
+
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        assertEquals(emptyList<ScannedSession>(), testViewModel.uiState.value.savedSessions)
+    }
+
+    @Test
+    fun refreshSavedSessions_handlesException_stateRemainsEmpty() = runTest {
+        val testViewModel = testViewModelWithScanner { _ -> throw RuntimeException("scanner failed") }
+
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        assertEquals(emptyList<ScannedSession>(), testViewModel.uiState.value.savedSessions)
+    }
+
+    @Test
+    fun savedSessions_independentOfCompareInput() = runTest {
+        val fakeSession = ScannedSession(
+            sessionId = "session-1",
+            timestamp = 1000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock()
+        )
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            { _ -> listOf(fakeSession) }
+        )
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock())
+
+        assertNotNull(testViewModel.uiState.value.compareInput)
+        assertEquals(listOf(fakeSession), testViewModel.uiState.value.savedSessions)
+    }
+
     // --- helpers ---
+
+    private fun testViewModelWithScanner(
+        scanner: (Context) -> List<ScannedSession>
+    ): CameraViewModel {
+        return CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null },
+            scanner
+        )
+    }
 
     private fun testViewModelWithMetadata(
         rawWidth: Int,

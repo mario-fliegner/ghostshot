@@ -36,21 +36,19 @@ class CameraCompareEntryTest {
     }
 
     @Test
-    fun compareEntry_withoutReference_isVisibleButDisabled() {
+    fun compareEntry_withoutReference_doesNotExist() {
         setEntryContent(isCompareEnabled = false)
 
         composeRule.onNodeWithTag("compare_images_entry")
-            .assertIsDisplayed()
-            .assertIsNotEnabled()
+            .assertDoesNotExist()
     }
 
     @Test
-    fun compareEntry_withoutCapture_isVisibleButDisabled() {
+    fun compareEntry_withoutCapture_doesNotExist() {
         setEntryContent(isCompareEnabled = false)
 
         composeRule.onNodeWithTag("compare_images_entry")
-            .assertIsDisplayed()
-            .assertIsNotEnabled()
+            .assertDoesNotExist()
     }
 
     @Test
@@ -84,11 +82,13 @@ class CameraCompareEntryTest {
             }
             activity.setContent {
                 GhostShotTheme {
-                    CompareImagesEntry(
-                        isEnabled = isCompareEnabled,
-                        onClick = onCompareImages,
-                        modifier = Modifier
-                    )
+                    if (isCompareEnabled) {
+                        CompareImagesEntry(
+                            isEnabled = true,
+                            onClick = onCompareImages,
+                            modifier = Modifier
+                        )
+                    }
                 }
             }
         }
