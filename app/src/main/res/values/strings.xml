@@ -14,6 +14,11 @@
     <string name="capture_saved_compare_action">Vergleich ansehen</string>
     <string name="capture_failed">Could not save photo</string>
 
+    <!-- Compare Library -->
+    <string name="compare_library_title">Comparisons</string>
+    <string name="compare_library_empty_state">No comparisons saved yet</string>
+    <string name="compare_library_session_content_description">Comparison from %s</string>
+
     <!-- Compare flow -->
     <string name="compare_images">Compare Images</string>
     <string name="compare_entry_label">Compare</string>

@@ -1,4 +1,7 @@
 <resources>
+    <string name="compare_library_title">Vergleiche</string>
+    <string name="compare_library_empty_state">Keine gespeicherten Vergleiche</string>
+    <string name="compare_library_session_content_description">Vergleich vom %s</string>
     <string name="compare_images">Bilder vergleichen</string>
     <string name="compare_entry_label">Vergleich</string>
     <string name="compare_screen_title">Vergleich</string>
