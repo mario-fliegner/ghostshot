@@ -20,7 +20,7 @@ Technical baseline:
 - Material 3
 - MVVM + Hilt
 - CameraX preview + image capture
-- minSdk 29 / targetSdk 35
+- minSdk 29 / targetSdk 35 — Current implementation: minSdk is 26 (see `build.gradle.kts` and `CLAUDE_PROJECT_INSTRUCTION.md`, which is the source of truth)
 
 Permissions:
 - CAMERA only
@@ -81,6 +81,47 @@ Storage baseline:
 - Bitmap recycle behavior is covered in `CameraViewModelBitmapRecycleTest`
 - Current test focus follows active Variant B runtime behavior
 
+### Compare Screen
+
+`CompareScreen` is implemented as a fullscreen slider-based comparison screen.
+
+- Reachable from Camera Flow after a successful capture with a reference image
+- Reachable from Compare Library when opening a saved session
+- Reference image on the left, capture image on the right; single draggable vertical divider at 50%
+- Shows session timestamp below viewport when `timestamp` is provided
+- Shows delete button when `onDelete` is provided; deletes internal session only, not MediaStore photo
+- Instrumentation tests in `CompareScreenTest.kt` cover render, slider, rotation, timestamp, and delete
+
+### Compare Library
+
+`CompareLibraryScreen` is implemented as a 2-column grid listing saved compare sessions.
+
+- Tap on a tile opens `CompareScreen` with full session context (timestamp + delete)
+- Long press activates multi-select mode; multi-select delete confirmed via dialog
+
+### Session Storage
+
+`SessionStorage` writes each successful capture+reference pair to `filesDir/sessions/<sessionId>/`.
+
+- Each session contains `capture.jpg`, `reference.jpg`, `metadata.json`
+- `SavedSessionRef(sessionId, timestamp)` is returned on success; `null` on failure
+- `SessionScanner` reads and validates sessions from the sessions root directory
+- `SessionDeleter` removes a session folder; validates session ID to prevent path traversal; unit tests in `SessionDeleterTest.kt`
+
+### CompareInput Session Context
+
+`CompareInput` contains optional `sessionId: String?` and `timestamp: Long?` in addition to the two URIs.
+These are populated by `onCaptureSaved(savedUri, sessionRef)` when a session was successfully written.
+`MainActivity` passes `sessionId` and `timestamp` to `compareRoute` when both are present,
+making Camera Flow and Library Flow consistent in what they provide to `CompareScreen`.
+
+### Current Test Status (2026-04-27)
+
+34 unit tests, all green (`testDebugUnitTest`). Notable additions:
+
+- `compareInput_sessionIdAndTimestampAreNullWhenNoSessionRef`
+- `compareInput_hasSessionIdAndTimestampWhenSessionRefProvided`
+
 ---
 
 ## Product Decision: Comparison Output (CRITICAL)
@@ -111,6 +152,13 @@ Important:
 - Session-based storage for capture + reference image pairs
 - Any persistence model for derived comparison metadata
 - Any export flow beyond the currently saved image(s)
+
+Updated (2026-04-27):
+
+- Comparison viewer: Implemented — `CompareScreen` provides a fullscreen slider-based before/after comparison.
+- Session-based storage: Implemented — `SessionStorage` writes `capture.jpg` + `reference.jpg` + `metadata.json` to `filesDir/sessions/<sessionId>/`.
+- Persistence model for comparison metadata: Implemented — `metadata.json` stores `sessionTimestampMs`, capture MediaStore URI, reference picker URI, and schema version. `SessionScanner` reads and validates these files.
+- Export flow: Still not implemented. Remains out of scope.
 
 ---
 

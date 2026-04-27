@@ -32,10 +32,13 @@ The compare feature is NOT intended to become:
 - a general image review module
 
 The compare flow is a focused product feature directly tied to the app's main promise:
+
 - choose reference
 - align in camera
 - capture new image
 - compare reference vs new image
+
+> Note (2026-04-27): A Compare Library is now implemented as part of V1. It is a focused internal session overview and does not expand the feature into a gallery, history browser, or general image review module. Sessions are only the internal capture+reference pairs created by the app's own capture flow. The Compare Library does not browse MediaStore or the device photo library. The product purpose described in this section remains unchanged.
 
 ---
 
@@ -120,6 +123,8 @@ The following are NOT allowed in V1:
 - overlay compare inside the live camera screen
 
 If a future enhancement requires any of the above, that is a separate feature and separate prompt.
+
+> Note (2026-04-27): The items "compare history" and "session browser" in the list above refer to general-purpose browsing or history features. The Compare Library now implemented in V1 is not that: it is a narrowly scoped list of the app's own internal capture+reference sessions, limited to what the capture flow creates, with no MediaStore browsing or device gallery access. This does not contradict the out-of-scope items above.
 
 ---
 
@@ -745,3 +750,115 @@ If an AI model is unsure how to proceed:
 - do not hardcode strings
 
 This rule is mandatory.
+
+---
+
+## 30. COMPARE LIBRARY (V1 EXTENSION)
+
+The Compare Library is a V1 feature providing a focused overview of saved compare sessions.
+
+### What it is
+
+- A grid-based screen listing sessions created by the app's own capture flow
+- Each session is a `capture.jpg` + `reference.jpg` pair stored in internal app storage under `filesDir/sessions/<sessionId>/`
+- Sessions are displayed with reference and capture thumbnails and a formatted timestamp
+- Tap on a session tile opens `CompareScreen` with full session context
+
+### What it is not
+
+- Not a general gallery
+- Not a MediaStore browser
+- Not a device photo history
+- Not an arbitrary image comparison tool
+
+### Multi-select delete
+
+Long press on a session tile activates multi-select mode. Selected sessions can be deleted via a confirmation dialog. Delete removes only the internal session folder; MediaStore photos are unaffected.
+
+### Navigation
+
+Accessible from the camera screen. A button labeled "Comparisons" appears when at least one saved session exists. After deletion, the library refreshes and either shows the remaining sessions or an empty-state message.
+
+---
+
+## 31. SESSION CONTEXT IN COMPARESCREEN
+
+`CompareScreen` accepts optional session context parameters: `timestamp: Long?`, `onDelete: (() -> Unit)?`.
+
+### When session context is present
+
+- A formatted timestamp is shown below the image viewport
+- A delete button is shown in the top bar
+- Tapping delete opens a confirmation dialog
+- Confirmed delete calls `onDelete`, which removes the internal session and navigates back
+
+### When session context is absent
+
+- Timestamp is not shown
+- Delete button is not shown
+- The screen acts as a transient compare viewer
+
+### Rule
+
+Both the Camera Flow and the Library Flow must provide session context to `CompareScreen` when a valid session exists. A `CompareScreen` opened after a successful capture with a reference image must receive `sessionId` and `timestamp`.
+
+---
+
+## 32. CAMERA-FLOW VS. LIBRARY-FLOW CONSISTENCY
+
+Both navigation paths lead to the same `CompareScreen` composable.
+
+### Camera Flow
+
+After a successful capture, `CompareInput` in `CameraUiState` contains `referenceImageUri`, `captureImageUri`, `sessionId`, and `timestamp`. `MainActivity` passes all four values to `compareRoute`, so `CompareScreen` opens with full session context.
+
+### Library Flow
+
+When a session tile is tapped in `CompareLibraryScreen`, `ScannedSession` provides `referenceFileUri`, `captureFileUri`, `sessionId`, and `timestamp`. `MainActivity` passes all four values to `compareRoute`, so `CompareScreen` opens with full session context.
+
+### Requirement
+
+The UX of `CompareScreen` must be identical regardless of which flow opened it, whenever valid session data is available.
+
+---
+
+## 33. DELETE CONTRACT
+
+Delete in the compare flow follows strict rules.
+
+### What gets deleted
+
+Only the internal session folder: `filesDir/sessions/<sessionId>/`, including `capture.jpg`, `reference.jpg`, and `metadata.json`.
+
+### What does not get deleted
+
+The captured photo in MediaStore (`Pictures/GhostShot/`) is never affected. No other files, preferences, or app data are touched.
+
+### How delete is performed
+
+`SessionDeleter.delete(sessionsRoot, sessionId)` validates that the resolved path is a direct child of `sessionsRoot`. Path traversal via `..` or absolute paths in `sessionId` is rejected. After deletion, `CameraViewModel.deleteSessions()` rescans to update `savedSessions`.
+
+### Triggering delete
+
+From `CompareScreen`: single session delete via confirmation dialog when `onDelete` is provided.
+From `CompareLibraryScreen`: multi-session delete via multi-select and confirmation dialog.
+
+---
+
+## 34. IMPLEMENTATION STATUS (2026-04-27)
+
+The following components are implemented and their tests are passing.
+
+| Component | Status |
+| --- | --- |
+| `CompareScreen` | Implemented; instrumentation tests green |
+| `CompareLibraryScreen` | Implemented |
+| `SessionStorage` (returns `SavedSessionRef`) | Implemented |
+| `SessionScanner` | Implemented |
+| `SessionDeleter` | Implemented; unit tests green |
+| `CompareInput` with `sessionId`/`timestamp` | Implemented |
+| Camera Flow session context propagation | Implemented |
+| Library Flow session context propagation | Implemented |
+| Theme: `background`/`surface` override in light mode | Implemented |
+
+Unit test count: 34 (all green as of last run).

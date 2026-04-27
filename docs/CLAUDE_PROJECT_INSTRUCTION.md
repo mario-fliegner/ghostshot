@@ -1,5 +1,67 @@
 # OverlayPast – Claude Superprompt / Project Instruction (v3)
 
+## CURRENT PRODUCT STATE (2026-04-27)
+
+This section documents features that are fully implemented in the current codebase.
+It supplements the role and feature-scope rules that follow.
+Where a rule below marks something as "out of scope", that rule governs future work; it does not retroactively remove features listed here.
+
+### Compare Screen
+
+`CompareScreen` is implemented as a fullscreen slider-based comparison screen.
+
+- Reachable from the Camera Flow after a successful capture (when both reference and capture are available)
+- Reachable from the Compare Library when opening a saved session
+- Reference image on the left, capture image on the right
+- Single horizontally draggable vertical divider, starting at 50%
+- Back navigation returns to the caller
+- When session context is present (`sessionId` + `timestamp`), displays a formatted timestamp below the viewport
+- When session context is present, displays a delete button in the top bar (deletes internal session only)
+
+### Compare Library
+
+`CompareLibraryScreen` is implemented as a 2-column grid screen listing saved compare sessions.
+
+- Accessible from the camera screen; a button appears when at least one session exists
+- Each tile shows reference thumbnail, capture thumbnail, and formatted session timestamp
+- Tap on a tile opens `CompareScreen` with full session context (timestamp + delete enabled)
+- Long press activates multi-select mode; selected sessions can be deleted via a confirmation dialog
+- The Compare Library is a focused internal session overview, not a general gallery or photo browser
+
+### Session Storage
+
+Each successful capture with an active reference image creates a session in internal app storage.
+
+- Location: `filesDir/sessions/<sessionId>/`
+- Contents: `capture.jpg`, `reference.jpg`, `metadata.json`
+- `metadata.json` stores: schema version, `sessionTimestampMs`, file names, capture MediaStore URI, reference picker URI
+- Session ID is the directory name (format: `YYYY-MM-DD_HH-mm-ss`, unique within the sessions root)
+- `SessionStorage` is the write path; `SessionScanner` is the read path; `SessionDeleter` is the delete path
+- Session write is best-effort and never blocks or affects the main MediaStore capture save
+
+### Camera Flow Session Context
+
+After a successful capture, `CompareInput` in `CameraUiState` contains `referenceImageUri`, `captureImageUri`, and — when a session was successfully written — `sessionId` and `timestamp`.
+
+`MainActivity` passes `sessionId` and `timestamp` to `compareRoute` when both are present.
+Camera Flow and Library Flow both open `CompareScreen` with identical session context.
+
+### Delete Rules
+
+- Delete in `CompareScreen` or `CompareLibraryScreen` removes only the internal session folder under `filesDir/sessions/<sessionId>/`
+- The captured photo in MediaStore (`Pictures/GhostShot/`) is **never** affected by any delete action in the compare flow
+- `SessionDeleter` validates the session ID against the sessions root to prevent path traversal; absolute paths and `..` segments are rejected
+- There is no MediaStore delete call anywhere in the compare or session management code
+
+### Theme / Color Rule
+
+- All colors must be defined centrally in `Color.kt` or via `MaterialTheme.colorScheme` tokens
+- No hardcoded color values in screen Composables (accepted presentational exceptions in `CompareScreen`: viewport background `Color.Black` and slider divider line `Color.White`)
+- `GhostShotLightColorScheme` explicitly sets `background = Color.White` and `surface = Color.White` to override M3 default tinting (`#FFFBFE`)
+- Dynamic color is intentionally disabled
+
+---
+
 ## ROLE
 You are implementing and modifying a production-ready Android app.
 Follow all constraints strictly.
