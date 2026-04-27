@@ -4,6 +4,15 @@
     <string name="compare_library_title">Vergleiche</string>
     <string name="compare_library_empty_state">Keine gespeicherten Vergleiche</string>
     <string name="compare_library_session_content_description">Vergleich vom %s</string>
+    <string name="compare_library_selection_count">%d ausgewählt</string>
+    <string name="compare_library_cancel_selection">Auswahl abbrechen</string>
+    <string name="compare_library_delete_selected">Ausgewählte löschen</string>
+    <string name="compare_library_session_selected">Ausgewählt</string>
+    <string name="compare_library_session_not_selected">Nicht ausgewählt</string>
+    <string name="compare_library_delete_dialog_title">Vergleiche löschen?</string>
+    <string name="compare_library_delete_dialog_message">Die ausgewählten Vergleiche werden dauerhaft gelöscht.</string>
+    <string name="compare_library_delete_confirm">Löschen</string>
+    <string name="compare_library_delete_cancel">Abbrechen</string>
     <string name="compare_images">Bilder vergleichen</string>
     <string name="compare_entry_label">Vergleich</string>
     <string name="compare_library_entry_label">Vergleiche</string>

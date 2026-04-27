@@ -18,6 +18,15 @@
     <string name="compare_library_title">Comparisons</string>
     <string name="compare_library_empty_state">No comparisons saved yet</string>
     <string name="compare_library_session_content_description">Comparison from %s</string>
+    <string name="compare_library_selection_count">%d selected</string>
+    <string name="compare_library_cancel_selection">Cancel selection</string>
+    <string name="compare_library_delete_selected">Delete selected</string>
+    <string name="compare_library_session_selected">Selected</string>
+    <string name="compare_library_session_not_selected">Not selected</string>
+    <string name="compare_library_delete_dialog_title">Delete comparisons?</string>
+    <string name="compare_library_delete_dialog_message">The selected comparisons will be permanently deleted.</string>
+    <string name="compare_library_delete_confirm">Delete</string>
+    <string name="compare_library_delete_cancel">Cancel</string>
 
     <!-- Compare flow -->
     <string name="compare_images">Compare Images</string>

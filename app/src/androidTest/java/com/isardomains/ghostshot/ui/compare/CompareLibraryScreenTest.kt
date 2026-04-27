@@ -8,9 +8,11 @@ import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -182,11 +184,117 @@ class CompareLibraryScreenTest {
         assertEquals(1, refreshCount)
     }
 
+    @Test
+    fun longPress_activatesSelectionModeAndSelectsItem() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun tapInSelectionMode_deselectingLastItem_exitsSelectionMode() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_library_back_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun cancel_exitsSelectionModeWithoutDelete() {
+        var deleteCallCount = 0
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            onDeleteSessions = { deleteCallCount++ }
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_cancel_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_library_back_button").assertIsDisplayed()
+        assertEquals(0, deleteCallCount)
+    }
+
+    @Test
+    fun deleteButton_opensConfirmDialog() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_delete_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_delete_dialog_title))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun confirmDelete_invokesOnDeleteSessionsWithCorrectIds() {
+        var deletedIds: List<String>? = null
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            onDeleteSessions = { deletedIds = it }
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_delete_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_delete_confirm))
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(fakeSessionId), deletedIds)
+    }
+
+    @Test
+    fun normalTap_afterExitingSelectionMode_stillInvokesOnSessionClick() {
+        var clickedSession: ScannedSession? = null
+        val session = createFakeSession()
+        setLibraryContent(
+            sessions = listOf(session),
+            onSessionClick = { clickedSession = it }
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_library_cancel_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(session, clickedSession)
+    }
+
     private fun setLibraryContent(
         sessions: List<ScannedSession>,
         onRefresh: () -> Unit = {},
         onSessionClick: (ScannedSession) -> Unit = {},
-        onBack: () -> Unit = {}
+        onBack: () -> Unit = {},
+        onDeleteSessions: (List<String>) -> Unit = {}
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -202,7 +310,8 @@ class CompareLibraryScreenTest {
                         sessions = sessions,
                         onRefresh = onRefresh,
                         onSessionClick = onSessionClick,
-                        onBack = onBack
+                        onBack = onBack,
+                        onDeleteSessions = onDeleteSessions
                     )
                 }
             }

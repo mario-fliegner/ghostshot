@@ -898,6 +898,24 @@ class CameraViewModelTest {
         assertEquals(listOf(fakeSession), testViewModel.uiState.value.savedSessions)
     }
 
+    // --- deleteSessions ---
+
+    @Test
+    fun deleteSessions_afterDelete_updatesStateViaScanner() = runTest {
+        val remainingSession = ScannedSession(
+            sessionId = "remaining-session",
+            timestamp = 2000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock()
+        )
+        val testViewModel = testViewModelWithScanner { _ -> listOf(remainingSession) }
+
+        testViewModel.deleteSessions(listOf("deleted-session-id"))
+        advanceUntilIdle()
+
+        assertEquals(listOf(remainingSession), testViewModel.uiState.value.savedSessions)
+    }
+
     // --- helpers ---
 
     private fun testViewModelWithScanner(

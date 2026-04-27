@@ -3,6 +3,7 @@ package com.isardomains.ghostshot.ui.camera
 
 import android.content.Context
 import android.graphics.Bitmap
+import java.io.File
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
@@ -608,6 +609,17 @@ class CameraViewModel @Inject constructor(
 
     fun refreshSavedSessions() {
         viewModelScope.launch(ioDispatcher) {
+            val sessions = scanSavedSessionsSafely()
+            _uiState.update { it.copy(savedSessions = sessions) }
+        }
+    }
+
+    fun deleteSessions(sessionIds: List<String>) {
+        viewModelScope.launch(ioDispatcher) {
+            val sessionsRoot = File(context.filesDir, "sessions")
+            for (sessionId in sessionIds) {
+                SessionDeleter.delete(sessionsRoot, sessionId)
+            }
             val sessions = scanSavedSessionsSafely()
             _uiState.update { it.copy(savedSessions = sessions) }
         }

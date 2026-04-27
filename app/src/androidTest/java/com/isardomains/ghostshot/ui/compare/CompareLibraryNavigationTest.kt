@@ -17,8 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -119,6 +121,29 @@ class CompareLibraryNavigationTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("camera_session_marker").assertIsDisplayed()
+    }
+
+    @Test
+    fun systemBackInSelectionMode_exitsSelectionModeWithoutPoppingScreen() {
+        setNavigationContent()
+
+        composeRule.onNodeWithTag("open_library_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$testSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertIsDisplayed()
+
+        scenario?.onActivity { activity ->
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_screen").assertIsDisplayed()
+        composeRule.onNodeWithTag("camera_session_marker").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertDoesNotExist()
     }
 
     private fun setNavigationContent() {

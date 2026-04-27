@@ -80,7 +80,8 @@ class MainActivity : ComponentActivity() {
                                     )
                                 )
                             },
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            onDeleteSessions = viewModel::deleteSessions
                         )
                     }
                     composable(
