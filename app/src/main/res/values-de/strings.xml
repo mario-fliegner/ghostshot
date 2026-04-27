@@ -23,6 +23,9 @@
     <string name="compare_slider_content_description">Vergleichsregler</string>
     <string name="compare_error_missing_images">Referenz und Aufnahme werden fuer den Vergleich benoetigt.</string>
     <string name="compare_error_load_failed">Vergleichsbilder konnten nicht geladen werden.</string>
+    <string name="compare_screen_delete">Vergleich löschen</string>
+    <string name="compare_screen_delete_dialog_title">Vergleich löschen?</string>
+    <string name="compare_screen_delete_dialog_message">Dieser Vergleich wird dauerhaft gelöscht.</string>
     <string name="reference_format_mismatch_description">Referenzformat weicht ab. Tippen fuer Info.</string>
     <string name="reference_format_mismatch_bubble">Overlay leicht versetzt</string>
 </resources>

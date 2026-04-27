@@ -26,8 +26,11 @@ private const val ROUTE_COMPARE = "compare"
 private const val ROUTE_COMPARE_LIBRARY = "compare_library"
 private const val ARG_REFERENCE_URI = "referenceUri"
 private const val ARG_CAPTURE_URI = "captureUri"
+private const val ARG_SESSION_ID = "sessionId"
+private const val ARG_TIMESTAMP = "timestamp"
 private const val ROUTE_COMPARE_WITH_ARGS =
-    "$ROUTE_COMPARE?$ARG_REFERENCE_URI={$ARG_REFERENCE_URI}&$ARG_CAPTURE_URI={$ARG_CAPTURE_URI}"
+    "$ROUTE_COMPARE?$ARG_REFERENCE_URI={$ARG_REFERENCE_URI}&$ARG_CAPTURE_URI={$ARG_CAPTURE_URI}" +
+        "&$ARG_SESSION_ID={$ARG_SESSION_ID}&$ARG_TIMESTAMP={$ARG_TIMESTAMP}"
 
 /**
  * The single activity for the GhostShot app.
@@ -51,11 +54,22 @@ class MainActivity : ComponentActivity() {
                     composable(ROUTE_CAMERA) {
                         CameraScreen(
                             onCompareImages = { input ->
+                                val sessionId = input.sessionId
+                                val timestamp = input.timestamp
                                 navController.navigate(
-                                    compareRoute(
-                                        referenceImageUri = input.referenceImageUri,
-                                        captureImageUri = input.captureImageUri
-                                    )
+                                    if (sessionId != null && timestamp != null) {
+                                        compareRoute(
+                                            referenceImageUri = input.referenceImageUri,
+                                            captureImageUri = input.captureImageUri,
+                                            sessionId = sessionId,
+                                            timestamp = timestamp
+                                        )
+                                    } else {
+                                        compareRoute(
+                                            referenceImageUri = input.referenceImageUri,
+                                            captureImageUri = input.captureImageUri
+                                        )
+                                    }
                                 )
                             },
                             onOpenCompareLibrary = {
@@ -76,7 +90,9 @@ class MainActivity : ComponentActivity() {
                                 navController.navigate(
                                     compareRoute(
                                         referenceImageUri = session.referenceFileUri,
-                                        captureImageUri = session.captureFileUri
+                                        captureImageUri = session.captureFileUri,
+                                        sessionId = session.sessionId,
+                                        timestamp = session.timestamp
                                     )
                                 )
                             },
@@ -96,9 +112,26 @@ class MainActivity : ComponentActivity() {
                                 type = NavType.StringType
                                 nullable = true
                                 defaultValue = null
+                            },
+                            navArgument(ARG_SESSION_ID) {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                            navArgument(ARG_TIMESTAMP) {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
                             }
                         )
                     ) { backStackEntry ->
+                        val cameraEntry = remember(navController) {
+                            navController.getBackStackEntry(ROUTE_CAMERA)
+                        }
+                        val viewModel: CameraViewModel = hiltViewModel(cameraEntry)
+                        val sessionId = backStackEntry.arguments?.getString(ARG_SESSION_ID)
+                        val timestamp =
+                            backStackEntry.arguments?.getString(ARG_TIMESTAMP)?.toLongOrNull()
                         CompareScreen(
                             referenceImageUri = backStackEntry.arguments
                                 ?.getString(ARG_REFERENCE_URI)
@@ -106,7 +139,14 @@ class MainActivity : ComponentActivity() {
                             captureImageUri = backStackEntry.arguments
                                 ?.getString(ARG_CAPTURE_URI)
                                 ?.let(Uri::parse),
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            timestamp = timestamp,
+                            onDelete = if (sessionId != null) {
+                                {
+                                    viewModel.deleteSessions(listOf(sessionId))
+                                    navController.popBackStack()
+                                }
+                            } else null
                         )
                     }
                 }
@@ -118,3 +158,14 @@ class MainActivity : ComponentActivity() {
 private fun compareRoute(referenceImageUri: Uri, captureImageUri: Uri): String =
     "$ROUTE_COMPARE?$ARG_REFERENCE_URI=${Uri.encode(referenceImageUri.toString())}" +
         "&$ARG_CAPTURE_URI=${Uri.encode(captureImageUri.toString())}"
+
+private fun compareRoute(
+    referenceImageUri: Uri,
+    captureImageUri: Uri,
+    sessionId: String,
+    timestamp: Long
+): String =
+    "$ROUTE_COMPARE?$ARG_REFERENCE_URI=${Uri.encode(referenceImageUri.toString())}" +
+        "&$ARG_CAPTURE_URI=${Uri.encode(captureImageUri.toString())}" +
+        "&$ARG_SESSION_ID=${Uri.encode(sessionId)}" +
+        "&$ARG_TIMESTAMP=$timestamp"

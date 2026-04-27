@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,14 +20,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -55,6 +60,8 @@ import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.ghostshot.R
+import java.text.DateFormat
+import java.util.Date
 import kotlin.math.roundToInt
 
 private const val InitialSliderFraction = 0.5f
@@ -70,9 +77,35 @@ fun CompareScreen(
     referenceImageUri: Uri?,
     captureImageUri: Uri?,
     onBack: () -> Unit,
+    timestamp: Long? = null,
+    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.compare_screen_delete_dialog_title)) },
+            text = { Text(stringResource(R.string.compare_screen_delete_dialog_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDelete?.invoke()
+                    }
+                ) {
+                    Text(stringResource(R.string.compare_library_delete_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.compare_library_delete_cancel))
+                }
+            }
+        )
+    }
 
     Box(
         modifier = modifier
@@ -107,12 +140,31 @@ fun CompareScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(start = 4.dp)
                 )
+                if (onDelete != null) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    val deleteDescription = stringResource(R.string.compare_screen_delete)
+                    IconButton(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier.testTag("compare_screen_delete_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = deleteDescription
+                        )
+                    }
+                }
             }
 
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(
+                        start = 24.dp,
+                        end = 24.dp,
+                        top = 24.dp,
+                        bottom = if (timestamp != null) 0.dp else 24.dp
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 when {
@@ -129,6 +181,21 @@ fun CompareScreen(
                             .testTag("compare_screen_shell_content")
                     )
                 }
+            }
+
+            if (timestamp != null) {
+                val formatted = remember(timestamp) {
+                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                        .format(Date(timestamp))
+                }
+                Text(
+                    text = formatted,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)
+                        .testTag("compare_screen_timestamp")
+                )
             }
         }
     }
@@ -206,11 +273,19 @@ private fun CompareSliderViewport(
                 modifier = Modifier.matchParentSize()
             )
 
-            CompareLabelsOverlay(
+            CompareLabelBadge(
+                text = stringResource(R.string.compare_label_reference),
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
+                    .align(Alignment.TopStart)
                     .padding(12.dp)
+                    .testTag("compare_reference_label")
+            )
+            CompareLabelBadge(
+                text = stringResource(R.string.compare_label_capture),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .testTag("compare_capture_label")
             )
 
             CompareDivider(
@@ -263,26 +338,6 @@ private fun CompareViewportImage(
             modifier = Modifier
                 .matchParentSize()
                 .testTag(imageTestTag)
-        )
-    }
-}
-
-@Composable
-private fun CompareLabelsOverlay(
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CompareLabelBadge(
-            text = stringResource(R.string.compare_label_reference),
-            modifier = Modifier.testTag("compare_reference_label")
-        )
-        CompareLabelBadge(
-            text = stringResource(R.string.compare_label_capture),
-            modifier = Modifier.testTag("compare_capture_label")
         )
     }
 }

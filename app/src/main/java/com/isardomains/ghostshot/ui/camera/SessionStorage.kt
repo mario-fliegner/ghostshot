@@ -16,6 +16,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+internal data class SavedSessionRef(
+    val sessionId: String,
+    val timestamp: Long
+)
+
 /**
  * Writes a session pair (capture.jpg + reference.jpg) to app-internal storage under
  * filesDir/sessions/YYYY-MM-DD_HH-mm-ss/.
@@ -66,7 +71,7 @@ internal object SessionStorage {
         exifOrientation: Int?,
         captureMediaStoreUri: Uri,
         referencePickerUri: Uri
-    ) {
+    ): SavedSessionRef? {
         val sessionTimestampMs = System.currentTimeMillis()
         val baseName = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date(sessionTimestampMs))
         val sessionDir = resolveUniqueDir(sessionsRoot, baseName)
@@ -78,12 +83,15 @@ internal object SessionStorage {
             writeReference(context, referenceUri, exifOrientation, sessionDir)
             writeMetadata(sessionDir, sessionTimestampMs, captureMediaStoreUri, referencePickerUri)
             Log.d(TAG, "Session saved: $sessionDir")
+            return SavedSessionRef(sessionId = sessionDir.name, timestamp = sessionTimestampMs)
         } catch (e: Exception) {
             Log.w(TAG, "Session save failed, removing partial session: ${e.message}")
             sessionDir.deleteRecursively()
+            return null
         } catch (e: OutOfMemoryError) {
             Log.w(TAG, "Session save OOM, removing partial session")
             sessionDir.deleteRecursively()
+            return null
         }
     }
 

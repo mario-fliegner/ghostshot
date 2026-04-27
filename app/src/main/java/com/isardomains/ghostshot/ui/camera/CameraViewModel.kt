@@ -105,10 +105,14 @@ data class CameraUiState(
  * The current valid input pair for the fullscreen compare flow.
  *
  * The pair is only valid when both URIs belong to the same successful capture moment.
+ * [sessionId] and [timestamp] are populated when the capture produced a persisted session,
+ * enabling Delete and timestamp display in CompareScreen.
  */
 data class CompareInput(
     val referenceImageUri: Uri,
-    val captureImageUri: Uri
+    val captureImageUri: Uri,
+    val sessionId: String? = null,
+    val timestamp: Long? = null
 )
 
 /**
@@ -488,12 +492,12 @@ class CameraViewModel @Inject constructor(
 
                 if (savedUri != null) {
                     val referenceUri = _uiState.value.referenceImageUri
-                    onCaptureSaved(savedUri)
                     // Session storage: persists capture + reference as a matched pair in app-internal
                     // storage for later comparison. Only written when the main save succeeded and a
                     // reference image is present. Best-effort — failure here never affects the main save.
+                    var sessionRef: SavedSessionRef? = null
                     if (referenceUri != null) {
-                        SessionStorage.saveSession(
+                        sessionRef = SessionStorage.saveSession(
                             context = context,
                             capturedBitmap = corrected,
                             referenceUri = referenceUri,
@@ -504,6 +508,7 @@ class CameraViewModel @Inject constructor(
                         val sessions = scanSavedSessionsSafely()
                         _uiState.update { it.copy(savedSessions = sessions) }
                     }
+                    onCaptureSaved(savedUri, sessionRef)
                 } else {
                     _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
                 }
@@ -574,7 +579,7 @@ class CameraViewModel @Inject constructor(
         }
     }
 
-    internal fun onCaptureSaved(savedUri: Uri) {
+    internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null) {
         val referenceUri = _uiState.value.referenceImageUri
         _uiState.update { current ->
             current.copy(
@@ -583,7 +588,9 @@ class CameraViewModel @Inject constructor(
                 compareInput = referenceUri?.let {
                     CompareInput(
                         referenceImageUri = it,
-                        captureImageUri = savedUri
+                        captureImageUri = savedUri,
+                        sessionId = sessionRef?.sessionId,
+                        timestamp = sessionRef?.timestamp
                     )
                 }
             )

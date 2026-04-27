@@ -40,6 +40,11 @@
     <string name="compare_error_missing_images">Reference and capture are required for comparison.</string>
     <string name="compare_error_load_failed">Could not load comparison images.</string>
 
+    <!-- Compare screen (detail view) -->
+    <string name="compare_screen_delete">Delete comparison</string>
+    <string name="compare_screen_delete_dialog_title">Delete comparison?</string>
+    <string name="compare_screen_delete_dialog_message">This comparison will be permanently deleted.</string>
+
     <!-- Reference image overlay -->
     <string name="select_reference_image">Select reference image</string>
     <string name="select_reference_image_label">Reference</string>

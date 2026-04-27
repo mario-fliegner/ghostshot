@@ -700,6 +700,30 @@ class CameraViewModelTest {
     }
 
     @Test
+    fun compareInput_sessionIdAndTimestampAreNullWhenNoSessionRef() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val captureUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(captureUri)
+
+        assertNull(testViewModel.uiState.value.compareInput?.sessionId)
+        assertNull(testViewModel.uiState.value.compareInput?.timestamp)
+    }
+
+    @Test
+    fun compareInput_hasSessionIdAndTimestampWhenSessionRefProvided() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val captureUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(captureUri, SavedSessionRef("session-abc", 9876543210L))
+
+        assertEquals("session-abc", testViewModel.uiState.value.compareInput?.sessionId)
+        assertEquals(9876543210L, testViewModel.uiState.value.compareInput?.timestamp)
+    }
+
+    @Test
     fun compareInput_isClearedWhenReferenceChanges() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())

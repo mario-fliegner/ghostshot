@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 // Dynamic color is intentionally disabled: a camera app requires deterministic colours
 // so that overlay controls are always readable against the camera preview scrim.
@@ -17,6 +18,8 @@ private val GhostShotDarkColorScheme = darkColorScheme(
 private val GhostShotLightColorScheme = lightColorScheme(
     primary = GhostShotAccent,
     surfaceVariant = GhostShotSliderInactive,
+    background = Color.White,
+    surface = Color.White,
 )
 
 @Composable

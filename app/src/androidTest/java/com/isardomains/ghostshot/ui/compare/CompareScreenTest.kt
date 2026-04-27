@@ -37,6 +37,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.text.DateFormat
+import java.util.Date
 
 @RunWith(AndroidJUnit4::class)
 class CompareScreenTest {
@@ -47,6 +49,7 @@ class CompareScreenTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private var scenario: ActivityScenario<ComponentActivity>? = null
     private val tempFiles = mutableListOf<File>()
+    private val fakeTimestamp = 1705312200000L
 
     @After
     fun tearDown() {
@@ -264,6 +267,96 @@ class CompareScreenTest {
         assertTrue(after.left > before.left)
     }
 
+    // --- Timestamp tests ---
+
+    @Test
+    fun timestamp_notDisplayedWhenNull() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, timestamp = null)
+
+        composeRule.onNodeWithTag("compare_screen_timestamp").assertDoesNotExist()
+    }
+
+    @Test
+    fun timestamp_tagDisplayedWhenProvided() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, timestamp = fakeTimestamp)
+
+        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+    }
+
+    @Test
+    fun timestamp_formattedTextMatchesExpected() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, timestamp = fakeTimestamp)
+
+        val expected = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+            .format(Date(fakeTimestamp))
+        composeRule.onNodeWithText(expected).assertIsDisplayed()
+    }
+
+    // --- Delete button tests ---
+
+    @Test
+    fun deleteButton_notDisplayedWhenOnDeleteIsNull() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onDelete = null)
+
+        composeRule.onNodeWithTag("compare_screen_delete_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun deleteButton_displayedWhenOnDeleteProvided() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onDelete = {})
+
+        composeRule.onNodeWithTag("compare_screen_delete_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun deleteButton_tapOpensConfirmDialog() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onDelete = {})
+
+        composeRule.onNodeWithTag("compare_screen_delete_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(
+            context.getString(R.string.compare_screen_delete_dialog_title)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun deleteDialog_cancelClosesDialogWithoutCallback() {
+        var deleteCount = 0
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onDelete = { deleteCount++ })
+
+        composeRule.onNodeWithTag("compare_screen_delete_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(
+            context.getString(R.string.compare_library_delete_cancel)
+        ).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(
+            context.getString(R.string.compare_screen_delete_dialog_title)
+        ).assertDoesNotExist()
+        assertEquals(0, deleteCount)
+    }
+
+    @Test
+    fun deleteDialog_confirmCallsOnDeleteExactlyOnce() {
+        var deleteCount = 0
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onDelete = { deleteCount++ })
+
+        composeRule.onNodeWithTag("compare_screen_delete_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(
+            context.getString(R.string.compare_library_delete_confirm)
+        ).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, deleteCount)
+    }
+
+    // --- Load failure ---
+
     @Test
     fun compareScreen_loadFailureShowsFallback() {
         setCompareContent(
@@ -285,13 +378,17 @@ class CompareScreenTest {
     private fun setCompareContent(
         referenceImageUri: Uri?,
         captureImageUri: Uri?,
-        onBack: () -> Unit = {}
+        onBack: () -> Unit = {},
+        timestamp: Long? = null,
+        onDelete: (() -> Unit)? = null
     ) {
         setHostContent {
             CompareScreen(
                 referenceImageUri = referenceImageUri,
                 captureImageUri = captureImageUri,
-                onBack = onBack
+                onBack = onBack,
+                timestamp = timestamp,
+                onDelete = onDelete
             )
         }
     }
