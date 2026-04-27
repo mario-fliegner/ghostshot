@@ -19,19 +19,26 @@ class SessionStorageMetadataTest {
 
     private val testContext = InstrumentationRegistry.getInstrumentation().context
     private val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-    private val sessionsDir = File(appContext.filesDir, "sessions")
+    private val testRoot = File(appContext.filesDir, "session-tests/SessionStorageMetadataTest")
 
     private val captureMediaStoreUri = Uri.parse("content://test/capture/123")
     private val referencePickerUri = Uri.parse("content://test/picker/456")
 
     @Before
     fun clearSessions() {
-        sessionsDir.deleteRecursively()
+        cleanTestRoot()
     }
 
     @After
     fun cleanup() {
-        sessionsDir.deleteRecursively()
+        cleanTestRoot()
+    }
+
+    private fun cleanTestRoot() {
+        require(testRoot.absolutePath.contains("session-tests")) {
+            "Refusing to delete non-test session root: ${testRoot.absolutePath}"
+        }
+        testRoot.deleteRecursively()
     }
 
     private fun saveTestSession(): File {
@@ -42,6 +49,7 @@ class SessionStorageMetadataTest {
         val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
         SessionStorage.saveSession(
             context = appContext,
+            sessionsRoot = testRoot,
             capturedBitmap = captureBitmap,
             referenceUri = Uri.fromFile(tempFile),
             exifOrientation = null,
@@ -49,7 +57,7 @@ class SessionStorageMetadataTest {
             referencePickerUri = referencePickerUri
         )
         captureBitmap.recycle()
-        return sessionsDir.listFiles()?.firstOrNull()
+        return testRoot.listFiles()?.firstOrNull()
             ?: error("SessionStorage did not create a session directory")
     }
 

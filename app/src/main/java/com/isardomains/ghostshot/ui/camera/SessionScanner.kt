@@ -22,8 +22,9 @@ internal object SessionScanner {
     private const val METADATA_FILE = "metadata.json"
     private const val EXPECTED_VERSION = 1
 
-    fun scan(context: Context): List<ScannedSession> {
-        val sessionsRoot = File(context.filesDir, SESSIONS_DIR)
+    fun scan(context: Context): List<ScannedSession> = scan(File(context.filesDir, SESSIONS_DIR))
+
+    internal fun scan(sessionsRoot: File): List<ScannedSession> {
         if (!sessionsRoot.exists() || !sessionsRoot.isDirectory) {
             return emptyList()
         }

@@ -48,10 +48,27 @@ internal object SessionStorage {
         exifOrientation: Int?,
         captureMediaStoreUri: Uri,
         referencePickerUri: Uri
+    ) = saveSession(
+        context = context,
+        sessionsRoot = File(context.filesDir, SESSIONS_DIR),
+        capturedBitmap = capturedBitmap,
+        referenceUri = referenceUri,
+        exifOrientation = exifOrientation,
+        captureMediaStoreUri = captureMediaStoreUri,
+        referencePickerUri = referencePickerUri
+    )
+
+    internal fun saveSession(
+        context: Context,
+        sessionsRoot: File,
+        capturedBitmap: Bitmap,
+        referenceUri: Uri,
+        exifOrientation: Int?,
+        captureMediaStoreUri: Uri,
+        referencePickerUri: Uri
     ) {
         val sessionTimestampMs = System.currentTimeMillis()
         val baseName = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date(sessionTimestampMs))
-        val sessionsRoot = File(context.filesDir, SESSIONS_DIR)
         val sessionDir = resolveUniqueDir(sessionsRoot, baseName)
         try {
             if (!sessionDir.mkdirs()) {

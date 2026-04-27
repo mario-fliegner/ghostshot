@@ -17,23 +17,30 @@ import java.io.File
 class SessionScannerTest {
 
     private val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-    private val sessionsDir = File(appContext.filesDir, "sessions")
+    private val testRoot = File(appContext.filesDir, "session-tests/SessionScannerTest")
 
     @Before
     fun setUp() {
-        sessionsDir.deleteRecursively()
-        sessionsDir.mkdirs()
+        cleanTestRoot()
+        testRoot.mkdirs()
     }
 
     @After
     fun tearDown() {
-        sessionsDir.deleteRecursively()
+        cleanTestRoot()
+    }
+
+    private fun cleanTestRoot() {
+        require(testRoot.absolutePath.contains("session-tests")) {
+            "Refusing to delete non-test session root: ${testRoot.absolutePath}"
+        }
+        testRoot.deleteRecursively()
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun createSessionDir(sessionId: String): File =
-        File(sessionsDir, sessionId).also { it.mkdirs() }
+        File(testRoot, sessionId).also { it.mkdirs() }
 
     private fun writeMetadata(
         sessionDir: File,
@@ -74,7 +81,7 @@ class SessionScannerTest {
     fun validSession_isReturned() {
         fullSession("2026-04-24_10-00-00", timestamp = 5_000L)
 
-        val result = SessionScanner.scan(appContext)
+        val result = SessionScanner.scan(testRoot)
 
         assertEquals(1, result.size)
         assertEquals("2026-04-24_10-00-00", result[0].sessionId)
@@ -87,7 +94,7 @@ class SessionScannerTest {
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -97,7 +104,7 @@ class SessionScannerTest {
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -107,7 +114,7 @@ class SessionScannerTest {
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -117,7 +124,7 @@ class SessionScannerTest {
         // reference.jpg intentionally absent
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -127,7 +134,7 @@ class SessionScannerTest {
         touch(dir, "reference.jpg")
         // capture.jpg intentionally absent
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -136,7 +143,7 @@ class SessionScannerTest {
         fullSession("2026-04-24_09-00-00", timestamp = 3_000L)
         fullSession("2026-04-24_10-00-00", timestamp = 2_000L)
 
-        val result = SessionScanner.scan(appContext)
+        val result = SessionScanner.scan(testRoot)
 
         assertEquals(3, result.size)
         assertEquals(3_000L, result[0].timestamp)
@@ -146,22 +153,22 @@ class SessionScannerTest {
 
     @Test
     fun emptySessionsDirectory_returnsEmptyList() {
-        // sessionsDir exists but is empty (created in setUp)
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        // testRoot exists but is empty (created in setUp)
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
     fun missingSessionsDirectory_returnsEmptyList() {
-        sessionsDir.deleteRecursively()
+        cleanTestRoot()
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
     fun nonDirectoryInsideSessionsRoot_isIgnored() {
-        touch(sessionsDir, "stray_file.txt")
+        touch(testRoot, "stray_file.txt")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -170,7 +177,7 @@ class SessionScannerTest {
         writeMetadata(dir, referenceFile = "")
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -179,7 +186,7 @@ class SessionScannerTest {
         writeMetadata(dir, captureFile = "")
         touch(dir, "reference.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -188,7 +195,7 @@ class SessionScannerTest {
         writeMetadata(dir, referenceFile = "../reference.jpg")
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -197,7 +204,7 @@ class SessionScannerTest {
         writeMetadata(dir, captureFile = "/data/user/0/com.isardomains.ghostshot/files/sessions/capture.jpg")
         touch(dir, "reference.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -206,7 +213,7 @@ class SessionScannerTest {
         writeMetadata(dir, referenceFile = "subdir/reference.jpg")
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -222,7 +229,7 @@ class SessionScannerTest {
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(appContext).isEmpty())
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
     }
 
     @Test
@@ -240,7 +247,7 @@ class SessionScannerTest {
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
-        val result = SessionScanner.scan(appContext)
+        val result = SessionScanner.scan(testRoot)
         assertEquals(1, result.size)
     }
 }

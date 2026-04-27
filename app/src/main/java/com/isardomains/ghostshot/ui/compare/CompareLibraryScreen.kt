@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.isardomains.ghostshot.R
@@ -155,7 +156,7 @@ private fun CompareSessionTile(
         Text(
             text = timestamp,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color.White,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }

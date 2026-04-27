@@ -1,4 +1,3 @@
-// path: app/src/androidTest/java/com/isardomains/ghostshot/storage/SessionStorageReferenceOrientationTest.kt
 package com.isardomains.ghostshot.storage
 
 import android.graphics.Bitmap
@@ -26,16 +25,23 @@ class SessionStorageReferenceOrientationTest {
     // App-under-test context: owns the filesDir/cacheDir where SessionStorage writes.
     private val appContext = InstrumentationRegistry.getInstrumentation().targetContext
 
-    private val sessionsDir = File(appContext.filesDir, "sessions")
+    private val testRoot = File(appContext.filesDir, "session-tests/SessionStorageReferenceOrientationTest")
 
     @Before
     fun clearSessions() {
-        sessionsDir.deleteRecursively()
+        cleanTestRoot()
     }
 
     @After
     fun cleanup() {
-        sessionsDir.deleteRecursively()
+        cleanTestRoot()
+    }
+
+    private fun cleanTestRoot() {
+        require(testRoot.absolutePath.contains("session-tests")) {
+            "Refusing to delete non-test session root: ${testRoot.absolutePath}"
+        }
+        testRoot.deleteRecursively()
     }
 
     /**
@@ -56,6 +62,7 @@ class SessionStorageReferenceOrientationTest {
         val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
         SessionStorage.saveSession(
             context = appContext,
+            sessionsRoot = testRoot,
             capturedBitmap = captureBitmap,
             referenceUri = Uri.fromFile(tempFile),
             exifOrientation = exifOrientation,
@@ -64,7 +71,7 @@ class SessionStorageReferenceOrientationTest {
         )
         captureBitmap.recycle()
 
-        val sessionDir = sessionsDir.listFiles()?.firstOrNull()
+        val sessionDir = testRoot.listFiles()?.firstOrNull()
             ?: error("SessionStorage did not create a session directory")
         return BitmapFactory.decodeFile(File(sessionDir, "reference.jpg").absolutePath)
             ?: error("reference.jpg missing or unreadable in $sessionDir")
