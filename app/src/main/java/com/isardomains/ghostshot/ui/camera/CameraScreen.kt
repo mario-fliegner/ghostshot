@@ -889,7 +889,12 @@ internal fun CameraControlsOverlay(
         }
 
         if (compareInput != null || hasSavedSessions) {
+            val compareLabel = when {
+                compareInput != null -> stringResource(R.string.compare_entry_label)
+                else -> stringResource(R.string.compare_library_entry_label)
+            }
             CompareImagesEntry(
+                label = compareLabel,
                 onClick = onCompareClick,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -918,10 +923,10 @@ internal fun CameraControlsOverlay(
 
 @Composable
 internal fun CompareImagesEntry(
+    label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val label = stringResource(R.string.compare_entry_label)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))

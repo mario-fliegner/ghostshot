@@ -206,6 +206,7 @@ class CompareNavigationTest {
                 modifier = Modifier.fillMaxSize()
             )
             CompareImagesEntry(
+                label = context.getString(R.string.compare_entry_label),
                 onClick = onCompare,
                 modifier = Modifier.align(Alignment.BottomEnd)
             )

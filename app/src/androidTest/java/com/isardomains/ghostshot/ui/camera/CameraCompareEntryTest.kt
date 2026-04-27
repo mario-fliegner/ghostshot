@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -70,6 +71,7 @@ class CameraCompareEntryTest {
 
     private fun setEntryContent(
         isCompareEnabled: Boolean,
+        label: String = "Compare",
         onCompareImages: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -84,6 +86,7 @@ class CameraCompareEntryTest {
                 GhostShotTheme {
                     if (isCompareEnabled) {
                         CompareImagesEntry(
+                            label = label,
                             onClick = onCompareImages,
                             modifier = Modifier
                         )
@@ -99,6 +102,22 @@ class CameraCompareEntryTest {
             .uiAutomation
             .executeShellCommand("input keyevent KEYCODE_WAKEUP")
             .close()
+    }
+
+    @Test
+    fun compareEntry_showsCompareLabel_forCurrentCompare() {
+        setEntryContent(isCompareEnabled = true, label = "Compare")
+
+        composeRule.onNodeWithTag("compare_images_entry").assertIsDisplayed()
+        composeRule.onNodeWithText("Compare").assertIsDisplayed()
+    }
+
+    @Test
+    fun compareEntry_showsComparisonsLabel_forLibrary() {
+        setEntryContent(isCompareEnabled = true, label = "Comparisons")
+
+        composeRule.onNodeWithTag("compare_images_entry").assertIsDisplayed()
+        composeRule.onNodeWithText("Comparisons").assertIsDisplayed()
     }
 
     private val fakeCompareInput = CompareInput(

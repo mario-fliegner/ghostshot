@@ -10,8 +10,8 @@
     <!-- Capture -->
     <string name="capture_button_content_description">Take photo</string>
     <string name="capture_button_label">Capture</string>
-    <string name="capture_saved">Bild gespeichert</string>
-    <string name="capture_saved_compare_action">Vergleich ansehen</string>
+    <string name="capture_saved">Image saved</string>
+    <string name="capture_saved_compare_action">View comparison</string>
     <string name="capture_failed">Could not save photo</string>
 
     <!-- Compare Library -->
@@ -22,7 +22,8 @@
     <!-- Compare flow -->
     <string name="compare_images">Compare Images</string>
     <string name="compare_entry_label">Compare</string>
-    <string name="compare_screen_title">Compare</string>
+    <string name="compare_library_entry_label">Comparisons</string>
+    <string name="compare_screen_title">Comparison</string>
     <string name="compare_back">Back to camera</string>
     <string name="compare_label_reference">Reference</string>
     <string name="compare_label_capture">Capture</string>

@@ -1,9 +1,12 @@
 <resources>
+    <string name="capture_saved">Bild gespeichert</string>
+    <string name="capture_saved_compare_action">Vergleich ansehen</string>
     <string name="compare_library_title">Vergleiche</string>
     <string name="compare_library_empty_state">Keine gespeicherten Vergleiche</string>
     <string name="compare_library_session_content_description">Vergleich vom %s</string>
     <string name="compare_images">Bilder vergleichen</string>
     <string name="compare_entry_label">Vergleich</string>
+    <string name="compare_library_entry_label">Vergleiche</string>
     <string name="compare_screen_title">Vergleich</string>
     <string name="compare_back">Zurueck zur Kamera</string>
     <string name="compare_label_reference">Referenz</string>
