@@ -65,6 +65,8 @@ import java.util.Date
 import kotlin.math.roundToInt
 
 private const val InitialSliderFraction = 0.5f
+private val CompareSliderTouchWidth = 48.dp
+private val CompareSliderHandleSize = 28.dp
 
 /**
  * Fullscreen compare screen for the V1 slider compare flow.
@@ -240,7 +242,7 @@ private fun CompareSliderViewport(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color.Black)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .onSizeChanged { size ->
                     viewportWidthPx = size.width.coerceAtLeast(1).toFloat()
                 }
@@ -273,20 +275,24 @@ private fun CompareSliderViewport(
                 modifier = Modifier.matchParentSize()
             )
 
-            CompareLabelBadge(
-                text = stringResource(R.string.compare_label_reference),
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(12.dp)
-                    .testTag("compare_reference_label")
-            )
-            CompareLabelBadge(
-                text = stringResource(R.string.compare_label_capture),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(12.dp)
-                    .testTag("compare_capture_label")
-            )
+            if (sliderFraction > 0f) {
+                CompareLabelBadge(
+                    text = stringResource(R.string.compare_label_reference),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                        .testTag("compare_reference_label")
+                )
+            }
+            if (sliderFraction < 1f) {
+                CompareLabelBadge(
+                    text = stringResource(R.string.compare_label_capture),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .testTag("compare_capture_label")
+                )
+            }
 
             CompareDivider(
                 sliderFraction = sliderFraction,
@@ -372,10 +378,10 @@ private fun CompareDivider(
 
     Box(
         modifier = modifier
-            .width(28.dp)
+            .width(CompareSliderTouchWidth)
             .offset {
                 IntOffset(
-                    x = dividerOffsetPx - (14.dp.roundToPx()),
+                    x = dividerOffsetPx - (CompareSliderTouchWidth.roundToPx() / 2),
                     y = 0
                 )
             }
@@ -391,14 +397,13 @@ private fun CompareDivider(
                 .align(Alignment.Center)
                 .fillMaxHeight()
                 .width(2.dp)
-                .padding(vertical = 16.dp)
                 .background(Color.White.copy(alpha = 0.9f))
                 .testTag("compare_divider_line")
         )
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(28.dp)
+                .size(CompareSliderHandleSize)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
                 .shadow(3.dp, CircleShape)
