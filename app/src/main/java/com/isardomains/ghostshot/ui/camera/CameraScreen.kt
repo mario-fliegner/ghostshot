@@ -41,7 +41,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
@@ -90,7 +89,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -498,7 +496,7 @@ fun CameraScreen(
 }
 
 @Composable
-private fun ReferenceImageOverlay(
+internal fun ReferenceImageOverlay(
     referenceUri: Uri,
     metadata: ReferenceImageMetadata?,
     displayMode: ReferenceImageDisplayMode,
@@ -610,7 +608,6 @@ private fun CompareReferenceImage(
         return
     }
 
-    val density = LocalDensity.current
     val imageWidth = metadata.orientedWidth.toFloat()
     val imageHeight = metadata.orientedHeight.toFloat()
     val viewportWidth = viewportSize.width.toFloat()
@@ -629,17 +626,15 @@ private fun CompareReferenceImage(
         model = referenceUri,
         contentDescription = contentDescription,
         modifier = Modifier
-            .requiredSize(
-                width = with(density) { displayedWidth.toDp() },
-                height = with(density) { displayedHeight.toDp() }
-            )
+            .testTag("compare_reference_image")
+            .fillMaxSize()
             .graphicsLayer {
                 this.translationX = translationX
                 this.translationY = translationY
                 scaleX = scale
                 scaleY = scale
             },
-        contentScale = ContentScale.FillBounds,
+        contentScale = ContentScale.Crop,
         alpha = alpha,
     )
 }
