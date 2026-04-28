@@ -862,3 +862,44 @@ The following components are implemented and their tests are passing.
 | Theme: `background`/`surface` override in light mode | Implemented |
 
 Unit test count: 34 (all green as of last run).
+
+---
+
+## 35. CAMERA SCREEN LANDSCAPE CONTROL CONTEXT (2026-04-28)
+
+This document remains focused on the compare flow.
+This section only protects the camera-to-compare entry point and prevents layout regressions around the `Shots` / `Compare Images` control.
+
+### Current camera-control decision
+
+Landscape camera controls must mirror the portrait structure conceptually:
+
+- Bottom row: `Overlay` / `Capture` / `Shots`
+- Opacity slider: separate row above the bottom row
+
+### Required landscape invariants
+
+- Capture remains exactly centered at the bottom of the root
+- Overlay remains left of capture
+- Shots / Compare entry remains right of capture
+- Overlay and Shots / Compare are symmetrically spaced around capture
+- Slider is centered above capture
+- Slider is above the button row
+- Slider width is no greater than the button-group width
+- Slider remains inside root bounds
+- Overlay action menu remains visible, inside root bounds, and visually above the slider when overlapping
+
+### Forbidden approaches
+
+- Placing the opacity slider to the right of Shots / Compare
+- Calculating slider width from remaining right-side space
+- Reusing `safeEndPadding`, `rightControlsStart`, or equivalent right-control width logic for the slider
+- Inline slider in the bottom button row
+- Fallback alignments that move the slider to TopEnd or BottomStart
+- Moving capture away from bottom center
+- Squeezing Overlay or Shots / Compare with hard equal-width button constraints
+
+### Compare-flow relevance
+
+The `Shots` / `Compare Images` entry must remain reachable and visually stable in landscape.
+The landscape layout fix must not change `CompareScreen`, Variant B normalization, session storage, delete behavior, or compare navigation contracts.

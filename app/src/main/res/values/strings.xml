@@ -2,72 +2,72 @@
     <string name="app_name">GhostShot</string>
 
     <!-- Camera permission screens -->
-    <string name="camera_permission_rationale">Camera access is required to use GhostShot.</string>
-    <string name="grant_permission">Grant permission</string>
-    <string name="camera_permission_denied">Camera permission was permanently denied. Please enable it in the app settings.</string>
+    <string name="camera_permission_rationale">GhostShot needs camera access to take photos.</string>
+    <string name="grant_permission">Allow camera</string>
+    <string name="camera_permission_denied">Camera access is blocked. Enable it in app settings.</string>
     <string name="open_settings">Open settings</string>
 
     <!-- Capture -->
     <string name="capture_button_content_description">Take photo</string>
-    <string name="capture_button_label">Capture</string>
-    <string name="capture_saved">Image saved</string>
-    <string name="capture_saved_compare_action">View comparison</string>
-    <string name="capture_failed">Could not save photo</string>
+    <string name="capture_button_label">Shoot</string>
+    <string name="capture_saved">Saved</string>
+    <string name="capture_saved_compare_action">Compare</string>
+    <string name="capture_failed">Couldn’t save photo</string>
 
     <!-- Compare Library -->
-    <string name="compare_library_title">Comparisons</string>
-    <string name="compare_library_empty_state">No comparisons saved yet</string>
-    <string name="compare_library_session_content_description">Comparison from %s</string>
+    <string name="compare_library_title">Shots</string>
+    <string name="compare_library_empty_state">No shots yet</string>
+    <string name="compare_library_session_content_description">Shot from %s</string>
     <string name="compare_library_selection_count">%d selected</string>
     <string name="compare_library_cancel_selection">Cancel selection</string>
     <string name="compare_library_delete_selected">Delete selected</string>
     <string name="compare_library_session_selected">Selected</string>
     <string name="compare_library_session_not_selected">Not selected</string>
-    <string name="compare_library_delete_dialog_title">Delete comparisons?</string>
-    <string name="compare_library_delete_dialog_message">The selected comparisons will be permanently deleted.</string>
+    <string name="compare_library_delete_dialog_title">Delete shots?</string>
+    <string name="compare_library_delete_dialog_message">The selected shots will be permanently deleted.</string>
     <string name="compare_library_delete_confirm">Delete</string>
     <string name="compare_library_delete_cancel">Cancel</string>
 
     <!-- Compare flow -->
-    <string name="compare_images">Compare Images</string>
+    <string name="compare_images">Compare</string>
     <string name="compare_entry_label">Compare</string>
-    <string name="compare_library_entry_label">Comparisons</string>
-    <string name="compare_screen_title">Comparison</string>
+    <string name="compare_library_entry_label">Shots</string>
+    <string name="compare_screen_title">Compare</string>
     <string name="compare_back">Back to camera</string>
-    <string name="compare_label_reference">Reference</string>
-    <string name="compare_label_capture">Capture</string>
+    <string name="compare_label_reference">Overlay</string>
+    <string name="compare_label_capture">Shot</string>
     <string name="compare_slider_content_description">Compare slider</string>
-    <string name="compare_error_missing_images">Reference and capture are required for comparison.</string>
-    <string name="compare_error_load_failed">Could not load comparison images.</string>
+    <string name="compare_error_missing_images">Add both images to compare.</string>
+    <string name="compare_error_load_failed">Couldn’t load images.</string>
 
     <!-- Compare screen (detail view) -->
-    <string name="compare_screen_delete">Delete comparison</string>
-    <string name="compare_screen_delete_dialog_title">Delete comparison?</string>
-    <string name="compare_screen_delete_dialog_message">This comparison will be permanently deleted.</string>
+    <string name="compare_screen_delete">Delete shot</string>
+    <string name="compare_screen_delete_dialog_title">Delete shot?</string>
+    <string name="compare_screen_delete_dialog_message">This shot will be permanently deleted.</string>
 
     <!-- Reference image overlay -->
-    <string name="select_reference_image">Select reference image</string>
-    <string name="select_reference_image_label">Reference</string>
-    <string name="overlay_content_description">Reference photo overlay</string>
+    <string name="select_reference_image">Select overlay image</string>
+    <string name="select_reference_image_label">Overlay</string>
+    <string name="overlay_content_description">Overlay image</string>
     <string name="overlay_opacity_label">Opacity</string>
     <string name="reset_overlay_label">Reset</string>
-    <string name="remove_reference_image">Remove reference image</string>
-    <string name="remove_reference_image_dialog_title">Remove reference image?</string>
-    <string name="remove_reference_image_dialog_message">This removes the current reference image from the camera overlay.</string>
+    <string name="remove_reference_image">Remove overlay</string>
+    <string name="remove_reference_image_dialog_title">Remove overlay?</string>
+    <string name="remove_reference_image_dialog_message">This removes the overlay from the camera.</string>
     <string name="remove_reference_image_confirm">Remove</string>
     <string name="remove_reference_image_cancel">Cancel</string>
-    <string name="toggle_reference_display_mode">Toggle reference display mode</string>
-    <string name="reference_viewport_mismatch">Reference image differs from the current viewport</string>
-    <string name="reference_format_mismatch_description">Reference format differs. Tap for more info.</string>
+    <string name="toggle_reference_display_mode">Toggle overlay display mode</string>
+    <string name="reference_viewport_mismatch">Overlay differs from the current viewport</string>
+    <string name="reference_format_mismatch_description">Overlay format differs. Tap for more info.</string>
     <string name="reference_format_mismatch_bubble">Overlay slightly off</string>
-    <string name="reference_removed_snackbar">Reference image removed</string>
+    <string name="reference_removed_snackbar">Overlay removed</string>
     <string name="reference_removed_undo">Undo</string>
-    <string name="reference_options_badge">Reference image options available</string>
+    <string name="reference_options_badge">Overlay options available</string>
     <string name="reference_options_badge_text">•••</string>
     <string name="action_stack_reset_label">Reset</string>
     <string name="action_stack_display_mode_compare_label">Mode: Compare</string>
     <string name="action_stack_display_mode_fit_label">Mode: Fit</string>
-    <string name="replace_reference_image">Replace image</string>
+    <string name="replace_reference_image">Replace overlay</string>
     <string name="action_stack_replace_label">Replace</string>
     <string name="action_stack_remove_label">Remove</string>
 </resources>

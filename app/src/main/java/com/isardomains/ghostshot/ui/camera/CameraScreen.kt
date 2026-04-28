@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -46,6 +47,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AspectRatio
@@ -101,6 +103,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -116,9 +119,11 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 
 private val CameraShutterButtonSize = 96.dp
+private val CameraSecondaryActionMinWidth = 96.dp
 private val CameraBottomControlGap = 16.dp
 private val CameraOpacitySliderPortraitBottom = 128.dp
 private val CameraOpacitySliderHeight = 56.dp
+private val CameraOpacitySliderLandscapeMaxWidth = 320.dp
 private const val CaptureSuccessSnackbarStateKey =
     "com.isardomains.ghostshot.ui.camera.CaptureSuccessSnackbar"
 private const val CaptureSuccessSnackbarLastShownGenerationKey = "lastShownGeneration"
@@ -763,7 +768,6 @@ internal fun CameraControlsOverlay(
     modifier: Modifier = Modifier
 ) {
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
-    val referenceStartPadding = 16.dp
     val bottomPadding = cameraBottomPadding(isLandscape)
     var isStackVisible by remember { mutableStateOf(false) }
 
@@ -795,34 +799,16 @@ internal fun CameraControlsOverlay(
                 )
             }
 
-            // Opacity slider — fixed position above bottom controls, hidden when stack is open
-            AnimatedVisibility(
-                visible = isLandscape || !isStackVisible,
-                modifier = if (isLandscape) {
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .navigationBarsPadding()
-                        .padding(end = horizontalPadding, bottom = bottomPadding)
-                        .fillMaxWidth(0.3f)
-                        .widthIn(max = 280.dp)
-                        .height(CameraShutterButtonSize)
-                } else {
-                    Modifier
+            if (!isLandscape) {
+                AnimatedVisibility(
+                    visible = !isStackVisible,
+                    modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(start = horizontalPadding, end = horizontalPadding, bottom = 128.dp)
-                },
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                if (isLandscape) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
-                    }
-                } else {
+                        .padding(start = horizontalPadding, end = horizontalPadding, bottom = 128.dp),
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
                     FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
                 }
             }
@@ -858,66 +844,164 @@ internal fun CameraControlsOverlay(
             )
         }
 
-        // Bottom-left: reference button with action stack anchored to it.
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(start = referenceStartPadding, bottom = bottomPadding),
-            verticalArrangement = Arrangement.spacedBy(if (isLandscape) 6.dp else 8.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            AnimatedVisibility(
-                visible = isStackVisible && referenceUri != null,
-                enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
-                exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
-            ) {
-                referenceStack()
+        if (isLandscape) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val controlGap = 16.dp
+                val sliderButtonGap = 8.dp
+                val rightControlsVisible = compareInput != null || hasSavedSessions
+                val sideControlsPadding = maxWidth / 2 + CameraShutterButtonSize / 2 + controlGap
+                val sliderGroupWidth = if (rightControlsVisible) {
+                    CameraSecondaryActionMinWidth +
+                        controlGap +
+                        CameraShutterButtonSize +
+                        controlGap +
+                        CameraSecondaryActionMinWidth
+                } else {
+                    CameraSecondaryActionMinWidth +
+                        controlGap +
+                        CameraShutterButtonSize
+                }
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .zIndex(1f)
+                        .widthIn(min = CameraSecondaryActionMinWidth)
+                        .navigationBarsPadding()
+                        .padding(end = sideControlsPadding, bottom = bottomPadding),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    AnimatedVisibility(
+                        visible = isStackVisible && referenceUri != null,
+                        modifier = Modifier.wrapContentWidth(
+                            align = Alignment.End
+                        ),
+                        enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+                    ) {
+                        referenceStack()
+                    }
+                    Box(
+                        modifier = Modifier
+                            .widthIn(min = CameraSecondaryActionMinWidth)
+                            .height(CameraShutterButtonSize)
+                            .testTag("reference_action_slot"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ReferenceAction(
+                            isActive = referenceUri != null,
+                            onClick = referenceClick
+                        )
+                    }
+                }
+
+                ShutterButton(
+                    onCapture = onCapture,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = bottomPadding)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .navigationBarsPadding()
+                        .padding(start = sideControlsPadding, bottom = bottomPadding),
+                    horizontalArrangement = Arrangement.spacedBy(controlGap),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    if (compareInput != null || hasSavedSessions) {
+                        val compareLabel = when {
+                            compareInput != null -> stringResource(R.string.compare_entry_label)
+                            else -> stringResource(R.string.compare_library_entry_label)
+                        }
+                        CompareImagesEntry(
+                            label = compareLabel,
+                            onClick = onCompareClick,
+                            modifier = Modifier
+                                .height(CameraShutterButtonSize)
+                                .wrapContentHeight(align = Alignment.CenterVertically)
+                        )
+                    }
+                }
+
+                if (referenceUri != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(
+                                bottom = bottomPadding + CameraShutterButtonSize + sliderButtonGap
+                            )
+                            .width(sliderGroupWidth.coerceAtMost(CameraOpacitySliderLandscapeMaxWidth))
+                            .height(CameraShutterButtonSize),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
+                    }
+                }
             }
-            Box(
+        } else {
+            // Bottom-left: reference button with action stack anchored to it.
+            Column(
                 modifier = Modifier
-                    .height(CameraShutterButtonSize)
-                    .testTag("reference_action_slot"),
-                contentAlignment = Alignment.Center
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(start = horizontalPadding, bottom = bottomPadding),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.Start
             ) {
-                ReferenceAction(
-                    isActive = referenceUri != null,
-                    onClick = referenceClick
+                AnimatedVisibility(
+                    visible = isStackVisible && referenceUri != null,
+                    enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+                ) {
+                    referenceStack()
+                }
+                Box(
+                    modifier = Modifier
+                        .height(CameraShutterButtonSize)
+                        .testTag("reference_action_slot"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ReferenceAction(
+                        isActive = referenceUri != null,
+                        onClick = referenceClick
+                    )
+                }
+            }
+
+            if (compareInput != null || hasSavedSessions) {
+                val compareLabel = when {
+                    compareInput != null -> stringResource(R.string.compare_entry_label)
+                    else -> stringResource(R.string.compare_library_entry_label)
+                }
+                CompareImagesEntry(
+                    label = compareLabel,
+                    onClick = onCompareClick,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                        .padding(
+                            end = horizontalPadding,
+                            bottom = bottomPadding
+                        )
+                        .height(CameraShutterButtonSize)
+                        .wrapContentHeight(align = Alignment.CenterVertically)
                 )
             }
-        }
 
-        if (compareInput != null || hasSavedSessions) {
-            val compareLabel = when {
-                compareInput != null -> stringResource(R.string.compare_entry_label)
-                else -> stringResource(R.string.compare_library_entry_label)
-            }
-            CompareImagesEntry(
-                label = compareLabel,
-                onClick = onCompareClick,
+            ShutterButton(
+                onCapture = onCapture,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
+                    .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(
-                        end = horizontalPadding,
-                        bottom = if (isLandscape)
-                            bottomPadding + CameraShutterButtonSize + 8.dp
-                        else
-                            bottomPadding
-                    )
-                    .height(CameraShutterButtonSize)
-                    .wrapContentHeight(align = Alignment.CenterVertically)
+                    .padding(bottom = bottomPadding)
             )
         }
-
-        ShutterButton(
-            onCapture = onCapture,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = bottomPadding)
-        )
     }
 }
 
@@ -931,6 +1015,7 @@ internal fun CompareImagesEntry(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(GhostShotOverlayScrim)
+            .widthIn(min = CameraSecondaryActionMinWidth)
             .testTag("compare_images_entry")
             .semantics { contentDescription = label }
             .clickable(onClick = onClick)
@@ -1074,6 +1159,7 @@ private fun ReferenceAction(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(GhostShotOverlayScrim)
+            .widthIn(min = CameraSecondaryActionMinWidth)
             .then(
                 if (isActive) {
                     Modifier.border(

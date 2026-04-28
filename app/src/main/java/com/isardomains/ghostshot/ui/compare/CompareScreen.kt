@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -234,73 +235,93 @@ private fun CompareSliderViewport(
         return
     }
 
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .onSizeChanged { size ->
-                    viewportWidthPx = size.width.coerceAtLeast(1).toFloat()
-                }
-                .pointerInput(viewportWidthPx) {
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
-                        sliderFraction = (sliderFraction + (dragAmount.x / viewportWidthPx))
-                            .coerceIn(0f, 1f)
-                    }
-                }
-                .testTag("compare_viewport")
-                .semantics {
-                    testTag = "compare_viewport"
-                }
+    Box(modifier = modifier) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            CompareViewportImage(
-                painter = referencePainter,
-                imageContentDescription = stringResource(R.string.compare_label_reference),
-                imageTestTag = "compare_reference_image",
-                renderSurfaceTestTag = "compare_reference_surface",
-                revealLeftFraction = sliderFraction,
-                modifier = Modifier.matchParentSize()
-            )
-            CompareViewportImage(
-                painter = capturePainter,
-                imageContentDescription = stringResource(R.string.compare_label_capture),
-                imageTestTag = "compare_capture_image",
-                renderSurfaceTestTag = "compare_capture_surface",
-                revealRightFraction = sliderFraction,
-                modifier = Modifier.matchParentSize()
-            )
+            val viewportAspect = if (maxWidth >= maxHeight) {
+                16f / 9f
+            } else {
+                9f / 16f
+            }
+            val targetHeightFromWidth = maxWidth / viewportAspect
+            val targetWidth = if (targetHeightFromWidth > maxHeight) {
+                maxHeight * viewportAspect
+            } else {
+                maxWidth
+            }
+            val targetHeight = if (targetHeightFromWidth > maxHeight) {
+                maxHeight
+            } else {
+                targetHeightFromWidth
+            }
 
-            if (sliderFraction > 0f) {
-                CompareLabelBadge(
-                    text = stringResource(R.string.compare_label_reference),
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(width = targetWidth, height = targetHeight)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .onSizeChanged { size ->
+                        viewportWidthPx = size.width.coerceAtLeast(1).toFloat()
+                    }
+                    .pointerInput(viewportWidthPx) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            sliderFraction = (sliderFraction + (dragAmount.x / viewportWidthPx))
+                                .coerceIn(0f, 1f)
+                        }
+                    }
+                    .testTag("compare_viewport")
+                    .semantics {
+                        testTag = "compare_viewport"
+                    }
+            ) {
+                CompareViewportImage(
+                    painter = referencePainter,
+                    imageContentDescription = stringResource(R.string.compare_label_reference),
+                    imageTestTag = "compare_reference_image",
+                    renderSurfaceTestTag = "compare_reference_surface",
+                    revealLeftFraction = sliderFraction,
+                    modifier = Modifier.matchParentSize()
+                )
+                CompareViewportImage(
+                    painter = capturePainter,
+                    imageContentDescription = stringResource(R.string.compare_label_capture),
+                    imageTestTag = "compare_capture_image",
+                    renderSurfaceTestTag = "compare_capture_surface",
+                    revealRightFraction = sliderFraction,
+                    modifier = Modifier.matchParentSize()
+                )
+
+                if (sliderFraction > 0f) {
+                    CompareLabelBadge(
+                        text = stringResource(R.string.compare_label_reference),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp)
+                            .testTag("compare_reference_label")
+                    )
+                }
+                if (sliderFraction < 1f) {
+                    CompareLabelBadge(
+                        text = stringResource(R.string.compare_label_capture),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp)
+                            .testTag("compare_capture_label")
+                    )
+                }
+
+                CompareDivider(
+                    sliderFraction = sliderFraction,
+                    viewportWidthPx = viewportWidthPx,
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(12.dp)
-                        .testTag("compare_reference_label")
+                        .fillMaxHeight()
                 )
             }
-            if (sliderFraction < 1f) {
-                CompareLabelBadge(
-                    text = stringResource(R.string.compare_label_capture),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .testTag("compare_capture_label")
-                )
-            }
-
-            CompareDivider(
-                sliderFraction = sliderFraction,
-                viewportWidthPx = viewportWidthPx,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .fillMaxHeight()
-            )
         }
     }
 }

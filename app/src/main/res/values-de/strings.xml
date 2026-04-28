@@ -18,8 +18,8 @@
     <string name="compare_library_entry_label">Vergleiche</string>
     <string name="compare_screen_title">Vergleich</string>
     <string name="compare_back">Zurueck zur Kamera</string>
-    <string name="compare_label_reference">Referenz</string>
-    <string name="compare_label_capture">Aufnahme</string>
+    <string name="compare_label_reference">Overlay</string>
+    <string name="compare_label_capture">Shot</string>
     <string name="compare_slider_content_description">Vergleichsregler</string>
     <string name="compare_error_missing_images">Referenz und Aufnahme werden fuer den Vergleich benoetigt.</string>
     <string name="compare_error_load_failed">Vergleichsbilder konnten nicht geladen werden.</string>

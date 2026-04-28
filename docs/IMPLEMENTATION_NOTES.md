@@ -1,3 +1,5 @@
+# IMPLEMENTATION_NOTES.md
+
 ## Purpose
 This file supplements `CLAUDE_PROJECT_INSTRUCTION.md`.
 
@@ -19,26 +21,20 @@ Technical baseline:
 - Jetpack Compose
 - Material 3
 - MVVM + Hilt
-- CameraX preview + image capture
-- minSdk 29 / targetSdk 35 — Current implementation: minSdk is 26 (see `build.gradle.kts` and `CLAUDE_PROJECT_INSTRUCTION.md`, which is the source of truth)
+- CameraX preview
+- minSdk 26 / targetSdk 35
 
 Permissions:
 - CAMERA only
-
-Storage baseline:
-- Android 10 / API 29+ only
-- MediaStore saves rely on scoped-storage-era behavior for app-created images
-- No Android 8/9 legacy storage compatibility path
 
 ---
 
 ## Implemented Features
 
-### Camera / Capture
-- CameraX preview working reliably
+### Camera
+- CameraX Preview working reliably
 - Back camera only
-- Capture and save via MediaStore implemented
-- Capture lock is lifecycle-safe across rotation / recreation
+- Lifecycle-safe preview handling
 
 ### Permissions
 - Full permission flow implemented:
@@ -46,119 +42,85 @@ Storage baseline:
   - rationale
   - permanent denial → app settings
 
-### Reference Image / Overlay
+### Reference Image
 - Android Photo Picker integration
 - Single image selection
 - Overlay displayed above preview
 - Picker cancellation does NOT remove existing overlay
-- Overlay drag implemented
-- Overlay pinch scaling implemented
+
+### Overlay Rendering
+- Overlay displayed centered using AsyncImage
 - Opacity adjustable via slider (0.1–0.9)
 - Overlay state stored in ViewModel
-- Reset restores sensible default alignment state
-- Remove reference image supported with undo flow
-- Undo state survives rotation correctly
 
-### Comparison / Core Logic (Variant B)
+### Layout (IMPORTANT)
 
-- Comparison output is defined exclusively by Variant B bitmap normalization
-- `CenterCropNormalizer` is implemented
-- Capture bitmap is rotated before comparison normalization
-- Reference bitmap is EXIF-oriented before comparison normalization
-- Both images are normalized independently:
-  - center-crop to portrait 9:16
-  - scale to fixed output size
-- The resulting normalized capture/reference pair is the current deterministic comparison basis
-- Overlay position, overlay scale, viewport size, and preview-to-capture mapping do NOT define comparison output
+The layout has been refactored to:
 
-### Logging
-- Internal debug logging is explicitly allowed and expected during development
-- Logging must remain non-user-facing
-- Logging must not create live-mode UI output
-- Logging should remain compatible with release/debug controls
+- Fullscreen `Box` as root
+- Camera preview ALWAYS `fillMaxSize()`
+- UI is layered ABOVE the preview
 
-### Tests
-- Bitmap recycle behavior is covered in `CameraViewModelBitmapRecycleTest`
-- Current test focus follows active Variant B runtime behavior
+This ensures:
+- Preview size NEVER changes due to UI
+- Overlay scaling remains stable
 
-### Compare Screen
+### UI Structure
 
-`CompareScreen` is implemented as a fullscreen slider-based comparison screen.
-
-- Reachable from Camera Flow after a successful capture with a reference image
-- Reachable from Compare Library when opening a saved session
-- Reference image on the left, capture image on the right; single draggable vertical divider at 50%
-- Shows session timestamp below viewport when `timestamp` is provided
-- Shows delete button when `onDelete` is provided; deletes internal session only, not MediaStore photo
-- Instrumentation tests in `CompareScreenTest.kt` cover render, slider, rotation, timestamp, and delete
-
-### Compare Library
-
-`CompareLibraryScreen` is implemented as a 2-column grid listing saved compare sessions.
-
-- Tap on a tile opens `CompareScreen` with full session context (timestamp + delete)
-- Long press activates multi-select mode; multi-select delete confirmed via dialog
-
-### Session Storage
-
-`SessionStorage` writes each successful capture+reference pair to `filesDir/sessions/<sessionId>/`.
-
-- Each session contains `capture.jpg`, `reference.jpg`, `metadata.json`
-- `SavedSessionRef(sessionId, timestamp)` is returned on success; `null` on failure
-- `SessionScanner` reads and validates sessions from the sessions root directory
-- `SessionDeleter` removes a session folder; validates session ID to prevent path traversal; unit tests in `SessionDeleterTest.kt`
-
-### CompareInput Session Context
-
-`CompareInput` contains optional `sessionId: String?` and `timestamp: Long?` in addition to the two URIs.
-These are populated by `onCaptureSaved(savedUri, sessionRef)` when a session was successfully written.
-`MainActivity` passes `sessionId` and `timestamp` to `compareRoute` when both are present,
-making Camera Flow and Library Flow consistent in what they provide to `CompareScreen`.
-
-### Current Test Status (2026-04-27)
-
-34 unit tests, all green (`testDebugUnitTest`). Notable additions:
-
-- `compareInput_sessionIdAndTimestampAreNullWhenNoSessionRef`
-- `compareInput_hasSessionIdAndTimestampWhenSessionRefProvided`
+- Bottom UI is an overlay (not part of layout flow)
+- Portrait:
+  - stacked controls (opacity + bottom bar)
+- Landscape:
+  - compact single-row controls (reference + opacity)
 
 ---
 
-## Product Decision: Comparison Output (CRITICAL)
+## UI Design Principles (IMPORTANT)
 
-GhostShot currently promises:
-1. A saved full camera image
-2. A deterministic comparison pair derived from the capture and the selected reference
+- The preview is the primary content → must stay dominant
+- UI must NOT resize or affect preview geometry
+- UI is always an overlay layer
+- Use dark semi-transparent surfaces (camera app pattern)
+- Use a single accent color across the app
+- Avoid visual clutter
 
-### Final decision
-Comparison output follows **Variant B only**:
-
-- Capture bitmap is rotated correctly
-- Reference bitmap is EXIF-oriented correctly
-- Both images are center-cropped independently to portrait 9:16
-- Both images are scaled to one fixed target size
-- These two normalized bitmaps are the comparison basis
-
-Important:
-- The overlay is a visual aid only
-- The overlay does NOT define comparison output
-- Geometry-based comparison logic is not part of the current product model
+Color rules:
+- Background overlays: black with alpha (~60–70%)
+- Primary text: white
+- Secondary text: light gray
+- Accent color: single consistent color (e.g. blue)
 
 ---
 
 ## Not Implemented Yet
 
-- Any user-facing comparison viewer / before-after slider output
-- Session-based storage for capture + reference image pairs
-- Any persistence model for derived comparison metadata
-- Any export flow beyond the currently saved image(s)
+- Overlay drag (move)
+- Overlay pinch scaling
+- Camera zoom mode
+- Reset functionality
+- Overlay delete (with confirmation)
+- Grid overlay
+- Capture / save via MediaStore
+- Any persistence across app restarts
 
-Updated (2026-04-27):
+---
 
-- Comparison viewer: Implemented — `CompareScreen` provides a fullscreen slider-based before/after comparison.
-- Session-based storage: Implemented — `SessionStorage` writes `capture.jpg` + `reference.jpg` + `metadata.json` to `filesDir/sessions/<sessionId>/`.
-- Persistence model for comparison metadata: Implemented — `metadata.json` stores `sessionTimestampMs`, capture MediaStore URI, reference picker URI, and schema version. `SessionScanner` reads and validates these files.
-- Export flow: Still not implemented. Remains out of scope.
+## Immediate Next Step
+
+Next implementation step:
+
+- Enable dragging (move) of the overlay
+
+Scope:
+- One-finger drag moves overlay
+- Position stored in ViewModel
+- State survives rotation within same session
+
+Not part of this step:
+- No scaling
+- No zoom mode
+- No reset/delete
+- No capture
 
 ---
 
@@ -172,7 +134,110 @@ Updated (2026-04-27):
 - Keep changes minimal
 - No refactoring outside scope
 
+### UI discipline
+- No layout that resizes preview
+- No hardcoded colors
+- Use central color definitions
+
+### State
+- ViewModel is source of truth
+- No UI-only state for core behavior
+
 ### Testability
-- Active logic must stay testable and deterministic
-- No UI dependency in core logic
-- Do not preserve dead tests only to protect obsolete architecture
+- Keep logic testable
+- Do not introduce complex UI logic in Composables
+
+---
+
+## Notes
+
+The project has reached a stable UI baseline.
+
+Further work must:
+- build on top of the current overlay-based layout
+- avoid breaking preview stability
+- maintain clear separation between UI and logic
+
+---
+
+## Current Implementation Addendum (2026-04-28)
+
+### Implemented Since Previous Notes
+
+Compare flow:
+- `CompareScreen` is implemented as a fullscreen slider-based before/after comparison screen
+- `CompareLibraryScreen` is implemented as a focused internal session overview
+- `SessionStorage` writes `capture.jpg`, `reference.jpg`, and `metadata.json` under `filesDir/sessions/<sessionId>/`
+- `SessionScanner` reads saved sessions
+- `SessionDeleter` deletes only internal session folders and validates session IDs against path traversal
+- `CompareInput` includes optional `sessionId` and `timestamp`
+- Camera Flow and Library Flow both pass session context to `CompareScreen` when available
+
+Comparison logic:
+- Current comparison output follows Variant B only
+- Capture bitmap is rotated before comparison normalization
+- Reference bitmap is EXIF-oriented before comparison normalization
+- Both images are independently center-cropped to portrait 9:16 and scaled to one fixed target size
+- Overlay position, overlay scale, viewport size, and preview-to-capture mapping do not define comparison output
+
+Camera / overlay:
+- Capture and save via MediaStore are implemented
+- Overlay drag is implemented
+- Overlay pinch scaling is implemented
+- Reset restores sensible default alignment state
+- Remove reference image is supported with undo flow
+- Undo state survives rotation correctly
+
+Logging:
+- Internal debug logging is allowed and expected during development
+- Logging must stay non-user-facing and compatible with release/debug controls
+
+### Camera Screen Controls: Current Decision
+
+Portrait:
+- Current portrait layout works correctly
+- Slider sits above the bottom controls
+- Portrait must not be touched by the current landscape-control fix
+
+Landscape:
+- Capture is already fixed at bottom center and must remain exactly centered
+- Overlay button is left of capture
+- Shots / Compare entry is right of capture
+- Final target structure is a bottom button row: `Overlay` / `Capture` / `Shots`
+- Opacity slider sits in a separate row above the button row
+- Slider is centered above capture
+- Slider width is constrained by the visible button-group width
+- Slider must not be placed to the right of Shots / Compare
+- Slider must not use remaining-space calculations
+- Old right-side / fallback slider logic must not be reused
+- Overlay action menu opens from Overlay, remains inside root bounds, and may overlap the slider
+
+### Immediate Next Step (2026-04-28)
+
+Fix only the landscape camera-control layout.
+
+Scope:
+- Keep capture bottom-centered
+- Arrange landscape bottom controls as `Overlay` / `Capture` / `Shots`
+- Move landscape opacity slider into a centered row above the buttons
+- Constrain slider width to the button-group width
+- Keep overlay action menu above the slider when overlapping
+- Add or adjust focused tests for this landscape behavior
+
+Not part of this step:
+- No portrait changes
+- No `CompareScreen` changes
+- No Variant B changes
+- No session storage changes
+- No visual redesign beyond the landscape-control structure
+- No refactoring of unrelated `CameraScreen` code
+
+### Tests To Consider For The Current Landscape Fix
+
+- Capture is horizontally centered in landscape
+- Overlay and Shots / Compare are symmetrically positioned around capture
+- Slider is centered above capture
+- Slider is above the button row
+- Slider width is less than or equal to the button-group width
+- Slider remains inside root bounds
+- Overlay menu remains visible and visually above the slider when overlapping

@@ -2,6 +2,7 @@ package com.isardomains.ghostshot.ui.camera
 
 import android.net.Uri
 import android.os.Build
+import android.content.pm.ActivityInfo
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -112,6 +113,9 @@ class CameraControlsOverlayTest {
     fun opacitySlider_inLandscape_isConstrainedAndDoesNotOverlapBottomControls() {
         setControlsContent(referenceUri = Uri.parse("content://ghostshot/test-reference"), isLandscape = true)
 
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
         val sliderBounds = composeRule
             .onNodeWithContentDescription(opacityDescription())
             .getUnclippedBoundsInRoot()
@@ -121,11 +125,140 @@ class CameraControlsOverlayTest {
         val captureBounds = composeRule
             .onNodeWithContentDescription(captureDescription())
             .getUnclippedBoundsInRoot()
+        val buttonGroupWidth = captureBounds.right - referenceBounds.left
 
-        assert(sliderBounds.right - sliderBounds.left < 360.dp)
-        assert(sliderBounds.left > referenceBounds.right)
-        assert(sliderBounds.left > captureBounds.right)
-        assertCenterYWithin(sliderBounds, captureBounds, 48.dp)
+        assertCenterXWithin(sliderBounds, captureBounds, 1.dp)
+        assert(sliderBounds.right - sliderBounds.left <= buttonGroupWidth)
+        assert(sliderBounds.left >= rootBounds.left)
+        assert(sliderBounds.right <= rootBounds.right)
+        assertNoOverlap(sliderBounds, referenceBounds)
+        assertNoOverlap(sliderBounds, captureBounds)
+    }
+
+    @Test
+    fun captureButton_inLandscape_staysHorizontallyCenteredWithReferenceCompareAndSlider() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = true,
+            hasSavedSessions = true
+        )
+
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
+        val captureBounds = composeRule
+            .onNodeWithContentDescription(captureDescription())
+            .getUnclippedBoundsInRoot()
+
+        val rootCenterX = rootBounds.left + (rootBounds.right - rootBounds.left) / 2f
+        val captureCenterX = captureBounds.left + (captureBounds.right - captureBounds.left) / 2f
+        val delta = if (captureCenterX > rootCenterX) {
+            captureCenterX - rootCenterX
+        } else {
+            rootCenterX - captureCenterX
+        }
+
+        assert(delta <= 1.dp)
+    }
+
+    @Test
+    fun referenceAction_inLandscape_keepsMinimumWidth() {
+        setLandscapeControlsContent()
+
+        val referenceSlotBounds = composeRule
+            .onNodeWithTag("reference_action_slot")
+            .getUnclippedBoundsInRoot()
+        val referenceActionBounds = composeRule
+            .onNodeWithTag("reference_action", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+
+        assert(referenceSlotBounds.right - referenceSlotBounds.left >= 96.dp)
+        assert(referenceActionBounds.right - referenceActionBounds.left >= 96.dp)
+    }
+
+    @Test
+    fun bottomButtons_inLandscape_stayCompactAroundCapture() {
+        setLandscapeControlsContent()
+
+        val referenceBounds = composeRule
+            .onNodeWithContentDescription(referenceDescription())
+            .getUnclippedBoundsInRoot()
+        val captureBounds = composeRule
+            .onNodeWithContentDescription(captureDescription())
+            .getUnclippedBoundsInRoot()
+        val compareBounds = composeRule
+            .onNodeWithTag("compare_images_entry")
+            .getUnclippedBoundsInRoot()
+
+        val leftGap = captureBounds.left - referenceBounds.right
+        val rightGap = compareBounds.left - captureBounds.right
+        val gapDelta = if (leftGap > rightGap) leftGap - rightGap else rightGap - leftGap
+
+        assert(referenceBounds.right < captureBounds.left)
+        assert(compareBounds.left > captureBounds.right)
+        assert(leftGap in 8.dp..64.dp)
+        assert(rightGap in 8.dp..64.dp)
+        assert(gapDelta <= 24.dp)
+    }
+
+    @Test
+    fun opacitySlider_inLandscape_isCenteredAboveButtonGroupWithCompare() {
+        setLandscapeControlsContent()
+
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
+        val referenceBounds = composeRule
+            .onNodeWithContentDescription(referenceDescription())
+            .getUnclippedBoundsInRoot()
+        val captureBounds = composeRule
+            .onNodeWithContentDescription(captureDescription())
+            .getUnclippedBoundsInRoot()
+        val compareBounds = composeRule
+            .onNodeWithTag("compare_images_entry")
+            .getUnclippedBoundsInRoot()
+        val sliderBounds = composeRule
+            .onNodeWithContentDescription(opacityDescription())
+            .getUnclippedBoundsInRoot()
+        val buttonGroupWidth = compareBounds.right - referenceBounds.left
+
+        assertCenterXWithin(sliderBounds, captureBounds, 1.dp)
+        assert(sliderBounds.right - sliderBounds.left <= buttonGroupWidth)
+        assert(sliderBounds.left >= rootBounds.left)
+        assert(sliderBounds.right <= rootBounds.right)
+        assertNoOverlap(sliderBounds, captureBounds)
+        assertNoOverlap(sliderBounds, referenceBounds)
+        assertNoOverlap(sliderBounds, compareBounds)
+    }
+
+    @Test
+    fun opacitySlider_inLandscape_keepsUsableWidthWithinButtonGroup() {
+        setLandscapeControlsContent()
+
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
+        val referenceBounds = composeRule
+            .onNodeWithContentDescription(referenceDescription())
+            .getUnclippedBoundsInRoot()
+        val captureBounds = composeRule
+            .onNodeWithContentDescription(captureDescription())
+            .getUnclippedBoundsInRoot()
+        val compareBounds = composeRule
+            .onNodeWithTag("compare_images_entry")
+            .getUnclippedBoundsInRoot()
+        val sliderBounds = composeRule
+            .onNodeWithContentDescription(opacityDescription())
+            .getUnclippedBoundsInRoot()
+        val buttonGroupWidth = compareBounds.right - referenceBounds.left
+
+        assert(sliderBounds.right - sliderBounds.left >= 180.dp)
+        assert(sliderBounds.right - sliderBounds.left <= buttonGroupWidth)
+        assert(sliderBounds.left >= rootBounds.left)
+        assert(sliderBounds.right <= rootBounds.right)
+        assertNoOverlap(sliderBounds, captureBounds)
+        assertNoOverlap(sliderBounds, referenceBounds)
+        assertNoOverlap(sliderBounds, compareBounds)
     }
 
     @Test
@@ -142,7 +275,7 @@ class CameraControlsOverlayTest {
             .onNodeWithContentDescription(captureDescription())
             .getUnclippedBoundsInRoot()
 
-        assert(captureBounds.left - referenceBounds.right > 24.dp)
+        assert(captureBounds.left - referenceBounds.right > 8.dp)
         assertCenterYWithin(referenceZoneBounds, captureBounds, 12.dp)
 
         scenario?.close()
@@ -159,7 +292,7 @@ class CameraControlsOverlayTest {
             .onNodeWithContentDescription(captureDescription())
             .getUnclippedBoundsInRoot()
 
-        assert(captureBounds.left - referenceBounds.right > 24.dp)
+        assert(captureBounds.left - referenceBounds.right > 8.dp)
         assertCenterYWithin(referenceZoneBounds, captureBounds, 12.dp)
     }
 
@@ -239,7 +372,7 @@ class CameraControlsOverlayTest {
 
     @Test
     fun menuInLandscape_opensAboveReferenceAndDoesNotOverlapCapture() {
-        setControlsContent(referenceUri = Uri.parse("content://ghostshot/test-reference"), isLandscape = true)
+        setLandscapeControlsContent()
 
         openReferenceMenu()
 
@@ -252,9 +385,14 @@ class CameraControlsOverlayTest {
         val captureBounds = composeRule
             .onNodeWithContentDescription(captureDescription())
             .getUnclippedBoundsInRoot()
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
 
         assertMenuAboveReference(menuBounds, referenceBounds)
         assertNoOverlap(menuBounds, captureBounds)
+        assert(menuBounds.left >= rootBounds.left)
+        assert(menuBounds.right <= rootBounds.right)
     }
 
     @Test
@@ -352,13 +490,16 @@ class CameraControlsOverlayTest {
 
     @Test
     fun slider_visibleWhenMenuOpen_inLandscape() {
-        setControlsContent(referenceUri = Uri.parse("content://ghostshot/test-reference"), isLandscape = true)
+        setLandscapeControlsContent()
 
         openReferenceMenu()
 
         composeRule.onNodeWithContentDescription(opacityDescription()).assertIsDisplayed()
         val sliderBounds = composeRule
             .onNodeWithContentDescription(opacityDescription())
+            .getUnclippedBoundsInRoot()
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
             .getUnclippedBoundsInRoot()
         val menuBounds = composeRule
             .onNodeWithTag("reference_action_menu")
@@ -370,7 +511,11 @@ class CameraControlsOverlayTest {
             .onNodeWithContentDescription(captureDescription())
             .getUnclippedBoundsInRoot()
 
-        assertNoOverlap(sliderBounds, menuBounds)
+        assertCenterXWithin(sliderBounds, captureBounds, 1.dp)
+        assert(sliderBounds.left >= rootBounds.left)
+        assert(sliderBounds.right <= rootBounds.right)
+        assert(menuBounds.left >= rootBounds.left)
+        assert(menuBounds.right <= rootBounds.right)
         assertNoOverlap(sliderBounds, referenceBounds)
         assertNoOverlap(sliderBounds, captureBounds)
     }
@@ -863,6 +1008,111 @@ class CameraControlsOverlayTest {
         composeRule.onNodeWithText(captureCompareActionText()).assertIsDisplayed()
     }
 
+    @Test
+    fun compareEntry_inLandscape_isInBottomZone() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = true,
+            hasSavedSessions = true
+        )
+
+        val compareEntryBounds = composeRule
+            .onNodeWithTag("compare_images_entry")
+            .getUnclippedBoundsInRoot()
+        val captureBounds = composeRule
+            .onNodeWithContentDescription(captureDescription())
+            .getUnclippedBoundsInRoot()
+        val referenceZoneBounds = composeRule
+            .onNodeWithTag("reference_action_slot")
+            .getUnclippedBoundsInRoot()
+
+        assertCenterYWithin(compareEntryBounds, captureBounds, 80.dp)
+        assertNoOverlap(compareEntryBounds, captureBounds)
+        assertNoOverlap(compareEntryBounds, referenceZoneBounds)
+    }
+
+    @Test
+    fun compareEntry_doesNotOverlapControls() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = true,
+            hasSavedSessions = true
+        )
+
+        val compareEntryBounds = composeRule
+            .onNodeWithTag("compare_images_entry")
+            .getUnclippedBoundsInRoot()
+        val captureBounds = composeRule
+            .onNodeWithContentDescription(captureDescription())
+            .getUnclippedBoundsInRoot()
+        val referenceBounds = composeRule
+            .onNodeWithContentDescription(referenceDescription())
+            .getUnclippedBoundsInRoot()
+        val sliderBounds = composeRule
+            .onNodeWithContentDescription(opacityDescription())
+            .getUnclippedBoundsInRoot()
+
+        assertNoOverlap(compareEntryBounds, captureBounds)
+        assertNoOverlap(compareEntryBounds, referenceBounds)
+        assertNoOverlap(compareEntryBounds, sliderBounds)
+    }
+
+    @Test
+    fun compareEntry_inLandscape_doesNotOverlapSnackbar() {
+        val snackbarMessage = captureSavedText()
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        CameraControlsOverlay(
+                            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+                            hasSavedSessions = true,
+                            alpha = 0.5f,
+                            onAlphaChange = {},
+                            onSelectReferenceImage = {},
+                            onResetOverlay = {},
+                            onRemoveReferenceImage = {},
+                            onCapture = {},
+                            isLandscape = true,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        val snackbarHostState = remember { SnackbarHostState() }
+                        LaunchedEffect(Unit) {
+                            snackbarHostState.showSnackbar(
+                                message = snackbarMessage,
+                                duration = SnackbarDuration.Indefinite
+                            )
+                        }
+                        CameraSnackbarHost(
+                            hostState = snackbarHostState,
+                            isLandscape = true,
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText(snackbarMessage).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        val snackbarBounds = composeRule
+            .onNodeWithTag("camera_snackbar_host")
+            .getUnclippedBoundsInRoot()
+        val compareEntryBounds = composeRule
+            .onNodeWithTag("compare_images_entry")
+            .getUnclippedBoundsInRoot()
+
+        assertNoOverlap(snackbarBounds, compareEntryBounds)
+    }
+
     private fun assertMenuHidden() {
         composeRule.onAllNodesWithContentDescription(resetDescription()).assertCountEquals(0)
         composeRule.onAllNodesWithContentDescription(displayModeDescription()).assertCountEquals(0)
@@ -886,6 +1136,17 @@ class CameraControlsOverlayTest {
     private fun assertCenterYWithin(first: DpRect, second: DpRect, tolerance: Dp) {
         val firstCenter = first.top + (first.bottom - first.top) / 2f
         val secondCenter = second.top + (second.bottom - second.top) / 2f
+        val delta = if (firstCenter > secondCenter) {
+            firstCenter - secondCenter
+        } else {
+            secondCenter - firstCenter
+        }
+        assert(delta <= tolerance)
+    }
+
+    private fun assertCenterXWithin(first: DpRect, second: DpRect, tolerance: Dp) {
+        val firstCenter = first.left + (first.right - first.left) / 2f
+        val secondCenter = second.left + (second.right - second.left) / 2f
         val delta = if (firstCenter > secondCenter) {
             firstCenter - secondCenter
         } else {
@@ -1092,10 +1353,46 @@ class CameraControlsOverlayTest {
         }
     }
 
+    private fun setLandscapeControlsContent() {
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                GhostShotTheme {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        CameraControlsOverlay(
+                            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+                            hasSavedSessions = true,
+                            alpha = 0.5f,
+                            onAlphaChange = {},
+                            onSelectReferenceImage = {},
+                            onResetOverlay = {},
+                            onRemoveReferenceImage = {},
+                            onCapture = {},
+                            isLandscape = true,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
     private fun setControlsContent(
         referenceUri: Uri?,
         isLandscape: Boolean,
         hasViewportMismatch: Boolean = false,
+        hasSavedSessions: Boolean = false,
         onSelectReferenceImage: () -> Unit = {},
         onResetOverlay: () -> Unit = {},
         onRemoveReferenceImage: () -> Unit = {},
@@ -1114,6 +1411,7 @@ class CameraControlsOverlayTest {
                 GhostShotTheme {
                     CameraControlsOverlay(
                         referenceUri = referenceUri,
+                        hasSavedSessions = hasSavedSessions,
                         alpha = 0.5f,
                         onAlphaChange = {},
                         onSelectReferenceImage = onSelectReferenceImage,
