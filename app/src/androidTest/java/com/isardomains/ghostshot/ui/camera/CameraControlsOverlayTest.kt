@@ -781,6 +781,7 @@ class CameraControlsOverlayTest {
                         CameraSnackbarHost(
                             hostState = snackbarHostState,
                             isLandscape = false,
+                            hasOverlay = true,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
@@ -1093,6 +1094,7 @@ class CameraControlsOverlayTest {
                         CameraSnackbarHost(
                             hostState = snackbarHostState,
                             isLandscape = true,
+                            hasOverlay = true,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
@@ -1199,6 +1201,7 @@ class CameraControlsOverlayTest {
                         CameraSnackbarHost(
                             hostState = snackbarHostState,
                             isLandscape = false,
+                            hasOverlay = referenceUri != null,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
@@ -1290,6 +1293,7 @@ class CameraControlsOverlayTest {
             CameraSnackbarHost(
                 hostState = snackbarHostState,
                 isLandscape = false,
+                hasOverlay = false,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
             Box(modifier = Modifier.testTag("undo_snackbar_recompose_$nonce"))
@@ -1348,6 +1352,7 @@ class CameraControlsOverlayTest {
             CameraSnackbarHost(
                 hostState = snackbarHostState,
                 isLandscape = false,
+                hasOverlay = false,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

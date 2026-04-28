@@ -440,6 +440,7 @@ fun CameraScreen(
                 CameraSnackbarHost(
                     hostState = snackbarHostState,
                     isLandscape = isLandscape,
+                    hasOverlay = uiState.referenceImageUri != null,
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
 
@@ -643,13 +644,15 @@ private fun CompareReferenceImage(
 internal fun CameraSnackbarHost(
     hostState: SnackbarHostState,
     isLandscape: Boolean,
+    hasOverlay: Boolean,
     modifier: Modifier = Modifier
 ) {
     SnackbarHost(
         hostState = hostState,
         modifier = modifier
             .navigationBarsPadding()
-            .padding(bottom = cameraSnackbarBottomPadding(isLandscape))
+            .widthIn(max = CameraOpacitySliderLandscapeMaxWidth)
+            .padding(bottom = cameraSnackbarBottomPadding(isLandscape, hasOverlay))
             .testTag("camera_snackbar_host"),
         snackbar = { data -> Snackbar(snackbarData = data) }
     )
@@ -735,11 +738,13 @@ internal fun CaptureSuccessSnackbarEffect(
 private fun cameraBottomPadding(isLandscape: Boolean): Dp =
     if (isLandscape) 18.dp else 24.dp
 
-private fun cameraSnackbarBottomPadding(isLandscape: Boolean): Dp =
+internal fun cameraSnackbarBottomPadding(isLandscape: Boolean, hasOverlay: Boolean): Dp =
     if (isLandscape)
         cameraBottomPadding(true) + CameraShutterButtonSize + CameraBottomControlGap
-    else
+    else if (hasOverlay)
         CameraOpacitySliderPortraitBottom + CameraOpacitySliderHeight + 8.dp
+    else
+        cameraBottomPadding(false) + CameraShutterButtonSize + CameraBottomControlGap
 
 /**
  * Camera-style controls layered over the fullscreen preview.
