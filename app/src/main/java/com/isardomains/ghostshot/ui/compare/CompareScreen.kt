@@ -65,13 +65,14 @@ import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.ghostshot.R
+import com.isardomains.ghostshot.ui.theme.GhostShotAccent
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
 
 private const val InitialSliderFraction = 0.5f
 private val CompareSliderTouchWidth = 48.dp
-private val CompareSliderHandleSize = 28.dp
+private val CompareSliderHandleSize = 32.dp
 
 /**
  * Fullscreen compare screen for the V1 slider compare flow.
@@ -491,11 +492,19 @@ private fun CompareDivider(
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(CompareSliderHandleSize)
+                .shadow(3.dp, CircleShape)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                .shadow(3.dp, CircleShape)
-                .testTag("compare_divider_handle")
-        )
+                .testTag("compare_divider_handle"),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(GhostShotAccent)
+            )
+        }
     }
 }
 
