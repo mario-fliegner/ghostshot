@@ -55,6 +55,9 @@ android {
                 }
             }
         }
+        unitTests {
+            isReturnDefaultValues = true
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -62,6 +65,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

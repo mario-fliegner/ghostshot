@@ -12,6 +12,7 @@ import androidx.annotation.StringRes
 import android.media.ExifInterface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.core.image.CenterCropNormalizer
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -220,6 +221,7 @@ class CameraViewModel @Inject constructor(
         const val MAX_SCALE = 3.0f
 
         private const val DEBUG_TAG = "ComparisonCropDebug"
+        private const val LOG_TAG = "GhostShot"
     }
 
     /**
@@ -231,6 +233,7 @@ class CameraViewModel @Inject constructor(
      * @param uri The URI returned by the system photo picker, or null if dismissed.
      */
     private fun clearUndoState() {
+        if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Undo expired") }
         undoSnapshot = null
         undoTimeoutJob = null
         _uiState.update { it.copy(canUndoReferenceRemoval = false, undoExpiresAtMillis = 0L) }
@@ -276,6 +279,7 @@ class CameraViewModel @Inject constructor(
                     compareInput = null
                 )
             }
+            if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Overlay loaded") }
             if (hadUndo) {
                 _uiEvent.emit(UiEvent.UndoInvalidated)
             }
@@ -323,6 +327,7 @@ class CameraViewModel @Inject constructor(
             )
         }
         if (hasReference) {
+            if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Overlay removed") }
             undoTimeoutJob = viewModelScope.launch {
                 delay(UNDO_TIMEOUT_MS)
                 clearUndoState()
@@ -356,6 +361,7 @@ class CameraViewModel @Inject constructor(
                 undoExpiresAtMillis = 0L
             )
         }
+        if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Undo triggered") }
     }
 
     fun onReferenceViewportChanged(width: Int, height: Int) {
@@ -474,6 +480,7 @@ class CameraViewModel @Inject constructor(
                     current.copy(isCaptureInProgress = true, compareInput = null)
                 )
             ) {
+                if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture started") }
                 return true
             }
         }
@@ -607,6 +614,7 @@ class CameraViewModel @Inject constructor(
     }
 
     internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null) {
+        if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture completed") }
         val referenceUri = _uiState.value.referenceImageUri
         _uiState.update { current ->
             current.copy(

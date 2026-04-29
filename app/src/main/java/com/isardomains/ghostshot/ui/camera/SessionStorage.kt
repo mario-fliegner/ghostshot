@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
 import android.util.Log
+import com.isardomains.ghostshot.BuildConfig
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -82,7 +83,7 @@ internal object SessionStorage {
             writeCapture(capturedBitmap, sessionDir)
             writeReference(context, referenceUri, exifOrientation, sessionDir)
             writeMetadata(sessionDir, sessionTimestampMs, captureMediaStoreUri, referencePickerUri)
-            Log.d(TAG, "Session saved: $sessionDir")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session saved") }
             return SavedSessionRef(sessionId = sessionDir.name, timestamp = sessionTimestampMs)
         } catch (e: Exception) {
             Log.w(TAG, "Session save failed, removing partial session: ${e.message}")

@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -108,6 +109,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import coil.compose.AsyncImage
+import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotOverlayScrim
 import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
@@ -116,6 +118,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
 
+private const val TAG = "GhostShot"
 private val CameraShutterButtonSize = 96.dp
 private val CameraSecondaryActionMinWidth = 96.dp
 private val CameraBottomControlGap = 16.dp
@@ -233,6 +236,7 @@ fun CameraScreen(
             val hasSavedSessions = uiState.savedSessions.isNotEmpty()
             val onCompareClick: () -> Unit = {
                 if (compareInput != null) {
+                    if (BuildConfig.DEBUG) { Log.d(TAG, "Compare opened") }
                     onCompareImages(compareInput)
                 } else if (hasSavedSessions) {
                     onOpenCompareLibrary()
