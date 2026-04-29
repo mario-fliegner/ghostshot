@@ -259,6 +259,7 @@ fun CameraScreen(
             ReferenceRemovalUndoSnackbarEffect(
                 canUndoReferenceRemoval = uiState.canUndoReferenceRemoval,
                 undoGeneration = uiState.referenceRemovalUndoGeneration,
+                undoExpiresAtMillis = uiState.undoExpiresAtMillis,
                 hostState = snackbarHostState,
                 message = removeSnackbarMessage,
                 actionLabel = removeSnackbarUndo,
@@ -662,21 +663,29 @@ internal fun CameraSnackbarHost(
 internal fun ReferenceRemovalUndoSnackbarEffect(
     canUndoReferenceRemoval: Boolean,
     undoGeneration: Long,
+    undoExpiresAtMillis: Long,
     hostState: SnackbarHostState,
     message: String,
     actionLabel: String,
     onUndo: () -> Unit
 ) {
-    LaunchedEffect(canUndoReferenceRemoval, undoGeneration) {
+    LaunchedEffect(canUndoReferenceRemoval, undoGeneration, undoExpiresAtMillis) {
         if (canUndoReferenceRemoval) {
-            hostState.currentSnackbarData?.dismiss()
-            val result = hostState.showSnackbar(
-                message = message,
-                actionLabel = actionLabel,
-                duration = SnackbarDuration.Short
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                onUndo()
+            val remaining = undoExpiresAtMillis - System.currentTimeMillis()
+            if (remaining > 0) {
+                hostState.currentSnackbarData?.dismiss()
+                launch {
+                    val result = hostState.showSnackbar(
+                        message = message,
+                        actionLabel = actionLabel,
+                        duration = SnackbarDuration.Indefinite
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        onUndo()
+                    }
+                }
+                delay(remaining)
+                hostState.currentSnackbarData?.dismiss()
             }
         }
     }

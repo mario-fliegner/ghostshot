@@ -229,6 +229,7 @@ class CompareNavigationTest {
                 CameraSnackbarHost(
                     hostState = snackbarHostState,
                     isLandscape = false,
+                    hasOverlay = false,
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }

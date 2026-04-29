@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -37,6 +38,8 @@ import kotlin.math.abs
  * Maps reference image proportions to one of two well-supported CameraX sensor ratios.
  * Orientation (portrait vs landscape) is determined by the device at render time, not stored here.
  */
+private const val UNDO_TIMEOUT_MS = 2500L
+
 enum class TargetAspectRatio { RATIO_4_3, RATIO_16_9 }
 
 /**
@@ -93,6 +96,7 @@ data class CameraUiState(
     val isCaptureInProgress: Boolean = false,
     val canUndoReferenceRemoval: Boolean = false,
     val referenceRemovalUndoGeneration: Long = 0L,
+    val undoExpiresAtMillis: Long = 0L,
     val captureSuccessGeneration: Long = 0L,
     val captureSuccessHadReference: Boolean = false,
     val compareInput: CompareInput? = null,
@@ -176,6 +180,8 @@ class CameraViewModel @Inject constructor(
 
     private var displayModeChangedByUser = false
     private var undoSnapshot: ReferenceUndoSnapshot? = null
+    private var undoTimeoutJob: Job? = null
+    private val clock: () -> Long = { System.currentTimeMillis() }
     private var referenceImageSelectionJob: Job? = null
     private var referenceImageSelectionRequestId = 0L
 
@@ -224,8 +230,16 @@ class CameraViewModel @Inject constructor(
      *
      * @param uri The URI returned by the system photo picker, or null if dismissed.
      */
+    private fun clearUndoState() {
+        undoSnapshot = null
+        undoTimeoutJob = null
+        _uiState.update { it.copy(canUndoReferenceRemoval = false, undoExpiresAtMillis = 0L) }
+    }
+
     fun onReferenceImageSelected(uri: Uri?) {
         if (uri == null) return
+        undoTimeoutJob?.cancel()
+        undoTimeoutJob = null
         referenceImageSelectionJob?.cancel()
         val requestId = ++referenceImageSelectionRequestId
         referenceImageSelectionJob = viewModelScope.launch {
@@ -258,6 +272,7 @@ class CameraViewModel @Inject constructor(
                     overlayOffsetY = if (formatChanged) 0f else current.overlayOffsetY,
                     overlayScale = if (formatChanged) 1f else current.overlayScale,
                     canUndoReferenceRemoval = false,
+                    undoExpiresAtMillis = 0L,
                     compareInput = null
                 )
             }
@@ -286,6 +301,8 @@ class CameraViewModel @Inject constructor(
         referenceImageSelectionJob = null
         referenceImageSelectionRequestId++
         displayModeChangedByUser = false
+        undoTimeoutJob?.cancel()
+        val expiresAt = if (hasReference) clock() + UNDO_TIMEOUT_MS else 0L
         _uiState.update {
             it.copy(
                 referenceImageUri = null,
@@ -301,8 +318,15 @@ class CameraViewModel @Inject constructor(
                     it.referenceRemovalUndoGeneration + 1L
                 } else {
                     it.referenceRemovalUndoGeneration
-                }
+                },
+                undoExpiresAtMillis = if (hasReference) expiresAt else it.undoExpiresAtMillis
             )
+        }
+        if (hasReference) {
+            undoTimeoutJob = viewModelScope.launch {
+                delay(UNDO_TIMEOUT_MS)
+                clearUndoState()
+            }
         }
     }
 
@@ -311,6 +335,8 @@ class CameraViewModel @Inject constructor(
             _uiState.update { it.copy(canUndoReferenceRemoval = false) }
             return
         }
+        undoTimeoutJob?.cancel()
+        undoTimeoutJob = null
         undoSnapshot = null
         displayModeChangedByUser = snapshot.displayModeChangedByUser
         _uiState.update { current ->
@@ -326,7 +352,8 @@ class CameraViewModel @Inject constructor(
                 overlayOffsetY = snapshot.overlayOffsetY,
                 overlayScale = snapshot.overlayScale,
                 overlayAlpha = snapshot.overlayAlpha,
-                canUndoReferenceRemoval = false
+                canUndoReferenceRemoval = false,
+                undoExpiresAtMillis = 0L
             )
         }
     }

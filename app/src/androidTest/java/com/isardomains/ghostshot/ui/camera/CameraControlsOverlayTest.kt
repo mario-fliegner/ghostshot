@@ -928,11 +928,12 @@ class CameraControlsOverlayTest {
     }
 
     @Test
-    fun undoSnackbar_reappearsAfterContentRecreation_whenUndoStateStillAvailable() {
-        setUndoSnackbarContent(canUndoReferenceRemoval = true, undoGeneration = 1L)
+    fun undoSnackbar_showsRemainingDurationAfterRecreation_whenNotExpired() {
+        val expiresAt = System.currentTimeMillis() + 30_000L
+        setUndoSnackbarContent(canUndoReferenceRemoval = true, undoGeneration = 1L, undoExpiresAtMillis = expiresAt)
         composeRule.onNodeWithText(referenceRemovedSnackbar()).assertIsDisplayed()
 
-        setUndoSnackbarContent(canUndoReferenceRemoval = true, undoGeneration = 1L, reuseScenario = true)
+        setUndoSnackbarContent(canUndoReferenceRemoval = true, undoGeneration = 1L, undoExpiresAtMillis = expiresAt, reuseScenario = true)
 
         composeRule.onNodeWithText(referenceRemovedSnackbar()).assertIsDisplayed()
         composeRule.onNodeWithText(referenceRemovedUndo()).assertIsDisplayed()
@@ -988,6 +989,18 @@ class CameraControlsOverlayTest {
     @Test
     fun undoSnackbar_doesNotShowWhenUndoUnavailable() {
         setUndoSnackbarContent(canUndoReferenceRemoval = false, undoGeneration = 0L)
+
+        composeRule.onAllNodesWithText(referenceRemovedSnackbar()).assertCountEquals(0)
+        composeRule.onAllNodesWithText(referenceRemovedUndo()).assertCountEquals(0)
+    }
+
+    @Test
+    fun undoSnackbar_doesNotShowWhenExpired() {
+        setUndoSnackbarContent(
+            canUndoReferenceRemoval = true,
+            undoGeneration = 1L,
+            undoExpiresAtMillis = System.currentTimeMillis() - 1L
+        )
 
         composeRule.onAllNodesWithText(referenceRemovedSnackbar()).assertCountEquals(0)
         composeRule.onAllNodesWithText(referenceRemovedUndo()).assertCountEquals(0)
@@ -1218,6 +1231,7 @@ class CameraControlsOverlayTest {
     private fun setUndoSnackbarContent(
         canUndoReferenceRemoval: Boolean,
         undoGeneration: Long,
+        undoExpiresAtMillis: Long = System.currentTimeMillis() + 30_000L,
         reuseScenario: Boolean = false
     ) {
         setUndoSnackbarTestContent(reuseScenario = reuseScenario) {
@@ -1225,7 +1239,8 @@ class CameraControlsOverlayTest {
                 canUndoReferenceRemoval = canUndoReferenceRemoval,
                 undoGeneration = undoGeneration,
                 message = referenceRemovedSnackbar(),
-                actionLabel = referenceRemovedUndo()
+                actionLabel = referenceRemovedUndo(),
+                undoExpiresAtMillis = undoExpiresAtMillis
             )
         }
     }
@@ -1278,6 +1293,7 @@ class CameraControlsOverlayTest {
         undoGeneration: Long,
         message: String,
         actionLabel: String,
+        undoExpiresAtMillis: Long = System.currentTimeMillis() + 30_000L,
         nonce: Int = 0
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -1285,6 +1301,7 @@ class CameraControlsOverlayTest {
             ReferenceRemovalUndoSnackbarEffect(
                 canUndoReferenceRemoval = canUndoReferenceRemoval,
                 undoGeneration = undoGeneration,
+                undoExpiresAtMillis = undoExpiresAtMillis,
                 hostState = snackbarHostState,
                 message = message,
                 actionLabel = actionLabel,

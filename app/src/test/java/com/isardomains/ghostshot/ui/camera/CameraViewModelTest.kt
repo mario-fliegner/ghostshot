@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -557,6 +558,30 @@ class CameraViewModelTest {
         assertEquals(1.5f, testViewModel.uiState.value.overlayScale)
         assertEquals(0.8f, testViewModel.uiState.value.overlayAlpha)
         assertEquals(false, testViewModel.uiState.value.canUndoReferenceRemoval)
+    }
+
+    @Test
+    fun undoTimeout_clearsUndoStateAfter2500ms() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageRemoveConfirmed()
+        assertEquals(true, testViewModel.uiState.value.canUndoReferenceRemoval)
+
+        advanceTimeBy(2501)
+
+        assertEquals(false, testViewModel.uiState.value.canUndoReferenceRemoval)
+        assertEquals(0L, testViewModel.uiState.value.undoExpiresAtMillis)
+    }
+
+    @Test
+    fun undoTimeout_doesNotExpireBeforeDeadline() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageRemoveConfirmed()
+
+        advanceTimeBy(2499)
+
+        assertEquals(true, testViewModel.uiState.value.canUndoReferenceRemoval)
     }
 
     @Test
