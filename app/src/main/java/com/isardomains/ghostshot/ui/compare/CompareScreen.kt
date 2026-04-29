@@ -2,8 +2,10 @@ package com.isardomains.ghostshot.ui.compare
 
 import android.content.res.Configuration
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -92,6 +94,12 @@ fun CompareScreen(
     val hasValidInput = referenceImageUri != null && captureImageUri != null
     var showDeleteDialog by remember { mutableStateOf(false) }
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+    val compareContentScale = if (isFullscreen) ContentScale.Crop else ContentScale.Fit
+
+    BackHandler(enabled = isFullscreen) {
+        isFullscreen = false
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -125,41 +133,43 @@ fun CompareScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .systemBarsPadding()
+                .then(if (!isFullscreen) Modifier.systemBarsPadding() else Modifier)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                    .testTag("compare_screen_top_bar"),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.testTag("compare_back_button")
+            if (!isFullscreen) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp)
+                        .testTag("compare_screen_top_bar"),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.compare_back)
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.compare_screen_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-                if (onDelete != null) {
-                    Spacer(modifier = Modifier.weight(1f))
-                    val deleteDescription = stringResource(R.string.compare_screen_delete)
                     IconButton(
-                        onClick = { showDeleteDialog = true },
-                        modifier = Modifier.testTag("compare_screen_delete_button")
+                        onClick = onBack,
+                        modifier = Modifier.testTag("compare_back_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = deleteDescription
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.compare_back)
                         )
+                    }
+                    Text(
+                        text = stringResource(R.string.compare_screen_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                    if (onDelete != null) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        val deleteDescription = stringResource(R.string.compare_screen_delete)
+                        IconButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.testTag("compare_screen_delete_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = deleteDescription
+                            )
+                        }
                     }
                 }
             }
@@ -173,7 +183,7 @@ fun CompareScreen(
                     val density = LocalDensity.current
                     val maxWPx = with(density) { maxWidth.toPx() }
                     val maxHPx = with(density) { maxHeight.toPx() }
-                    val reservedHeightPx = if (timestamp != null) with(density) { 48.dp.toPx() } else 0f
+                    val reservedHeightPx = if (!isFullscreen && timestamp != null) with(density) { 48.dp.toPx() } else 0f
                     val effectiveMaxH = maxHPx - reservedHeightPx
                     val targetWidthPx = minOf(maxWPx, effectiveMaxH * (16f / 9f))
                     val targetHeightPx = targetWidthPx * (9f / 16f)
@@ -188,7 +198,13 @@ fun CompareScreen(
                             modifier = Modifier.width(targetWidth)
                         ) {
                             Box(
-                                modifier = Modifier.size(width = targetWidth, height = targetHeight)
+                                modifier = Modifier
+                                    .size(width = targetWidth, height = targetHeight)
+                                    .then(
+                                        if (hasValidInput) Modifier.pointerInput(Unit) {
+                                            detectTapGestures { isFullscreen = !isFullscreen }
+                                        } else Modifier
+                                    )
                             ) {
                                 when {
                                     !hasValidInput -> CompareMessageFallback(
@@ -198,13 +214,14 @@ fun CompareScreen(
                                     else -> CompareSliderViewport(
                                         referenceImageUri = referenceImageUri!!,
                                         captureImageUri = captureImageUri!!,
+                                        contentScale = compareContentScale,
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .testTag("compare_screen_shell_content")
                                     )
                                 }
                             }
-                            if (timestamp != null) {
+                            if (!isFullscreen && timestamp != null) {
                                 val formatted = remember(timestamp) {
                                     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                                         .format(Date(timestamp))
@@ -229,10 +246,15 @@ fun CompareScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(
-                            start = 24.dp,
-                            end = 24.dp,
-                            top = 24.dp,
-                            bottom = if (timestamp != null) 0.dp else 24.dp
+                            start = if (isFullscreen) 0.dp else 24.dp,
+                            end = if (isFullscreen) 0.dp else 24.dp,
+                            top = if (isFullscreen) 0.dp else 24.dp,
+                            bottom = if (isFullscreen) 0.dp else if (timestamp != null) 0.dp else 24.dp
+                        )
+                        .then(
+                            if (hasValidInput) Modifier.pointerInput(Unit) {
+                                detectTapGestures { isFullscreen = !isFullscreen }
+                            } else Modifier
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -245,6 +267,7 @@ fun CompareScreen(
                         else -> CompareSliderViewport(
                             referenceImageUri = referenceImageUri!!,
                             captureImageUri = captureImageUri!!,
+                            contentScale = compareContentScale,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .testTag("compare_screen_shell_content")
@@ -252,7 +275,7 @@ fun CompareScreen(
                     }
                 }
 
-                if (timestamp != null) {
+                if (!isFullscreen && timestamp != null) {
                     val formatted = remember(timestamp) {
                         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                             .format(Date(timestamp))
@@ -275,6 +298,7 @@ fun CompareScreen(
 private fun CompareSliderViewport(
     referenceImageUri: Uri,
     captureImageUri: Uri,
+    contentScale: ContentScale = ContentScale.Fit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -350,6 +374,7 @@ private fun CompareSliderViewport(
                     imageContentDescription = stringResource(R.string.compare_label_reference),
                     imageTestTag = "compare_reference_image",
                     renderSurfaceTestTag = "compare_reference_surface",
+                    contentScale = contentScale,
                     revealLeftFraction = sliderFraction,
                     modifier = Modifier.matchParentSize()
                 )
@@ -358,6 +383,7 @@ private fun CompareSliderViewport(
                     imageContentDescription = stringResource(R.string.compare_label_capture),
                     imageTestTag = "compare_capture_image",
                     renderSurfaceTestTag = "compare_capture_surface",
+                    contentScale = contentScale,
                     revealRightFraction = sliderFraction,
                     modifier = Modifier.matchParentSize()
                 )
@@ -399,6 +425,7 @@ private fun CompareViewportImage(
     imageContentDescription: String,
     imageTestTag: String,
     renderSurfaceTestTag: String,
+    contentScale: ContentScale = ContentScale.Fit,
     modifier: Modifier = Modifier,
     revealLeftFraction: Float? = null,
     revealRightFraction: Float? = null
@@ -427,7 +454,7 @@ private fun CompareViewportImage(
         androidx.compose.foundation.Image(
             painter = painter,
             contentDescription = imageContentDescription,
-            contentScale = ContentScale.Fit,
+            contentScale = contentScale,
             alignment = Alignment.Center,
             modifier = Modifier
                 .matchParentSize()

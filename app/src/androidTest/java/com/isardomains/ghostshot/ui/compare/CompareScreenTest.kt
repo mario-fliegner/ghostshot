@@ -389,6 +389,59 @@ class CompareScreenTest {
             .assertIsDisplayed()
     }
 
+    @Test
+    fun fullscreen_isNotDefaultMode() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp
+        )
+
+        composeRule.onNodeWithTag("compare_screen_top_bar").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+    }
+
+    @Test
+    fun fullscreen_tapOnViewportTogglesIntoFullscreen() {
+        val compareInput = createCompareInput()
+        setCompareContent(
+            referenceImageUri = compareInput.referenceUri,
+            captureImageUri = compareInput.captureUri,
+            timestamp = fakeTimestamp
+        )
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_screen_shell_content").performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_top_bar").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_timestamp").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_shell_content").assertIsDisplayed()
+    }
+
+    @Test
+    fun fullscreen_backExitsFullscreenNotScreen() {
+        val compareInput = createCompareInput()
+        var backCount = 0
+        setCompareContent(
+            referenceImageUri = compareInput.referenceUri,
+            captureImageUri = compareInput.captureUri,
+            onBack = { backCount++ }
+        )
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_screen_shell_content").performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+
+        scenario?.onActivity { activity ->
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_top_bar").assertIsDisplayed()
+        assertEquals(0, backCount)
+    }
+
     private fun setCompareContent(
         referenceImageUri: Uri?,
         captureImageUri: Uri?,
