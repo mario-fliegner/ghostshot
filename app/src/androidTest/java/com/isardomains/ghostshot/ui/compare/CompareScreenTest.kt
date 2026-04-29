@@ -292,6 +292,20 @@ class CompareScreenTest {
         composeRule.onNodeWithText(expected).assertIsDisplayed()
     }
 
+    @Test
+    fun compareScreen_belowContent_isDisplayedWithViewport() {
+        val compareInput = createCompareInput()
+        setCompareContent(
+            referenceImageUri = compareInput.referenceUri,
+            captureImageUri = compareInput.captureUri,
+            timestamp = fakeTimestamp
+        )
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_screen_shell_content").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+    }
+
     // --- Delete button tests ---
 
     @Test

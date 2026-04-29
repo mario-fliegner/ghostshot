@@ -1,5 +1,6 @@
 package com.isardomains.ghostshot.ui.compare
 
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -46,7 +47,9 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -55,6 +58,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
@@ -86,6 +90,7 @@ fun CompareScreen(
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -158,47 +163,108 @@ fun CompareScreen(
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(
-                        start = 24.dp,
-                        end = 24.dp,
-                        top = 24.dp,
-                        bottom = if (timestamp != null) 0.dp else 24.dp
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                when {
-                    !hasValidInput -> CompareMessageFallback(
-                        text = stringResource(R.string.compare_error_missing_images),
-                        testTag = "compare_missing_input_fallback"
-                    )
-
-                    else -> CompareSliderViewport(
-                        referenceImageUri = referenceImageUri!!,
-                        captureImageUri = captureImageUri!!,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .testTag("compare_screen_shell_content")
-                    )
-                }
-            }
-
-            if (timestamp != null) {
-                val formatted = remember(timestamp) {
-                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                        .format(Date(timestamp))
-                }
-                Text(
-                    text = formatted,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (isLandscape) {
+                BoxWithConstraints(
                     modifier = Modifier
-                        .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)
-                        .testTag("compare_screen_timestamp")
-                )
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    val density = LocalDensity.current
+                    val maxWPx = with(density) { maxWidth.toPx() }
+                    val maxHPx = with(density) { maxHeight.toPx() }
+                    val reservedHeightPx = if (timestamp != null) with(density) { 48.dp.toPx() } else 0f
+                    val effectiveMaxH = maxHPx - reservedHeightPx
+                    val targetWidthPx = minOf(maxWPx, effectiveMaxH * (16f / 9f))
+                    val targetHeightPx = targetWidthPx * (9f / 16f)
+                    val targetWidth = with(density) { targetWidthPx.toDp() }
+                    val targetHeight = with(density) { targetHeightPx.toDp() }
+
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            modifier = Modifier.width(targetWidth)
+                        ) {
+                            Box(
+                                modifier = Modifier.size(width = targetWidth, height = targetHeight)
+                            ) {
+                                when {
+                                    !hasValidInput -> CompareMessageFallback(
+                                        text = stringResource(R.string.compare_error_missing_images),
+                                        testTag = "compare_missing_input_fallback"
+                                    )
+                                    else -> CompareSliderViewport(
+                                        referenceImageUri = referenceImageUri!!,
+                                        captureImageUri = captureImageUri!!,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .testTag("compare_screen_shell_content")
+                                    )
+                                }
+                            }
+                            if (timestamp != null) {
+                                val formatted = remember(timestamp) {
+                                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                                        .format(Date(timestamp))
+                                }
+                                Text(
+                                    text = formatted,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Start,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                        .testTag("compare_screen_timestamp")
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(
+                            start = 24.dp,
+                            end = 24.dp,
+                            top = 24.dp,
+                            bottom = if (timestamp != null) 0.dp else 24.dp
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        !hasValidInput -> CompareMessageFallback(
+                            text = stringResource(R.string.compare_error_missing_images),
+                            testTag = "compare_missing_input_fallback"
+                        )
+
+                        else -> CompareSliderViewport(
+                            referenceImageUri = referenceImageUri!!,
+                            captureImageUri = captureImageUri!!,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .testTag("compare_screen_shell_content")
+                        )
+                    }
+                }
+
+                if (timestamp != null) {
+                    val formatted = remember(timestamp) {
+                        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                            .format(Date(timestamp))
+                    }
+                    Text(
+                        text = formatted,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)
+                            .testTag("compare_screen_timestamp")
+                    )
+                }
             }
         }
     }
