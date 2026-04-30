@@ -2,9 +2,9 @@
 
 ---
 
-## CURRENT PRODUCT STATE ADDENDUM (2026-04-28)
+## CURRENT PRODUCT STATE ADDENDUM (2026-04-29)
 
-This addendum documents the current implementation state and current product decisions after the compare-flow and landscape-control iterations.
+This addendum documents current product decisions after the compare-flow, session-library, landscape-control, debug-logging, and hybrid-fullscreen iterations.
 It supplements the existing rules below without removing or weakening them.
 If a future task conflicts with this addendum, the user must make an explicit product decision before implementation.
 
@@ -20,6 +20,35 @@ If a future task conflicts with this addendum, the user must make an explicit pr
 - When session context is present (`sessionId` + `timestamp`), displays a formatted timestamp below the viewport
 - When session context is present, displays a delete button in the top bar
 - Delete from `CompareScreen` removes only the internal session folder and never deletes the MediaStore photo
+
+### Compare Screen Hybrid Fullscreen Mode
+
+`CompareScreen` supports a tap-based fullscreen viewing mode.
+
+Normal mode:
+- Top bar is visible
+- Timestamp is visible when session context is present
+- Images use `ContentScale.Fit`
+- Full images remain visible and may show empty margins when image aspect ratios do not match the viewport
+
+Fullscreen mode:
+- Tap on the compare viewport toggles fullscreen on and off
+- Back exits fullscreen before leaving the compare screen
+- Top bar is hidden
+- Timestamp is hidden
+- Outer `systemBarsPadding` is not applied
+- Portrait fullscreen removes the normal viewport padding
+- The compare viewport uses the maximum available screen space
+- Images use `ContentScale.Crop` so the comparison appears larger and more immersive
+
+Rules:
+- Fullscreen is a viewing enhancement, not a second compare mode
+- Slider comparison remains the only compare mechanic
+- The slider, divider, labels, and drag behavior remain available and unchanged in fullscreen
+- Both images must always use the same `ContentScale` at the same time
+- Normal mode must keep `ContentScale.Fit`; fullscreen must use `ContentScale.Crop`
+- Fullscreen must not alter Variant B output, session storage, navigation contracts, or saved MediaStore images
+- Do not remove or simplify this behavior without an explicit product decision
 
 ### Compare Library
 
@@ -60,72 +89,19 @@ Variant B means:
 5. Use these two normalized bitmaps as the deterministic comparison pair
 
 Important:
-
 - The overlay is a visual alignment aid only
 - Overlay position, overlay scale, viewport size, and preview-to-capture mapping are not part of the comparison model
 - Geometry-based comparison logic must not be reintroduced without explicit approval
 - The reference overlay is never baked into the saved full camera image
 
-### Theme / Color Rule
+### Debug Logging
 
-- All colors must be defined centrally in `Color.kt` or via `MaterialTheme.colorScheme` tokens
-- No hardcoded color values in screen Composables unless explicitly accepted for a narrow presentational reason
-- Current accepted exceptions in `CompareScreen`: viewport background `Color.Black` and slider divider line `Color.White`
-- Dynamic color is intentionally disabled
+Internal debug logging is allowed and expected during development.
 
-### Camera Screen Landscape Controls
-
-Current landscape camera controls must be corrected to follow the same product structure as portrait.
-
-Final landscape structure:
-
-- Bottom button row: `Overlay` / `Capture` / `Shots`
-- Opacity slider row above the bottom button row
-
-Hard invariants:
-
-- Capture remains exactly centered at the bottom of the root
-- Overlay button stays left of capture
-- Shots / Compare entry stays right of capture
-- Overlay-to-capture and capture-to-shots distances remain symmetrical
-- Slider is horizontally centered above capture
-- Slider is above the button row
-- Slider is not inline with the buttons
-- Slider is not full width
-- Slider must not run to the screen edge or into soft-key / system-navigation areas
-- Slider width must not exceed the visible button-group width
-- Slider width must not be derived from remaining right-side space
-
-Overlay action menu rules in landscape:
-
-- Menu opens from the Overlay button
-- Menu remains inside root bounds
-- Menu has visual priority over the slider
-- Menu may overlap the slider
-- Slider must not influence menu position or size
-
-Forbidden landscape-control approaches:
-
-- Slider right of Shots / Compare
-- Slider width derived from remaining right-side space
-- `safeEndPadding` / `rightControlsStart`-style slider sizing
-- Inline slider in the same row as buttons
-- TopEnd / BottomStart fallback positioning for the slider
-- Treating the slider as whatever horizontal space is left
-- Moving capture away from root bottom center
-- Hard equal button widths if that squeezes Overlay or Shots labels
-
-### Landscape-Control Test Expectations
-
-Future landscape-control work must consider focused tests for:
-
-- Capture remains horizontally centered
-- Overlay and Shots / Compare remain symmetrically positioned around capture
-- Slider is centered above capture
-- Slider is above the button row
-- Slider width is less than or equal to the button-group width
-- Slider remains inside root bounds
-- Overlay action menu remains visible, inside root bounds, and visually above the slider when overlapping
+Rules:
+- Debug logs must be non-user-facing
+- Debug logs must stay compatible with release/debug controls
+- Do not log full URIs, internal file paths, or user-sensitive content
 
 
 ## ROLE

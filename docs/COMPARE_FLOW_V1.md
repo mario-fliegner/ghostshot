@@ -249,11 +249,13 @@ This ordering is mandatory for V1 and must not be made configurable now.
 ### Forbidden compare modes in V1
 
 - side-by-side
-- tap toggle
+- tap toggle as an alternate compare mechanic
 - swipe between full images
 - overlay opacity comparison
 - alternate compare tabs
 - compare mode switching UI
+
+The tap-based fullscreen viewing mode described in section 11A is explicitly not a second compare mode. It does not replace or alter the slider compare mechanic.
 
 ---
 
@@ -332,6 +334,89 @@ The compare screen must render both images as if they belong to the same present
 
 ---
 
+## 11A. FULLSCREEN VIEWING MODE (V1 ADDENDUM 2026-04-29)
+
+`CompareScreen` supports a tap-based fullscreen viewing mode.
+
+### Purpose
+
+Fullscreen exists only to make the existing slider comparison visually larger and more immersive.
+
+It is NOT:
+- a second compare mode
+- a tap-to-toggle compare mechanic
+- a replacement for the slider
+- a new image rendering pipeline
+- an export or editing feature
+
+### Trigger
+
+Allowed:
+- Tap on the compare viewport toggles fullscreen on and off
+
+Required behavior:
+- Slider drag remains unchanged
+- The divider remains draggable in fullscreen
+- A quick tap on the viewport may toggle fullscreen
+- No coordinate-based divider exclusion is required for V1
+- No slider state hoisting is required for fullscreen
+
+### Normal mode rendering
+
+In normal mode:
+- Top bar is visible
+- Timestamp is visible when session context is present
+- Images use `ContentScale.Fit`
+- Full images remain visible
+- Empty margins / gray areas may appear when image aspect ratios do not match the viewport
+
+### Fullscreen rendering
+
+In fullscreen mode:
+- Top bar is hidden
+- Timestamp is hidden
+- Outer `systemBarsPadding` is not applied
+- The viewport uses the maximum available screen space
+- Images use `ContentScale.Crop`
+- Images may be proportionally cropped
+- Empty margins / gray areas may be reduced or disappear
+- No stretch or distortion is allowed
+
+### Render consistency rule
+
+At any moment, both compare images MUST use the same rendering rules.
+
+Required:
+- Normal mode: both images use `ContentScale.Fit`
+- Fullscreen mode: both images use `ContentScale.Crop`
+- Both images keep the same alignment and viewport dimensions
+
+Forbidden:
+- one image using `Fit` while the other uses `Crop`
+- changing only one side of the comparison
+- stretching images to fill the viewport
+- changing Variant B normalization or saved output behavior
+
+### Back behavior
+
+Required:
+- If fullscreen is active, Back exits fullscreen first
+- If fullscreen is not active, Back exits the compare screen as usual
+
+### State
+
+Fullscreen state is compare-screen-local UI state.
+
+Allowed:
+- `rememberSaveable` local state so fullscreen can survive normal rotation
+
+Forbidden:
+- storing fullscreen as a global preference
+- persisting fullscreen across app restarts
+- moving fullscreen state into camera state or session metadata
+
+---
+
 ## 12. ORIENTATION CONTRACT
 
 The compare screen MUST support:
@@ -405,6 +490,7 @@ This input must be sufficient to render the compare screen without re-deriving u
 
 V1 compare-local state may include:
 - slider position
+- fullscreen viewing state
 
 ### Compare-local state rules
 
@@ -903,3 +989,29 @@ Landscape camera controls must mirror the portrait structure conceptually:
 
 The `Shots` / `Compare Images` entry must remain reachable and visually stable in landscape.
 The landscape layout fix must not change `CompareScreen`, Variant B normalization, session storage, delete behavior, or compare navigation contracts.
+
+---
+
+## 36. COMPARE SCREEN HYBRID FULLSCREEN STATUS (2026-04-29)
+
+The compare screen now includes the V1 fullscreen viewing behavior described in section 11A.
+
+Implemented behavior:
+- Tap on the compare viewport toggles fullscreen
+- Back exits fullscreen before leaving the compare screen
+- Top bar and timestamp are hidden in fullscreen
+- Outer `systemBarsPadding` is disabled in fullscreen
+- Portrait fullscreen removes the normal viewport padding
+- Normal mode uses `ContentScale.Fit`
+- Fullscreen uses `ContentScale.Crop`
+- Slider, divider, labels, and drag behavior remain unchanged
+
+Test coverage added:
+- Fullscreen is not the default mode
+- Tapping the viewport enters fullscreen
+- Back exits fullscreen without triggering compare-screen navigation
+
+Validation status:
+- `testDebugUnitTest` green
+- `:app:assembleDebug` green
+- `CompareScreenTest` connected instrumentation tests green (26/26 on SM-S911B)
