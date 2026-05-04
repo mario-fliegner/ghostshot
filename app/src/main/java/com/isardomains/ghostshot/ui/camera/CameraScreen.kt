@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -342,17 +343,25 @@ fun CameraScreen(
                     .fillMaxSize()
                     .background(Color.Black)
                     .onSizeChanged { size ->
-                        val effectiveHeight = if (!isLandscape) {
-                            minOf(size.height, size.width * 16 / 9)
-                        } else size.height
-                        viewModel.onReferenceViewportChanged(size.width, effectiveHeight)
+                        if (!isLandscape) {
+                            val effectiveHeight = minOf(size.height, size.width * 16 / 9)
+                            viewModel.onReferenceViewportChanged(size.width, effectiveHeight)
+                        } else {
+                            val w = size.width.toFloat()
+                            val h = size.height.toFloat()
+                            if (w / h >= 16f / 9f) {
+                                viewModel.onReferenceViewportChanged((h * 16f / 9f).toInt(), size.height)
+                            } else {
+                                viewModel.onReferenceViewportChanged(size.width, (w * 9f / 16f).toInt())
+                            }
+                        }
                     }
             ) {
 
                 // ── Camera viewport (Layer 1 + Layer 2) ──────────────────────────────
                 // Keyed by activeAspectRatio so that the ImageCapture use case and
                 // the CameraX binding are fully recreated when the target ratio changes.
-                key(activeAspectRatio) {
+                key(activeAspectRatio, isLandscape) {
                     val cameraXRatio = when (activeAspectRatio) {
                         TargetAspectRatio.RATIO_4_3 -> AspectRatio.RATIO_4_3
                         TargetAspectRatio.RATIO_16_9 -> AspectRatio.RATIO_16_9
@@ -385,7 +394,7 @@ fun CameraScreen(
                                                 it.setSurfaceProvider(previewView.surfaceProvider)
                                             }
                                             val viewPort = ViewPort.Builder(
-                                                Rational(9, 16),
+                                                if (isLandscape) Rational(16, 9) else Rational(9, 16),
                                                 previewView.display?.rotation ?: Surface.ROTATION_0
                                             ).build()
                                             val useCaseGroup = UseCaseGroup.Builder()
@@ -410,8 +419,7 @@ fun CameraScreen(
                                 previewView
                             },
                             update = { view ->
-                                view.scaleType = if (isLandscape) PreviewView.ScaleType.FILL_CENTER
-                                                 else PreviewView.ScaleType.FIT_CENTER
+                                view.scaleType = PreviewView.ScaleType.FIT_CENTER
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -435,7 +443,7 @@ fun CameraScreen(
                                 modifier = if (!isLandscape) {
                                     Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
                                 } else {
-                                    Modifier.fillMaxSize()
+                                    Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)
                                 }
                             )
                         }
