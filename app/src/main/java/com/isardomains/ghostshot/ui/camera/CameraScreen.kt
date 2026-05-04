@@ -91,6 +91,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -119,6 +120,7 @@ import coil.compose.AsyncImage
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotOverlayScrim
+import com.isardomains.ghostshot.ui.theme.GhostShotPreviewFrameScrim
 import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
 import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
 import kotlinx.coroutines.delay
@@ -341,7 +343,7 @@ fun CameraScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(GhostShotPreviewFrameScrim)
                     .onSizeChanged { size ->
                         if (!isLandscape) {
                             val effectiveHeight = minOf(size.height, size.width * 16 / 9)
@@ -420,6 +422,7 @@ fun CameraScreen(
                             },
                             update = { view ->
                                 view.scaleType = PreviewView.ScaleType.FIT_CENTER
+                                view.setBackgroundColor(GhostShotPreviewFrameScrim.toArgb())
                             },
                             modifier = Modifier.fillMaxSize()
                         )

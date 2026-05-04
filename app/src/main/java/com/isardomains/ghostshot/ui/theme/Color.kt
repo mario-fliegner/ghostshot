@@ -16,3 +16,6 @@ val GhostShotSliderInactive = Color(0xFF666666)
 
 /** Semi-transparent scrim applied to overlay surfaces above the camera preview (~70 % black). */
 val GhostShotOverlayScrim = Color(0xB3000000)
+
+/** Dark neutral grey shown in the letterbox/pillarbox areas outside the active preview frame. */
+val GhostShotPreviewFrameScrim = Color(0x99222222)
