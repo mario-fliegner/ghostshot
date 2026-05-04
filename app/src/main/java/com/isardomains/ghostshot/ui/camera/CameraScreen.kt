@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.util.Rational
+import android.view.Surface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +19,8 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
@@ -32,6 +36,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -94,6 +99,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
@@ -334,8 +340,12 @@ fun CameraScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(Color.Black)
                     .onSizeChanged { size ->
-                        viewModel.onReferenceViewportChanged(size.width, size.height)
+                        val effectiveHeight = if (!isLandscape) {
+                            minOf(size.height, size.width * 16 / 9)
+                        } else size.height
+                        viewModel.onReferenceViewportChanged(size.width, effectiveHeight)
                     }
             ) {
 
@@ -374,13 +384,21 @@ fun CameraScreen(
                                                 .build().also {
                                                 it.setSurfaceProvider(previewView.surfaceProvider)
                                             }
+                                            val viewPort = ViewPort.Builder(
+                                                Rational(9, 16),
+                                                previewView.display?.rotation ?: Surface.ROTATION_0
+                                            ).build()
+                                            val useCaseGroup = UseCaseGroup.Builder()
+                                                .setViewPort(viewPort)
+                                                .addUseCase(preview)
+                                                .addUseCase(imageCapture)
+                                                .build()
                                             // Unbind all use cases before rebinding to avoid conflicts.
                                             cameraProvider.unbindAll()
                                             cameraProvider.bindToLifecycle(
                                                 lifecycleOwner,
                                                 CameraSelector.DEFAULT_BACK_CAMERA,
-                                                preview,
-                                                imageCapture
+                                                useCaseGroup
                                             )
                                         } catch (_: Exception) {
                                             imageCaptureState.value = null
@@ -390,6 +408,10 @@ fun CameraScreen(
                                     ContextCompat.getMainExecutor(ctx)
                                 )
                                 previewView
+                            },
+                            update = { view ->
+                                view.scaleType = if (isLandscape) PreviewView.ScaleType.FILL_CENTER
+                                                 else PreviewView.ScaleType.FIT_CENTER
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -410,7 +432,11 @@ fun CameraScreen(
                                     viewModel.onOverlayDragged(dx = dx, dy = dy)
                                 },
                                 onScaled = { zoom -> viewModel.onOverlayScaled(zoom) },
-                                modifier = Modifier.fillMaxSize()
+                                modifier = if (!isLandscape) {
+                                    Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
+                                } else {
+                                    Modifier.fillMaxSize()
+                                }
                             )
                         }
                     }
@@ -1168,6 +1194,7 @@ private fun ReferenceAction(
     val referenceLabel = stringResource(R.string.select_reference_image)
     val optionsBadgeLabel = stringResource(R.string.reference_options_badge)
     val optionsBadgeText = stringResource(R.string.reference_options_badge_text)
+    val handleClick = onClick
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
@@ -1184,9 +1211,10 @@ private fun ReferenceAction(
                     Modifier
                 }
             )
-            .testTag("reference_action")
             .semantics {
+                testTag = "reference_action"
                 contentDescription = referenceLabel
+                this.onClick { handleClick(); true }
             }
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
