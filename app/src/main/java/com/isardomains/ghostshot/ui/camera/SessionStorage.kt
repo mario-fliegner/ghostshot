@@ -96,6 +96,32 @@ internal object SessionStorage {
         }
     }
 
+    fun updateTitle(sessionsRoot: File, sessionId: String, title: String?): Boolean {
+        val rootCanonical = sessionsRoot.canonicalPath + File.separator
+        val targetCanonical = File(sessionsRoot, sessionId).canonicalPath
+        if (!targetCanonical.startsWith(rootCanonical)) return false
+
+        val normalizedTitle = title?.trim()?.ifEmpty { null }
+
+        val metadataFile = File(File(sessionsRoot, sessionId), "metadata.json")
+        if (!metadataFile.exists()) return false
+
+        val json = try {
+            JSONObject(metadataFile.readText())
+        } catch (e: Exception) {
+            return false
+        }
+
+        if (normalizedTitle != null) {
+            json.put("title", normalizedTitle)
+        } else {
+            json.remove("title")
+        }
+
+        metadataFile.writeText(json.toString())
+        return true
+    }
+
     private fun resolveUniqueDir(parent: File, baseName: String): File {
         var candidate = File(parent, baseName)
         var counter = 1

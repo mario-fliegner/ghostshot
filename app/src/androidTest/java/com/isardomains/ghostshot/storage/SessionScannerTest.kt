@@ -7,6 +7,7 @@ import com.isardomains.ghostshot.ui.camera.SessionScanner
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -230,6 +231,55 @@ class SessionScannerTest {
         touch(dir, "capture.jpg")
 
         assertTrue(SessionScanner.scan(testRoot).isEmpty())
+    }
+
+    @Test
+    fun session_withTitle_titleIsRead() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, timestamp = 5_000L, extra = mapOf("title" to "My Shot"))
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertEquals("My Shot", result[0].title)
+    }
+
+    @Test
+    fun session_withoutTitle_titleIsNull() {
+        fullSession("2026-04-24_10-00-00", timestamp = 5_000L)
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertNull(result[0].title)
+    }
+
+    @Test
+    fun session_withEmptyTitle_titleIsNull() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, timestamp = 5_000L, extra = mapOf("title" to ""))
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertNull(result[0].title)
+    }
+
+    @Test
+    fun session_withWhitespaceTitle_titleIsNull() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, timestamp = 5_000L, extra = mapOf("title" to "   "))
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertNull(result[0].title)
     }
 
     @Test

@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
@@ -306,6 +307,68 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
     }
 
+    // --- Session title tests ---
+
+    @Test
+    fun sessionTitle_displayedWhenSet() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            sessionTitle = "My Shot"
+        )
+
+        composeRule.onNodeWithTag("compare_screen_session_title").assertIsDisplayed()
+        composeRule.onNodeWithText("My Shot").assertIsDisplayed()
+    }
+
+    @Test
+    fun sessionTitle_timestampStillDisplayedWithTitle() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            sessionTitle = "My Shot"
+        )
+
+        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+    }
+
+    @Test
+    fun sessionTitle_updatedAfterEditTitleDialogSave() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            sessionTitle = null,
+            onSaveTitle = {}
+        )
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title)).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_title_input").performTextInput("New Title")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title_save)).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_session_title").assertIsDisplayed()
+        composeRule.onNodeWithText("New Title").assertIsDisplayed()
+    }
+
+    @Test
+    fun sessionTitle_notDisplayedWhenEmpty() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            sessionTitle = null
+        )
+
+        composeRule.onNodeWithTag("compare_screen_session_title").assertDoesNotExist()
+    }
+
     // --- Delete button tests ---
 
     @Test
@@ -442,12 +505,165 @@ class CompareScreenTest {
         assertEquals(0, backCount)
     }
 
+    @Test
+    fun moreMenuButton_hiddenWhenOnSaveTitleNull() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = null)
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun moreMenuButton_visibleWhenOnSaveTitleProvided() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = {})
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun moreMenu_opensOnClick() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = {})
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun editTitleDialog_opensOnMenuItemClick() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = {})
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title_dialog_title))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun editTitleDialog_prefillsCurrentTitle() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            sessionTitle = "My Title",
+            onSaveTitle = {}
+        )
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("My Title").assertIsDisplayed()
+    }
+
+    @Test
+    fun editTitleDialog_save_invokesCallback() {
+        var savedTitle: String? = "SENTINEL"
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            onSaveTitle = { savedTitle = it }
+        )
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
+            .performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title_save))
+            .performClick()
+        composeRule.waitForIdle()
+
+        // empty input → trimmed → null
+        assert(savedTitle != "SENTINEL")
+    }
+
+    @Test
+    fun editTitleDialog_cancel_doesNotInvokeCallback() {
+        var callCount = 0
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            onSaveTitle = { callCount++ }
+        )
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
+            .performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title_cancel))
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(0, callCount)
+    }
+
+    @Test
+    fun removeTitle_visibleAndWorksWhenTitleIsSet() {
+        var savedTitle: String? = "SENTINEL"
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            sessionTitle = "My Shot",
+            onSaveTitle = { savedTitle = it }
+        )
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_remove_title_item").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_remove_title_item").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(null, savedTitle)
+        composeRule.onNodeWithTag("compare_screen_session_title").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+    }
+
+    @Test
+    fun removeTitle_notVisibleWhenNoTitleSet() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            sessionTitle = null,
+            onSaveTitle = {}
+        )
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_remove_title_item").assertDoesNotExist()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title)).assertIsDisplayed()
+    }
+
+    @Test
+    fun deleteButton_independentOfTitleFeature() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            onDelete = {},
+            onSaveTitle = {}
+        )
+
+        composeRule.onNodeWithTag("compare_screen_delete_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").assertIsDisplayed()
+    }
+
     private fun setCompareContent(
         referenceImageUri: Uri?,
         captureImageUri: Uri?,
         onBack: () -> Unit = {},
         timestamp: Long? = null,
-        onDelete: (() -> Unit)? = null
+        onDelete: (() -> Unit)? = null,
+        sessionTitle: String? = null,
+        onSaveTitle: ((String?) -> Unit)? = null
     ) {
         setHostContent {
             CompareScreen(
@@ -455,7 +671,9 @@ class CompareScreenTest {
                 captureImageUri = captureImageUri,
                 onBack = onBack,
                 timestamp = timestamp,
-                onDelete = onDelete
+                onDelete = onDelete,
+                sessionTitle = sessionTitle,
+                onSaveTitle = onSaveTitle
             )
         }
     }

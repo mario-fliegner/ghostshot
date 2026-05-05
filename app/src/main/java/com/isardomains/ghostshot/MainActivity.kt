@@ -132,9 +132,13 @@ class MainActivity : ComponentActivity() {
                             navController.getBackStackEntry(ROUTE_CAMERA)
                         }
                         val viewModel: CameraViewModel = hiltViewModel(cameraEntry)
+                        val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                         val sessionId = backStackEntry.arguments?.getString(ARG_SESSION_ID)
                         val timestamp =
                             backStackEntry.arguments?.getString(ARG_TIMESTAMP)?.toLongOrNull()
+                        val sessionTitle = uiState.savedSessions
+                            .find { it.sessionId == sessionId }
+                            ?.title
                         CompareScreen(
                             referenceImageUri = backStackEntry.arguments
                                 ?.getString(ARG_REFERENCE_URI)
@@ -149,6 +153,10 @@ class MainActivity : ComponentActivity() {
                                     viewModel.deleteSessions(listOf(sessionId))
                                     navController.popBackStack()
                                 }
+                            } else null,
+                            sessionTitle = sessionTitle,
+                            onSaveTitle = if (sessionId != null) {
+                                { title -> viewModel.updateSessionTitle(sessionId, title) }
                             } else null
                         )
                     }

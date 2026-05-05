@@ -965,6 +965,65 @@ class CameraViewModelTest {
         assertEquals(listOf(remainingSession), testViewModel.uiState.value.savedSessions)
     }
 
+    // --- updateSessionTitle ---
+
+    @Test
+    fun updateSessionTitle_trimIsApplied() = runTest {
+        var capturedTitle: String? = "SENTINEL"
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null },
+            { _ -> emptyList() },
+            { _, _, t -> capturedTitle = t; true }
+        )
+
+        testViewModel.updateSessionTitle("session-1", "  hello  ")
+        advanceUntilIdle()
+
+        assertEquals("hello", capturedTitle)
+    }
+
+    @Test
+    fun updateSessionTitle_whitespaceOnly_passesNull() = runTest {
+        var capturedTitle: String? = "SENTINEL"
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null },
+            { _ -> emptyList() },
+            { _, _, t -> capturedTitle = t; true }
+        )
+
+        testViewModel.updateSessionTitle("session-1", "   ")
+        advanceUntilIdle()
+
+        assertNull(capturedTitle)
+    }
+
+    @Test
+    fun updateSessionTitle_triggersRefresh() = runTest {
+        val fakeSession = ScannedSession(
+            sessionId = "session-1",
+            timestamp = 1000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock()
+        )
+        var sessionList = listOf(fakeSession)
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null },
+            { _ -> sessionList },
+            { _, _, _ -> true }
+        )
+
+        testViewModel.updateSessionTitle("session-1", "New Title")
+        advanceUntilIdle()
+
+        assertEquals(listOf(fakeSession), testViewModel.uiState.value.savedSessions)
+    }
+
     // --- helpers ---
 
     private fun testViewModelWithScanner(

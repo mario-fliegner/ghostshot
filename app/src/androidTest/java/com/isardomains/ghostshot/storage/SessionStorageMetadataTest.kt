@@ -8,6 +8,7 @@ import com.isardomains.ghostshot.ui.camera.SessionStorage
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -104,5 +105,76 @@ class SessionStorageMetadataTest {
     fun metadataFile_containsReferencePickerUri() {
         val json = readMetadata(saveTestSession())
         assertEquals(referencePickerUri.toString(), json.getString("referencePickerUri"))
+    }
+
+    @Test
+    fun updateTitle_writesTitle() {
+        val sessionDir = saveTestSession()
+        val sessionId = sessionDir.name
+
+        SessionStorage.updateTitle(testRoot, sessionId, "My Title")
+
+        val json = readMetadata(sessionDir)
+        assertEquals("My Title", json.getString("title"))
+    }
+
+    @Test
+    fun updateTitle_removesTitle_whenNull() {
+        val sessionDir = saveTestSession()
+        val sessionId = sessionDir.name
+        SessionStorage.updateTitle(testRoot, sessionId, "My Title")
+
+        SessionStorage.updateTitle(testRoot, sessionId, null)
+
+        val json = readMetadata(sessionDir)
+        assertFalse(json.has("title"))
+    }
+
+    @Test
+    fun updateTitle_removesTitle_whenEmptyString() {
+        val sessionDir = saveTestSession()
+        val sessionId = sessionDir.name
+        SessionStorage.updateTitle(testRoot, sessionId, "My Title")
+
+        SessionStorage.updateTitle(testRoot, sessionId, "")
+
+        val json = readMetadata(sessionDir)
+        assertFalse(json.has("title"))
+    }
+
+    @Test
+    fun updateTitle_removesTitle_whenWhitespaceOnly() {
+        val sessionDir = saveTestSession()
+        val sessionId = sessionDir.name
+        SessionStorage.updateTitle(testRoot, sessionId, "My Title")
+
+        SessionStorage.updateTitle(testRoot, sessionId, "   ")
+
+        val json = readMetadata(sessionDir)
+        assertFalse(json.has("title"))
+    }
+
+    @Test
+    fun updateTitle_preservesAllOtherFields() {
+        val sessionDir = saveTestSession()
+        val sessionId = sessionDir.name
+        val jsonBefore = readMetadata(sessionDir)
+
+        SessionStorage.updateTitle(testRoot, sessionId, "New Title")
+
+        val jsonAfter = readMetadata(sessionDir)
+        assertEquals(jsonBefore.getInt("version"), jsonAfter.getInt("version"))
+        assertEquals(jsonBefore.getLong("sessionTimestampMs"), jsonAfter.getLong("sessionTimestampMs"))
+        assertEquals(jsonBefore.getString("referenceFile"), jsonAfter.getString("referenceFile"))
+        assertEquals(jsonBefore.getString("captureFile"), jsonAfter.getString("captureFile"))
+        assertEquals(jsonBefore.getString("captureMediaStoreUri"), jsonAfter.getString("captureMediaStoreUri"))
+        assertEquals(jsonBefore.getString("referencePickerUri"), jsonAfter.getString("referencePickerUri"))
+    }
+
+    @Test
+    fun updateTitle_pathTraversal_returnsFalse() {
+        val result = SessionStorage.updateTitle(testRoot, "../some-other-dir", "Title")
+
+        assertFalse(result)
     }
 }

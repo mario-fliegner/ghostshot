@@ -25,7 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -90,16 +94,55 @@ fun CompareScreen(
     onBack: () -> Unit,
     timestamp: Long? = null,
     onDelete: (() -> Unit)? = null,
+    sessionTitle: String? = null,
+    onSaveTitle: ((String?) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var currentTitle by remember { mutableStateOf(sessionTitle) }
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var showTitleDialog by remember { mutableStateOf(false) }
+    var titleInput by remember { mutableStateOf("") }
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     val compareContentScale = if (isFullscreen) ContentScale.Crop else ContentScale.Fit
 
     BackHandler(enabled = isFullscreen) {
         isFullscreen = false
+    }
+
+    if (showTitleDialog) {
+        AlertDialog(
+            onDismissRequest = { showTitleDialog = false },
+            title = { Text(stringResource(R.string.compare_screen_edit_title_dialog_title)) },
+            text = {
+                OutlinedTextField(
+                    value = titleInput,
+                    onValueChange = { if (it.length <= 60) titleInput = it },
+                    label = { Text(stringResource(R.string.compare_screen_edit_title_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.testTag("compare_screen_title_input")
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val trimmed = titleInput.trim().ifEmpty { null }
+                        currentTitle = trimmed
+                        onSaveTitle?.invoke(trimmed)
+                        showTitleDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.compare_screen_edit_title_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTitleDialog = false }) {
+                    Text(stringResource(R.string.compare_screen_edit_title_cancel))
+                }
+            }
+        )
     }
 
     if (showDeleteDialog) {
@@ -159,8 +202,47 @@ fun CompareScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(start = 4.dp)
                     )
-                    if (onDelete != null) {
+                    if (onSaveTitle != null || onDelete != null) {
                         Spacer(modifier = Modifier.weight(1f))
+                    }
+                    if (onSaveTitle != null) {
+                        Box {
+                            IconButton(
+                                onClick = { showMoreMenu = true },
+                                modifier = Modifier.testTag("compare_screen_more_menu_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = stringResource(R.string.compare_screen_more_options)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMoreMenu,
+                                onDismissRequest = { showMoreMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.compare_screen_edit_title)) },
+                                    onClick = {
+                                        titleInput = currentTitle ?: ""
+                                        showMoreMenu = false
+                                        showTitleDialog = true
+                                    }
+                                )
+                                if (!currentTitle.isNullOrEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.compare_screen_remove_title)) },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            currentTitle = null
+                                            onSaveTitle?.invoke(null)
+                                        },
+                                        modifier = Modifier.testTag("compare_screen_remove_title_item")
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (onDelete != null) {
                         val deleteDescription = stringResource(R.string.compare_screen_delete)
                         IconButton(
                             onClick = { showDeleteDialog = true },
@@ -227,16 +309,32 @@ fun CompareScreen(
                                     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                                         .format(Date(timestamp))
                                 }
-                                Text(
-                                    text = formatted,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Start,
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp)
-                                        .testTag("compare_screen_timestamp")
-                                )
+                                ) {
+                                    if (!currentTitle.isNullOrEmpty()) {
+                                        Text(
+                                            text = currentTitle!!,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Start,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("compare_screen_session_title")
+                                        )
+                                    }
+                                    Text(
+                                        text = formatted,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Start,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("compare_screen_timestamp")
+                                    )
+                                }
                             }
                         }
                     }
@@ -281,14 +379,24 @@ fun CompareScreen(
                         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                             .format(Date(timestamp))
                     }
-                    Text(
-                        text = formatted,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)
-                            .testTag("compare_screen_timestamp")
-                    )
+                    Column(
+                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)
+                    ) {
+                        if (!currentTitle.isNullOrEmpty()) {
+                            Text(
+                                text = currentTitle!!,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.testTag("compare_screen_session_title")
+                            )
+                        }
+                        Text(
+                            text = formatted,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("compare_screen_timestamp")
+                        )
+                    }
                 }
             }
         }

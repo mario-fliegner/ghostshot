@@ -375,11 +375,49 @@ class CompareLibraryScreenTest {
         composeRule.waitForIdle()
     }
 
-    private fun createFakeSession(id: String = fakeSessionId) = ScannedSession(
+    @Test
+    fun sessions_tileDisplaysTitleWhenPresent() {
+        val session = createFakeSession(title = "My Test Title")
+        setLibraryContent(sessions = listOf(session))
+
+        composeRule.onNodeWithText("My Test Title").assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_withTitle_showsBothTitleAndTimestamp() {
+        val session = createFakeSession(title = "Sunset Shot")
+        setLibraryContent(sessions = listOf(session))
+
+        val expectedTimestamp = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+            .format(Date(fakeTimestamp))
+        composeRule.onNodeWithText("Sunset Shot").assertIsDisplayed()
+        composeRule.onNodeWithText(expectedTimestamp).assertIsDisplayed()
+    }
+
+    @Test
+    fun sessions_tileShowsTimestampWhenTitleIsNull() {
+        val session = createFakeSession(title = null)
+        setLibraryContent(sessions = listOf(session))
+
+        val expectedTimestamp = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+            .format(Date(fakeTimestamp))
+        composeRule.onNodeWithText(expectedTimestamp).assertIsDisplayed()
+    }
+
+    @Test
+    fun sessions_tileShowsNoPlaceholderWhenTitleIsNull() {
+        val session = createFakeSession(title = null)
+        setLibraryContent(sessions = listOf(session))
+
+        composeRule.onNodeWithText("Untitled").assertDoesNotExist()
+    }
+
+    private fun createFakeSession(id: String = fakeSessionId, title: String? = null) = ScannedSession(
         sessionId = id,
         timestamp = fakeTimestamp,
         referenceFileUri = fakeReferenceUri,
-        captureFileUri = fakeCaptureUri
+        captureFileUri = fakeCaptureUri,
+        title = title
     )
 
     private fun wakeTestDevice() {

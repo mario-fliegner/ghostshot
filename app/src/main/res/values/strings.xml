@@ -47,6 +47,13 @@
     <string name="compare_screen_delete">Delete shot</string>
     <string name="compare_screen_delete_dialog_title">Delete shot?</string>
     <string name="compare_screen_delete_dialog_message">This shot will be permanently deleted.</string>
+    <string name="compare_screen_more_options">More options</string>
+    <string name="compare_screen_edit_title">Edit title</string>
+    <string name="compare_screen_edit_title_dialog_title">Edit title</string>
+    <string name="compare_screen_edit_title_save">Save</string>
+    <string name="compare_screen_edit_title_cancel">Cancel</string>
+    <string name="compare_screen_edit_title_hint">Title</string>
+    <string name="compare_screen_remove_title">Remove title</string>
 
     <!-- Reference image overlay -->
     <string name="select_reference_image">Select overlay image</string>

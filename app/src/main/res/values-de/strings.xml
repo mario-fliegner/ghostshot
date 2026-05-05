@@ -29,6 +29,13 @@
     <string name="compare_screen_delete">Vergleich löschen</string>
     <string name="compare_screen_delete_dialog_title">Vergleich löschen?</string>
     <string name="compare_screen_delete_dialog_message">Dieser Vergleich wird dauerhaft gelöscht.</string>
+    <string name="compare_screen_more_options">Weitere Optionen</string>
+    <string name="compare_screen_edit_title">Titel bearbeiten</string>
+    <string name="compare_screen_edit_title_dialog_title">Titel bearbeiten</string>
+    <string name="compare_screen_edit_title_save">Speichern</string>
+    <string name="compare_screen_edit_title_cancel">Abbrechen</string>
+    <string name="compare_screen_edit_title_hint">Titel</string>
+    <string name="compare_screen_remove_title">Titel entfernen</string>
     <string name="reference_format_mismatch_description">Referenzformat weicht ab. Tippen fuer Info.</string>
     <string name="reference_format_mismatch_bubble">Overlay leicht versetzt</string>
 </resources>

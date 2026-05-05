@@ -181,6 +181,9 @@ class CameraViewModel @Inject constructor(
     private var sessionScanner: (Context) -> List<ScannedSession> =
         { ctx -> SessionScanner.scan(ctx) }
 
+    private var sessionTitleUpdater: (File, String, String?) -> Boolean =
+        { root, id, title -> SessionStorage.updateTitle(root, id, title) }
+
     private var displayModeChangedByUser = false
     private var undoSnapshot: ReferenceUndoSnapshot? = null
     private var undoTimeoutJob: Job? = null
@@ -199,11 +202,15 @@ class CameraViewModel @Inject constructor(
         context: Context,
         ioDispatcher: CoroutineDispatcher,
         referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata?,
-        sessionScanner: (Context) -> List<ScannedSession> = { ctx -> SessionScanner.scan(ctx) }
+        sessionScanner: (Context) -> List<ScannedSession> = { ctx -> SessionScanner.scan(ctx) },
+        sessionTitleUpdater: ((File, String, String?) -> Boolean)? = null
     ) : this(context) {
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
         this.sessionScanner = sessionScanner
+        if (sessionTitleUpdater != null) {
+            this.sessionTitleUpdater = sessionTitleUpdater
+        }
     }
 
     private val _uiState = MutableStateFlow(CameraUiState())
@@ -649,6 +656,16 @@ class CameraViewModel @Inject constructor(
 
     private fun finishCapture() {
         _uiState.update { it.copy(isCaptureInProgress = false) }
+    }
+
+    fun updateSessionTitle(sessionId: String, title: String?) {
+        viewModelScope.launch {
+            withContext(ioDispatcher) {
+                val sessionsRoot = File(context.filesDir, "sessions")
+                sessionTitleUpdater(sessionsRoot, sessionId, title?.trim()?.ifEmpty { null })
+            }
+            refreshSavedSessions()
+        }
     }
 
     fun refreshSavedSessions() {
