@@ -194,6 +194,32 @@ Logging:
 
 ### Camera Screen Controls: Current Decision
 
+### Additional Implementation Notes (2026-05-05)
+
+Camera / Preview:
+- Landscape preview now uses correct 16:9 ViewPort (instead of 9:16)
+- ScaleType is unified to FIT_CENTER for both orientations
+- Letterbox / pillarbox areas are expected and intentional
+- PreviewView background is explicitly set to a neutral scrim color
+
+Scrim / Background:
+- Preview frame background uses a central color definition (GhostShotPreviewFrameScrim)
+- Current value is a semi-transparent dark grey (~0x99222222)
+- This replaces pure black to improve contrast with system UI elements
+
+Edge-to-edge:
+- enableEdgeToEdge is active
+- Status bar icons are forced to light (white) globally via SystemBarStyle.dark(...)
+- No per-screen override implemented yet (next step)
+
+FormatMismatchHint:
+- Remains inside CameraControlsOverlay (NOT moved)
+- Position is now frame-relative via frameLeft / frameTop
+- Additional safety: top offset uses max(frameTop, statusBarInset)
+- Prevents overlap with system status bar in landscape
+
+
+
 Portrait:
 - Current portrait layout works correctly
 - Slider sits above the bottom controls
