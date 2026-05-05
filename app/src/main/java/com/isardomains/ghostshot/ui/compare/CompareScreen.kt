@@ -68,6 +68,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotAccent
+import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
@@ -353,7 +354,7 @@ private fun CompareSliderViewport(
                     .align(Alignment.Center)
                     .size(width = targetWidth, height = targetHeight)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(GhostShotAppSurface)
                     .onSizeChanged { size ->
                         viewportWidthPx = size.width.coerceAtLeast(1).toFloat()
                     }

@@ -40,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -51,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.camera.ScannedSession
+import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
 import java.text.DateFormat
 import java.util.Date
 
@@ -247,7 +247,7 @@ private fun CompareSessionTile(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(GhostShotAppSurface)
             .testTag("compare_library_session_tile_${session.sessionId}")
             .semantics {
                 contentDescription = tileDescription
@@ -286,7 +286,7 @@ private fun CompareSessionTile(
             Text(
                 text = timestamp,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }
