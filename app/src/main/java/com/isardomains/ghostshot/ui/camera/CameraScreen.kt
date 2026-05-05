@@ -46,10 +46,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -97,6 +99,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -243,6 +246,9 @@ fun CameraScreen(
             val captureCompareAction = stringResource(R.string.capture_saved_compare_action)
             val compareInput = uiState.compareInput
             val hasSavedSessions = uiState.savedSessions.isNotEmpty()
+            val density = LocalDensity.current
+            var frameLeftDp by remember { mutableStateOf(0.dp) }
+            var frameTopDp by remember { mutableStateOf(0.dp) }
             val onCompareClick: () -> Unit = {
                 if (compareInput != null) {
                     if (BuildConfig.DEBUG) { Log.d(TAG, "Compare opened") }
@@ -348,13 +354,21 @@ fun CameraScreen(
                         if (!isLandscape) {
                             val effectiveHeight = minOf(size.height, size.width * 16 / 9)
                             viewModel.onReferenceViewportChanged(size.width, effectiveHeight)
+                            frameLeftDp = 0.dp
+                            frameTopDp = with(density) { ((size.height - effectiveHeight) / 2).toDp() }
                         } else {
                             val w = size.width.toFloat()
                             val h = size.height.toFloat()
                             if (w / h >= 16f / 9f) {
-                                viewModel.onReferenceViewportChanged((h * 16f / 9f).toInt(), size.height)
+                                val effectiveWidth = (h * 16f / 9f).toInt()
+                                viewModel.onReferenceViewportChanged(effectiveWidth, size.height)
+                                frameLeftDp = with(density) { ((size.width - effectiveWidth) / 2).toDp() }
+                                frameTopDp = 0.dp
                             } else {
-                                viewModel.onReferenceViewportChanged(size.width, (w * 9f / 16f).toInt())
+                                val effectiveHeight = (w * 9f / 16f).toInt()
+                                viewModel.onReferenceViewportChanged(size.width, effectiveHeight)
+                                frameLeftDp = 0.dp
+                                frameTopDp = with(density) { ((size.height - effectiveHeight) / 2).toDp() }
                             }
                         }
                     }
@@ -475,6 +489,8 @@ fun CameraScreen(
                     onToggleDisplayMode = { viewModel.onReferenceImageDisplayModeToggle() },
                     onCapture = onCapture,
                     isLandscape = isLandscape,
+                    frameLeft = frameLeftDp,
+                    frameTop = frameTopDp,
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -815,10 +831,13 @@ internal fun CameraControlsOverlay(
     onToggleDisplayMode: () -> Unit = {},
     onCapture: () -> Unit,
     isLandscape: Boolean,
+    frameLeft: Dp = 0.dp,
+    frameTop: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
     val bottomPadding = cameraBottomPadding(isLandscape)
+    val statusBarTopInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     var isStackVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(referenceUri) {
@@ -844,8 +863,10 @@ internal fun CameraControlsOverlay(
                 FormatMismatchHint(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .systemBarsPadding()
-                        .padding(top = 12.dp, start = horizontalPadding)
+                        .padding(
+                            top = maxOf(frameTop, statusBarTopInset) + 12.dp,
+                            start = frameLeft + horizontalPadding
+                        )
                 )
             }
 
