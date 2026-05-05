@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
@@ -142,6 +144,25 @@ fun CompareLibraryScreen(
                         }
                     },
                     actions = {
+                        val allSelected = selectedSessionIds.size == sessions.size
+                        IconButton(
+                            onClick = {
+                                if (allSelected) {
+                                    selectedSessionIds = emptySet()
+                                } else {
+                                    selectedSessionIds = sessions.map { it.sessionId }.toSet()
+                                }
+                            },
+                            modifier = Modifier.testTag("compare_library_select_all_toggle")
+                        ) {
+                            Icon(
+                                imageVector = if (allSelected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                contentDescription = stringResource(
+                                    if (allSelected) R.string.compare_library_deselect_all
+                                    else R.string.compare_library_select_all
+                                )
+                            )
+                        }
                         IconButton(
                             onClick = { showDeleteConfirmDialog = true },
                             enabled = selectedSessionIds.isNotEmpty(),

@@ -175,6 +175,51 @@ class CompareLibraryScreenTest {
     }
 
     @Test
+    fun selectAll_selectsAllSessions() {
+        val sessions = listOf(
+            createFakeSession(id = "s1"),
+            createFakeSession(id = "s2"),
+            createFakeSession(id = "s3")
+        )
+        setLibraryContent(sessions = sessions)
+
+        composeRule.onNodeWithTag("compare_library_session_tile_s1")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_select_all_toggle").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_selection_count, 3))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun deselectAll_clearsSelection_butStaysInSelectionMode() {
+        val sessions = listOf(
+            createFakeSession(id = "s1"),
+            createFakeSession(id = "s2"),
+            createFakeSession(id = "s3")
+        )
+        setLibraryContent(sessions = sessions)
+
+        composeRule.onNodeWithTag("compare_library_session_tile_s1")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_select_all_toggle").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_select_all_toggle").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_selection_count, 0))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_library_delete_button").assertIsDisplayed()
+    }
+
+    @Test
     fun emptyState_ctaInvokesOnBackCallback() {
         var backCount = 0
         setLibraryContent(sessions = emptyList(), onBack = { backCount++ })

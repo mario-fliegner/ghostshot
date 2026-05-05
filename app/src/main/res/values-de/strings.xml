@@ -7,6 +7,8 @@
     <string name="compare_library_session_content_description">Vergleich vom %s</string>
     <string name="compare_library_selection_count">%d ausgewählt</string>
     <string name="compare_library_cancel_selection">Auswahl abbrechen</string>
+    <string name="compare_library_select_all">Alle auswählen</string>
+    <string name="compare_library_deselect_all">Auswahl aufheben</string>
     <string name="compare_library_delete_selected">Ausgewählte löschen</string>
     <string name="compare_library_session_selected">Ausgewählt</string>
     <string name="compare_library_session_not_selected">Nicht ausgewählt</string>
