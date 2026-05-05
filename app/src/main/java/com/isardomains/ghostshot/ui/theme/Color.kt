@@ -29,6 +29,9 @@ val GhostShotAppDivider = Color(0xFF2A3445)
 /** Slider inactive track. */
 val GhostShotSliderInactive = Color(0xFF666666)
 
+/** Subtle white tint applied over selected tiles (~10 % white). */
+val GhostShotSelectionOverlay = Color(0x1AFFFFFF)
+
 /** Semi-transparent scrim applied to overlay surfaces above the camera preview (~70 % black). */
 val GhostShotOverlayScrim = Color(0xB3000000)
 

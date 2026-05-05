@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,7 +51,10 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.camera.ScannedSession
+import com.isardomains.ghostshot.ui.theme.GhostShotAccent
 import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotSelectionOverlay
+import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
 import java.text.DateFormat
 import java.util.Date
 
@@ -290,10 +294,21 @@ private fun CompareSessionTile(
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(GhostShotSelectionOverlay)
+            )
+        }
         if (isSelectionMode) {
             Checkbox(
                 checked = isSelected,
                 onCheckedChange = null,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = GhostShotAccent,
+                    checkmarkColor = GhostShotTextPrimary,
+                ),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(4.dp)
