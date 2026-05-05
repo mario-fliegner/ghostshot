@@ -175,6 +175,17 @@ class CompareLibraryScreenTest {
     }
 
     @Test
+    fun emptyState_ctaInvokesOnBackCallback() {
+        var backCount = 0
+        setLibraryContent(sessions = emptyList(), onBack = { backCount++ })
+
+        composeRule.onNodeWithTag("compare_library_empty_cta").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, backCount)
+    }
+
+    @Test
     fun screen_refreshIsCalledOnLaunch() {
         var refreshCount = 0
         setLibraryContent(sessions = emptyList(), onRefresh = { refreshCount++ })

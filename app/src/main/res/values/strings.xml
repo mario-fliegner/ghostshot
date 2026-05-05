@@ -17,6 +17,7 @@
     <!-- Compare Library -->
     <string name="compare_library_title">Shots</string>
     <string name="compare_library_empty_state">No shots yet</string>
+    <string name="compare_library_empty_cta">Take your first shot</string>
     <string name="compare_library_session_content_description">Shot from %s</string>
     <string name="compare_library_selection_count">%d selected</string>
     <string name="compare_library_cancel_selection">Cancel selection</string>

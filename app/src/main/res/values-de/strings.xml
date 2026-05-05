@@ -3,6 +3,7 @@
     <string name="capture_saved_compare_action">Vergleich ansehen</string>
     <string name="compare_library_title">Vergleiche</string>
     <string name="compare_library_empty_state">Keine gespeicherten Vergleiche</string>
+    <string name="compare_library_empty_cta">Ersten Shot aufnehmen</string>
     <string name="compare_library_session_content_description">Vergleich vom %s</string>
     <string name="compare_library_selection_count">%d ausgewählt</string>
     <string name="compare_library_cancel_selection">Auswahl abbrechen</string>

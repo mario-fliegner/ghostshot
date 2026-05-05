@@ -180,11 +180,22 @@ fun CompareLibraryScreen(
                     .testTag("compare_library_empty_state"),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = stringResource(R.string.compare_library_empty_state),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.compare_library_empty_state),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(
+                        onClick = onBack,
+                        modifier = Modifier.testTag("compare_library_empty_cta")
+                    ) {
+                        Text(stringResource(R.string.compare_library_empty_cta))
+                    }
+                }
             }
         } else {
             LazyVerticalGrid(
