@@ -99,12 +99,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -258,6 +260,7 @@ fun CameraScreen(
             var frameTopDp by remember { mutableStateOf(0.dp) }
             val captureFlashAlpha = remember { Animatable(0f) }
             var captureFlashVisible by remember { mutableStateOf(false) }
+            val hapticFeedback = LocalHapticFeedback.current
             val onCompareClick: () -> Unit = {
                 if (compareInput != null) {
                     if (BuildConfig.DEBUG) { Log.d(TAG, "Compare opened") }
@@ -335,6 +338,7 @@ fun CameraScreen(
                 val imageCapture = imageCaptureState.value ?: return@onCapture
                 if (!viewModel.tryStartCapture()) return@onCapture
                 captureFlashVisible = true
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 try {
                     imageCapture.takePicture(
                         executor,
