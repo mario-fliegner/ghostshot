@@ -1023,3 +1023,27 @@ Validation status:
 - Must not affect CompareScreen rendering
 - Must not affect saved images
 - Compare flow remains visually unaffected
+
+
+## 33. SESSION TITLE SUPPORT (V1 ADDENDUM 2026-05-05)
+
+Sessions may include an optional title.
+
+### Behavior
+
+- Title is metadata only, not part of comparison logic
+- Title does not affect rendering, normalization, or slider behavior
+- Title is displayed in CompareScreen when available
+- Title is displayed in CompareLibraryScreen when available
+
+### Editing
+
+- Title can be edited via overflow menu in CompareScreen
+- Title can be removed directly without confirmation
+- Title updates must reflect immediately in UI
+
+### Constraints
+
+- Title must not affect compare mechanics
+- Title must not introduce new navigation
+- Title must remain optional

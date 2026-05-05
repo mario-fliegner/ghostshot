@@ -553,3 +553,24 @@ If uncertain:
 - do not add features
 - do not remove unrelated code
 - stay inside this specification
+
+
+### Addendum (2026-05-05 – Shot Titles)
+
+Compare Screen:
+- Sessions may include an optional title
+- When present, title is displayed above the timestamp
+- Title can be edited via overflow menu (⋮ → Edit title)
+- Title can be removed via overflow menu (⋮ → Remove title)
+- Title removal does not require confirmation
+- Title changes must update immediately in UI
+
+Compare Library:
+- Each tile may display an optional title above the timestamp
+- If no title is present, timestamp remains the only visible text
+- Layout must remain stable regardless of title presence
+
+Session Storage:
+- metadata.json may include optional field: "title"
+- Title is stored as plain string
+- Missing title field is valid and must not break parsing

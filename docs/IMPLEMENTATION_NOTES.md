@@ -275,3 +275,27 @@ Not part of this step:
 - Haptic feedback implemented on capture trigger
 - Grid overlay implemented (Canvas-based, preview-only)
 - Landscape controls alignment fixed (centered to preview, nav bar independent)
+
+
+### Shot Title Feature (2026-05-05)
+
+Session metadata now supports an optional "title" field.
+
+Storage:
+- Stored in metadata.json as "title"
+- Missing field is valid
+- Normalized (trimmed, empty → null)
+
+CompareScreen:
+- Displays title above timestamp when present
+- Overflow menu allows:
+  - Edit title
+  - Remove title (no confirmation)
+
+CompareLibraryScreen:
+- Displays title above timestamp when present
+- Without title, timestamp remains visible and layout stays stable
+
+UX:
+- No confirmation dialog for removal
+- Immediate visual update after change
