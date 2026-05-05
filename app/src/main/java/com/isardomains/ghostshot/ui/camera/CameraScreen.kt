@@ -28,6 +28,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -254,6 +256,8 @@ fun CameraScreen(
             val density = LocalDensity.current
             var frameLeftDp by remember { mutableStateOf(0.dp) }
             var frameTopDp by remember { mutableStateOf(0.dp) }
+            val captureFlashAlpha = remember { Animatable(0f) }
+            var captureFlashVisible by remember { mutableStateOf(false) }
             val onCompareClick: () -> Unit = {
                 if (compareInput != null) {
                     if (BuildConfig.DEBUG) { Log.d(TAG, "Compare opened") }
@@ -311,6 +315,15 @@ fun CameraScreen(
                 }
             }
 
+            LaunchedEffect(captureFlashVisible) {
+                if (captureFlashVisible) {
+                    captureFlashAlpha.snapTo(1f)
+                    delay(30)
+                    captureFlashAlpha.animateTo(0f, tween(150))
+                    captureFlashVisible = false
+                }
+            }
+
             val executor = remember { java.util.concurrent.Executors.newSingleThreadExecutor() }
             DisposableEffect(Unit) {
                 onDispose {
@@ -321,6 +334,7 @@ fun CameraScreen(
             val onCapture: () -> Unit = onCapture@{
                 val imageCapture = imageCaptureState.value ?: return@onCapture
                 if (!viewModel.tryStartCapture()) return@onCapture
+                captureFlashVisible = true
                 try {
                     imageCapture.takePicture(
                         executor,
@@ -482,7 +496,18 @@ fun CameraScreen(
                     )
                 }
 
-                // ── Layer 4: Camera controls overlay ─────────────────────────────────
+                // ── Layer 4: Capture flash ────────────────────────────────────────────
+                if (captureFlashAlpha.value > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = frameLeftDp, vertical = frameTopDp)
+                            .graphicsLayer { alpha = captureFlashAlpha.value }
+                            .background(GhostShotTextPrimary)
+                    )
+                }
+
+                // ── Layer 5: Camera controls overlay ─────────────────────────────────
                 CameraControlsOverlay(
                     referenceUri = referenceUri,
                     compareInput = compareInput,
@@ -509,7 +534,7 @@ fun CameraScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // ── Layer 5: Snackbar ─────────────────────────────────────────────────
+                // ── Layer 6: Snackbar ─────────────────────────────────────────────────
                 CameraSnackbarHost(
                     hostState = snackbarHostState,
                     isLandscape = isLandscape,
