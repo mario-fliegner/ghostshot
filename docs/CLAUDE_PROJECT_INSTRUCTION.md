@@ -4,6 +4,13 @@
 
 ## CURRENT PRODUCT STATE ADDENDUM (2026-04-29)
 
+### Addendum (2026-05-05)
+
+- Capture feedback: visual flash + haptic trigger implemented
+- Grid overlay implemented (purely visual, not part of capture output)
+- Landscape controls aligned strictly to preview center (nav bar independent)
+
+
 This addendum documents current product decisions after the compare-flow, session-library, landscape-control, debug-logging, and hybrid-fullscreen iterations.
 It supplements the existing rules below without removing or weakening them.
 If a future task conflicts with this addendum, the user must make an explicit product decision before implementation.

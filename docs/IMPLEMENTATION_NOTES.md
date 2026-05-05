@@ -99,8 +99,8 @@ Color rules:
 - Camera zoom mode
 - Reset functionality
 - Overlay delete (with confirmation)
-- Grid overlay
-- Capture / save via MediaStore
+- Grid overlay (IMPLEMENTED)
+- Capture / save via MediaStore (IMPLEMENTED)
 - Any persistence across app restarts
 
 ---
@@ -267,3 +267,11 @@ Not part of this step:
 - Slider width is less than or equal to the button-group width
 - Slider remains inside root bounds
 - Overlay menu remains visible and visually above the slider when overlapping
+
+
+## Addendum (2026-05-05)
+
+- Capture flash implemented (preview-only visual feedback)
+- Haptic feedback implemented on capture trigger
+- Grid overlay implemented (Canvas-based, preview-only)
+- Landscape controls alignment fixed (centered to preview, nav bar independent)

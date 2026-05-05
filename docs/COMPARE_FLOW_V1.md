@@ -1015,3 +1015,11 @@ Validation status:
 - `testDebugUnitTest` green
 - `:app:assembleDebug` green
 - `CompareScreenTest` connected instrumentation tests green (26/26 on SM-S911B)
+
+
+## CAMERA FEEDBACK CONSISTENCY (2026-05-05)
+
+- Capture flash and haptic feedback exist only in CameraScreen
+- Must not affect CompareScreen rendering
+- Must not affect saved images
+- Compare flow remains visually unaffected
