@@ -77,7 +77,8 @@ data class ReferenceImageMetadata(
  * @param overlayScale Scale factor applied to the overlay. 1.0 represents the default fit size.
  *   Clamped to [CameraViewModel.MIN_SCALE, CameraViewModel.MAX_SCALE].
  * @param overlayAlpha Opacity of the overlay, clamped to [0.1, 0.9]. Default is 0.5.
- * @param isGridVisible Whether the 3x3 rule-of-thirds grid is currently shown.
+ * @param isGridVisible Whether the camera grid overlay is currently shown.
+ * @param gridType The type of grid to draw when [isGridVisible] is true.
  * @param interactionMode The currently active gesture interaction mode.
  * @param viewportWidth Width of the camera preview viewport in pixels. 0 until first layout.
  * @param viewportHeight Height of the camera preview viewport in pixels. 0 until first layout.
@@ -88,7 +89,8 @@ data class CameraUiState(
     val overlayOffsetY: Float = 0f,
     val overlayScale: Float = 1f,
     val overlayAlpha: Float = 0.5f,
-    val isGridVisible: Boolean = false,
+    val isGridVisible: Boolean = true,
+    val gridType: GridType = GridType.RULE_OF_THIRDS,
     val interactionMode: InteractionMode = InteractionMode.OVERLAY_ADJUST,
     val activeAspectRatio: TargetAspectRatio = TargetAspectRatio.RATIO_16_9,
     val referenceImageDisplayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,

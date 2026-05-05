@@ -28,6 +28,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,6 +50,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
@@ -91,6 +93,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -122,6 +125,7 @@ import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import coil.compose.AsyncImage
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
+import com.isardomains.ghostshot.ui.theme.GhostShotGridLine
 import com.isardomains.ghostshot.ui.theme.GhostShotOverlayScrim
 import com.isardomains.ghostshot.ui.theme.GhostShotPreviewFrameScrim
 import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
@@ -137,6 +141,7 @@ private val CameraBottomControlGap = 16.dp
 private val CameraOpacitySliderPortraitBottom = 128.dp
 private val CameraOpacitySliderHeight = 56.dp
 private val CameraOpacitySliderLandscapeMaxWidth = 320.dp
+private val CameraGridLineWidth = 1.dp
 private const val CaptureSuccessSnackbarStateKey =
     "com.isardomains.ghostshot.ui.camera.CaptureSuccessSnackbar"
 private const val CaptureSuccessSnackbarLastShownGenerationKey = "lastShownGeneration"
@@ -467,7 +472,17 @@ fun CameraScreen(
                     }
                 }
 
-                // ── Layer 3: Camera controls overlay ─────────────────────────────────
+                // ── Layer 3: Camera grid overlay ─────────────────────────────────────
+                if (uiState.isGridVisible) {
+                    CameraGridOverlay(
+                        gridType = uiState.gridType,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = frameLeftDp, vertical = frameTopDp)
+                    )
+                }
+
+                // ── Layer 4: Camera controls overlay ─────────────────────────────────
                 CameraControlsOverlay(
                     referenceUri = referenceUri,
                     compareInput = compareInput,
@@ -494,7 +509,7 @@ fun CameraScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // ── Layer 4: Snackbar ─────────────────────────────────────────────────
+                // ── Layer 5: Snackbar ─────────────────────────────────────────────────
                 CameraSnackbarHost(
                     hostState = snackbarHostState,
                     isLandscape = isLandscape,
@@ -933,13 +948,16 @@ internal fun CameraControlsOverlay(
                         CameraShutterButtonSize
                 }
 
+                val navigationBottomPadding =
+                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                val effectiveBottomPadding = bottomPadding + navigationBottomPadding
+
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .zIndex(1f)
                         .widthIn(min = CameraSecondaryActionMinWidth)
-                        .navigationBarsPadding()
-                        .padding(end = sideControlsPadding, bottom = bottomPadding),
+                        .padding(end = sideControlsPadding, bottom = effectiveBottomPadding),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     horizontalAlignment = Alignment.End
                 ) {
@@ -971,15 +989,13 @@ internal fun CameraControlsOverlay(
                     onCapture = onCapture,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = bottomPadding)
+                        .padding(bottom = effectiveBottomPadding)
                 )
 
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .navigationBarsPadding()
-                        .padding(start = sideControlsPadding, bottom = bottomPadding),
+                        .padding(start = sideControlsPadding, bottom = effectiveBottomPadding),
                     horizontalArrangement = Arrangement.spacedBy(controlGap),
                     verticalAlignment = Alignment.Bottom
                 ) {
@@ -1002,9 +1018,8 @@ internal fun CameraControlsOverlay(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
                             .padding(
-                                bottom = bottomPadding + CameraShutterButtonSize + sliderButtonGap
+                                bottom = effectiveBottomPadding + CameraShutterButtonSize + sliderButtonGap
                             )
                             .width(sliderGroupWidth.coerceAtMost(CameraOpacitySliderLandscapeMaxWidth))
                             .height(CameraShutterButtonSize),
@@ -1399,6 +1414,40 @@ private fun ReferenceActionStack(
                 text = stringResource(R.string.action_stack_remove_label),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+@Composable
+private fun CameraGridOverlay(
+    gridType: GridType,
+    modifier: Modifier = Modifier,
+    lineColor: Color = GhostShotGridLine,
+    lineWidth: Dp = CameraGridLineWidth,
+) {
+    if (gridType == GridType.NONE) return
+    Canvas(modifier = modifier) {
+        val strokePx = lineWidth.toPx()
+        val positions: List<Float> = when (gridType) {
+            GridType.NONE -> emptyList()
+            GridType.RULE_OF_THIRDS -> listOf(1f / 3f, 2f / 3f)
+            GridType.QUARTERS -> listOf(1f / 4f, 2f / 4f, 3f / 4f)
+        }
+        for (fraction in positions) {
+            val x = size.width * fraction
+            drawLine(
+                color = lineColor,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = strokePx,
+            )
+            val y = size.height * fraction
+            drawLine(
+                color = lineColor,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = strokePx,
             )
         }
     }

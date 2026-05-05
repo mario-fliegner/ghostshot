@@ -37,3 +37,6 @@ val GhostShotOverlayScrim = Color(0xB3000000)
 
 /** Solid dark fill for letterbox/pillarbox areas outside the active preview frame. */
 val GhostShotPreviewFrameScrim = Color(0xFF17202F)
+
+/** Semi-transparent white for camera grid overlay lines (~50 % white). */
+val GhostShotGridLine = Color(0x80FFFFFF)
