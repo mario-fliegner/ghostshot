@@ -38,6 +38,11 @@ The compare flow is a focused product feature directly tied to the app's main pr
 - capture new image
 - compare reference vs new image
 
+The current compare approach is intentionally pragmatic and stable. It prioritizes
+consistent presentation, predictable slider behavior, and reliable session handling.
+It does not claim perfect geometric reconstruction of the camera preview, overlay
+position, or preview-to-capture mapping.
+
 > Note (2026-04-27): A Compare Library is now implemented as part of V1. It is a focused internal session overview and does not expand the feature into a gallery, history browser, or general image review module. Sessions are only the internal capture+reference pairs created by the app's own capture flow. The Compare Library does not browse MediaStore or the device photo library. The product purpose described in this section remains unchanged.
 
 ---
@@ -395,7 +400,7 @@ Forbidden:
 - one image using `Fit` while the other uses `Crop`
 - changing only one side of the comparison
 - stretching images to fill the viewport
-- changing Variant B normalization or saved output behavior
+- changing saved MediaStore output behavior or internal session behavior
 
 ### Back behavior
 
@@ -485,6 +490,10 @@ At minimum:
 - capture image input
 
 This input must be sufficient to render the compare screen without re-deriving unrelated camera state.
+
+The compare screen must not depend on reconstructing the previous camera preview geometry.
+Overlay position, overlay scale, viewport size, and preview-to-capture mapping are not
+part of the active compare rendering contract.
 
 ### Compare-local state
 
@@ -723,8 +732,7 @@ If compare work breaks unrelated existing tests, that compare implementation is 
 The following are strictly forbidden unless the user explicitly broadens scope:
 
 - modifying the capture pipeline
-- modifying bitmap processing logic
-- modifying variant B image normalization logic
+- modifying bitmap/session processing logic
 - using compare as a reason to redesign camera architecture
 - embedding compare UI inside camera screen
 - adding side-by-side or other extra compare modes
@@ -931,23 +939,29 @@ From `CompareLibraryScreen`: multi-session delete via multi-select and confirmat
 
 ---
 
-## 34. IMPLEMENTATION STATUS (2026-04-27)
+## 34. IMPLEMENTATION STATUS
 
-The following components are implemented and their tests are passing.
+The following components are implemented and are part of the current release state.
 
 | Component | Status |
 | --- | --- |
-| `CompareScreen` | Implemented; instrumentation tests green |
+| `CompareScreen` | Implemented |
 | `CompareLibraryScreen` | Implemented |
 | `SessionStorage` (returns `SavedSessionRef`) | Implemented |
 | `SessionScanner` | Implemented |
-| `SessionDeleter` | Implemented; unit tests green |
+| `SessionDeleter` | Implemented |
 | `CompareInput` with `sessionId`/`timestamp` | Implemented |
 | Camera Flow session context propagation | Implemented |
 | Library Flow session context propagation | Implemented |
 | Theme: `background`/`surface` override in light mode | Implemented |
+| Compare fullscreen viewing mode | Implemented |
+| Session title support | Implemented |
+| Compare/library delete behavior | Implemented |
 
-Unit test count: 34 (all green as of last run).
+Closed-testing status:
+- No known critical blocker is documented for the compare flow
+- Release-relevant risks are limited to bounded robustness/polish cases
+- Final pre-upload verification should use the current unit, instrumentation, and release-install smoke flows
 
 ---
 
@@ -988,7 +1002,7 @@ Landscape camera controls must mirror the portrait structure conceptually:
 ### Compare-flow relevance
 
 The `Shots` / `Compare Images` entry must remain reachable and visually stable in landscape.
-The landscape layout fix must not change `CompareScreen`, Variant B normalization, session storage, delete behavior, or compare navigation contracts.
+The landscape layout fix must not change `CompareScreen`, session storage, delete behavior, or compare navigation contracts.
 
 ---
 
@@ -1012,9 +1026,8 @@ Test coverage added:
 - Back exits fullscreen without triggering compare-screen navigation
 
 Validation status:
-- `testDebugUnitTest` green
-- `:app:assembleDebug` green
-- `CompareScreenTest` connected instrumentation tests green (26/26 on SM-S911B)
+- covered by the current compare fullscreen/navigation instrumentation tests
+- final release validation should use the current test suite rather than historical test counts
 
 
 ## CAMERA FEEDBACK CONSISTENCY (2026-05-05)
@@ -1025,14 +1038,14 @@ Validation status:
 - Compare flow remains visually unaffected
 
 
-## 33. SESSION TITLE SUPPORT (V1 ADDENDUM 2026-05-05)
+## 37. SESSION TITLE SUPPORT (V1 ADDENDUM 2026-05-05)
 
 Sessions may include an optional title.
 
 ### Behavior
 
 - Title is metadata only, not part of comparison logic
-- Title does not affect rendering, normalization, or slider behavior
+- Title does not affect rendering or slider behavior
 - Title is displayed in CompareScreen when available
 - Title is displayed in CompareLibraryScreen when available
 

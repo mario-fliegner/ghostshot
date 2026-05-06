@@ -3,7 +3,7 @@
 ## Purpose
 This file supplements `CLAUDE_PROJECT_INSTRUCTION.md`.
 
-It documents the **current implementation state**, **recent decisions**, and **immediate next steps**.
+It documents the **current implementation state**, **recent decisions**, and **release-relevant notes**.
 
 It must stay short, precise, and aligned with the actual codebase.
 
@@ -22,10 +22,18 @@ Technical baseline:
 - Material 3
 - MVVM + Hilt
 - CameraX preview
-- minSdk 26 / targetSdk 35
+- minSdk 29 / targetSdk 35
 
 Permissions:
 - CAMERA only
+- No INTERNET permission
+- No READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE permission
+
+Current release state:
+- Closed-testing-ready based on the current code and documented verification
+- No known critical blocker for Closed Testing / Play upload
+- Release build hardening is active: R8, resource shrinking, backup/session exclusions, and debug-log gating
+- A signed release APK has been installed and used successfully on a real device
 
 ---
 
@@ -35,92 +43,125 @@ Permissions:
 - CameraX Preview working reliably
 - Back camera only
 - Lifecycle-safe preview handling
+- Capture and save via MediaStore
+- Capture flash and haptic feedback on capture trigger
+- Save failures show user-facing feedback and keep the app usable
 
 ### Permissions
 - Full permission flow implemented:
   - initial request
   - rationale
-  - permanent denial → app settings
+  - permanent denial -> app settings
 
 ### Reference Image
 - Android Photo Picker integration
 - Single image selection
-- Overlay displayed above preview
 - Picker cancellation does NOT remove existing overlay
+- Invalid or unreadable reference images show a Snackbar
 
 ### Overlay Rendering
-- Overlay displayed centered using AsyncImage
-- Opacity adjustable via slider (0.1–0.9)
-- Overlay state stored in ViewModel
+- Overlay displayed above preview using AsyncImage
+- Opacity adjustable via slider (0.1-0.9)
+- Overlay drag implemented
+- Overlay pinch scaling implemented
+- Reset restores the default alignment state
+- Overlay delete is supported with confirmation and undo flow
+- Overlay state is stored in ViewModel and survives normal rotation within the active session
 
-### Layout (IMPORTANT)
+### Grid
+- Grid overlay implemented as a preview-only Canvas layer
+- Grid is not written into captured images
 
-The layout has been refactored to:
+### Compare
+- `CompareScreen` is implemented as a separate fullscreen slider-based comparison screen
+- Tap-based fullscreen viewing mode is implemented
+- Back exits fullscreen before leaving the screen
+- Compare supports timestamp, delete, and optional shot title display
+- Compare image load failures show a fallback UI and allow back navigation
 
-- Fullscreen `Box` as root
-- Camera preview ALWAYS `fillMaxSize()`
-- UI is layered ABOVE the preview
+### Compare Library
+- `CompareLibraryScreen` is implemented as a focused internal session overview
+- Sessions are shown in a grid
+- Long-press multi-select delete is implemented with confirmation
+- Titles are displayed when present
+- This is not a general gallery or MediaStore browser
 
-This ensures:
-- Preview size NEVER changes due to UI
-- Overlay scaling remains stable
+### Session Storage
+- Successful captures with an active reference can create an internal session under `filesDir/sessions/<sessionId>/`
+- Each session stores `capture.jpg`, `reference.jpg`, and `metadata.json`
+- `metadata.json` includes schema version, timestamp, file names, MediaStore URI, picker URI, and optional title
+- Missing, corrupt, or incomplete session metadata is ignored during scanning
+- Session writes are best-effort and do not invalidate the main MediaStore save
+- Session deletion only removes internal session folders
 
-### UI Structure
+### Shot Titles
+- Optional session title stored in `metadata.json`
+- Missing title field is valid
+- Titles are trimmed; blank titles are stored as absent
+- CompareScreen allows editing and removing a title
+- CompareLibrary displays titles above timestamps when present
+- Title-save failures show a Snackbar
 
-- Bottom UI is an overlay (not part of layout flow)
-- Portrait:
-  - stacked controls (opacity + bottom bar)
-- Landscape:
-  - compact single-row controls (reference + opacity)
-
----
-
-## UI Design Principles (IMPORTANT)
-
-- The preview is the primary content → must stay dominant
-- UI must NOT resize or affect preview geometry
-- UI is always an overlay layer
-- Use dark semi-transparent surfaces (camera app pattern)
-- Use a single accent color across the app
-- Avoid visual clutter
-
-Color rules:
-- Background overlays: black with alpha (~60–70%)
-- Primary text: white
-- Secondary text: light gray
-- Accent color: single consistent color (e.g. blue)
-
----
-
-## Not Implemented Yet
-
-- Overlay drag (move)
-- Overlay pinch scaling
-- Camera zoom mode
-- Reset functionality
-- Overlay delete (with confirmation)
-- Grid overlay (IMPLEMENTED)
-- Capture / save via MediaStore (IMPLEMENTED)
-- Any persistence across app restarts
+### Layout
+- Fullscreen `Box` root
+- Camera preview uses `fillMaxSize()`
+- UI is layered above the preview and does not resize it
+- Portrait controls are stacked above the bottom bar
+- Landscape controls are aligned to the preview center, independent of the navigation bar
+- Landscape bottom row is `Overlay` / `Capture` / `Shots`
+- Landscape opacity slider is centered above the button row
+- Overlay action menu stays visible and inside root bounds
 
 ---
 
-## Immediate Next Step
+## Compare Approach
 
-Next implementation step:
+The current compare approach is intentionally pragmatic and stable.
 
-- Enable dragging (move) of the overlay
+It focuses on:
+- consistent rendering rules for both images
+- stable slider UX
+- reproducible session behavior
+- clear fallback states when images cannot be loaded
 
-Scope:
-- One-finger drag moves overlay
-- Position stored in ViewModel
-- State survives rotation within same session
+It does not claim perfect geometric reconstruction of the camera preview or overlay state.
 
-Not part of this step:
-- No scaling
-- No zoom mode
-- No reset/delete
-- No capture
+Important:
+- The old geometry reconstruction / `ComparisonFrame` direction is no longer the active product approach
+- Overlay position, overlay scale, viewport size, and preview-to-capture mapping are not used to reconstruct a mathematically exact comparison frame
+- The overlay remains a visual alignment aid
+- The saved MediaStore capture is not composited with the overlay
+
+---
+
+## Storage / Privacy / Release Hardening
+
+- Manifest declares CAMERA only
+- The app has no INTERNET permission
+- No analytics, telemetry, tracking, upload, or network feature is implemented
+- Android Photo Picker is used for reference image selection
+- Captures are saved through MediaStore under `Pictures/GhostShot`
+- Internal compare sessions are stored under `filesDir/sessions/`
+- `backup_rules.xml` excludes `sessions/` from Auto Backup
+- `data_extraction_rules.xml` excludes `sessions/` from cloud backup and device transfer
+- `SessionDeleter` validates target paths against path traversal
+- `SessionStorage.updateTitle` validates target paths against path traversal
+- Debug/session logs are guarded by `BuildConfig.DEBUG`
+- R8 minify and resource shrinking are enabled for release
+- Build and release artifacts are ignored by `.gitignore`
+
+---
+
+## Known Release-Relevant Residual Risks
+
+No critical blockers are currently documented.
+
+Accepted residual risks:
+- Very large reference images can still increase memory pressure during session creation; failures are caught and the main MediaStore save remains the source of truth
+- Overlay and library thumbnail image-load failures may produce limited visual feedback, but do not block navigation or core capture
+- Delete failures are handled by rescanning state, but currently do not show a dedicated user-facing error
+
+These are robustness/polish items, not known Closed Testing blockers.
 
 ---
 
@@ -136,12 +177,12 @@ Not part of this step:
 
 ### UI discipline
 - No layout that resizes preview
-- No hardcoded colors
 - Use central color definitions
+- Keep camera controls practical and uncluttered
 
 ### State
-- ViewModel is source of truth
-- No UI-only state for core behavior
+- ViewModel is source of truth for active camera-session state
+- No persistence of active overlay/camera state across full app restarts
 
 ### Testability
 - Keep logic testable
@@ -149,153 +190,20 @@ Not part of this step:
 
 ---
 
-## Notes
+## Current Verification Notes
 
-The project has reached a stable UI baseline.
+Existing tests cover the critical release paths around:
+- ViewModel overlay/reference state
+- capture lock and capture error handling
+- snackbar replay protection
+- session scanner/storage/deleter behavior
+- title metadata read/write behavior
+- compare navigation
+- compare slider and fullscreen behavior
+- compare library grid, navigation, selection, delete, and title display
+- Camera controls, landscape alignment, grid, and capture feedback
 
-Further work must:
-- build on top of the current overlay-based layout
-- avoid breaking preview stability
-- maintain clear separation between UI and logic
-
----
-
-## Current Implementation Addendum (2026-04-28)
-
-### Implemented Since Previous Notes
-
-Compare flow:
-- `CompareScreen` is implemented as a fullscreen slider-based before/after comparison screen
-- `CompareLibraryScreen` is implemented as a focused internal session overview
-- `SessionStorage` writes `capture.jpg`, `reference.jpg`, and `metadata.json` under `filesDir/sessions/<sessionId>/`
-- `SessionScanner` reads saved sessions
-- `SessionDeleter` deletes only internal session folders and validates session IDs against path traversal
-- `CompareInput` includes optional `sessionId` and `timestamp`
-- Camera Flow and Library Flow both pass session context to `CompareScreen` when available
-
-Comparison logic:
-- Current comparison output follows Variant B only
-- Capture bitmap is rotated before comparison normalization
-- Reference bitmap is EXIF-oriented before comparison normalization
-- Both images are independently center-cropped to portrait 9:16 and scaled to one fixed target size
-- Overlay position, overlay scale, viewport size, and preview-to-capture mapping do not define comparison output
-
-Camera / overlay:
-- Capture and save via MediaStore are implemented
-- Overlay drag is implemented
-- Overlay pinch scaling is implemented
-- Reset restores sensible default alignment state
-- Remove reference image is supported with undo flow
-- Undo state survives rotation correctly
-
-Logging:
-- Internal debug logging is allowed and expected during development
-- Logging must stay non-user-facing and compatible with release/debug controls
-
-### Camera Screen Controls: Current Decision
-
-### Additional Implementation Notes (2026-05-05)
-
-Camera / Preview:
-- Landscape preview now uses correct 16:9 ViewPort (instead of 9:16)
-- ScaleType is unified to FIT_CENTER for both orientations
-- Letterbox / pillarbox areas are expected and intentional
-- PreviewView background is explicitly set to a neutral scrim color
-
-Scrim / Background:
-- Preview frame background uses a central color definition (GhostShotPreviewFrameScrim)
-- Current value is a semi-transparent dark grey (~0x99222222)
-- This replaces pure black to improve contrast with system UI elements
-
-Edge-to-edge:
-- enableEdgeToEdge is active
-- Status bar icons are forced to light (white) globally via SystemBarStyle.dark(...)
-- No per-screen override implemented yet (next step)
-
-FormatMismatchHint:
-- Remains inside CameraControlsOverlay (NOT moved)
-- Position is now frame-relative via frameLeft / frameTop
-- Additional safety: top offset uses max(frameTop, statusBarInset)
-- Prevents overlap with system status bar in landscape
-
-
-
-Portrait:
-- Current portrait layout works correctly
-- Slider sits above the bottom controls
-- Portrait must not be touched by the current landscape-control fix
-
-Landscape:
-- Capture is already fixed at bottom center and must remain exactly centered
-- Overlay button is left of capture
-- Shots / Compare entry is right of capture
-- Final target structure is a bottom button row: `Overlay` / `Capture` / `Shots`
-- Opacity slider sits in a separate row above the button row
-- Slider is centered above capture
-- Slider width is constrained by the visible button-group width
-- Slider must not be placed to the right of Shots / Compare
-- Slider must not use remaining-space calculations
-- Old right-side / fallback slider logic must not be reused
-- Overlay action menu opens from Overlay, remains inside root bounds, and may overlap the slider
-
-### Immediate Next Step (2026-04-28)
-
-Fix only the landscape camera-control layout.
-
-Scope:
-- Keep capture bottom-centered
-- Arrange landscape bottom controls as `Overlay` / `Capture` / `Shots`
-- Move landscape opacity slider into a centered row above the buttons
-- Constrain slider width to the button-group width
-- Keep overlay action menu above the slider when overlapping
-- Add or adjust focused tests for this landscape behavior
-
-Not part of this step:
-- No portrait changes
-- No `CompareScreen` changes
-- No Variant B changes
-- No session storage changes
-- No visual redesign beyond the landscape-control structure
-- No refactoring of unrelated `CameraScreen` code
-
-### Tests To Consider For The Current Landscape Fix
-
-- Capture is horizontally centered in landscape
-- Overlay and Shots / Compare are symmetrically positioned around capture
-- Slider is centered above capture
-- Slider is above the button row
-- Slider width is less than or equal to the button-group width
-- Slider remains inside root bounds
-- Overlay menu remains visible and visually above the slider when overlapping
-
-
-## Addendum (2026-05-05)
-
-- Capture flash implemented (preview-only visual feedback)
-- Haptic feedback implemented on capture trigger
-- Grid overlay implemented (Canvas-based, preview-only)
-- Landscape controls alignment fixed (centered to preview, nav bar independent)
-
-
-### Shot Title Feature (2026-05-05)
-
-Session metadata now supports an optional "title" field.
-
-Storage:
-- Stored in metadata.json as "title"
-- Missing field is valid
-- Normalized (trimmed, empty → null)
-
-CompareScreen:
-- Displays title above timestamp when present
-- Overflow menu allows:
-  - Edit title
-  - Remove title (no confirmation)
-
-CompareLibraryScreen:
-- Displays title above timestamp when present
-- Without title, timestamp remains visible and layout stays stable
-
-UX:
-- No confirmation dialog for removal
-- Immediate visual update after change
+Before Closed Testing, the useful final verification remains:
+- unit tests
+- connected instrumentation tests
+- release build/sign/install smoke test on a real device

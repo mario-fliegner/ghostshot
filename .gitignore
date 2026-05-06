@@ -25,6 +25,4 @@ captures/
 *.code-workspace
 
 # Android build outputs
-*.apk
-*.aab
 app/release/

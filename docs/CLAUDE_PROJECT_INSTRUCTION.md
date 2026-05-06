@@ -54,7 +54,7 @@ Rules:
 - The slider, divider, labels, and drag behavior remain available and unchanged in fullscreen
 - Both images must always use the same `ContentScale` at the same time
 - Normal mode must keep `ContentScale.Fit`; fullscreen must use `ContentScale.Crop`
-- Fullscreen must not alter Variant B output, session storage, navigation contracts, or saved MediaStore images
+- Fullscreen must not alter compare session storage, navigation contracts, or saved MediaStore images
 - Do not remove or simplify this behavior without an explicit product decision
 
 ### Compare Library
@@ -82,18 +82,18 @@ Each successful capture with an active reference image can create an internal co
 - `SessionDeleter` deletes sessions and validates session IDs against the sessions root
 - Session write is best-effort and must not block or invalidate the main MediaStore capture save
 
-### Comparison Output Decision: Variant B
+### Comparison Output Decision
 
-Comparison output is defined exclusively by Variant B bitmap normalization.
-The overlay has no influence on comparison output.
+Comparison is intentionally pragmatic and visual.
+The overlay has no influence on the saved camera output.
 
-Variant B means:
+The active compare approach means:
 
-1. Rotate the captured bitmap correctly
-2. Apply EXIF orientation to the reference bitmap
-3. Normalize both images independently with center-crop to portrait 9:16
-4. Scale both normalized images to one fixed target size
-5. Use these two normalized bitmaps as the deterministic comparison pair
+1. Keep the saved camera image independent from the overlay
+2. Store the captured image and reference image as an internal session pair when available
+3. Render both compare images with the same viewport, alignment, and scaling rules
+4. Keep slider behavior stable and reproducible
+5. Do not attempt perfect geometric reconstruction of the camera preview or overlay state
 
 Important:
 - The overlay is a visual alignment aid only
@@ -148,7 +148,7 @@ Do not expand the product scope unless explicitly instructed.
 - No direct Camera2 implementation unless explicitly required
 - Single-Activity architecture
 - Navigation: Navigation Compose
-- minSdk = 26
+- minSdk = 29
 - targetSdk = 35
 - compileSdk = 35
 
@@ -179,7 +179,7 @@ Do not introduce unnecessary permissions.
 
 Use:
 - MediaStore ONLY
-- RELATIVE_PATH = Pictures/OverlayPast
+- RELATIVE_PATH = Pictures/GhostShot
 - JPEG output
 
 Do not use:
