@@ -92,8 +92,8 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-                    composable(ROUTE_COMPARE_LIBRARY) {
-                        val cameraEntry = remember(navController) {
+                    composable(ROUTE_COMPARE_LIBRARY) { navBackStackEntry ->
+                        val cameraEntry = remember(navBackStackEntry) {
                             navController.getBackStackEntry(ROUTE_CAMERA)
                         }
                         val viewModel: CameraViewModel = hiltViewModel(cameraEntry)
@@ -140,7 +140,7 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     ) { backStackEntry ->
-                        val cameraEntry = remember(navController) {
+                        val cameraEntry = remember(backStackEntry) {
                             navController.getBackStackEntry(ROUTE_CAMERA)
                         }
                         val viewModel: CameraViewModel = hiltViewModel(cameraEntry)
