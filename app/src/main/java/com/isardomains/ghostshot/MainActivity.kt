@@ -6,8 +6,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
@@ -17,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.isardomains.ghostshot.ui.camera.CameraScreen
 import com.isardomains.ghostshot.ui.camera.CameraViewModel
+import com.isardomains.ghostshot.ui.camera.UiEvent
 import com.isardomains.ghostshot.ui.compare.CompareLibraryScreen
 import com.isardomains.ghostshot.ui.compare.CompareScreen
 import com.isardomains.ghostshot.ui.theme.GhostShotTheme
@@ -139,26 +151,56 @@ class MainActivity : ComponentActivity() {
                         val sessionTitle = uiState.savedSessions
                             .find { it.sessionId == sessionId }
                             ?.title
-                        CompareScreen(
-                            referenceImageUri = backStackEntry.arguments
-                                ?.getString(ARG_REFERENCE_URI)
-                                ?.let(Uri::parse),
-                            captureImageUri = backStackEntry.arguments
-                                ?.getString(ARG_CAPTURE_URI)
-                                ?.let(Uri::parse),
-                            onBack = { navController.popBackStack() },
-                            timestamp = timestamp,
-                            onDelete = if (sessionId != null) {
-                                {
-                                    viewModel.deleteSessions(listOf(sessionId))
-                                    navController.popBackStack()
+
+                        val snackbarHostState = remember { SnackbarHostState() }
+                        var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
+
+                        LaunchedEffect(viewModel) {
+                            viewModel.uiEvent.collect { event ->
+                                if (event is UiEvent.ShowSnackbar) {
+                                    pendingSnackbarEvent = event
                                 }
-                            } else null,
-                            sessionTitle = sessionTitle,
-                            onSaveTitle = if (sessionId != null) {
-                                { title -> viewModel.updateSessionTitle(sessionId, title) }
-                            } else null
-                        )
+                            }
+                        }
+
+                        val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
+
+                        LaunchedEffect(pendingSnackbarEvent) {
+                            if (pendingMessage != null) {
+                                snackbarHostState.showSnackbar(pendingMessage)
+                                pendingSnackbarEvent = null
+                            }
+                        }
+
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            CompareScreen(
+                                referenceImageUri = backStackEntry.arguments
+                                    ?.getString(ARG_REFERENCE_URI)
+                                    ?.let(Uri::parse),
+                                captureImageUri = backStackEntry.arguments
+                                    ?.getString(ARG_CAPTURE_URI)
+                                    ?.let(Uri::parse),
+                                onBack = { navController.popBackStack() },
+                                timestamp = timestamp,
+                                onDelete = if (sessionId != null) {
+                                    {
+                                        viewModel.deleteSessions(listOf(sessionId))
+                                        navController.popBackStack()
+                                    }
+                                } else null,
+                                sessionTitle = sessionTitle,
+                                onSaveTitle = if (sessionId != null) {
+                                    { title -> viewModel.updateSessionTitle(sessionId, title) }
+                                } else null
+                            )
+
+                            SnackbarHost(
+                                hostState = snackbarHostState,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .navigationBarsPadding()
+                            )
+                        }
                     }
                 }
             }

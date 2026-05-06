@@ -1043,6 +1043,27 @@ class CameraViewModelTest {
         assertEquals(listOf(fakeSession), testViewModel.uiState.value.savedSessions)
     }
 
+    @Test
+    fun updateSessionTitle_updaterReturnsFalse_emitsSnackbarError() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null },
+            { _ -> emptyList() },
+            { _, _, _ -> false }
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.updateSessionTitle("session-1", "Some Title")
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.compare_screen_title_save_failed, snackbars[0].messageResId)
+    }
+
     // --- helpers ---
 
     private fun testViewModelWithScanner(
