@@ -4,17 +4,14 @@ package com.isardomains.ghostshot.ui.camera
 import android.content.Context
 import android.graphics.Bitmap
 import java.io.File
-import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import android.util.Log
 import androidx.annotation.StringRes
-import android.media.ExifInterface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.core.image.CenterCropNormalizer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -229,7 +226,6 @@ class CameraViewModel @Inject constructor(
         /** Maximum allowed scale for the reference image overlay. */
         const val MAX_SCALE = 3.0f
 
-        private const val DEBUG_TAG = "ComparisonCropDebug"
         private const val LOG_TAG = "GhostShot"
     }
 
@@ -556,53 +552,6 @@ class CameraViewModel @Inject constructor(
                     _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
                 }
 
-                // --- Variant B: comparison crop normalization ---
-                var variantBCaptureCropped: Bitmap? = null
-                var variantBCaptureNormalized: Bitmap? = null
-                var variantBRawReference: Bitmap? = null
-                var variantBOrientedReference: Bitmap? = null
-                var variantBReferenceCropped: Bitmap? = null
-                var variantBReferenceNormalized: Bitmap? = null
-                try {
-                    variantBCaptureCropped = CenterCropNormalizer.centerCrop(corrected, CenterCropNormalizer.TARGET_RATIO)
-                    variantBCaptureNormalized = CenterCropNormalizer.scaleTo(
-                        variantBCaptureCropped, CenterCropNormalizer.TARGET_WIDTH, CenterCropNormalizer.TARGET_HEIGHT
-                    )
-
-                    val referenceUri = _uiState.value.referenceImageUri
-                    if (referenceUri != null) {
-                        val exifOrientation = _uiState.value.referenceImageMetadata?.exifOrientation
-                        variantBRawReference = context.contentResolver
-                            .openInputStream(referenceUri)
-                            ?.use { BitmapFactory.decodeStream(it) }
-                        if (variantBRawReference != null) {
-                            variantBOrientedReference = applyExifOrientation(variantBRawReference, exifOrientation)
-                            variantBReferenceCropped = CenterCropNormalizer.centerCrop(
-                                variantBOrientedReference, CenterCropNormalizer.TARGET_RATIO
-                            )
-                            variantBReferenceNormalized = CenterCropNormalizer.scaleTo(
-                                variantBReferenceCropped, CenterCropNormalizer.TARGET_WIDTH, CenterCropNormalizer.TARGET_HEIGHT
-                            )
-                            Log.d(DEBUG_TAG, "variantB capture:   ${variantBCaptureNormalized.width}×${variantBCaptureNormalized.height}")
-                            Log.d(DEBUG_TAG, "variantB reference: ${variantBReferenceNormalized.width}×${variantBReferenceNormalized.height}")
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.d(DEBUG_TAG, "variantB error: ${e.message}")
-                } catch (e: OutOfMemoryError) {
-                    Log.d(DEBUG_TAG, "variantB OOM")
-                } finally {
-                    // corrected is owned by the outer scope — never recycle it here.
-                    if (variantBCaptureCropped !== corrected) variantBCaptureCropped?.recycle()
-                    variantBCaptureNormalized?.recycle()
-                    // Walk the reference chain: each level is only recycled if it is a distinct instance.
-                    if (variantBReferenceCropped !== variantBOrientedReference) variantBReferenceCropped?.recycle()
-                    if (variantBOrientedReference !== variantBRawReference) variantBOrientedReference?.recycle()
-                    variantBRawReference?.recycle()
-                    variantBReferenceNormalized?.recycle()
-                }
-                // --- End Variant B comparison crop normalization ---
-
             } catch (e: Exception) {
                 lastCaptureResult = null
                 _uiState.update { it.copy(compareInput = null) }
@@ -698,41 +647,6 @@ class CameraViewModel @Inject constructor(
         if (degrees == 0) return bitmap
         val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-    }
-
-    /**
-     * Applies EXIF orientation to [source] and returns the correctly oriented bitmap.
-     *
-     * Returns [source] unchanged if no transform is needed. Never recycles the input.
-     */
-    private fun applyExifOrientation(source: Bitmap, exifOrientation: Int?): Bitmap {
-        val matrix = Matrix()
-        val needsTransform = when (exifOrientation) {
-            null,
-            ExifInterface.ORIENTATION_UNDEFINED,
-            ExifInterface.ORIENTATION_NORMAL -> false
-            ExifInterface.ORIENTATION_ROTATE_180 -> { matrix.postRotate(180f); true }
-            ExifInterface.ORIENTATION_ROTATE_90 -> { matrix.postRotate(90f); true }
-            ExifInterface.ORIENTATION_ROTATE_270 -> { matrix.postRotate(270f); true }
-            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> {
-                matrix.postScale(-1f, 1f, source.width / 2f, source.height / 2f); true
-            }
-            ExifInterface.ORIENTATION_FLIP_VERTICAL -> {
-                matrix.postScale(1f, -1f, source.width / 2f, source.height / 2f); true
-            }
-            ExifInterface.ORIENTATION_TRANSPOSE -> {
-                matrix.postRotate(90f); matrix.postScale(-1f, 1f); true
-            }
-            ExifInterface.ORIENTATION_TRANSVERSE -> {
-                matrix.postRotate(-90f); matrix.postScale(-1f, 1f); true
-            }
-            else -> false
-        }
-        return if (needsTransform) {
-            Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
-        } else {
-            source
-        }
     }
 
     private fun getDisplayRecommendation(
