@@ -1,6 +1,5 @@
 <resources>
-    <string name="app_name">GhostShot</string>
-
+    <string name="app_name">Then &amp; Now Camera</string>
     <!-- Camera permission screens -->
     <string name="camera_permission_rationale">GhostShot needs camera access to take photos.</string>
     <string name="grant_permission">Allow camera</string>

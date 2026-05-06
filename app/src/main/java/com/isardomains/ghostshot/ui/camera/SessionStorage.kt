@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
 import android.util.Log
+import com.isardomains.ghostshot.AppConstants
 import com.isardomains.ghostshot.BuildConfig
 import org.json.JSONObject
 import java.io.File
@@ -150,7 +151,20 @@ internal object SessionStorage {
     }
 
     private fun writeCapture(bitmap: Bitmap, sessionDir: File) {
-        writeBitmapAsJpeg(bitmap, File(sessionDir, "capture.jpg"))
+        val file = File(sessionDir, "capture.jpg")
+        writeBitmapAsJpeg(bitmap, file)
+        writeSoftwareExif(file)
+    }
+
+    private fun writeSoftwareExif(file: File) {
+        try {
+            ExifInterface(file.absolutePath).apply {
+                setAttribute(ExifInterface.TAG_SOFTWARE, AppConstants.CAPTURE_EXIF_SOFTWARE)
+                saveAttributes()
+            }
+        } catch (e: IOException) {
+            if (BuildConfig.DEBUG) { Log.w(TAG, "Failed to write EXIF software tag: ${e.message}") }
+        }
     }
 
     private fun writeReference(

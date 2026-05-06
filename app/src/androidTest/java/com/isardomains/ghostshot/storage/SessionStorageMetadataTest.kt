@@ -1,14 +1,17 @@
 package com.isardomains.ghostshot.storage
 
 import android.graphics.Bitmap
+import android.media.ExifInterface
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.isardomains.ghostshot.AppConstants
 import com.isardomains.ghostshot.ui.camera.SessionStorage
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -176,5 +179,19 @@ class SessionStorageMetadataTest {
         val result = SessionStorage.updateTitle(testRoot, "../some-other-dir", "Title")
 
         assertFalse(result)
+    }
+
+    @Test
+    fun captureJpeg_hasExifSoftwareTag() {
+        val sessionDir = saveTestSession()
+        val exif = ExifInterface(File(sessionDir, "capture.jpg").absolutePath)
+        assertEquals(AppConstants.CAPTURE_EXIF_SOFTWARE, exif.getAttribute(ExifInterface.TAG_SOFTWARE))
+    }
+
+    @Test
+    fun referenceJpeg_doesNotHaveAppExifSoftwareTag() {
+        val sessionDir = saveTestSession()
+        val exif = ExifInterface(File(sessionDir, "reference.jpg").absolutePath)
+        assertNotEquals(AppConstants.CAPTURE_EXIF_SOFTWARE, exif.getAttribute(ExifInterface.TAG_SOFTWARE))
     }
 }

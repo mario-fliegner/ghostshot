@@ -3,9 +3,11 @@ package com.isardomains.ghostshot.ui.camera
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.graphics.Bitmap
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import com.isardomains.ghostshot.AppConstants
 import java.io.IOException
 
 /**
@@ -51,6 +53,8 @@ object MediaStoreWriter {
                 }
             } ?: throw IOException("openOutputStream returned null for $uri")
 
+            writeSoftwareExif(resolver, uri)
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 resolver.update(uri, ContentValues().apply {
                     put(MediaStore.Images.Media.IS_PENDING, 0)
@@ -65,5 +69,16 @@ object MediaStoreWriter {
             try { resolver.delete(uri, null, null) } catch (_: Exception) { }
             Result.failure(e)
         }
+    }
+
+    private fun writeSoftwareExif(resolver: ContentResolver, uri: Uri) {
+        try {
+            resolver.openFileDescriptor(uri, "rw")?.use { pfd ->
+                ExifInterface(pfd.fileDescriptor).apply {
+                    setAttribute(ExifInterface.TAG_SOFTWARE, AppConstants.CAPTURE_EXIF_SOFTWARE)
+                    saveAttributes()
+                }
+            }
+        } catch (_: Exception) { }
     }
 }
