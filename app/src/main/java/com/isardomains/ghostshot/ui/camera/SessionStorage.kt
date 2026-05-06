@@ -86,11 +86,11 @@ internal object SessionStorage {
             if (BuildConfig.DEBUG) { Log.d(TAG, "Session saved") }
             return SavedSessionRef(sessionId = sessionDir.name, timestamp = sessionTimestampMs)
         } catch (e: Exception) {
-            Log.w(TAG, "Session save failed, removing partial session: ${e.message}")
+            if (BuildConfig.DEBUG) { Log.w(TAG, "Session save failed, removing partial session: ${e.message}") }
             sessionDir.deleteRecursively()
             return null
         } catch (e: OutOfMemoryError) {
-            Log.w(TAG, "Session save OOM, removing partial session")
+            if (BuildConfig.DEBUG) { Log.w(TAG, "Session save OOM, removing partial session") }
             sessionDir.deleteRecursively()
             return null
         }

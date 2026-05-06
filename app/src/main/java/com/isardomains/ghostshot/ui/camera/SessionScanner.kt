@@ -4,6 +4,7 @@ package com.isardomains.ghostshot.ui.camera
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.isardomains.ghostshot.BuildConfig
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
@@ -47,7 +48,7 @@ internal object SessionScanner {
         return try {
             validateUnsafe(sessionDir, id)
         } catch (e: Exception) {
-            Log.d(TAG, "Session $id: unexpected error — ${e.message}")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: unexpected error — ${e.message}") }
             null
         }
     }
@@ -55,70 +56,70 @@ internal object SessionScanner {
     private fun validateUnsafe(sessionDir: File, id: String): ScannedSession? {
         val metadataFile = File(sessionDir, METADATA_FILE)
         if (!metadataFile.exists() || !metadataFile.isFile) {
-            Log.d(TAG, "Session $id: metadata.json missing")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: metadata.json missing") }
             return null
         }
 
         val json: JSONObject = try {
             JSONObject(metadataFile.readText())
         } catch (e: JSONException) {
-            Log.d(TAG, "Session $id: metadata.json not valid JSON — ${e.message}")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: metadata.json not valid JSON — ${e.message}") }
             return null
         }
 
         val version: Int = try {
             json.getInt("version")
         } catch (e: JSONException) {
-            Log.d(TAG, "Session $id: version field missing or not an Int")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: version field missing or not an Int") }
             return null
         }
         if (version != EXPECTED_VERSION) {
-            Log.d(TAG, "Session $id: unsupported version $version")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: unsupported version $version") }
             return null
         }
 
         val timestamp: Long = try {
             json.getLong("sessionTimestampMs")
         } catch (e: JSONException) {
-            Log.d(TAG, "Session $id: sessionTimestampMs field missing or not a Long")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: sessionTimestampMs field missing or not a Long") }
             return null
         }
         if (timestamp <= 0L) {
-            Log.d(TAG, "Session $id: sessionTimestampMs is <= 0")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: sessionTimestampMs is <= 0") }
             return null
         }
 
         val referenceFile: String = try {
             json.getString("referenceFile")
         } catch (e: JSONException) {
-            Log.d(TAG, "Session $id: referenceFile field missing")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: referenceFile field missing") }
             return null
         }
         if (!isSafeFilename(referenceFile)) {
-            Log.d(TAG, "Session $id: referenceFile is unsafe — $referenceFile")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: referenceFile is unsafe — $referenceFile") }
             return null
         }
 
         val captureFile: String = try {
             json.getString("captureFile")
         } catch (e: JSONException) {
-            Log.d(TAG, "Session $id: captureFile field missing")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: captureFile field missing") }
             return null
         }
         if (!isSafeFilename(captureFile)) {
-            Log.d(TAG, "Session $id: captureFile is unsafe — $captureFile")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: captureFile is unsafe — $captureFile") }
             return null
         }
 
         val refFile = File(sessionDir, referenceFile)
         if (!refFile.exists() || !refFile.isFile) {
-            Log.d(TAG, "Session $id: referenceFile $referenceFile not found on disk")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: referenceFile $referenceFile not found on disk") }
             return null
         }
 
         val capFile = File(sessionDir, captureFile)
         if (!capFile.exists() || !capFile.isFile) {
-            Log.d(TAG, "Session $id: captureFile $captureFile not found on disk")
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: captureFile $captureFile not found on disk") }
             return null
         }
 
