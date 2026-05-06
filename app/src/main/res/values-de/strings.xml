@@ -1,6 +1,16 @@
 <resources>
+    <string name="app_name">GhostShot</string>
+
+    <string name="camera_permission_rationale">GhostShot braucht Zugriff auf die Kamera, um Fotos aufzunehmen.</string>
+    <string name="grant_permission">Kamera erlauben</string>
+    <string name="camera_permission_denied">Kamerazugriff ist blockiert. Aktiviere ihn in den App-Einstellungen.</string>
+    <string name="open_settings">Einstellungen öffnen</string>
+
+    <string name="capture_button_content_description">Foto aufnehmen</string>
+    <string name="capture_button_label">Auslösen</string>
     <string name="capture_saved">Bild gespeichert</string>
     <string name="capture_saved_compare_action">Vergleich ansehen</string>
+    <string name="capture_failed">Foto konnte nicht gespeichert werden</string>
 
     <string name="compare_library_title">Vergleiche</string>
     <string name="compare_library_empty_state">Noch keine Vergleiche</string>
@@ -23,7 +33,7 @@
     <string name="compare_library_entry_label">Vergleiche</string>
     <string name="compare_screen_title">Vergleich</string>
     <string name="compare_back">Zur Kamera</string>
-    <string name="compare_label_reference">Overlay</string>
+    <string name="compare_label_reference">Referenz</string>
     <string name="compare_label_capture">Aufnahme</string>
     <string name="compare_slider_content_description">Vergleichs-Slider</string>
     <string name="compare_error_missing_images">Beide Bilder werden benötigt</string>
@@ -41,29 +51,29 @@
     <string name="compare_screen_remove_title">Titel entfernen</string>
     <string name="compare_screen_title_save_failed">Titel konnte nicht gespeichert werden</string>
 
-    <string name="select_reference_image">Overlay auswählen</string>
-    <string name="select_reference_image_label">Overlay</string>
-    <string name="overlay_content_description">Overlay-Bild</string>
+    <string name="select_reference_image">Referenzbild auswählen</string>
+    <string name="select_reference_image_label">Referenzbild</string>
+    <string name="overlay_content_description">Referenzbild</string>
     <string name="overlay_opacity_label">Deckkraft</string>
     <string name="reset_overlay_label">Reset</string>
-    <string name="remove_reference_image">Overlay entfernen</string>
-    <string name="remove_reference_image_dialog_title">Overlay entfernen?</string>
-    <string name="remove_reference_image_dialog_message">Das Overlay wird entfernt</string>
+    <string name="remove_reference_image">Referenzbild entfernen</string>
+    <string name="remove_reference_image_dialog_title">Referenzbild entfernen?</string>
+    <string name="remove_reference_image_dialog_message">Das Referenzbild wird entfernt</string>
     <string name="remove_reference_image_confirm">Entfernen</string>
     <string name="remove_reference_image_cancel">Abbrechen</string>
-    <string name="toggle_reference_display_mode">Overlay-Modus wechseln</string>
-    <string name="reference_viewport_mismatch">Overlay kann leicht abweichen</string>
-    <string name="reference_format_mismatch_description">Overlay passt evtl. nicht exakt</string>
-    <string name="reference_format_mismatch_bubble">Overlay leicht versetzt</string>
-    <string name="reference_image_load_failed">Overlay konnte nicht geladen werden</string>
-    <string name="reference_removed_snackbar">Overlay entfernt</string>
+    <string name="toggle_reference_display_mode">Referenz-Modus wechseln</string>
+    <string name="reference_viewport_mismatch">Referenzbild kann leicht abweichen</string>
+    <string name="reference_format_mismatch_description">Referenzbild passt evtl. nicht exakt</string>
+    <string name="reference_format_mismatch_bubble">Referenzbild leicht versetzt</string>
+    <string name="reference_image_load_failed">Referenzbild konnte nicht geladen werden</string>
+    <string name="reference_removed_snackbar">Referenzbild entfernt</string>
     <string name="reference_removed_undo">Rückgängig</string>
-    <string name="reference_options_badge">Overlay-Optionen</string>
+    <string name="reference_options_badge">Referenzbild-Optionen</string>
     <string name="reference_options_badge_text">•••</string>
     <string name="action_stack_reset_label">Reset</string>
     <string name="action_stack_display_mode_compare_label">Vergleichsmodus</string>
     <string name="action_stack_display_mode_fit_label">Fit-Modus</string>
-    <string name="replace_reference_image">Overlay ersetzen</string>
+    <string name="replace_reference_image">Referenzbild ersetzen</string>
     <string name="action_stack_replace_label">Ersetzen</string>
     <string name="action_stack_remove_label">Entfernen</string>
 </resources>
