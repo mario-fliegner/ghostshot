@@ -7,11 +7,13 @@ import org.junit.Test
 class CameraSnackbarPaddingTest {
 
     @Test
-    fun landscape_paddingIsTheSameRegardlessOfOverlay() {
-        assertEquals(
-            cameraSnackbarBottomPadding(isLandscape = true, hasOverlay = false),
-            cameraSnackbarBottomPadding(isLandscape = true, hasOverlay = true)
-        )
+    fun landscape_withOverlay_paddingClearsSlider() {
+        assertEquals(226.dp, cameraSnackbarBottomPadding(isLandscape = true, hasOverlay = true))
+    }
+
+    @Test
+    fun landscape_withoutOverlay_paddingClearsButtonRow() {
+        assertEquals(130.dp, cameraSnackbarBottomPadding(isLandscape = true, hasOverlay = false))
     }
 
     @Test

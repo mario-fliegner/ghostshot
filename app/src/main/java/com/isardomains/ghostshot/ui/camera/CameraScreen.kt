@@ -53,8 +53,11 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -142,6 +145,7 @@ private const val TAG = "GhostShot"
 private val CameraShutterButtonSize = 96.dp
 private val CameraSecondaryActionMinWidth = 96.dp
 private val CameraBottomControlGap = 16.dp
+private val CameraSliderButtonGap = 8.dp
 private val CameraOpacitySliderPortraitBottom = 128.dp
 private val CameraOpacitySliderHeight = 56.dp
 private val CameraOpacitySliderLandscapeMaxWidth = 320.dp
@@ -752,7 +756,7 @@ internal fun CameraSnackbarHost(
     SnackbarHost(
         hostState = hostState,
         modifier = modifier
-            .navigationBarsPadding()
+            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
             .widthIn(max = CameraOpacitySliderLandscapeMaxWidth)
             .padding(bottom = cameraSnackbarBottomPadding(isLandscape, hasOverlay))
             .testTag("camera_snackbar_host"),
@@ -849,7 +853,9 @@ private fun cameraBottomPadding(isLandscape: Boolean): Dp =
     if (isLandscape) 18.dp else 24.dp
 
 internal fun cameraSnackbarBottomPadding(isLandscape: Boolean, hasOverlay: Boolean): Dp =
-    if (isLandscape)
+    if (isLandscape && hasOverlay)
+        cameraBottomPadding(true) + CameraShutterButtonSize + CameraSliderButtonGap + CameraShutterButtonSize + CameraSliderButtonGap
+    else if (isLandscape)
         cameraBottomPadding(true) + CameraShutterButtonSize + CameraBottomControlGap
     else if (hasOverlay)
         CameraOpacitySliderPortraitBottom + CameraOpacitySliderHeight + 8.dp
