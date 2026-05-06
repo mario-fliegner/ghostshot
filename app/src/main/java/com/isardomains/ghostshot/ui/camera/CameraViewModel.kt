@@ -253,7 +253,12 @@ class CameraViewModel @Inject constructor(
         referenceImageSelectionJob = viewModelScope.launch {
             val metadata = withContext(ioDispatcher) {
                 referenceImageMetadataReader(uri)
-            } ?: return@launch
+            } ?: run {
+                if (requestId == referenceImageSelectionRequestId) {
+                    _uiEvent.emit(UiEvent.ShowSnackbar(R.string.reference_image_load_failed))
+                }
+                return@launch
+            }
             if (requestId != referenceImageSelectionRequestId) return@launch
 
             val longer = maxOf(metadata.orientedWidth, metadata.orientedHeight).toFloat()

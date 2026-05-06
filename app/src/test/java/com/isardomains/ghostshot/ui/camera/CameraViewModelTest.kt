@@ -4,6 +4,7 @@ package com.isardomains.ghostshot.ui.camera
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import com.isardomains.ghostshot.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -107,6 +108,24 @@ class CameraViewModelTest {
             testViewModel.uiState.value.referenceImageDisplayMode
         )
         assertEquals(false, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+    }
+
+    @Test
+    fun onReferenceImageSelected_metadataReadReturnsNull_emitsSnackbarError() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null }
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.onReferenceImageSelected(mock())
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.reference_image_load_failed, snackbars[0].messageResId)
     }
 
     @Test
