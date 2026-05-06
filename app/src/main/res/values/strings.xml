@@ -20,14 +20,14 @@
     <string name="compare_library_empty_cta">Take your first shot</string>
     <string name="compare_library_session_content_description">Shot from %s</string>
     <string name="compare_library_selection_count">%d selected</string>
-    <string name="compare_library_cancel_selection">Cancel selection</string>
+    <string name="compare_library_cancel_selection">Cancel</string>
     <string name="compare_library_select_all">Select all</string>
-    <string name="compare_library_deselect_all">Deselect all</string>
+    <string name="compare_library_deselect_all">Clear selection</string>
     <string name="compare_library_delete_selected">Delete selected</string>
     <string name="compare_library_session_selected">Selected</string>
     <string name="compare_library_session_not_selected">Not selected</string>
     <string name="compare_library_delete_dialog_title">Delete shots?</string>
-    <string name="compare_library_delete_dialog_message">The selected shots will be permanently deleted.</string>
+    <string name="compare_library_delete_dialog_message">The selected shots will be deleted.</string>
     <string name="compare_library_delete_confirm">Delete</string>
     <string name="compare_library_delete_cancel">Cancel</string>
 
@@ -40,14 +40,14 @@
     <string name="compare_label_reference">Overlay</string>
     <string name="compare_label_capture">Shot</string>
     <string name="compare_slider_content_description">Compare slider</string>
-    <string name="compare_error_missing_images">Add both images to compare.</string>
+    <string name="compare_error_missing_images">Add both images.</string>
     <string name="compare_error_load_failed">Couldn’t load images.</string>
 
     <!-- Compare screen (detail view) -->
     <string name="compare_screen_delete">Delete shot</string>
     <string name="compare_screen_delete_dialog_title">Delete shot?</string>
-    <string name="compare_screen_delete_dialog_message">This shot will be permanently deleted.</string>
-    <string name="compare_screen_more_options">More options</string>
+    <string name="compare_screen_delete_dialog_message">This shot will be deleted.</string>
+    <string name="compare_screen_more_options">Options</string>
     <string name="compare_screen_edit_title">Edit title</string>
     <string name="compare_screen_edit_title_dialog_title">Edit title</string>
     <string name="compare_screen_edit_title_save">Save</string>
@@ -57,28 +57,28 @@
     <string name="compare_screen_title_save_failed">Couldn\'t save title</string>
 
     <!-- Reference image overlay -->
-    <string name="select_reference_image">Select overlay image</string>
+    <string name="select_reference_image">Choose overlay</string>
     <string name="select_reference_image_label">Overlay</string>
     <string name="overlay_content_description">Overlay image</string>
     <string name="overlay_opacity_label">Opacity</string>
     <string name="reset_overlay_label">Reset</string>
     <string name="remove_reference_image">Remove overlay</string>
     <string name="remove_reference_image_dialog_title">Remove overlay?</string>
-    <string name="remove_reference_image_dialog_message">This removes the overlay from the camera.</string>
+    <string name="remove_reference_image_dialog_message">The overlay will be removed.</string>
     <string name="remove_reference_image_confirm">Remove</string>
     <string name="remove_reference_image_cancel">Cancel</string>
-    <string name="toggle_reference_display_mode">Toggle overlay display mode</string>
-    <string name="reference_viewport_mismatch">Overlay differs from the current viewport</string>
-    <string name="reference_format_mismatch_description">Overlay format differs. Tap for more info.</string>
+    <string name="toggle_reference_display_mode">Switch overlay mode</string>
+    <string name="reference_viewport_mismatch">Overlay may be slightly off</string>
+    <string name="reference_format_mismatch_description">Overlay may not match perfectly.</string>
     <string name="reference_format_mismatch_bubble">Overlay slightly off</string>
-    <string name="reference_image_load_failed">Couldn\'t load overlay image</string>
+    <string name="reference_image_load_failed">Couldn\'t load overlay</string>
     <string name="reference_removed_snackbar">Overlay removed</string>
     <string name="reference_removed_undo">Undo</string>
-    <string name="reference_options_badge">Overlay options available</string>
+    <string name="reference_options_badge">Overlay options</string>
     <string name="reference_options_badge_text">•••</string>
     <string name="action_stack_reset_label">Reset</string>
-    <string name="action_stack_display_mode_compare_label">Mode: Compare</string>
-    <string name="action_stack_display_mode_fit_label">Mode: Fit</string>
+    <string name="action_stack_display_mode_compare_label">Compare mode</string>
+    <string name="action_stack_display_mode_fit_label">Fit mode</string>
     <string name="replace_reference_image">Replace overlay</string>
     <string name="action_stack_replace_label">Replace</string>
     <string name="action_stack_remove_label">Remove</string>
