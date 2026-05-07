@@ -899,6 +899,149 @@ class CameraViewModelTest {
         assertNull(testViewModel.lastCaptureResult)
     }
 
+    // --- lastCaptureSnapshot ---
+
+    @Test
+    fun onPhotoCaptured_withReference_snapshotCapturesOverlayValuesAtCallTime() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onOverlayDragged(0.3f, -0.2f)
+        testViewModel.onOverlayScaled(1.5f)
+        testViewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap, 0)
+
+        // Mutate overlay state after capture — snapshot must reflect pre-capture values
+        testViewModel.onOverlayDragged(0.1f, 0.1f)
+        testViewModel.onOverlayScaled(2.0f)
+
+        val snapshot = testViewModel.lastCaptureSnapshot
+        assertNotNull(snapshot)
+        assertEquals(0.3f, snapshot!!.overlayOffsetX)
+        assertEquals(-0.2f, snapshot.overlayOffsetY)
+        assertEquals(1.5f, snapshot.overlayScale)
+    }
+
+    @Test
+    fun onPhotoCaptured_withReference_snapshotCapturesDisplayMode() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+        testViewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap, 0)
+
+        // Mutate display mode after capture — snapshot must reflect pre-capture value
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW)
+
+        assertEquals(
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE,
+            testViewModel.lastCaptureSnapshot!!.referenceImageDisplayMode
+        )
+    }
+
+    @Test
+    fun onPhotoCaptured_withReference_snapshotCapturesViewportDimensions() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap, 0)
+
+        val snapshot = testViewModel.lastCaptureSnapshot
+        assertNotNull(snapshot)
+        assertEquals(1080, snapshot!!.viewportWidth)
+        assertEquals(1920, snapshot.viewportHeight)
+    }
+
+    @Test
+    fun onPhotoCaptured_withReference_snapshotCapturesReferenceUri() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val referenceUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(referenceUri)
+        testViewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap, 0)
+
+        assertEquals(referenceUri, testViewModel.lastCaptureSnapshot!!.referenceImageUri)
+    }
+
+    @Test
+    fun onPhotoCaptured_withReference_snapshotCapturesMetadata() = runTest {
+        val testViewModel = testViewModelWithMetadata(
+            rawWidth = 1920,
+            rawHeight = 1080,
+            orientedWidth = 1080,
+            orientedHeight = 1920,
+            exifOrientation = 6
+        )
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap, 0)
+
+        val metadata = testViewModel.lastCaptureSnapshot!!.referenceImageMetadata
+        assertEquals(1920, metadata.rawWidth)
+        assertEquals(1080, metadata.rawHeight)
+        assertEquals(1080, metadata.orientedWidth)
+        assertEquals(1920, metadata.orientedHeight)
+        assertEquals(6, metadata.exifOrientation)
+    }
+
+    @Test
+    fun onPhotoCaptured_withoutReference_snapshotIsNull() = runTest {
+        viewModel.onReferenceViewportChanged(1080, 1920)
+        viewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        viewModel.onPhotoCaptured(bitmap, 0)
+
+        assertNull(viewModel.lastCaptureSnapshot)
+    }
+
+    @Test
+    fun onPhotoCaptured_resetsLastCaptureSnapshotAtStart() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+        val bitmap1 = mock<Bitmap>()
+        whenever(bitmap1.width).thenReturn(1080)
+        whenever(bitmap1.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap1, 0)
+        assertNotNull(testViewModel.lastCaptureSnapshot)
+
+        // Remove reference before second capture — snapshot must be reset to null
+        testViewModel.onReferenceImageRemoveConfirmed()
+        testViewModel.tryStartCapture()
+        val bitmap2 = mock<Bitmap>()
+        whenever(bitmap2.width).thenReturn(1080)
+        whenever(bitmap2.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap2, 0)
+
+        assertNull(testViewModel.lastCaptureSnapshot)
+    }
+
     // --- savedSessions / refreshSavedSessions ---
 
     @Test

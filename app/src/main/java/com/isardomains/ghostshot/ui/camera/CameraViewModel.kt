@@ -144,6 +144,17 @@ private data class ReferenceUndoSnapshot(
     val displayModeChangedByUser: Boolean
 )
 
+internal data class CaptureSessionSnapshot(
+    val referenceImageUri: Uri,
+    val referenceImageMetadata: ReferenceImageMetadata,
+    val overlayScale: Float,
+    val overlayOffsetX: Float,
+    val overlayOffsetY: Float,
+    val referenceImageDisplayMode: ReferenceImageDisplayMode,
+    val viewportWidth: Int,
+    val viewportHeight: Int,
+)
+
 /**
  * The internal result of a successfully completed capture pipeline run.
  *
@@ -193,6 +204,13 @@ class CameraViewModel @Inject constructor(
     // (success, failure, error, or interrupt). Never reflects a failed or incomplete capture.
     @Volatile
     internal var lastCaptureResult: CaptureResult? = null
+
+    // Visible for testing — holds the capture-time state snapshot frozen at the start of
+    // onPhotoCaptured(), before any IO work begins. Reset to null at the start of every new
+    // capture attempt and set only when a reference and its metadata are both present.
+    // Must not be used for production flow decisions.
+    @Volatile
+    internal var lastCaptureSnapshot: CaptureSessionSnapshot? = null
 
     /** Used in unit tests to inject a controlled dispatcher and metadata reader. */
     internal constructor(
@@ -518,6 +536,24 @@ class CameraViewModel @Inject constructor(
      * @param rotationDegrees Clockwise degrees to apply, from ImageInfo.rotationDegrees.
      */
     fun onPhotoCaptured(bitmap: Bitmap, rotationDegrees: Int) {
+        val currentState = _uiState.value
+        val snapshot: CaptureSessionSnapshot? = if (
+            currentState.referenceImageUri != null &&
+            currentState.referenceImageMetadata != null
+        ) {
+            CaptureSessionSnapshot(
+                referenceImageUri = currentState.referenceImageUri,
+                referenceImageMetadata = currentState.referenceImageMetadata,
+                overlayScale = currentState.overlayScale,
+                overlayOffsetX = currentState.overlayOffsetX,
+                overlayOffsetY = currentState.overlayOffsetY,
+                referenceImageDisplayMode = currentState.referenceImageDisplayMode,
+                viewportWidth = currentState.viewportWidth,
+                viewportHeight = currentState.viewportHeight,
+            )
+        } else null
+        lastCaptureSnapshot = null
+        if (snapshot != null) lastCaptureSnapshot = snapshot
         viewModelScope.launch(ioDispatcher) {
             var corrected: Bitmap? = null
             try {
@@ -535,7 +571,7 @@ class CameraViewModel @Inject constructor(
                 }
 
                 if (savedUri != null) {
-                    val referenceUri = _uiState.value.referenceImageUri
+                    val referenceUri = snapshot?.referenceImageUri
                     // Session storage: persists capture + reference as a matched pair in app-internal
                     // storage for later comparison. Only written when the main save succeeded and a
                     // reference image is present. Best-effort — failure here never affects the main save.
@@ -545,7 +581,7 @@ class CameraViewModel @Inject constructor(
                             context = context,
                             capturedBitmap = corrected,
                             referenceUri = referenceUri,
-                            exifOrientation = _uiState.value.referenceImageMetadata?.exifOrientation,
+                            exifOrientation = snapshot.referenceImageMetadata.exifOrientation,
                             captureMediaStoreUri = savedUri,
                             referencePickerUri = referenceUri
                         )
@@ -578,7 +614,7 @@ class CameraViewModel @Inject constructor(
 
     internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null) {
         if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture completed") }
-        val referenceUri = _uiState.value.referenceImageUri
+        val referenceUri = lastCaptureSnapshot?.referenceImageUri ?: _uiState.value.referenceImageUri
         _uiState.update { current ->
             current.copy(
                 captureSuccessGeneration = current.captureSuccessGeneration + 1L,
