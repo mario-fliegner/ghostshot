@@ -39,6 +39,9 @@
     <string name="compare_label_reference">Overlay</string>
     <string name="compare_label_capture">Shot</string>
     <string name="compare_slider_content_description">Compare slider</string>
+    <string name="compare_original_reference">ORIGINAL</string>
+    <string name="compare_show_original_reference">Show original reference</string>
+    <string name="compare_original_reference_active">Original reference visible</string>
     <string name="compare_error_missing_images">Add both images.</string>
     <string name="compare_error_load_failed">Couldn’t load images.</string>
 

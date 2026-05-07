@@ -18,6 +18,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -121,6 +122,370 @@ class CompareScreenTest {
 
         waitForSliderViewport()
         composeRule.onNodeWithTag("compare_capture_image").assertIsDisplayed()
+    }
+
+    @Test
+    fun originalPeek_badgeAppearsWhenOriginalReferenceExists() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_reference_label").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+    }
+
+    @Test
+    fun originalPeek_badgeSitsBesideReferenceLabelWithMatchingHeight() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        val labelBounds = composeRule.onNodeWithTag("compare_reference_label").getUnclippedBoundsInRoot()
+        val badgeBounds = composeRule.onNodeWithTag("compare_original_reference_badge").getUnclippedBoundsInRoot()
+        assertTrue(badgeBounds.left > labelBounds.right)
+        assertCenterYNear(labelBounds, badgeBounds, 1.dp)
+        assertEquals(
+            (labelBounds.bottom - labelBounds.top).value,
+            (badgeBounds.bottom - badgeBounds.top).value,
+            1f
+        )
+    }
+
+    @Test
+    fun originalPeek_badgeDoesNotAppearWithoutSessionReferencePath() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun originalPeek_badgeDoesNotAppearWhenOriginalReferenceMissing() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = false)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun originalPeek_defaultShowsReferenceWithoutOriginalPeek() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_reference_image").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_original_reference_image").assertDoesNotExist()
+    }
+
+    @Test
+    fun originalPeek_pressAndHoldShowsOriginalAndLabel() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { down(center) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_original_reference_image").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_original_reference_label").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_original_reference)).assertIsDisplayed()
+        assertRectEquals(
+            composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot(),
+            composeRule.onNodeWithTag("compare_original_reference_image").getUnclippedBoundsInRoot()
+        )
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { up() }
+    }
+
+    @Test
+    fun originalPeek_labelIsPositionedAtBottomStart() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { down(center) }
+        composeRule.waitForIdle()
+
+        val viewportBounds = composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot()
+        val labelBounds = composeRule.onNodeWithTag("compare_original_reference_label").getUnclippedBoundsInRoot()
+        val viewportMidY = viewportBounds.top + (viewportBounds.bottom - viewportBounds.top) / 2f
+        assertTrue(labelBounds.top > viewportMidY)
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { up() }
+    }
+
+    @Test
+    fun originalPeek_staysViewportSizedWhenReferenceRevealIsSmall() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(x = -120f, y = 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { down(center) }
+        composeRule.waitForIdle()
+
+        assertRectEquals(
+            composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot(),
+            composeRule.onNodeWithTag("compare_original_reference_image").getUnclippedBoundsInRoot()
+        )
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { up() }
+    }
+
+    @Test
+    fun originalPeek_releaseHidesOriginalPeek() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput {
+                down(center)
+                up()
+            }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_original_reference_image").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_original_reference_label").assertDoesNotExist()
+    }
+
+    @Test
+    fun originalPeek_sliderRemainsAvailableAfterPeek() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput {
+                down(center)
+                up()
+            }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_slider").assertIsDisplayed()
+        val before = composeRule.onNodeWithTag("compare_slider").getUnclippedBoundsInRoot()
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(x = 60f, y = 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+        val after = composeRule.onNodeWithTag("compare_slider").getUnclippedBoundsInRoot()
+        assertTrue(after.left > before.left)
+    }
+
+    @Test
+    fun originalPeek_cancelHidesOriginalPeek() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput {
+                down(center)
+                cancel()
+            }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_original_reference_image").assertDoesNotExist()
+    }
+
+    @Test
+    fun originalPeek_badgeHasContentDescription() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.compare_show_original_reference)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun referenceBadge_remainsVisibleAfterSliderMovedFarLeft() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(x = -120f, y = 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_reference_label").assertIsDisplayed()
+    }
+
+    @Test
+    fun infoBadge_remainsVisibleAfterSliderMovedFarLeft() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(x = -120f, y = 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+    }
+
+    @Test
+    fun referenceBadge_notVisibleAtSliderFractionZero() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(x = -10000f, y = 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_reference_label").assertDoesNotExist()
+    }
+
+    @Test
+    fun infoBadge_notVisibleAtSliderFractionZero() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(x = -10000f, y = 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun captureLabel_notVisibleDuringOriginalPeek() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { down(center) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_capture_label").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { up() }
+    }
+
+    @Test
+    fun divider_notVisibleDuringOriginalPeek() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { down(center) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_slider").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { up() }
+    }
+
+    @Test
+    fun captureLabel_visibleAfterPeekRelease() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput {
+                down(center)
+                up()
+            }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_capture_label").assertIsDisplayed()
+    }
+
+    @Test
+    fun divider_visibleAfterPeekRelease() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput {
+                down(center)
+                up()
+            }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_slider").assertIsDisplayed()
+    }
+
+    @Test
+    fun fullscreen_captureLabel_notVisibleDuringPeek() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_screen_shell_content")
+            .performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { down(center) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_capture_label").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { up() }
+    }
+
+    @Test
+    fun fullscreen_divider_notVisibleDuringPeek() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_screen_shell_content")
+            .performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { down(center) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_slider").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { up() }
     }
 
     @Test
@@ -506,6 +871,38 @@ class CompareScreenTest {
     }
 
     @Test
+    fun originalPeek_fullscreenKeepsBadgePeekAndBackBehavior() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        var backCount = 0
+        setCompareContent(
+            referenceImageUri = compareInput.referenceUri,
+            captureImageUri = compareInput.captureUri,
+            onBack = { backCount++ }
+        )
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_screen_shell_content").performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_top_bar").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { down(center) }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_original_reference_image").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_original_reference_badge")
+            .performTouchInput { up() }
+
+        scenario?.onActivity { activity ->
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_top_bar").assertIsDisplayed()
+        assertEquals(0, backCount)
+    }
+
+    @Test
     fun moreMenuButton_hiddenWhenOnSaveTitleNull() {
         setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = null)
 
@@ -656,6 +1053,145 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_screen_more_menu_button").assertIsDisplayed()
     }
 
+    // --- Info badge eligibility tests ---
+
+    @Test
+    fun infoBadge_hiddenWhenIdentityTransformAndMatchingAspect() {
+        val compareInput = createSessionCompareInputWithMetadata(
+            scale = 1.0f, offsetX = 0.0f, offsetY = 0.0f,
+            displayMode = "COMPARE_WITH_PREVIEW",
+            orientedWidth = 1080, orientedHeight = 1920,
+            viewportWidth = 1080, viewportHeight = 1920
+        )
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun infoBadge_hiddenWhenIdentityTransformShowFullImage() {
+        val compareInput = createSessionCompareInputWithMetadata(
+            scale = 1.0f, offsetX = 0.0f, offsetY = 0.0f,
+            displayMode = "SHOW_FULL_IMAGE",
+            orientedWidth = 1080, orientedHeight = 1920,
+            viewportWidth = 1080, viewportHeight = 1920
+        )
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun infoBadge_shownWhenScaleIsNotOne() {
+        val compareInput = createSessionCompareInputWithMetadata(
+            scale = 1.5f, offsetX = 0.0f, offsetY = 0.0f,
+            displayMode = "COMPARE_WITH_PREVIEW",
+            orientedWidth = 1080, orientedHeight = 1920,
+            viewportWidth = 1080, viewportHeight = 1920
+        )
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+    }
+
+    @Test
+    fun infoBadge_shownWhenOffsetXIsNonZero() {
+        val compareInput = createSessionCompareInputWithMetadata(
+            scale = 1.0f, offsetX = 0.2f, offsetY = 0.0f,
+            displayMode = "COMPARE_WITH_PREVIEW",
+            orientedWidth = 1080, orientedHeight = 1920,
+            viewportWidth = 1080, viewportHeight = 1920
+        )
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+    }
+
+    @Test
+    fun infoBadge_shownWhenOffsetYIsNonZero() {
+        val compareInput = createSessionCompareInputWithMetadata(
+            scale = 1.0f, offsetX = 0.0f, offsetY = 0.2f,
+            displayMode = "COMPARE_WITH_PREVIEW",
+            orientedWidth = 1080, orientedHeight = 1920,
+            viewportWidth = 1080, viewportHeight = 1920
+        )
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+    }
+
+    @Test
+    fun infoBadge_shownWhenAspectRatioMismatchInCropMode() {
+        // 4:3 landscape reference (1440x1080) vs 9:16 portrait viewport (1080x1920)
+        val compareInput = createSessionCompareInputWithMetadata(
+            scale = 1.0f, offsetX = 0.0f, offsetY = 0.0f,
+            displayMode = "COMPARE_WITH_PREVIEW",
+            orientedWidth = 1440, orientedHeight = 1080,
+            viewportWidth = 1080, viewportHeight = 1920
+        )
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+    }
+
+    @Test
+    fun infoBadge_hiddenWhenAspectRatioMatchesInCropMode() {
+        val compareInput = createSessionCompareInputWithMetadata(
+            scale = 1.0f, offsetX = 0.0f, offsetY = 0.0f,
+            displayMode = "COMPARE_WITH_PREVIEW",
+            orientedWidth = 1080, orientedHeight = 1920,
+            viewportWidth = 1080, viewportHeight = 1920
+        )
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun infoBadge_hiddenWhenNoOriginalReferenceFile() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = false)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun infoBadge_shownWhenMetadataMissing() {
+        // createSessionCompareInput writes no metadata.json → safe fallback shows badge
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+    }
+
+    @Test
+    fun infoBadge_shownWhenMetadataCorrupt() {
+        val compareInput = createSessionCompareInputWithCorruptMetadata()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
+    }
+
     private fun setCompareContent(
         referenceImageUri: Uri?,
         captureImageUri: Uri?,
@@ -731,8 +1267,30 @@ class CompareScreenTest {
         )
     }
 
+    private fun createSessionCompareInput(includeOriginalReference: Boolean): CompareInput {
+        val sessionsRoot = File(context.filesDir, "sessions")
+        val sessionDir = File(sessionsRoot, "original_peek_${System.nanoTime()}")
+        sessionDir.mkdirs()
+        val referenceFile = File(sessionDir, "reference.jpg")
+        val captureFile = File(sessionDir, "capture.jpg")
+        createImageFile(referenceFile, Color.rgb(220, 40, 40))
+        createImageFile(captureFile, Color.rgb(40, 120, 220))
+        if (includeOriginalReference) {
+            createImageFile(File(sessionDir, "reference-original.jpg"), Color.rgb(40, 220, 120))
+        }
+        return CompareInput(
+            referenceUri = Uri.fromFile(referenceFile),
+            captureUri = Uri.fromFile(captureFile)
+        )
+    }
+
     private fun createImageUri(fileNamePrefix: String, color: Int): Uri {
         val file = File.createTempFile(fileNamePrefix, ".png", context.cacheDir)
+        createImageFile(file, color)
+        return Uri.fromFile(file)
+    }
+
+    private fun createImageFile(file: File, color: Int) {
         tempFiles += file
         val bitmap = Bitmap.createBitmap(120, 200, Bitmap.Config.ARGB_8888)
         bitmap.eraseColor(color)
@@ -740,7 +1298,6 @@ class CompareScreenTest {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         }
         bitmap.recycle()
-        return Uri.fromFile(file)
     }
 
     private fun wakeTestDevice() {
@@ -766,6 +1323,73 @@ class CompareScreenTest {
             expectedCenter - actualCenter
         }
         assertTrue(delta <= tolerance)
+    }
+
+    private fun assertCenterYNear(actual: DpRect, expected: DpRect, tolerance: Dp) {
+        val actualCenter = actual.top + (actual.bottom - actual.top) / 2f
+        val expectedCenter = expected.top + (expected.bottom - expected.top) / 2f
+        val delta = if (actualCenter > expectedCenter) {
+            actualCenter - expectedCenter
+        } else {
+            expectedCenter - actualCenter
+        }
+        assertTrue(delta <= tolerance)
+    }
+
+    private fun assertDpNear(actual: Dp, expected: Dp, tolerance: Dp) {
+        val delta = if (actual > expected) {
+            actual - expected
+        } else {
+            expected - actual
+        }
+        assertTrue(delta <= tolerance)
+    }
+
+    private fun createSessionCompareInputWithMetadata(
+        scale: Float = 1.0f,
+        offsetX: Float = 0.0f,
+        offsetY: Float = 0.0f,
+        displayMode: String = "COMPARE_WITH_PREVIEW",
+        orientedWidth: Int = 1080,
+        orientedHeight: Int = 1920,
+        viewportWidth: Int = 1080,
+        viewportHeight: Int = 1920
+    ): CompareInput {
+        val sessionsRoot = File(context.filesDir, "sessions")
+        val sessionDir = File(sessionsRoot, "meta_peek_${System.nanoTime()}")
+        sessionDir.mkdirs()
+        val referenceFile = File(sessionDir, "reference.jpg")
+        val captureFile = File(sessionDir, "capture.jpg")
+        createImageFile(referenceFile, Color.rgb(220, 40, 40))
+        createImageFile(captureFile, Color.rgb(40, 120, 220))
+        createImageFile(File(sessionDir, "reference-original.jpg"), Color.rgb(40, 220, 120))
+        val metadataFile = File(sessionDir, "metadata.json")
+        metadataFile.writeText(
+            """{"version":2,"overlay":{"scale":$scale,"offsetX":$offsetX,"offsetY":$offsetY,"displayMode":"$displayMode"},"reference":{"orientedWidth":$orientedWidth,"orientedHeight":$orientedHeight},"viewport":{"width":$viewportWidth,"height":$viewportHeight}}"""
+        )
+        tempFiles += metadataFile
+        return CompareInput(
+            referenceUri = android.net.Uri.fromFile(referenceFile),
+            captureUri = android.net.Uri.fromFile(captureFile)
+        )
+    }
+
+    private fun createSessionCompareInputWithCorruptMetadata(): CompareInput {
+        val sessionsRoot = File(context.filesDir, "sessions")
+        val sessionDir = File(sessionsRoot, "corrupt_meta_${System.nanoTime()}")
+        sessionDir.mkdirs()
+        val referenceFile = File(sessionDir, "reference.jpg")
+        val captureFile = File(sessionDir, "capture.jpg")
+        createImageFile(referenceFile, Color.rgb(220, 40, 40))
+        createImageFile(captureFile, Color.rgb(40, 120, 220))
+        createImageFile(File(sessionDir, "reference-original.jpg"), Color.rgb(40, 220, 120))
+        val metadataFile = File(sessionDir, "metadata.json")
+        metadataFile.writeText("this is not valid json {{{{")
+        tempFiles += metadataFile
+        return CompareInput(
+            referenceUri = android.net.Uri.fromFile(referenceFile),
+            captureUri = android.net.Uri.fromFile(captureFile)
+        )
     }
 
     private data class CompareInput(

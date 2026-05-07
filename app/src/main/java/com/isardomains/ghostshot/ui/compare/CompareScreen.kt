@@ -3,11 +3,19 @@ package com.isardomains.ghostshot.ui.compare
 import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -59,8 +69,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.semantics
@@ -73,13 +85,29 @@ import coil.imageLoader
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotAccent
 import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeBackground
+import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeBackgroundActive
+import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeContent
+import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeContentActive
+import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLabelBackground
+import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLabelContent
+import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLetterboxBackground
+import java.io.File
 import java.text.DateFormat
 import java.util.Date
+import kotlin.math.abs
 import kotlin.math.roundToInt
+import org.json.JSONObject
 
 private const val InitialSliderFraction = 0.5f
+private const val ReferenceFileName = "reference.jpg"
+private const val ReferenceOriginalFileName = "reference-original.jpg"
+private const val TransformEpsilon = 0.01f
+private const val AspectRatioMismatchThreshold = 0.05f
+private val CompareViewportCornerRadius = 8.dp
 private val CompareSliderTouchWidth = 48.dp
 private val CompareSliderHandleSize = 32.dp
+private val CompareBadgeHeight = 32.dp
 
 /**
  * Fullscreen compare screen for the V1 slider compare flow.
@@ -420,8 +448,19 @@ private fun CompareSliderViewport(
         model = captureImageUri,
         imageLoader = imageLoader
     )
+    val originalReferenceUri = remember(referenceImageUri, context.filesDir) {
+        resolveOriginalReferenceUri(context.filesDir, referenceImageUri)
+    }
+    val showOriginalReferenceBadge = remember(referenceImageUri, context.filesDir) {
+        resolveOriginalReferenceBadgeEligible(context.filesDir, referenceImageUri)
+    }
+    val originalReferencePainter = rememberAsyncImagePainter(
+        model = originalReferenceUri,
+        imageLoader = imageLoader
+    )
     var sliderFraction by rememberSaveable { mutableFloatStateOf(InitialSliderFraction) }
     var viewportWidthPx by remember { mutableFloatStateOf(1f) }
+    var isOriginalPeekActive by remember { mutableStateOf(false) }
 
     val loadFailed =
         referencePainter.state is AsyncImagePainter.State.Error ||
@@ -457,11 +496,19 @@ private fun CompareSliderViewport(
                 targetHeightFromWidth
             }
 
+            val intrinsicSize = originalReferencePainter.intrinsicSize
+            val peekContentScale = resolveOriginalReferencePeekContentScale(
+                viewportWidth = maxWidth.value,
+                viewportHeight = maxHeight.value,
+                imageWidth = intrinsicSize.width,
+                imageHeight = intrinsicSize.height
+            )
+
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(width = targetWidth, height = targetHeight)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(CompareViewportCornerRadius))
                     .background(GhostShotAppSurface)
                     .onSizeChanged { size ->
                         viewportWidthPx = size.width.coerceAtLeast(1).toFloat()
@@ -498,15 +545,26 @@ private fun CompareSliderViewport(
                 )
 
                 if (sliderFraction > 0f) {
-                    CompareLabelBadge(
-                        text = stringResource(R.string.compare_label_reference),
+                    ReferenceBadgeGroup(
+                        hasOriginalReference = showOriginalReferenceBadge,
+                        isOriginalPeekActive = isOriginalPeekActive,
+                        onOriginalPeekActiveChange = { isOriginalPeekActive = it },
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(12.dp)
-                            .testTag("compare_reference_label")
+                            .testTag("compare_reference_badge_group")
                     )
                 }
-                if (sliderFraction < 1f) {
+
+                if (originalReferenceUri != null) {
+                    OriginalReferencePeekOverlay(
+                        painter = originalReferencePainter,
+                        isActive = isOriginalPeekActive,
+                        contentScale = peekContentScale,
+                        modifier = Modifier.matchParentSize()
+                    )
+                }
+                if (sliderFraction < 1f && !isOriginalPeekActive) {
                     CompareLabelBadge(
                         text = stringResource(R.string.compare_label_capture),
                         modifier = Modifier
@@ -516,13 +574,15 @@ private fun CompareSliderViewport(
                     )
                 }
 
-                CompareDivider(
-                    sliderFraction = sliderFraction,
-                    viewportWidthPx = viewportWidthPx,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .fillMaxHeight()
-                )
+                if (!isOriginalPeekActive) {
+                    CompareDivider(
+                        sliderFraction = sliderFraction,
+                        viewportWidthPx = viewportWidthPx,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .fillMaxHeight()
+                    )
+                }
             }
         }
     }
@@ -537,7 +597,8 @@ private fun CompareViewportImage(
     contentScale: ContentScale = ContentScale.Fit,
     modifier: Modifier = Modifier,
     revealLeftFraction: Float? = null,
-    revealRightFraction: Float? = null
+    revealRightFraction: Float? = null,
+    overlayContent: @Composable () -> Unit = {}
 ) {
     val revealModifier = when {
         revealLeftFraction != null -> Modifier.drawWithContent {
@@ -568,6 +629,159 @@ private fun CompareViewportImage(
             modifier = Modifier
                 .matchParentSize()
                 .testTag(imageTestTag)
+        )
+        overlayContent()
+    }
+}
+
+@Composable
+private fun BoxScope.OriginalReferencePeekOverlay(
+    painter: AsyncImagePainter,
+    isActive: Boolean,
+    contentScale: ContentScale,
+    modifier: Modifier = Modifier
+) {
+    val label = stringResource(R.string.compare_original_reference)
+
+    AnimatedVisibility(
+        visible = isActive,
+        enter = fadeIn(animationSpec = tween(durationMillis = 180)),
+        exit = fadeOut(animationSpec = tween(durationMillis = 180)),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(CompareViewportCornerRadius))
+                .background(GhostShotCompareOriginalLetterboxBackground)
+                .testTag("compare_original_reference_image")
+        ) {
+            androidx.compose.foundation.Image(
+                painter = painter,
+                contentDescription = label,
+                contentScale = contentScale,
+                alignment = Alignment.Center,
+                modifier = Modifier.matchParentSize()
+            )
+        }
+    }
+
+    if (isActive) {
+        CompareOriginalReferenceLabel(
+            text = label,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(12.dp)
+                .testTag("compare_original_reference_label")
+        )
+    }
+}
+
+@Composable
+private fun ReferenceBadgeGroup(
+    hasOriginalReference: Boolean,
+    isOriginalPeekActive: Boolean,
+    onOriginalPeekActiveChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = Modifier
+            .then(modifier)
+            .height(CompareBadgeHeight),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CompareLabelBadge(
+            text = stringResource(R.string.compare_label_reference),
+            modifier = Modifier
+                .fillMaxHeight()
+                .testTag("compare_reference_label")
+        )
+        if (hasOriginalReference) {
+            OriginalReferenceBadge(
+                isActive = isOriginalPeekActive,
+                contentDescription = stringResource(R.string.compare_show_original_reference),
+                activeStateDescription = stringResource(R.string.compare_original_reference_active),
+                onActiveChange = onOriginalPeekActiveChange,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .testTag("compare_original_reference_badge")
+            )
+        }
+    }
+}
+
+@Composable
+private fun OriginalReferenceBadge(
+    isActive: Boolean,
+    contentDescription: String,
+    activeStateDescription: String,
+    onActiveChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val background = if (isActive) {
+        GhostShotCompareOriginalBadgeBackgroundActive
+    } else {
+        GhostShotCompareOriginalBadgeBackground
+    }
+    val content = if (isActive) {
+        GhostShotCompareOriginalBadgeContentActive
+    } else {
+        GhostShotCompareOriginalBadgeContent
+    }
+
+    Surface(
+        modifier = modifier
+            .shadow(2.dp, RoundedCornerShape(8.dp))
+            .semantics {
+                this.contentDescription = contentDescription
+                role = Role.Button
+                if (isActive) {
+                    stateDescription = activeStateDescription
+                }
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+                    onActiveChange(true)
+                    val up = waitForUpOrCancellation()
+                    up?.consume()
+                    onActiveChange(false)
+                }
+            },
+        shape = RoundedCornerShape(8.dp),
+        color = background
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompareOriginalReferenceLabel(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.shadow(2.dp, RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        color = GhostShotCompareOriginalLabelBackground
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = GhostShotCompareOriginalLabelContent,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         )
     }
 }
@@ -666,4 +880,101 @@ private fun CompareMessageFallback(
             color = MaterialTheme.colorScheme.onBackground
         )
     }
+}
+
+internal fun resolveOriginalReferencePeekContentScale(
+    viewportWidth: Float,
+    viewportHeight: Float,
+    imageWidth: Float,
+    imageHeight: Float
+): ContentScale {
+    if (imageWidth <= 0f || imageHeight <= 0f || !imageWidth.isFinite() || !imageHeight.isFinite()) {
+        return ContentScale.Fit
+    }
+    if (imageWidth == imageHeight) return ContentScale.Crop
+    val viewportIsLandscape = viewportWidth >= viewportHeight
+    val imageIsLandscape = imageWidth > imageHeight
+    return if (viewportIsLandscape == imageIsLandscape) ContentScale.Crop else ContentScale.Fit
+}
+
+private fun resolveOriginalReferenceUri(filesDir: File, referenceImageUri: Uri): Uri? {
+    if (referenceImageUri.scheme != "file") return null
+    val referencePath = referenceImageUri.path ?: return null
+    val referenceFile = File(referencePath)
+    if (referenceFile.name != ReferenceFileName) return null
+
+    val sessionDir = referenceFile.parentFile ?: return null
+    val sessionsRoot = File(filesDir, "sessions")
+    val isInsideSessions = runCatching {
+        val sessionsRootPath = sessionsRoot.canonicalPath + File.separator
+        val sessionDirPath = sessionDir.canonicalPath
+        sessionDirPath.startsWith(sessionsRootPath)
+    }.getOrDefault(false)
+    if (!isInsideSessions) return null
+
+    val originalFile = File(sessionDir, ReferenceOriginalFileName)
+    return if (originalFile.exists() && originalFile.isFile) {
+        Uri.fromFile(originalFile)
+    } else {
+        null
+    }
+}
+
+private fun resolveOriginalReferenceBadgeEligible(filesDir: File, referenceImageUri: Uri): Boolean {
+    if (referenceImageUri.scheme != "file") return false
+    val referencePath = referenceImageUri.path ?: return false
+    val referenceFile = File(referencePath)
+    if (referenceFile.name != ReferenceFileName) return false
+    val sessionDir = referenceFile.parentFile ?: return false
+    val sessionsRoot = File(filesDir, "sessions")
+    val isInsideSessions = runCatching {
+        val sessionsRootPath = sessionsRoot.canonicalPath + File.separator
+        val sessionDirPath = sessionDir.canonicalPath
+        sessionDirPath.startsWith(sessionsRootPath)
+    }.getOrDefault(false)
+    if (!isInsideSessions) return false
+    val originalFile = File(sessionDir, ReferenceOriginalFileName)
+    if (!originalFile.exists() || !originalFile.isFile) return false
+    val metadataFile = File(sessionDir, "metadata.json")
+    if (!metadataFile.exists() || !metadataFile.isFile) return true
+    return runCatching {
+        val json = JSONObject(metadataFile.readText())
+        val overlay = json.getJSONObject("overlay")
+        val reference = json.getJSONObject("reference")
+        val viewport = json.getJSONObject("viewport")
+        hasOriginalReferenceTransform(
+            scale = overlay.getDouble("scale").toFloat(),
+            offsetX = overlay.getDouble("offsetX").toFloat(),
+            offsetY = overlay.getDouble("offsetY").toFloat(),
+            displayMode = overlay.getString("displayMode"),
+            orientedWidth = reference.getInt("orientedWidth"),
+            orientedHeight = reference.getInt("orientedHeight"),
+            viewportWidth = viewport.getInt("width"),
+            viewportHeight = viewport.getInt("height")
+        )
+    }.getOrDefault(true)
+}
+
+private fun hasOriginalReferenceTransform(
+    scale: Float,
+    offsetX: Float,
+    offsetY: Float,
+    displayMode: String,
+    orientedWidth: Int,
+    orientedHeight: Int,
+    viewportWidth: Int,
+    viewportHeight: Int
+): Boolean {
+    if (abs(scale - 1f) > TransformEpsilon) return true
+    if (abs(offsetX) > TransformEpsilon) return true
+    if (abs(offsetY) > TransformEpsilon) return true
+    if (displayMode == "COMPARE_WITH_PREVIEW" && orientedHeight > 0 && viewportHeight > 0) {
+        val refAspect = orientedWidth.toFloat() / orientedHeight.toFloat()
+        val vpAspect = viewportWidth.toFloat() / viewportHeight.toFloat()
+        if (vpAspect > 0f) {
+            val mismatch = abs(refAspect - vpAspect) / vpAspect
+            if (mismatch > AspectRatioMismatchThreshold) return true
+        }
+    }
+    return false
 }

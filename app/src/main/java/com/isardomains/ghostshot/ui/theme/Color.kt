@@ -40,3 +40,24 @@ val GhostShotPreviewFrameScrim = Color(0xFF17202F)
 
 /** Semi-transparent white for camera grid overlay lines (~50 % white). */
 val GhostShotGridLine = Color(0x80FFFFFF)
+
+/** Original-reference peek badge background in compare. */
+val GhostShotCompareOriginalBadgeBackground = Color(0xCC17202F)
+
+/** Active original-reference peek badge background in compare. */
+val GhostShotCompareOriginalBadgeBackgroundActive = Color(0xE64F8CFF)
+
+/** Original-reference peek badge icon/text colour in compare. */
+val GhostShotCompareOriginalBadgeContent = Color(0xFFFFFFFF)
+
+/** Active original-reference peek badge icon/text colour in compare. */
+val GhostShotCompareOriginalBadgeContentActive = Color(0xFFFFFFFF)
+
+/** Original-reference peek label background in compare. */
+val GhostShotCompareOriginalLabelBackground = Color(0xCC000000)
+
+/** Original-reference peek label text colour in compare. */
+val GhostShotCompareOriginalLabelContent = Color(0xFFFFFFFF)
+
+/** Original-reference peek letterbox background in compare. */
+val GhostShotCompareOriginalLetterboxBackground = Color(0xFF000000)
