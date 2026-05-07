@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -731,7 +732,7 @@ class CameraViewModelTest {
     }
 
     @Test
-    fun compareInput_isSetWhenCaptureSavedWithReference() = runTest {
+    fun onCaptureSaved_withReferenceButNoSessionRef_leavesCompareInputNull() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         val referenceUri = mock<Uri>()
         val captureUri = mock<Uri>()
@@ -739,39 +740,203 @@ class CameraViewModelTest {
 
         testViewModel.onCaptureSaved(captureUri)
 
-        assertEquals(referenceUri, testViewModel.uiState.value.compareInput?.referenceImageUri)
-        assertEquals(captureUri, testViewModel.uiState.value.compareInput?.captureImageUri)
+        assertNull(testViewModel.uiState.value.compareInput)
     }
 
     @Test
-    fun compareInput_sessionIdAndTimestampAreNullWhenNoSessionRef() = runTest {
+    fun onCaptureSaved_withoutSessionRef_setsCaptureSuccessHadReferenceFalse() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         val captureUri = mock<Uri>()
         testViewModel.onReferenceImageSelected(mock())
 
         testViewModel.onCaptureSaved(captureUri)
 
-        assertNull(testViewModel.uiState.value.compareInput?.sessionId)
-        assertNull(testViewModel.uiState.value.compareInput?.timestamp)
+        assertEquals(false, testViewModel.uiState.value.captureSuccessHadReference)
     }
 
     @Test
-    fun compareInput_hasSessionIdAndTimestampWhenSessionRefProvided() = runTest {
+    fun onCaptureSaved_withoutSessionRef_hasNoCompareInputAndNoSnackbarCompareAvailability() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
-        val captureUri = mock<Uri>()
+        val pickerReferenceUri = mock<Uri>()
+        val mediaStoreCaptureUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(pickerReferenceUri)
+
+        testViewModel.onCaptureSaved(mediaStoreCaptureUri, sessionRef = null)
+
+        assertNull(testViewModel.uiState.value.compareInput)
+        assertEquals(false, testViewModel.uiState.value.captureSuccessHadReference)
+    }
+
+    @Test
+    fun onCaptureSaved_withSessionRef_usesSessionReferenceFileUri() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val mediaStoreCaptureUri = mock<Uri>()
+        val sessionReferenceUri = mock<Uri>()
+        val sessionCaptureUri = mock<Uri>()
         testViewModel.onReferenceImageSelected(mock())
 
-        testViewModel.onCaptureSaved(captureUri, SavedSessionRef("session-abc", 9876543210L))
+        testViewModel.onCaptureSaved(
+            mediaStoreCaptureUri,
+            SavedSessionRef(
+                sessionId = "session-abc",
+                timestamp = 9876543210L,
+                referenceFileUri = sessionReferenceUri,
+                captureFileUri = sessionCaptureUri
+            )
+        )
+
+        assertEquals(sessionReferenceUri, testViewModel.uiState.value.compareInput?.referenceImageUri)
+    }
+
+    @Test
+    fun onCaptureSaved_withSessionRef_usesSessionCaptureFileUri() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val mediaStoreCaptureUri = mock<Uri>()
+        val sessionReferenceUri = mock<Uri>()
+        val sessionCaptureUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(
+            mediaStoreCaptureUri,
+            SavedSessionRef(
+                sessionId = "session-abc",
+                timestamp = 9876543210L,
+                referenceFileUri = sessionReferenceUri,
+                captureFileUri = sessionCaptureUri
+            )
+        )
+
+        assertEquals(sessionCaptureUri, testViewModel.uiState.value.compareInput?.captureImageUri)
+    }
+
+    @Test
+    fun onCaptureSaved_withSessionRef_preservesSessionIdAndTimestamp() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val mediaStoreCaptureUri = mock<Uri>()
+        val sessionReferenceUri = mock<Uri>()
+        val sessionCaptureUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(
+            mediaStoreCaptureUri,
+            SavedSessionRef(
+                sessionId = "session-abc",
+                timestamp = 9876543210L,
+                referenceFileUri = sessionReferenceUri,
+                captureFileUri = sessionCaptureUri
+            )
+        )
 
         assertEquals("session-abc", testViewModel.uiState.value.compareInput?.sessionId)
         assertEquals(9876543210L, testViewModel.uiState.value.compareInput?.timestamp)
     }
 
     @Test
+    fun onCaptureSaved_withSessionRef_doesNotUsePickerReferenceUri() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val pickerReferenceUri = mock<Uri>()
+        val mediaStoreCaptureUri = mock<Uri>()
+        val sessionReferenceUri = mock<Uri>()
+        val sessionCaptureUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(pickerReferenceUri)
+
+        testViewModel.onCaptureSaved(
+            mediaStoreCaptureUri,
+            SavedSessionRef(
+                sessionId = "session-abc",
+                timestamp = 9876543210L,
+                referenceFileUri = sessionReferenceUri,
+                captureFileUri = sessionCaptureUri
+            )
+        )
+
+        assertNotEquals(pickerReferenceUri, testViewModel.uiState.value.compareInput?.referenceImageUri)
+        assertEquals(sessionReferenceUri, testViewModel.uiState.value.compareInput?.referenceImageUri)
+    }
+
+    @Test
+    fun onCaptureSaved_withSessionRef_doesNotUseMediaStoreCaptureUri() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val mediaStoreCaptureUri = mock<Uri>()
+        val sessionReferenceUri = mock<Uri>()
+        val sessionCaptureUri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(
+            mediaStoreCaptureUri,
+            SavedSessionRef(
+                sessionId = "session-abc",
+                timestamp = 9876543210L,
+                referenceFileUri = sessionReferenceUri,
+                captureFileUri = sessionCaptureUri
+            )
+        )
+
+        assertNotEquals(mediaStoreCaptureUri, testViewModel.uiState.value.compareInput?.captureImageUri)
+        assertEquals(sessionCaptureUri, testViewModel.uiState.value.compareInput?.captureImageUri)
+    }
+
+    @Test
+    fun onCaptureSaved_withSessionRef_setsCaptureSuccessHadReferenceTrue() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(
+            mock(),
+            SavedSessionRef(
+                sessionId = "session-abc",
+                timestamp = 9876543210L,
+                referenceFileUri = mock(),
+                captureFileUri = mock()
+            )
+        )
+
+        assertEquals(true, testViewModel.uiState.value.captureSuccessHadReference)
+    }
+
+    @Test
+    fun immediateCompareInput_matchesLibrarySessionFilesForSameSavedSession() = runTest {
+        val sessionReferenceUri = mock<Uri>()
+        val sessionCaptureUri = mock<Uri>()
+        val savedSessionRef = SavedSessionRef(
+            sessionId = "session-abc",
+            timestamp = 9876543210L,
+            referenceFileUri = sessionReferenceUri,
+            captureFileUri = sessionCaptureUri
+        )
+        val scannedSession = ScannedSession(
+            sessionId = savedSessionRef.sessionId,
+            timestamp = savedSessionRef.timestamp,
+            referenceFileUri = savedSessionRef.referenceFileUri,
+            captureFileUri = savedSessionRef.captureFileUri
+        )
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            { _ -> listOf(scannedSession) }
+        )
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(mock(), savedSessionRef)
+
+        val compareInput = testViewModel.uiState.value.compareInput
+        val librarySession = testViewModel.uiState.value.savedSessions.single()
+        assertEquals(savedSessionRef.referenceFileUri, compareInput?.referenceImageUri)
+        assertEquals(savedSessionRef.captureFileUri, compareInput?.captureImageUri)
+        assertEquals(savedSessionRef.sessionId, compareInput?.sessionId)
+        assertEquals(savedSessionRef.timestamp, compareInput?.timestamp)
+        assertEquals(librarySession.referenceFileUri, compareInput?.referenceImageUri)
+        assertEquals(librarySession.captureFileUri, compareInput?.captureImageUri)
+    }
+
+    @Test
     fun compareInput_isClearedWhenReferenceChanges() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
-        testViewModel.onCaptureSaved(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
         testViewModel.onReferenceImageSelected(mock())
 
@@ -782,7 +947,7 @@ class CameraViewModelTest {
     fun compareInput_isClearedWhenReferenceIsRemoved() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
-        testViewModel.onCaptureSaved(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
         testViewModel.onReferenceImageRemoveConfirmed()
 
@@ -793,7 +958,7 @@ class CameraViewModelTest {
     fun compareInput_isClearedWhenNewCaptureStarts() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
-        testViewModel.onCaptureSaved(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
         testViewModel.tryStartCapture()
 
@@ -804,7 +969,7 @@ class CameraViewModelTest {
     fun compareInput_isClearedAfterCaptureInterrupt() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
-        testViewModel.onCaptureSaved(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
         testViewModel.onCaptureInterrupted()
 
@@ -1103,7 +1268,7 @@ class CameraViewModelTest {
         advanceUntilIdle()
 
         testViewModel.onReferenceImageSelected(mock())
-        testViewModel.onCaptureSaved(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
         assertNotNull(testViewModel.uiState.value.compareInput)
         assertEquals(listOf(fakeSession), testViewModel.uiState.value.savedSessions)
@@ -1239,6 +1404,18 @@ class CameraViewModelTest {
                     exifOrientation = exifOrientation
                 )
             }
+        )
+    }
+
+    private fun fakeSavedSessionRef(
+        sessionId: String = "session-abc",
+        timestamp: Long = 9876543210L
+    ): SavedSessionRef {
+        return SavedSessionRef(
+            sessionId = sessionId,
+            timestamp = timestamp,
+            referenceFileUri = mock(),
+            captureFileUri = mock()
         )
     }
 }

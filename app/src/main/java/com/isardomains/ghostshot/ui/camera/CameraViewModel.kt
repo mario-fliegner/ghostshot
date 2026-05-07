@@ -571,19 +571,16 @@ class CameraViewModel @Inject constructor(
                 }
 
                 if (savedUri != null) {
-                    val referenceUri = snapshot?.referenceImageUri
                     // Session storage: persists capture + reference as a matched pair in app-internal
                     // storage for later comparison. Only written when the main save succeeded and a
                     // reference image is present. Best-effort — failure here never affects the main save.
                     var sessionRef: SavedSessionRef? = null
-                    if (referenceUri != null) {
+                    if (snapshot != null) {
                         sessionRef = SessionStorage.saveSession(
                             context = context,
                             capturedBitmap = corrected,
-                            referenceUri = referenceUri,
-                            exifOrientation = snapshot.referenceImageMetadata.exifOrientation,
-                            captureMediaStoreUri = savedUri,
-                            referencePickerUri = referenceUri
+                            snapshot = snapshot,
+                            captureMediaStoreUri = savedUri
                         )
                         val sessions = scanSavedSessionsSafely()
                         _uiState.update { it.copy(savedSessions = sessions) }
@@ -614,17 +611,16 @@ class CameraViewModel @Inject constructor(
 
     internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null) {
         if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture completed") }
-        val referenceUri = lastCaptureSnapshot?.referenceImageUri ?: _uiState.value.referenceImageUri
         _uiState.update { current ->
             current.copy(
                 captureSuccessGeneration = current.captureSuccessGeneration + 1L,
-                captureSuccessHadReference = referenceUri != null,
-                compareInput = referenceUri?.let {
+                captureSuccessHadReference = sessionRef != null,
+                compareInput = sessionRef?.let {
                     CompareInput(
-                        referenceImageUri = it,
-                        captureImageUri = savedUri,
-                        sessionId = sessionRef?.sessionId,
-                        timestamp = sessionRef?.timestamp
+                        referenceImageUri = it.referenceFileUri,
+                        captureImageUri = it.captureFileUri,
+                        sessionId = it.sessionId,
+                        timestamp = it.timestamp
                     )
                 }
             )

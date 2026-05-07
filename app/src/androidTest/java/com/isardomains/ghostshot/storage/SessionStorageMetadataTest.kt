@@ -1,11 +1,16 @@
 package com.isardomains.ghostshot.storage
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.ExifInterface
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.AppConstants
+import com.isardomains.ghostshot.ui.camera.CaptureSessionSnapshot
+import com.isardomains.ghostshot.ui.camera.ReferenceImageDisplayMode
+import com.isardomains.ghostshot.ui.camera.ReferenceImageMetadata
+import com.isardomains.ghostshot.ui.camera.SessionScanner
 import com.isardomains.ghostshot.ui.camera.SessionStorage
 import org.json.JSONObject
 import org.junit.After
@@ -26,7 +31,14 @@ class SessionStorageMetadataTest {
     private val testRoot = File(appContext.filesDir, "session-tests/SessionStorageMetadataTest")
 
     private val captureMediaStoreUri = Uri.parse("content://test/capture/123")
-    private val referencePickerUri = Uri.parse("content://test/picker/456")
+
+    // Fixed snapshot values used in saveTestSession() — referenced in assertion tests.
+    private val testViewportWidth = 80
+    private val testViewportHeight = 120
+    private val testOverlayScale = 1.5f
+    private val testOverlayOffsetX = 0.1f
+    private val testOverlayOffsetY = -0.05f
+    private val testDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW
 
     @Before
     fun clearSessions() {
@@ -45,20 +57,54 @@ class SessionStorageMetadataTest {
         testRoot.deleteRecursively()
     }
 
+    private fun buildTestSnapshot(referenceUri: Uri): CaptureSessionSnapshot {
+        val exifOrientation = testContext.assets.open("exif_90.jpg").use { stream ->
+            ExifInterface(stream).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED
+            )
+        }
+        // exif_90.jpg raw is 100×60; after 90° rotation oriented is 60×100
+        val options = BitmapFactory.Options().also { it.inJustDecodeBounds = true }
+        testContext.assets.open("exif_90.jpg").use { BitmapFactory.decodeStream(it, null, options) }
+        val rawWidth = options.outWidth
+        val rawHeight = options.outHeight
+        val isRotated = exifOrientation == ExifInterface.ORIENTATION_ROTATE_90 ||
+                exifOrientation == ExifInterface.ORIENTATION_ROTATE_270 ||
+                exifOrientation == ExifInterface.ORIENTATION_TRANSPOSE ||
+                exifOrientation == ExifInterface.ORIENTATION_TRANSVERSE
+        val orientedWidth = if (isRotated) rawHeight else rawWidth
+        val orientedHeight = if (isRotated) rawWidth else rawHeight
+        return CaptureSessionSnapshot(
+            referenceImageUri = referenceUri,
+            referenceImageMetadata = ReferenceImageMetadata(
+                rawWidth = rawWidth,
+                rawHeight = rawHeight,
+                orientedWidth = orientedWidth,
+                orientedHeight = orientedHeight,
+                exifOrientation = exifOrientation,
+            ),
+            overlayScale = testOverlayScale,
+            overlayOffsetX = testOverlayOffsetX,
+            overlayOffsetY = testOverlayOffsetY,
+            referenceImageDisplayMode = testDisplayMode,
+            viewportWidth = testViewportWidth,
+            viewportHeight = testViewportHeight,
+        )
+    }
+
     private fun saveTestSession(): File {
         val tempFile = File(appContext.cacheDir, "test_reference.jpg")
         testContext.assets.open("exif_90.jpg").use { input ->
             tempFile.outputStream().use { input.copyTo(it) }
         }
+        val snapshot = buildTestSnapshot(Uri.fromFile(tempFile))
         val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
         SessionStorage.saveSession(
             context = appContext,
             sessionsRoot = testRoot,
             capturedBitmap = captureBitmap,
-            referenceUri = Uri.fromFile(tempFile),
-            exifOrientation = null,
-            captureMediaStoreUri = captureMediaStoreUri,
-            referencePickerUri = referencePickerUri
+            snapshot = snapshot,
+            captureMediaStoreUri = captureMediaStoreUri
         )
         captureBitmap.recycle()
         return testRoot.listFiles()?.firstOrNull()
@@ -89,6 +135,8 @@ class SessionStorageMetadataTest {
         return sessionDir
     }
 
+    // ── Core metadata structure ───────────────────────────────────────────────
+
     @Test
     fun metadataFile_existsAfterSuccessfulSession() {
         val sessionDir = saveTestSession()
@@ -96,40 +144,120 @@ class SessionStorageMetadataTest {
     }
 
     @Test
-    fun metadataFile_containsVersion1() {
+    fun metadataFile_containsVersion2() {
         val json = readMetadata(saveTestSession())
-        assertEquals(1, json.getInt("version"))
+        assertEquals(2, json.getInt("version"))
     }
 
     @Test
-    fun metadataFile_containsSessionTimestampMsGreaterThanZero() {
+    fun metadataFile_session_containsCreatedAtMsGreaterThanZero() {
         val json = readMetadata(saveTestSession())
-        assertTrue(json.getLong("sessionTimestampMs") > 0L)
+        assertTrue(json.getJSONObject("session").getLong("createdAtMs") > 0L)
     }
 
     @Test
-    fun metadataFile_containsReferenceFile() {
+    fun metadataFile_files_containsReference() {
         val json = readMetadata(saveTestSession())
-        assertEquals("reference.jpg", json.getString("referenceFile"))
+        assertEquals("reference.jpg", json.getJSONObject("files").getString("reference"))
     }
 
     @Test
-    fun metadataFile_containsCaptureFile() {
+    fun metadataFile_files_containsCapture() {
         val json = readMetadata(saveTestSession())
-        assertEquals("capture.jpg", json.getString("captureFile"))
+        assertEquals("capture.jpg", json.getJSONObject("files").getString("capture"))
     }
 
     @Test
-    fun metadataFile_containsCaptureMediaStoreUri() {
+    fun metadataFile_files_containsReferenceOriginal() {
         val json = readMetadata(saveTestSession())
-        assertEquals(captureMediaStoreUri.toString(), json.getString("captureMediaStoreUri"))
+        assertEquals("reference-original.jpg", json.getJSONObject("files").getString("referenceOriginal"))
     }
 
     @Test
-    fun metadataFile_containsReferencePickerUri() {
+    fun metadataFile_capture_containsMediaStoreUri() {
         val json = readMetadata(saveTestSession())
-        assertEquals(referencePickerUri.toString(), json.getString("referencePickerUri"))
+        assertEquals(captureMediaStoreUri.toString(), json.getJSONObject("capture").getString("mediaStoreUri"))
     }
+
+    @Test
+    fun metadataFile_reference_containsSourceDisplayName() {
+        val tempFile = File(appContext.cacheDir, "test_reference.jpg")
+        val json = readMetadata(saveTestSession())
+        assertEquals(Uri.fromFile(tempFile).toString(), json.getJSONObject("reference").getString("sourceDisplayName"))
+    }
+
+    // ── New v2 block assertions ───────────────────────────────────────────────
+
+    @Test
+    fun metadataFile_overlay_block_matchesSnapshot() {
+        val json = readMetadata(saveTestSession())
+        val overlay = json.getJSONObject("overlay")
+        assertEquals(testOverlayScale.toDouble(), overlay.getDouble("scale"), 0.0001)
+        assertEquals(testOverlayOffsetX.toDouble(), overlay.getDouble("offsetX"), 0.0001)
+        assertEquals(testOverlayOffsetY.toDouble(), overlay.getDouble("offsetY"), 0.0001)
+        assertEquals(testDisplayMode.name, overlay.getString("displayMode"))
+    }
+
+    @Test
+    fun metadataFile_viewport_block_matchesSnapshot() {
+        val json = readMetadata(saveTestSession())
+        val viewport = json.getJSONObject("viewport")
+        assertEquals(testViewportWidth, viewport.getInt("width"))
+        assertEquals(testViewportHeight, viewport.getInt("height"))
+        assertEquals("PORTRAIT", viewport.getString("orientation")) // 80 < 120 → PORTRAIT
+    }
+
+    // ── File existence and geometry ───────────────────────────────────────────
+
+    @Test
+    fun referenceOriginalJpeg_exists() {
+        val sessionDir = saveTestSession()
+        assertTrue(File(sessionDir, "reference-original.jpg").exists())
+    }
+
+    @Test
+    fun referenceJpg_dimensions_equalViewport() {
+        val sessionDir = saveTestSession()
+        val bitmap = BitmapFactory.decodeFile(File(sessionDir, "reference.jpg").absolutePath)
+            ?: error("reference.jpg missing or unreadable")
+        try {
+            assertEquals(testViewportWidth, bitmap.width)
+            assertEquals(testViewportHeight, bitmap.height)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    // ── Scanner integration ───────────────────────────────────────────────────
+
+    @Test
+    fun saveSession_producesScannableV2Session() {
+        val sessionDir = saveTestSession()
+        val sessions = SessionScanner.scan(testRoot)
+        assertEquals(1, sessions.size)
+        assertEquals(sessionDir.name, sessions[0].sessionId)
+        assertTrue(sessions[0].timestamp > 0L)
+    }
+
+    // ── EXIF software tag ─────────────────────────────────────────────────────
+
+    @Test
+    fun captureJpeg_hasExifSoftwareTag() {
+        val sessionDir = saveTestSession()
+        val exif = ExifInterface(File(sessionDir, "capture.jpg").absolutePath)
+        assertEquals(AppConstants.CAPTURE_EXIF_SOFTWARE, exif.getAttribute(ExifInterface.TAG_SOFTWARE))
+    }
+
+    @Test
+    fun referenceAndReferenceOriginalJpeg_doNotHaveAppExifSoftwareTag() {
+        val sessionDir = saveTestSession()
+        val exifRef = ExifInterface(File(sessionDir, "reference.jpg").absolutePath)
+        assertNotEquals(AppConstants.CAPTURE_EXIF_SOFTWARE, exifRef.getAttribute(ExifInterface.TAG_SOFTWARE))
+        val exifOrig = ExifInterface(File(sessionDir, "reference-original.jpg").absolutePath)
+        assertNotEquals(AppConstants.CAPTURE_EXIF_SOFTWARE, exifOrig.getAttribute(ExifInterface.TAG_SOFTWARE))
+    }
+
+    // ── updateTitle (unchanged from Block 3) ─────────────────────────────────
 
     @Test
     fun updateTitle_writesTitle() {
@@ -213,19 +341,5 @@ class SessionStorageMetadataTest {
         val result = SessionStorage.updateTitle(testRoot, "../some-other-dir", "Title")
 
         assertFalse(result)
-    }
-
-    @Test
-    fun captureJpeg_hasExifSoftwareTag() {
-        val sessionDir = saveTestSession()
-        val exif = ExifInterface(File(sessionDir, "capture.jpg").absolutePath)
-        assertEquals(AppConstants.CAPTURE_EXIF_SOFTWARE, exif.getAttribute(ExifInterface.TAG_SOFTWARE))
-    }
-
-    @Test
-    fun referenceJpeg_doesNotHaveAppExifSoftwareTag() {
-        val sessionDir = saveTestSession()
-        val exif = ExifInterface(File(sessionDir, "reference.jpg").absolutePath)
-        assertNotEquals(AppConstants.CAPTURE_EXIF_SOFTWARE, exif.getAttribute(ExifInterface.TAG_SOFTWARE))
     }
 }

@@ -7,6 +7,9 @@ import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.core.image.CenterCropNormalizer
+import com.isardomains.ghostshot.ui.camera.CaptureSessionSnapshot
+import com.isardomains.ghostshot.ui.camera.ReferenceImageDisplayMode
+import com.isardomains.ghostshot.ui.camera.ReferenceImageMetadata
 import com.isardomains.ghostshot.ui.camera.SessionStorage
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -45,9 +48,9 @@ class SessionStorageReferenceOrientationTest {
     }
 
     /**
-     * Copies [assetName] to a temp file, saves it via the real SessionStorage reference path
-     * (including EXIF orientation read from the asset), then decodes and returns the stored
-     * reference.jpg. The caller receives the fully EXIF-corrected, JPEG-re-encoded bitmap.
+     * Copies [assetName] to a temp file, saves it via SessionStorage (including EXIF orientation
+     * read from the asset), then decodes and returns the stored reference-original.jpg.
+     * The caller receives the fully EXIF-corrected, JPEG-re-encoded bitmap.
      */
     private fun storeAndLoadReference(assetName: String): Bitmap {
         val tempFile = File(appContext.cacheDir, assetName)
@@ -59,25 +62,51 @@ class SessionStorageReferenceOrientationTest {
                 ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED
             )
         }
+        val options = BitmapFactory.Options().also { it.inJustDecodeBounds = true }
+        testContext.assets.open(assetName).use { BitmapFactory.decodeStream(it, null, options) }
+        val rawWidth = options.outWidth
+        val rawHeight = options.outHeight
+        val isRotated = exifOrientation == ExifInterface.ORIENTATION_ROTATE_90 ||
+                exifOrientation == ExifInterface.ORIENTATION_ROTATE_270 ||
+                exifOrientation == ExifInterface.ORIENTATION_TRANSPOSE ||
+                exifOrientation == ExifInterface.ORIENTATION_TRANSVERSE
+        val orientedWidth = if (isRotated) rawHeight else rawWidth
+        val orientedHeight = if (isRotated) rawWidth else rawHeight
+
+        val snapshot = CaptureSessionSnapshot(
+            referenceImageUri = Uri.fromFile(tempFile),
+            referenceImageMetadata = ReferenceImageMetadata(
+                rawWidth = rawWidth,
+                rawHeight = rawHeight,
+                orientedWidth = orientedWidth,
+                orientedHeight = orientedHeight,
+                exifOrientation = exifOrientation,
+            ),
+            overlayScale = 1.0f,
+            overlayOffsetX = 0.0f,
+            overlayOffsetY = 0.0f,
+            referenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            viewportWidth = 80,
+            viewportHeight = 120,
+        )
+
         val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
         SessionStorage.saveSession(
             context = appContext,
             sessionsRoot = testRoot,
             capturedBitmap = captureBitmap,
-            referenceUri = Uri.fromFile(tempFile),
-            exifOrientation = exifOrientation,
+            snapshot = snapshot,
             captureMediaStoreUri = Uri.parse("content://test/capture"),
-            referencePickerUri = Uri.fromFile(tempFile)
         )
         captureBitmap.recycle()
 
         val sessionDir = testRoot.listFiles()?.firstOrNull()
             ?: error("SessionStorage did not create a session directory")
-        return BitmapFactory.decodeFile(File(sessionDir, "reference.jpg").absolutePath)
-            ?: error("reference.jpg missing or unreadable in $sessionDir")
+        return BitmapFactory.decodeFile(File(sessionDir, "reference-original.jpg").absolutePath)
+            ?: error("reference-original.jpg missing or unreadable in $sessionDir")
     }
 
-    // exif_90.jpg raw is 100×60; SessionStorage must store it as 60×100 (dimensions swapped by 90° rotation).
+    // exif_90.jpg raw is 100×60; reference-original.jpg must be 60×100 (dimensions swapped by 90° rotation).
     @Test
     fun referenceImage_exif90_isStoredCorrectlyOriented() {
         val raw = testContext.assets.open("exif_90.jpg").use { BitmapFactory.decodeStream(it) }
@@ -89,7 +118,7 @@ class SessionStorageReferenceOrientationTest {
         assertEquals(100, stored.height)
     }
 
-    // exif_270.jpg raw is 100×60; SessionStorage must store it as 60×100 (dimensions swapped by 270° rotation).
+    // exif_270.jpg raw is 100×60; reference-original.jpg must be 60×100 (dimensions swapped by 270° rotation).
     @Test
     fun referenceImage_exif270_isStoredCorrectlyOriented() {
         val raw = testContext.assets.open("exif_270.jpg").use { BitmapFactory.decodeStream(it) }
@@ -101,7 +130,7 @@ class SessionStorageReferenceOrientationTest {
         assertEquals(100, stored.height)
     }
 
-    // The EXIF-corrected, JPEG-re-encoded reference (60×100) normalizes deterministically via Variant B.
+    // The EXIF-corrected, JPEG-re-encoded reference-original (60×100) normalizes deterministically.
     @Test
     fun storedReference_fromExif90_canBeNormalizedDeterministically() {
         val stored = storeAndLoadReference("exif_90.jpg")
