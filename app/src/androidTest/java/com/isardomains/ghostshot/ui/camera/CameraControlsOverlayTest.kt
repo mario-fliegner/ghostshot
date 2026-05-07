@@ -890,33 +890,22 @@ class CameraControlsOverlayTest {
     }
 
     @Test
-    fun captureSuccess_withReference_dismissesAfter2500ms() {
-        val savedText = context.getString(R.string.capture_saved)
-        val compareText = context.getString(R.string.capture_saved_compare_action)
-
+    fun captureSuccess_withReference_showsNoSnackbar() {
         composeRule.mainClock.autoAdvance = false
         setCaptureSuccessTestContent {
             CaptureSuccessSnackbarTestHost(
                 captureSuccessGeneration = 1L,
                 captureSuccessHadReference = true,
-                message = savedText,
-                actionLabel = compareText
+                message = captureSavedText(),
+                actionLabel = captureCompareActionText()
             )
         }
 
-        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.mainClock.advanceTimeBy(3_000)
         composeRule.waitForIdle()
-        composeRule.onNodeWithText(savedText).assertIsDisplayed()
 
-        // Still visible just before the 2500 ms mark
-        composeRule.mainClock.advanceTimeBy(2_350) // t = 2450 ms
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(savedText).assertIsDisplayed()
-
-        // Past 2500 ms + exit animation buffer
-        composeRule.mainClock.advanceTimeBy(500) // t = 2950 ms
-        composeRule.waitForIdle()
-        composeRule.onAllNodesWithText(savedText).assertCountEquals(0)
+        composeRule.onAllNodesWithText(captureSavedText()).assertCountEquals(0)
+        composeRule.onAllNodesWithText(captureCompareActionText()).assertCountEquals(0)
     }
 
     @Test
@@ -1014,13 +1003,6 @@ class CameraControlsOverlayTest {
         composeRule.onAllNodesWithText(captureCompareActionText()).assertCountEquals(0)
     }
 
-    @Test
-    fun captureSuccess_withReference_showsSnackbarWithCompareAction() {
-        setCaptureSuccessContent(captureSuccessGeneration = 1L, captureSuccessHadReference = true)
-
-        composeRule.onNodeWithText(captureSavedText()).assertIsDisplayed()
-        composeRule.onNodeWithText(captureCompareActionText()).assertIsDisplayed()
-    }
 
     @Test
     fun compareEntry_inLandscape_isInBottomZone() {

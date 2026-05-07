@@ -832,6 +832,7 @@ internal fun CaptureSuccessSnackbarEffect(
         if (captureSuccessGeneration > 0L && captureSuccessGeneration != lastShownGeneration) {
             lastShownGeneration = captureSuccessGeneration
             hostState.currentSnackbarData?.dismiss()
+            if (captureSuccessHadReference) return@LaunchedEffect
             val durationMs = if (captureSuccessHadReference) 2500L else 2000L
             launch {
                 val result = hostState.showSnackbar(

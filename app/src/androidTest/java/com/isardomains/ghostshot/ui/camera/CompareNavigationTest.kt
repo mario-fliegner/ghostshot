@@ -103,35 +103,6 @@ class CompareNavigationTest {
     }
 
     @Test
-    fun captureSuccessSnackbarDoesNotReplayAfterCompareReturn() {
-        composeRule.mainClock.autoAdvance = false
-        setNavigationContent(showCaptureSuccessSnackbar = true)
-        val savedText = context.getString(R.string.capture_saved)
-        val compareText = context.getString(R.string.capture_saved_compare_action)
-
-        composeRule.mainClock.advanceTimeBy(100)
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(savedText).assertIsDisplayed()
-        composeRule.onNode(
-            hasText(compareText) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
-        ).performClick()
-        composeRule.waitForIdle()
-
-        composeRule.mainClock.advanceTimeBy(3_000)
-        composeRule.waitForIdle()
-        composeRule.mainClock.autoAdvance = true
-        composeRule.onNodeWithTag("compare_back_button").performClick()
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("camera-session")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
-        }
-
-        composeRule.onNodeWithTag("camera_session_marker").assertIsDisplayed()
-        composeRule.onAllNodesWithText(savedText).assertCountEquals(0)
-    }
-
-    @Test
     fun backAfterSliderInteractionReturnsToCamera() {
         setNavigationContent()
 

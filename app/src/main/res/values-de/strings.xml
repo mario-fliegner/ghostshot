@@ -8,7 +8,7 @@
 
     <string name="capture_button_content_description">Foto aufnehmen</string>
     <string name="capture_button_label">Auslösen</string>
-    <string name="capture_saved">Bild gespeichert</string>
+    <string name="capture_saved">Foto gespeichert</string>
     <string name="capture_saved_compare_action">Vergleich ansehen</string>
     <string name="capture_failed">Foto konnte nicht gespeichert werden</string>
 
