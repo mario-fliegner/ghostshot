@@ -68,6 +68,27 @@ class SessionStorageMetadataTest {
     private fun readMetadata(sessionDir: File): JSONObject =
         JSONObject(File(sessionDir, "metadata.json").readText())
 
+    private fun createV2Session(sessionId: String = "test-session-v2"): File {
+        val sessionDir = File(testRoot, sessionId)
+        sessionDir.mkdirs()
+        val json = JSONObject().apply {
+            put("version", 2)
+            put("session", JSONObject().apply { put("createdAtMs", 1_000_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("overlay", JSONObject().apply {
+                put("scale", 1.0)
+                put("offsetX", 0.0)
+                put("offsetY", 0.0)
+                put("displayMode", "COMPARE_WITH_PREVIEW")
+            })
+        }
+        File(sessionDir, "metadata.json").writeText(json.toString())
+        return sessionDir
+    }
+
     @Test
     fun metadataFile_existsAfterSuccessfulSession() {
         val sessionDir = saveTestSession()
@@ -112,54 +133,55 @@ class SessionStorageMetadataTest {
 
     @Test
     fun updateTitle_writesTitle() {
-        val sessionDir = saveTestSession()
+        val sessionDir = createV2Session()
         val sessionId = sessionDir.name
 
         SessionStorage.updateTitle(testRoot, sessionId, "My Title")
 
         val json = readMetadata(sessionDir)
-        assertEquals("My Title", json.getString("title"))
+        assertFalse(json.has("title"))
+        assertEquals("My Title", json.getJSONObject("content").getString("title"))
     }
 
     @Test
     fun updateTitle_removesTitle_whenNull() {
-        val sessionDir = saveTestSession()
+        val sessionDir = createV2Session()
         val sessionId = sessionDir.name
         SessionStorage.updateTitle(testRoot, sessionId, "My Title")
 
         SessionStorage.updateTitle(testRoot, sessionId, null)
 
         val json = readMetadata(sessionDir)
-        assertFalse(json.has("title"))
+        assertFalse(json.getJSONObject("content").has("title"))
     }
 
     @Test
     fun updateTitle_removesTitle_whenEmptyString() {
-        val sessionDir = saveTestSession()
+        val sessionDir = createV2Session()
         val sessionId = sessionDir.name
         SessionStorage.updateTitle(testRoot, sessionId, "My Title")
 
         SessionStorage.updateTitle(testRoot, sessionId, "")
 
         val json = readMetadata(sessionDir)
-        assertFalse(json.has("title"))
+        assertFalse(json.getJSONObject("content").has("title"))
     }
 
     @Test
     fun updateTitle_removesTitle_whenWhitespaceOnly() {
-        val sessionDir = saveTestSession()
+        val sessionDir = createV2Session()
         val sessionId = sessionDir.name
         SessionStorage.updateTitle(testRoot, sessionId, "My Title")
 
         SessionStorage.updateTitle(testRoot, sessionId, "   ")
 
         val json = readMetadata(sessionDir)
-        assertFalse(json.has("title"))
+        assertFalse(json.getJSONObject("content").has("title"))
     }
 
     @Test
     fun updateTitle_preservesAllOtherFields() {
-        val sessionDir = saveTestSession()
+        val sessionDir = createV2Session()
         val sessionId = sessionDir.name
         val jsonBefore = readMetadata(sessionDir)
 
@@ -167,11 +189,23 @@ class SessionStorageMetadataTest {
 
         val jsonAfter = readMetadata(sessionDir)
         assertEquals(jsonBefore.getInt("version"), jsonAfter.getInt("version"))
-        assertEquals(jsonBefore.getLong("sessionTimestampMs"), jsonAfter.getLong("sessionTimestampMs"))
-        assertEquals(jsonBefore.getString("referenceFile"), jsonAfter.getString("referenceFile"))
-        assertEquals(jsonBefore.getString("captureFile"), jsonAfter.getString("captureFile"))
-        assertEquals(jsonBefore.getString("captureMediaStoreUri"), jsonAfter.getString("captureMediaStoreUri"))
-        assertEquals(jsonBefore.getString("referencePickerUri"), jsonAfter.getString("referencePickerUri"))
+        assertEquals(
+            jsonBefore.getJSONObject("session").getLong("createdAtMs"),
+            jsonAfter.getJSONObject("session").getLong("createdAtMs")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("files").getString("capture"),
+            jsonAfter.getJSONObject("files").getString("capture")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("files").getString("reference"),
+            jsonAfter.getJSONObject("files").getString("reference")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("overlay").getDouble("scale"),
+            jsonAfter.getJSONObject("overlay").getDouble("scale"),
+            0.0
+        )
     }
 
     @Test

@@ -22,7 +22,7 @@ internal object SessionScanner {
     private const val TAG = "SessionScanner"
     private const val SESSIONS_DIR = "sessions"
     private const val METADATA_FILE = "metadata.json"
-    private const val EXPECTED_VERSION = 1
+    private const val EXPECTED_VERSION = 2
 
     fun scan(context: Context): List<ScannedSession> = scan(File(context.filesDir, SESSIONS_DIR))
 
@@ -78,52 +78,67 @@ internal object SessionScanner {
             return null
         }
 
-        val timestamp: Long = try {
-            json.getLong("sessionTimestampMs")
+        val sessionObj: JSONObject = try {
+            json.getJSONObject("session")
         } catch (e: JSONException) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: sessionTimestampMs field missing or not a Long") }
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: session block missing") }
+            return null
+        }
+
+        val timestamp: Long = try {
+            sessionObj.getLong("createdAtMs")
+        } catch (e: JSONException) {
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: session.createdAtMs field missing or not a Long") }
             return null
         }
         if (timestamp <= 0L) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: sessionTimestampMs is <= 0") }
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: session.createdAtMs is <= 0") }
+            return null
+        }
+
+        val filesObj: JSONObject = try {
+            json.getJSONObject("files")
+        } catch (e: JSONException) {
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files block missing") }
             return null
         }
 
         val referenceFile: String = try {
-            json.getString("referenceFile")
+            filesObj.getString("reference")
         } catch (e: JSONException) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: referenceFile field missing") }
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.reference field missing") }
             return null
         }
         if (!isSafeFilename(referenceFile)) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: referenceFile is unsafe — $referenceFile") }
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.reference is unsafe — $referenceFile") }
             return null
         }
 
         val captureFile: String = try {
-            json.getString("captureFile")
+            filesObj.getString("capture")
         } catch (e: JSONException) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: captureFile field missing") }
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.capture field missing") }
             return null
         }
         if (!isSafeFilename(captureFile)) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: captureFile is unsafe — $captureFile") }
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.capture is unsafe — $captureFile") }
             return null
         }
 
         val refFile = File(sessionDir, referenceFile)
         if (!refFile.exists() || !refFile.isFile) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: referenceFile $referenceFile not found on disk") }
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.reference $referenceFile not found on disk") }
             return null
         }
 
         val capFile = File(sessionDir, captureFile)
         if (!capFile.exists() || !capFile.isFile) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: captureFile $captureFile not found on disk") }
+            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.capture $captureFile not found on disk") }
             return null
         }
 
-        val rawTitle = json.optString("title", "").trim()
+        val contentObj: JSONObject? = json.optJSONObject("content")
+        val rawTitle = contentObj?.optString("title", "")?.trim() ?: ""
         val title = rawTitle.ifEmpty { null }
 
         return ScannedSession(

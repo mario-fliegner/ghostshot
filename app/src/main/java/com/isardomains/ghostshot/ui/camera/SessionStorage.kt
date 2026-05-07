@@ -113,11 +113,13 @@ internal object SessionStorage {
             return false
         }
 
+        val content = json.optJSONObject("content") ?: JSONObject()
         if (normalizedTitle != null) {
-            json.put("title", normalizedTitle)
+            content.put("title", normalizedTitle)
         } else {
-            json.remove("title")
+            content.remove("title")
         }
+        json.put("content", content)
 
         metadataFile.writeText(json.toString())
         return true

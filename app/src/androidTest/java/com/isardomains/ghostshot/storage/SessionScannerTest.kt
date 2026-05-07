@@ -2,7 +2,6 @@ package com.isardomains.ghostshot.storage
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.isardomains.ghostshot.ui.camera.ScannedSession
 import com.isardomains.ghostshot.ui.camera.SessionScanner
 import org.json.JSONObject
 import org.junit.After
@@ -45,18 +44,22 @@ class SessionScannerTest {
 
     private fun writeMetadata(
         sessionDir: File,
-        version: Int = 1,
+        version: Int = 2,
         timestamp: Long = 1_000L,
         referenceFile: String = "reference.jpg",
         captureFile: String = "capture.jpg",
-        extra: Map<String, String> = emptyMap()
+        title: String? = null
     ) {
         val json = JSONObject().apply {
             put("version", version)
-            put("sessionTimestampMs", timestamp)
-            put("referenceFile", referenceFile)
-            put("captureFile", captureFile)
-            extra.forEach { (k, v) -> put(k, v) }
+            put("session", JSONObject().apply { put("createdAtMs", timestamp) })
+            put("files", JSONObject().apply {
+                put("capture", captureFile)
+                put("reference", referenceFile)
+            })
+            if (title != null) {
+                put("content", JSONObject().apply { put("title", title) })
+            }
         }
         File(sessionDir, "metadata.json").writeText(json.toString())
     }
@@ -111,7 +114,7 @@ class SessionScannerTest {
     @Test
     fun wrongVersion_isIgnored() {
         val dir = createSessionDir("2026-04-24_10-00-00")
-        writeMetadata(dir, version = 2)
+        writeMetadata(dir, version = 1)
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
@@ -221,10 +224,12 @@ class SessionScannerTest {
     fun metadataWithMissingTimestamp_isIgnored() {
         val dir = createSessionDir("2026-04-24_10-00-00")
         val json = JSONObject().apply {
-            put("version", 1)
-            put("referenceFile", "reference.jpg")
-            put("captureFile", "capture.jpg")
-            // sessionTimestampMs intentionally omitted
+            put("version", 2)
+            put("session", JSONObject()) // createdAtMs intentionally omitted
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
         }
         File(dir, "metadata.json").writeText(json.toString())
         touch(dir, "reference.jpg")
@@ -236,7 +241,7 @@ class SessionScannerTest {
     @Test
     fun session_withTitle_titleIsRead() {
         val dir = createSessionDir("2026-04-24_10-00-00")
-        writeMetadata(dir, timestamp = 5_000L, extra = mapOf("title" to "My Shot"))
+        writeMetadata(dir, timestamp = 5_000L, title = "My Shot")
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
@@ -259,7 +264,7 @@ class SessionScannerTest {
     @Test
     fun session_withEmptyTitle_titleIsNull() {
         val dir = createSessionDir("2026-04-24_10-00-00")
-        writeMetadata(dir, timestamp = 5_000L, extra = mapOf("title" to ""))
+        writeMetadata(dir, timestamp = 5_000L, title = "")
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
@@ -272,7 +277,7 @@ class SessionScannerTest {
     @Test
     fun session_withWhitespaceTitle_titleIsNull() {
         val dir = createSessionDir("2026-04-24_10-00-00")
-        writeMetadata(dir, timestamp = 5_000L, extra = mapOf("title" to "   "))
+        writeMetadata(dir, timestamp = 5_000L, title = "   ")
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
@@ -285,19 +290,107 @@ class SessionScannerTest {
     @Test
     fun metadataExtraFields_areIgnored() {
         val dir = createSessionDir("2026-04-24_10-00-00")
-        writeMetadata(
-            dir,
-            timestamp = 5_000L,
-            extra = mapOf(
-                "captureMediaStoreUri" to "content://media/external/images/123",
-                "referencePickerUri" to "content://picker/images/456",
-                "unknownField" to "someValue"
-            )
-        )
+        val json = JSONObject().apply {
+            put("version", 2)
+            put("session", JSONObject().apply { put("createdAtMs", 5_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("overlay", JSONObject().apply {
+                put("scale", 1.0)
+                put("offsetX", 0.0)
+                put("offsetY", 0.0)
+                put("displayMode", "COMPARE_WITH_PREVIEW")
+            })
+            put("location", JSONObject().apply {
+                put("latitude", JSONObject.NULL)
+                put("longitude", JSONObject.NULL)
+            })
+            put("unknownField", "someValue")
+        }
+        File(dir, "metadata.json").writeText(json.toString())
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
         val result = SessionScanner.scan(testRoot)
         assertEquals(1, result.size)
+    }
+
+    // ── New v2-specific tests ─────────────────────────────────────────────────
+
+    @Test
+    fun v2_missingSessionBlock_isIgnored() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        val json = JSONObject().apply {
+            put("version", 2)
+            // session block intentionally omitted
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
+    }
+
+    @Test
+    fun v2_missingFilesBlock_isIgnored() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        val json = JSONObject().apply {
+            put("version", 2)
+            put("session", JSONObject().apply { put("createdAtMs", 5_000L) })
+            // files block intentionally omitted
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
+    }
+
+    @Test
+    fun v2_referenceOriginalMissing_sessionIsStillVisible() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        val json = JSONObject().apply {
+            put("version", 2)
+            put("session", JSONObject().apply { put("createdAtMs", 5_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+                put("referenceOriginal", "reference-original.jpg")
+            })
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+        // reference-original.jpg intentionally absent
+
+        val result = SessionScanner.scan(testRoot)
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun v2_withoutContentBlock_titleIsNull() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        val json = JSONObject().apply {
+            put("version", 2)
+            put("session", JSONObject().apply { put("createdAtMs", 5_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            // content block intentionally omitted
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+        assertEquals(1, result.size)
+        assertNull(result[0].title)
     }
 }
