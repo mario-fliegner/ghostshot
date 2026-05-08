@@ -194,15 +194,19 @@ Both must return to the camera screen.
 ### Return requirements
 
 Returning from compare to camera MUST preserve the active camera session state already held by the app, including:
+
 - selected reference image
 - overlay state within the current session
 - camera screen context
+- active compare session state (`compareInput`)
 
 Returning MUST NOT:
+
 - clear the reference image
 - reset the camera screen unexpectedly
 - cause a snackbar replay
 - lose current session setup
+- disable the Compare button when an active compare session still exists
 
 ---
 
@@ -494,6 +498,23 @@ This input must be sufficient to render the compare screen without re-deriving u
 The compare screen must not depend on reconstructing the previous camera preview geometry.
 Overlay position, overlay scale, viewport size, and preview-to-capture mapping are not
 part of the active compare rendering contract.
+
+### Persistent compare session state vs transient capture lock
+
+These two concerns must be kept separate in the ViewModel:
+
+**Persistent compare session state** (`compareInput`):
+
+- represents the last successful capture paired with its reference
+- must survive camera lifecycle transitions (CameraX rebind, preview pause/resume)
+- must survive navigation to and from CompareScreen
+- is cleared only by: reference removed, reference replaced, or a new successful capture
+
+**Transient capture lock** (`isCaptureInProgress`):
+
+- represents an in-flight capture attempt
+- always reset to false after success, failure, or interrupt
+- must NOT clear `compareInput` on interrupt or error — the previous session remains valid
 
 ### Compare-local state
 
@@ -1090,3 +1111,53 @@ Sessions may include an optional title.
 - Title must not affect compare mechanics
 - Title must not introduce new navigation
 - Title must remain optional
+
+---
+
+## 38. ACTIVE COMPARE SESSION CONTRACT (2026-05-08)
+
+### Definition
+
+An active compare session exists when:
+
+- a reference image is loaded in `CameraUiState`
+- AND `compareInput` is non-null (last successful shot exists)
+
+### Lifecycle
+
+The active compare session is created when:
+
+- a capture completes successfully with a reference image present
+- `SessionStorage.saveSession()` returns a non-null `SavedSessionRef`
+- `onCaptureSaved()` sets `compareInput` to the resulting session pair
+
+The active compare session persists across:
+
+- navigation to CompareScreen
+- navigation back from CompareScreen
+- camera preview pause and resume (CameraX lifecycle transitions)
+- configuration changes (rotation)
+
+The active compare session is cleared only when:
+
+- the reference image is removed (`onReferenceImageRemoveConfirmed`)
+- the reference image is replaced (`onReferenceImageSelected`)
+- a new capture completes successfully (replaced with new session)
+
+### What must NOT clear the active compare session
+
+- `onCaptureInterrupted()` — must only release the capture lock, not clear `compareInput`
+- `tryStartCapture()` — must not clear `compareInput` before the new capture result is known
+- `onPhotoCaptureError()` — a failed capture does not invalidate the previous session
+- Exception and OOM paths in the capture pipeline — same rule as error path
+
+### Camera Compare button state mapping
+
+| Condition | Compare state |
+| --- | --- |
+| No reference image | Disabled — hint: "Add a reference first" |
+| Reference present, `compareInput` null | Disabled — hint: "Take a photo first" |
+| Reference present, `compareInput` non-null | Enabled — opens active compare session |
+
+After returning from CompareScreen, state must remain in the third row.
+Returning from CompareScreen must not transition Compare back to the second row.

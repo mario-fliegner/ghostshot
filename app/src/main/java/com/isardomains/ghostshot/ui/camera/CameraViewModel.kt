@@ -524,7 +524,7 @@ class CameraViewModel @Inject constructor(
             if (current.isCaptureInProgress) return false
             if (_uiState.compareAndSet(
                     current,
-                    current.copy(isCaptureInProgress = true, compareInput = null)
+                    current.copy(isCaptureInProgress = true)
                 )
             ) {
                 if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture started") }
@@ -539,7 +539,6 @@ class CameraViewModel @Inject constructor(
      */
     fun onCaptureInterrupted() {
         lastCaptureResult = null
-        _uiState.update { it.copy(compareInput = null) }
         finishCapture()
     }
 
@@ -611,11 +610,9 @@ class CameraViewModel @Inject constructor(
 
             } catch (e: Exception) {
                 lastCaptureResult = null
-                _uiState.update { it.copy(compareInput = null) }
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
             } catch (e: OutOfMemoryError) {
                 lastCaptureResult = null
-                _uiState.update { it.copy(compareInput = null) }
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
             } finally {
                 if (corrected != null) {
@@ -652,7 +649,6 @@ class CameraViewModel @Inject constructor(
      */
     fun onPhotoCaptureError() {
         lastCaptureResult = null
-        _uiState.update { it.copy(compareInput = null) }
         finishCapture()
         viewModelScope.launch {
             _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
@@ -695,13 +691,21 @@ class CameraViewModel @Inject constructor(
     }
 
     fun deleteSessions(sessionIds: List<String>) {
+        val deletedSet = sessionIds.toSet()
         viewModelScope.launch(ioDispatcher) {
             val sessionsRoot = File(context.filesDir, "sessions")
             for (sessionId in sessionIds) {
                 SessionDeleter.delete(sessionsRoot, sessionId)
             }
             val sessions = scanSavedSessionsSafely()
-            _uiState.update { it.copy(savedSessions = sessions) }
+            _uiState.update { current ->
+                val activeSessionDeleted = current.compareInput?.sessionId
+                    ?.let { it in deletedSet } ?: false
+                current.copy(
+                    savedSessions = sessions,
+                    compareInput = if (activeSessionDeleted) null else current.compareInput
+                )
+            }
         }
     }
 

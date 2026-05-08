@@ -955,25 +955,51 @@ class CameraViewModelTest {
     }
 
     @Test
-    fun compareInput_isClearedWhenNewCaptureStarts() = runTest {
+    fun compareInput_persistsDuringNewCaptureStart() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
         testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
         testViewModel.tryStartCapture()
 
-        assertNull(testViewModel.uiState.value.compareInput)
+        assertNotNull(testViewModel.uiState.value.compareInput)
     }
 
     @Test
-    fun compareInput_isClearedAfterCaptureInterrupt() = runTest {
+    fun compareInput_persistsAfterCaptureInterrupt() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
         testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
         testViewModel.onCaptureInterrupted()
 
-        assertNull(testViewModel.uiState.value.compareInput)
+        assertNotNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun compareInput_persistsAfterCaptureError() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+
+        testViewModel.onPhotoCaptureError()
+
+        assertNotNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun compareInput_updatedBySubsequentSuccessfulCapture() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef(sessionId = "session-1"))
+        val firstCompareInput = testViewModel.uiState.value.compareInput
+        assertNotNull(firstCompareInput)
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef(sessionId = "session-2"))
+        val secondCompareInput = testViewModel.uiState.value.compareInput
+
+        assertNotNull(secondCompareInput)
+        assertNotEquals(firstCompareInput!!.sessionId, secondCompareInput!!.sessionId)
     }
 
     // --- lastCaptureResult ---
@@ -1290,6 +1316,45 @@ class CameraViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(remainingSession), testViewModel.uiState.value.savedSessions)
+    }
+
+    @Test
+    fun deleteSessions_clearsCompareInput_whenActiveSessionDeleted() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef(sessionId = "active-session"))
+        assertNotNull(testViewModel.uiState.value.compareInput)
+
+        testViewModel.deleteSessions(listOf("active-session"))
+        advanceUntilIdle()
+
+        assertNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun deleteSessions_preservesCompareInput_whenDifferentSessionDeleted() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef(sessionId = "active-session"))
+        assertNotNull(testViewModel.uiState.value.compareInput)
+
+        testViewModel.deleteSessions(listOf("other-session"))
+        advanceUntilIdle()
+
+        assertNotNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun deleteSessions_clearsCompareInput_inMultiSelectDeleteContainingActiveSession() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef(sessionId = "active-session"))
+        assertNotNull(testViewModel.uiState.value.compareInput)
+
+        testViewModel.deleteSessions(listOf("other-session-a", "active-session", "other-session-b"))
+        advanceUntilIdle()
+
+        assertNull(testViewModel.uiState.value.compareInput)
     }
 
     // --- updateSessionTitle ---

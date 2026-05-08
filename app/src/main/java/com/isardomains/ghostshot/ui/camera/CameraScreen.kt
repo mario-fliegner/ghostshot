@@ -256,7 +256,6 @@ fun CameraScreen(
             val referenceUri = uiState.referenceImageUri
             val isLandscape =
                 LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-            val activeAspectRatio = uiState.activeAspectRatio
             val imageCaptureState = remember { mutableStateOf<ImageCapture?>(null) }
             val snackbarHostState = remember { SnackbarHostState() }
             var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
@@ -415,16 +414,12 @@ fun CameraScreen(
             ) {
 
                 // ── Camera viewport (Layer 1 + Layer 2) ──────────────────────────────
-                // Keyed by activeAspectRatio so that the ImageCapture use case and
-                // the CameraX binding are fully recreated when the target ratio changes.
-                key(activeAspectRatio, isLandscape) {
-                    val cameraXRatio = when (activeAspectRatio) {
-                        TargetAspectRatio.RATIO_4_3 -> AspectRatio.RATIO_4_3
-                        TargetAspectRatio.RATIO_16_9 -> AspectRatio.RATIO_16_9
-                    }
+                // Keyed by isLandscape only — the reference image must never influence
+                // CameraX sensor/capture mode selection.
+                key(isLandscape) {
                     val imageCapture = remember {
                         ImageCapture.Builder()
-                            .setTargetAspectRatio(cameraXRatio)
+                            .setTargetAspectRatio(AspectRatio.RATIO_16_9)
                             .build()
                             .also { imageCaptureState.value = it }
                     }
@@ -445,7 +440,7 @@ fun CameraScreen(
                                             }
 
                                             val preview = Preview.Builder()
-                                                .setTargetAspectRatio(cameraXRatio)
+                                                .setTargetAspectRatio(AspectRatio.RATIO_16_9)
                                                 .build().also {
                                                 it.setSurfaceProvider(previewView.surfaceProvider)
                                             }

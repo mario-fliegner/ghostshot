@@ -86,6 +86,13 @@ Current release state:
 - Compare supports timestamp, delete, and optional shot title display
 - Compare image load failures show a fallback UI and allow back navigation
 
+Active compare session lifecycle — fully implemented:
+
+- `compareInput` persists across lifecycle transitions, camera rebinds, capture errors, and CompareScreen navigation
+- `compareInput` is cleared by: reference removed, reference replaced, new successful capture, or session deleted
+- `deleteSessions` atomically clears `compareInput` when the active session's ID is in the deleted set
+- Full spec: COMPARE_FLOW_V1.md sections 14 and 38
+
 ### Compare Library
 - `CompareLibraryScreen` is implemented as a focused internal session overview
 - Sessions are shown in a grid

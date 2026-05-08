@@ -129,31 +129,62 @@ It must NOT:
 The right bottom button should ALWAYS represent Compare.
 
 Never:
+
 - Compare -> Shots switching
 - Compare -> Gallery switching
 - transient semantic changes
+
+## Active Compare Session
+
+An active compare session exists when both conditions are true:
+
+- a reference image is loaded
+- AND a last successful shot exists
+
+The active compare session persists across:
+
+- returning from CompareScreen
+- camera lifecycle transitions (pause, rebind, resume)
+
+The active compare session is cleared only when:
+
+- the reference image is removed or replaced
+- a new shot is started (optimistic clear, reset if shot fails — see State Contract in COMPARE_FLOW_V1.md)
+
+The active compare session must NOT be cleared by:
+
+- navigating to CompareScreen
+- returning from CompareScreen
+- camera preview pausing or resuming
 
 ## Compare states
 
 The Compare button remains visible in all states.
 
-### No reference image
-Compare may appear visually disabled.
+### State A — No reference image
+
+Compare is disabled.
 
 Tap feedback:
-- short snackbar/hint:
-  "Add a reference first"
 
-### Reference image exists but no compare capture exists yet
-Compare may appear visually disabled.
+- short snackbar/hint: "Add a reference first"
+
+### State B — Reference exists, no shot yet
+
+Compare is disabled.
 
 Tap feedback:
-- short snackbar/hint:
-  "Take a photo first"
 
-### Compare available
-Tap:
-- opens latest compare session
+- short snackbar/hint: "Take a photo first"
+
+### State C — Active compare session
+
+Compare is enabled.
+
+Tap: opens the active compare session.
+
+This state persists after returning from CompareScreen.
+Returning from CompareScreen must NOT reset Compare to State B.
 
 ## Compare-disabled snackbar timing
 
