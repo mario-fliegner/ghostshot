@@ -89,4 +89,8 @@
     <!-- Compare button disabled states -->
     <string name="compare_disabled_no_reference">Füge zuerst ein Referenzbild hinzu</string>
     <string name="compare_disabled_no_capture">Nimm zuerst ein Foto auf</string>
+
+    <!-- Overlay visibility warning -->
+    <string name="overlay_visibility_warning_description">Referenz kaum sichtbar</string>
+    <string name="overlay_visibility_warning_bubble">Die Referenz ist kaum sichtbar. Sie können trotzdem aufnehmen, der Vergleich kann aber unbrauchbar werden.</string>
 </resources>

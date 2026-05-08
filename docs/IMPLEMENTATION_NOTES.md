@@ -73,6 +73,7 @@ Current release state:
 - Reset restores the default alignment state
 - Overlay delete is supported with confirmation and undo flow
 - Overlay state is stored in ViewModel and survives normal rotation within the active session
+- Live overlay coverage warning shown in top-left hint slot when less than 20 % of the overlay is visible within the viewport; soft warning only, capture always allowed
 
 ### Grid
 - Grid overlay implemented as a preview-only Canvas layer
@@ -211,6 +212,7 @@ Existing tests cover the critical release paths around:
 - Camera top-right History/Overflow navigation
 - stable Compare button semantics and disabled Compare hints
 - Camera controls, landscape alignment, grid, and capture feedback
+- Overlay coverage computation and live visibility warning state
 
 Before Closed Testing, the useful final verification remains:
 - unit tests

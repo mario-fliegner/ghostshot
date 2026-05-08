@@ -332,7 +332,47 @@ The following are currently considered undesirable:
 
 ---
 
-# 12. Intent
+# 12. Top-Left Hint Zone
+
+A single hint slot exists in the top-left area of CameraScreen, visible only when a reference image is active.
+
+Only one hint can be shown at a time. The priority order is:
+
+1. Overlay Coverage Warning — when `isOverlayNearlyInvisible` is true
+2. Format Mismatch Hint — when `hasViewportMismatch` is true and the coverage warning is inactive
+3. No hint
+
+The hint zone must NOT:
+
+- show two hints simultaneously
+- use a row or multi-hint layout
+- block capture
+- auto-correct overlay state
+
+## Overlay Coverage Warning
+
+Shown when less than 20 % of the overlay is visible within the camera viewport.
+
+This is a soft warning only.
+
+Behavior:
+
+- Capture is always still allowed
+- No automatic correction occurs
+- No auto-centering, auto-clamping, or auto-fill
+
+The warning updates live in real time.
+
+The warning is primarily relevant in SHOW_FULL_IMAGE mode or when the overlay has been pushed to an extreme offset.
+In COMPARE_WITH_PREVIEW mode, the 20 % threshold cannot be reached in practice due to fillScale, clamped offsets, and MIN_SCALE 0.5.
+
+## Format Mismatch Hint
+
+Shown when the reference image has a strong aspect ratio mismatch with the current viewport, and the Overlay Coverage Warning is not active.
+
+---
+
+# 13. Intent
 
 The long-term goal is a professional, calm and highly understandable camera workflow with:
 - stable interaction patterns

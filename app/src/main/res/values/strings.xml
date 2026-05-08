@@ -94,4 +94,8 @@
     <!-- Compare button disabled states -->
     <string name="compare_disabled_no_reference">Add a reference first</string>
     <string name="compare_disabled_no_capture">Take a photo first</string>
+
+    <!-- Overlay visibility warning -->
+    <string name="overlay_visibility_warning_description">Reference barely visible</string>
+    <string name="overlay_visibility_warning_bubble">Reference is barely visible. You can still capture, but the comparison may be poor.</string>
 </resources>

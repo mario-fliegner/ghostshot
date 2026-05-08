@@ -59,5 +59,5 @@ val GhostShotCompareOriginalLabelBackground = Color(0xCC000000)
 /** Original-reference peek label text colour in compare. */
 val GhostShotCompareOriginalLabelContent = Color(0xFFFFFFFF)
 
-/** Original-reference peek letterbox background in compare. */
-val GhostShotCompareOriginalLetterboxBackground = Color(0xFF000000)
+/** Original-reference peek letterbox background in compare — matches app surface. */
+val GhostShotCompareOriginalLetterboxBackground = Color(0xFF17202F)

@@ -58,7 +58,7 @@ object ReferenceRenderer {
 
         val output = Bitmap.createBitmap(viewportWidth, viewportHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
-        canvas.drawColor(Color.BLACK)
+        canvas.drawColor(0xFF17202F.toInt())
         val paint = Paint(Paint.FILTER_BITMAP_FLAG)
         canvas.drawBitmap(sourceBitmap, matrix, paint)
         return output

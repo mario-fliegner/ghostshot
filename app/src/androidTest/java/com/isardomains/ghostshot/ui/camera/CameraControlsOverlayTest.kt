@@ -1395,6 +1395,7 @@ class CameraControlsOverlayTest {
         referenceUri: Uri?,
         isLandscape: Boolean,
         hasViewportMismatch: Boolean = false,
+        isOverlayNearlyInvisible: Boolean = false,
         onSelectReferenceImage: () -> Unit = {},
         onResetOverlay: () -> Unit = {},
         onRemoveReferenceImage: () -> Unit = {},
@@ -1420,6 +1421,7 @@ class CameraControlsOverlayTest {
                         onRemoveReferenceImage = onRemoveReferenceImage,
                         displayMode = displayMode,
                         hasViewportMismatch = hasViewportMismatch,
+                        isOverlayNearlyInvisible = isOverlayNearlyInvisible,
                         onToggleDisplayMode = onToggleDisplayMode,
                         onCapture = {},
                         isLandscape = isLandscape,
@@ -1429,6 +1431,56 @@ class CameraControlsOverlayTest {
             }
         }
         composeRule.waitForIdle()
+    }
+
+    @Test
+    fun overlayVisibilityWarning_visibleWhenNearlyInvisibleAndReferencePresent() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            isOverlayNearlyInvisible = true
+        )
+
+        composeRule.onNodeWithContentDescription(overlayVisibilityWarningDescription()).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(overlayVisibilityWarningDescription()).assertHasClickAction()
+    }
+
+    @Test
+    fun overlayVisibilityWarning_notVisibleWhenNotNearlyInvisible() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            isOverlayNearlyInvisible = false
+        )
+
+        composeRule.onAllNodesWithContentDescription(overlayVisibilityWarningDescription()).assertCountEquals(0)
+    }
+
+    @Test
+    fun formatMismatchHint_visibleWhenMismatchAndNotNearlyInvisible() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true,
+            isOverlayNearlyInvisible = false
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).assertIsDisplayed()
+        composeRule.onAllNodesWithContentDescription(overlayVisibilityWarningDescription()).assertCountEquals(0)
+    }
+
+    @Test
+    fun formatMismatchHint_notVisibleWhenMismatchButNearlyInvisible() {
+        // Warning takes priority over mismatch hint — only one hint slot exists
+        setControlsContent(
+            referenceUri = Uri.parse("content://ghostshot/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true,
+            isOverlayNearlyInvisible = true
+        )
+
+        composeRule.onNodeWithContentDescription(overlayVisibilityWarningDescription()).assertIsDisplayed()
+        composeRule.onAllNodesWithContentDescription(mismatchDescription()).assertCountEquals(0)
     }
 
     private fun wakeTestDevice() {
@@ -1467,4 +1519,6 @@ class CameraControlsOverlayTest {
     private fun captureSavedText() = context.getString(R.string.capture_saved)
 
     private fun captureCompareActionText() = context.getString(R.string.capture_saved_compare_action)
+
+    private fun overlayVisibilityWarningDescription() = context.getString(R.string.overlay_visibility_warning_description)
 }

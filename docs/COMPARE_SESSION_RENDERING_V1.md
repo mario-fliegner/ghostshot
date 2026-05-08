@@ -332,9 +332,11 @@ The app must NOT:
 - auto-clamp
 - silently crop capture.jpg smaller
 
-Empty areas must be rendered black (#000000).
+Empty areas must be rendered with the app surface color (#17202F).
 
 Transparent output is not allowed.
+
+Black (#000000) is not permitted for empty areas.
 
 ---
 
@@ -420,7 +422,7 @@ Scenario:
 
 Result:
 
-- reference.jpg contains black empty areas
+- reference.jpg contains empty areas filled with the app surface color (#17202F)
 - capture.jpg remains untouched
 - compare geometry still follows the visible viewport
 
@@ -440,6 +442,14 @@ Result:
 - no auto-centering
 - no offset correction
 - no geometry normalization
+
+If overlay coverage drops below 20 % of the viewport area, a live UX warning is shown in the CameraScreen top-left hint slot.
+
+This warning is informational only:
+
+- capture is still allowed
+- compare rendering is unchanged
+- no geometry correction occurs
 
 ---
 

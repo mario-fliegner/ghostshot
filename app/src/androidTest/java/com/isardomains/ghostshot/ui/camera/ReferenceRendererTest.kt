@@ -57,19 +57,19 @@ class ReferenceRendererTest {
     }
 
     // -------------------------------------------------------------------------
-    // Empty areas are black
+    // Empty areas use app surface color
     // -------------------------------------------------------------------------
 
     @Test
-    fun emptyAreasAreBlack() {
+    fun emptyAreasHaveAppSurfaceColor() {
         // 10×5 green source in 100×100 viewport, SHOW_FULL_IMAGE, scale=1, offset=0.
         // fitScale = min(100/10, 100/5) = min(10, 20) = 10
-        // scaledW=100, scaledH=50 → top/bottom black bars of 25px each.
+        // scaledW=100, scaledH=50 → top/bottom bars of 25px each.
         val source = solidBitmap(10, 5, Color.GREEN)
         val result = ReferenceRenderer.render(source, 100, 100, 1f, 0f, 0f, ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
-        assertEquals(Color.BLACK, result.getPixel(50, 0))    // top bar
-        assertEquals(Color.BLACK, result.getPixel(50, 99))   // bottom bar
-        assertNotEquals(Color.BLACK, result.getPixel(50, 50)) // center is green
+        assertEquals(0xFF17202F.toInt(), result.getPixel(50, 0))    // top bar
+        assertEquals(0xFF17202F.toInt(), result.getPixel(50, 99))   // bottom bar
+        assertNotEquals(0xFF17202F.toInt(), result.getPixel(50, 50)) // center is green
     }
 
     // -------------------------------------------------------------------------
@@ -182,9 +182,9 @@ class ReferenceRendererTest {
         // pixel(99,50): source x=74  → BLACK (right bar, beyond source width 50).
         val source = solidBitmap(50, 100, Color.GREEN)
         val result = ReferenceRenderer.render(source, 100, 100, 1f, 0f, 0f, ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
-        assertEquals(Color.BLACK, result.getPixel(0, 50))   // left black bar
-        assertEquals(Color.GREEN, result.getPixel(50, 50))  // center
-        assertEquals(Color.BLACK, result.getPixel(99, 50))  // right black bar
+        assertEquals(0xFF17202F.toInt(), result.getPixel(0, 50))   // left bar
+        assertEquals(Color.GREEN, result.getPixel(50, 50))         // center
+        assertEquals(0xFF17202F.toInt(), result.getPixel(99, 50))  // right bar
     }
 
     // -------------------------------------------------------------------------
@@ -199,7 +199,7 @@ class ReferenceRendererTest {
         val source = solidBitmap(100, 100, Color.RED)
         val showFullResult  = ReferenceRenderer.render(source, 100, 100, 1f, 1.5f, 0f, ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
         val compareResult   = ReferenceRenderer.render(source, 100, 100, 1f, 1.5f, 0f, ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW)
-        assertEquals(Color.BLACK, showFullResult.getPixel(50, 50))
+        assertEquals(0xFF17202F.toInt(), showFullResult.getPixel(50, 50))
         assertEquals(Color.RED,   compareResult.getPixel(50, 50))
     }
 
@@ -216,7 +216,7 @@ class ReferenceRendererTest {
         val resultNoOffset   = ReferenceRenderer.render(source, 100, 100, 1f, 0f,  0f, ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
         val resultWithOffset = ReferenceRenderer.render(source, 100, 100, 1f, 0.3f, 0f, ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
         assertEquals(Color.RED,   resultNoOffset.getPixel(0, 50))
-        assertEquals(Color.BLACK, resultWithOffset.getPixel(0, 50))
+        assertEquals(0xFF17202F.toInt(), resultWithOffset.getPixel(0, 50))
     }
 
     // -------------------------------------------------------------------------
@@ -252,10 +252,10 @@ class ReferenceRendererTest {
     }
 
     @Test
-    fun showFullMode_extremeOffsetsCanRenderBlackFrame() {
+    fun showFullMode_extremeOffsetsCanRenderAppSurfaceFrame() {
         // offset=10 → tX=1000, imgX=1000 → image entirely off screen to the right.
         val source = solidBitmap(100, 100, Color.RED)
         val result = ReferenceRenderer.render(source, 100, 100, 1f, 10f, 0f, ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
-        assertEquals(Color.BLACK, result.getPixel(50, 50))
+        assertEquals(0xFF17202F.toInt(), result.getPixel(50, 50))
     }
 }

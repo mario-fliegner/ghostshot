@@ -245,7 +245,7 @@ internal object SessionStorage {
                 put("displayMode", snapshot.referenceImageDisplayMode.name)
             })
             put("rendering", JSONObject().apply {
-                put("referenceBackgroundColor", "#000000")
+                put("referenceBackgroundColor", "#17202F")
                 put("referenceJpegQuality", JPEG_QUALITY)
             })
             put("location", JSONObject().apply {

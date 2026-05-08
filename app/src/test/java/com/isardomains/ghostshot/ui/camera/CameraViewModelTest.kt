@@ -1424,6 +1424,96 @@ class CameraViewModelTest {
         assertNull(snackbars[0].durationMs)
     }
 
+    // --- isOverlayNearlyInvisible ---
+
+    @Test
+    fun isOverlayNearlyInvisible_falseByDefault() {
+        assertEquals(false, viewModel.uiState.value.isOverlayNearlyInvisible)
+    }
+
+    @Test
+    fun isOverlayNearlyInvisible_falseWhenViewportZero() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceImageSelected(mock())
+        // viewport was never set — remains 0
+        assertEquals(false, testViewModel.uiState.value.isOverlayNearlyInvisible)
+    }
+
+    @Test
+    fun isOverlayNearlyInvisible_falseInCompareModeAtMinScale() = runTest {
+        // Portrait image in portrait viewport → COMPARE_WITH_PREVIEW, scale=0.5
+        // fillScale=1, coverage=25% > 20% threshold
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onOverlayScaled(0.5f) // 1.0 * 0.5 = MIN_SCALE
+        assertEquals(ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW, testViewModel.uiState.value.referenceImageDisplayMode)
+        assertEquals(false, testViewModel.uiState.value.isOverlayNearlyInvisible)
+    }
+
+    @Test
+    fun isOverlayNearlyInvisible_falseInShowFullImageCenteredWithDefaultScale() = runTest {
+        // 16:9 image, portrait viewport, scale=1.0, offset=0/0 → coverage ~31.6% > 20%
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+        assertEquals(false, testViewModel.uiState.value.isOverlayNearlyInvisible)
+    }
+
+    @Test
+    fun isOverlayNearlyInvisible_trueInShowFullImageSmallScaleWithOffset() = runTest {
+        // 16:9 image, portrait viewport, scale=0.5, offsetX=0.5 → coverage ~4% < 20%
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+        testViewModel.onOverlayScaled(0.5f)
+        testViewModel.onOverlayDragged(0.5f, 0f)
+        assertEquals(true, testViewModel.uiState.value.isOverlayNearlyInvisible)
+    }
+
+    @Test
+    fun isOverlayNearlyInvisible_trueInShowFullImagePortraitImageInLandscapeViewportWithOffset() = runTest {
+        // 9:16 portrait image in 16:9 landscape viewport, scale=1.0, offsetX=0.5 → coverage ~15.8% < 20%
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1920, 1080)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+        testViewModel.onOverlayDragged(0.5f, 0f)
+        assertEquals(true, testViewModel.uiState.value.isOverlayNearlyInvisible)
+    }
+
+    @Test
+    fun isOverlayNearlyInvisible_falseAfterOverlayReset() = runTest {
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+        testViewModel.onOverlayScaled(0.5f)
+        testViewModel.onOverlayDragged(0.5f, 0f)
+        assertEquals(true, testViewModel.uiState.value.isOverlayNearlyInvisible)
+
+        testViewModel.onOverlayReset()
+        assertEquals(false, testViewModel.uiState.value.isOverlayNearlyInvisible)
+    }
+
+    @Test
+    fun isOverlayNearlyInvisible_falseAfterSwitchingToCompareMode() = runTest {
+        // Start in SHOW_FULL_IMAGE with nearly-invisible state, then switch to COMPARE_WITH_PREVIEW
+        // clamped offsets + fillScale bring coverage back above 20%
+        val testViewModel = testViewModelWithMetadata(1920, 1080)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+        testViewModel.onOverlayScaled(0.5f)
+        testViewModel.onOverlayDragged(0.5f, 0f)
+        assertEquals(true, testViewModel.uiState.value.isOverlayNearlyInvisible)
+
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW)
+        assertEquals(false, testViewModel.uiState.value.isOverlayNearlyInvisible)
+    }
+
     // --- helpers ---
 
     private fun testViewModelWithScanner(

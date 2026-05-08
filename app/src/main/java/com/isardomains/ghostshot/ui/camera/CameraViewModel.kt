@@ -29,6 +29,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * The two supported target aspect ratios for the camera viewport, capture, and overlay alignment.
@@ -102,7 +104,8 @@ data class CameraUiState(
     val compareInput: CompareInput? = null,
     val viewportWidth: Int = 0,
     val viewportHeight: Int = 0,
-    val savedSessions: List<ScannedSession> = emptyList()
+    val savedSessions: List<ScannedSession> = emptyList(),
+    val isOverlayNearlyInvisible: Boolean = false
 )
 
 /**
@@ -299,7 +302,7 @@ class CameraViewModel @Inject constructor(
             _uiState.update { current ->
                 val recommendation = getDisplayRecommendation(metadata, current.viewportWidth, current.viewportHeight)
                 val formatChanged = current.activeAspectRatio != newAspectRatio
-                current.copy(
+                val updated = current.copy(
                     referenceImageUri = uri,
                     activeAspectRatio = newAspectRatio,
                     referenceImageMetadata = metadata,
@@ -312,6 +315,7 @@ class CameraViewModel @Inject constructor(
                     undoExpiresAtMillis = 0L,
                     compareInput = null
                 )
+                updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
             }
             if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Overlay loaded") }
             if (hadUndo) {
@@ -351,6 +355,7 @@ class CameraViewModel @Inject constructor(
                 overlayOffsetY = 0f,
                 overlayScale = 1f,
                 compareInput = null,
+                isOverlayNearlyInvisible = false,
                 canUndoReferenceRemoval = if (hasReference) true else it.canUndoReferenceRemoval,
                 referenceRemovalUndoGeneration = if (hasReference) {
                     it.referenceRemovalUndoGeneration + 1L
@@ -382,7 +387,7 @@ class CameraViewModel @Inject constructor(
             val recommendation = snapshot.referenceImageMetadata?.let { metadata ->
                 getDisplayRecommendation(metadata, current.viewportWidth, current.viewportHeight)
             }
-            current.copy(
+            val updated = current.copy(
                 referenceImageUri = snapshot.referenceImageUri,
                 referenceImageMetadata = snapshot.referenceImageMetadata,
                 referenceImageDisplayMode = snapshot.referenceImageDisplayMode,
@@ -394,6 +399,7 @@ class CameraViewModel @Inject constructor(
                 canUndoReferenceRemoval = false,
                 undoExpiresAtMillis = 0L
             )
+            updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
         }
         if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Undo triggered") }
     }
@@ -405,7 +411,7 @@ class CameraViewModel @Inject constructor(
             val recommendation = if (metadata != null) {
                 getDisplayRecommendation(metadata, width, height)
             } else null
-            current.copy(
+            val updated = current.copy(
                 viewportWidth = width,
                 viewportHeight = height,
                 referenceImageHasViewportMismatch = recommendation?.hasStrongMismatch
@@ -416,12 +422,16 @@ class CameraViewModel @Inject constructor(
                     current.referenceImageDisplayMode
                 }
             )
+            updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
         }
     }
 
     fun onReferenceImageDisplayModeChanged(displayMode: ReferenceImageDisplayMode) {
         displayModeChangedByUser = true
-        _uiState.update { it.copy(referenceImageDisplayMode = displayMode) }
+        _uiState.update {
+            val updated = it.copy(referenceImageDisplayMode = displayMode)
+            updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
+        }
     }
 
     fun onReferenceImageDisplayModeToggle() {
@@ -454,10 +464,11 @@ class CameraViewModel @Inject constructor(
      */
     fun onOverlayDragged(dx: Float, dy: Float) {
         _uiState.update {
-            it.copy(
+            val updated = it.copy(
                 overlayOffsetX = (it.overlayOffsetX + dx).coerceIn(-0.5f, 0.5f),
                 overlayOffsetY = (it.overlayOffsetY + dy).coerceIn(-0.5f, 0.5f)
             )
+            updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
         }
     }
 
@@ -471,7 +482,8 @@ class CameraViewModel @Inject constructor(
      */
     fun onOverlayScaled(scaleFactor: Float) {
         _uiState.update {
-            it.copy(overlayScale = (it.overlayScale * scaleFactor).coerceIn(MIN_SCALE, MAX_SCALE))
+            val updated = it.copy(overlayScale = (it.overlayScale * scaleFactor).coerceIn(MIN_SCALE, MAX_SCALE))
+            updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
         }
     }
 
@@ -488,7 +500,7 @@ class CameraViewModel @Inject constructor(
             val recommendation = current.referenceImageMetadata?.let { metadata ->
                 getDisplayRecommendation(metadata, current.viewportWidth, current.viewportHeight)
             }
-            current.copy(
+            val updated = current.copy(
                 overlayOffsetX = 0f,
                 overlayOffsetY = 0f,
                 overlayScale = 1f,
@@ -497,6 +509,7 @@ class CameraViewModel @Inject constructor(
                 referenceImageHasViewportMismatch = recommendation?.hasStrongMismatch
                     ?: current.referenceImageHasViewportMismatch
             )
+            updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
         }
     }
 
@@ -704,6 +717,53 @@ class CameraViewModel @Inject constructor(
         if (degrees == 0) return bitmap
         val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    }
+
+    private fun computeIsOverlayNearlyInvisible(state: CameraUiState): Boolean {
+        if (state.referenceImageUri == null) return false
+        if (state.viewportWidth <= 0 || state.viewportHeight <= 0) return false
+        val metadata = state.referenceImageMetadata ?: return false
+
+        val iW = metadata.orientedWidth.toFloat()
+        val iH = metadata.orientedHeight.toFloat()
+        val vW = state.viewportWidth.toFloat()
+        val vH = state.viewportHeight.toFloat()
+
+        val displayedWidth: Float
+        val displayedHeight: Float
+        val actualTX: Float
+        val actualTY: Float
+
+        if (state.referenceImageDisplayMode == ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW) {
+            val fillScale = max(vW / iW, vH / iH)
+            displayedWidth = iW * fillScale
+            displayedHeight = iH * fillScale
+            val scaledW = displayedWidth * state.overlayScale
+            val scaledH = displayedHeight * state.overlayScale
+            val maxTX = max(0f, (scaledW - vW) / 2f)
+            val maxTY = max(0f, (scaledH - vH) / 2f)
+            actualTX = (state.overlayOffsetX * vW).coerceIn(-maxTX, maxTX)
+            actualTY = (state.overlayOffsetY * vH).coerceIn(-maxTY, maxTY)
+        } else {
+            val fitScale = min(vW / iW, vH / iH)
+            displayedWidth = iW * fitScale
+            displayedHeight = iH * fitScale
+            actualTX = state.overlayOffsetX * vW
+            actualTY = state.overlayOffsetY * vH
+        }
+
+        val scaledWidth = displayedWidth * state.overlayScale
+        val scaledHeight = displayedHeight * state.overlayScale
+        val centerX = vW / 2f + actualTX
+        val centerY = vH / 2f + actualTY
+        val visLeft = max(0f, centerX - scaledWidth / 2f)
+        val visRight = min(vW, centerX + scaledWidth / 2f)
+        val visTop = max(0f, centerY - scaledHeight / 2f)
+        val visBottom = min(vH, centerY + scaledHeight / 2f)
+        val visWidth = max(0f, visRight - visLeft)
+        val visHeight = max(0f, visBottom - visTop)
+        val coverage = (visWidth * visHeight) / (vW * vH)
+        return coverage < 0.20f
     }
 
     private fun getDisplayRecommendation(

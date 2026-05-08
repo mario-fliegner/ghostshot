@@ -71,6 +71,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
@@ -545,6 +546,7 @@ fun CameraScreen(
                     onRemoveReferenceImage = { viewModel.onReferenceImageRemoveConfirmed() },
                     displayMode = uiState.referenceImageDisplayMode,
                     hasViewportMismatch = uiState.referenceImageHasViewportMismatch,
+                    isOverlayNearlyInvisible = uiState.isOverlayNearlyInvisible,
                     onToggleDisplayMode = { viewModel.onReferenceImageDisplayModeToggle() },
                     onCapture = onCapture,
                     isLandscape = isLandscape,
@@ -898,6 +900,7 @@ internal fun CameraControlsOverlay(
     onRemoveReferenceImage: () -> Unit = {},
     displayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
     hasViewportMismatch: Boolean = false,
+    isOverlayNearlyInvisible: Boolean = false,
     onToggleDisplayMode: () -> Unit = {},
     onCapture: () -> Unit,
     isLandscape: Boolean,
@@ -929,15 +932,27 @@ internal fun CameraControlsOverlay(
         }
 
         if (referenceUri != null) {
-            if (hasViewportMismatch) {
-                FormatMismatchHint(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(
-                            top = maxOf(frameTop, statusBarTopInset) + 12.dp,
-                            start = frameLeft + horizontalPadding
-                        )
-                )
+            when {
+                isOverlayNearlyInvisible -> {
+                    OverlayVisibilityWarning(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(
+                                top = maxOf(frameTop, statusBarTopInset) + 12.dp,
+                                start = frameLeft + horizontalPadding
+                            )
+                    )
+                }
+                hasViewportMismatch -> {
+                    FormatMismatchHint(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(
+                                top = maxOf(frameTop, statusBarTopInset) + 12.dp,
+                                start = frameLeft + horizontalPadding
+                            )
+                    )
+                }
             }
 
             if (!isLandscape) {
@@ -1213,6 +1228,86 @@ internal fun CameraTopRightActions(
                 DropdownMenuItem(
                     text = { Text(aboutLabel) },
                     onClick = { overflowExpanded = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverlayVisibilityWarning(
+    modifier: Modifier = Modifier
+) {
+    val description = stringResource(R.string.overlay_visibility_warning_description)
+    val bubbleText = stringResource(R.string.overlay_visibility_warning_bubble)
+    val view = LocalView.current
+    var isBubbleVisible by remember { mutableStateOf(false) }
+    var hintRequest by remember { mutableStateOf(0) }
+
+    LaunchedEffect(hintRequest) {
+        if (hintRequest > 0) {
+            isBubbleVisible = true
+            view.announceForAccessibility(bubbleText)
+            delay(1800)
+            isBubbleVisible = false
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .width(180.dp)
+            .height(92.dp)
+            .testTag("overlay_visibility_warning_container")
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .clickable { hintRequest++ }
+                .semantics(mergeDescendants = true) {
+                    contentDescription = description
+                    role = Role.Button
+                    testTag = "overlay_visibility_warning"
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(GhostShotOverlayScrim.copy(alpha = 0.34f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(14.dp)
+                        .testTag("overlay_visibility_warning_icon"),
+                    tint = GhostShotTextPrimary.copy(alpha = 0.82f)
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = isBubbleVisible,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 6.dp, top = 56.dp)
+                .testTag("overlay_visibility_warning_bubble"),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(GhostShotOverlayScrim.copy(alpha = 0.68f))
+                    .padding(horizontal = 8.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = bubbleText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = GhostShotTextPrimary,
+                    maxLines = 1
                 )
             }
         }
