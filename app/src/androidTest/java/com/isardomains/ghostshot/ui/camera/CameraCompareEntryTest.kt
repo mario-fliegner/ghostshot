@@ -37,26 +37,10 @@ class CameraCompareEntryTest {
     }
 
     @Test
-    fun compareEntry_withoutReference_doesNotExist() {
-        setEntryContent(isCompareEnabled = false)
-
-        composeRule.onNodeWithTag("compare_images_entry")
-            .assertDoesNotExist()
-    }
-
-    @Test
-    fun compareEntry_withoutCapture_doesNotExist() {
-        setEntryContent(isCompareEnabled = false)
-
-        composeRule.onNodeWithTag("compare_images_entry")
-            .assertDoesNotExist()
-    }
-
-    @Test
     fun compareEntry_withReferenceAndCapture_isEnabledAndInvokesCallback() {
         var compareClickCount = 0
         setEntryContent(
-            isCompareEnabled = true,
+            enabled = true,
             onCompareImages = { compareClickCount++ }
         )
 
@@ -69,8 +53,17 @@ class CameraCompareEntryTest {
         assertEquals(1, compareClickCount)
     }
 
+    @Test
+    fun compareEntry_alwaysPresent_whenDisabled() {
+        setEntryContent(enabled = false)
+
+        composeRule.onNodeWithTag("compare_images_entry")
+            .assertIsDisplayed()
+            .assertHasClickAction()
+    }
+
     private fun setEntryContent(
-        isCompareEnabled: Boolean,
+        enabled: Boolean = true,
         label: String = "Compare",
         onCompareImages: () -> Unit = {}
     ) {
@@ -84,13 +77,12 @@ class CameraCompareEntryTest {
             }
             activity.setContent {
                 GhostShotTheme {
-                    if (isCompareEnabled) {
-                        CompareImagesEntry(
-                            label = label,
-                            onClick = onCompareImages,
-                            modifier = Modifier
-                        )
-                    }
+                    CompareImagesEntry(
+                        label = label,
+                        onClick = onCompareImages,
+                        enabled = enabled,
+                        modifier = Modifier
+                    )
                 }
             }
         }
@@ -106,18 +98,10 @@ class CameraCompareEntryTest {
 
     @Test
     fun compareEntry_showsCompareLabel_forCurrentCompare() {
-        setEntryContent(isCompareEnabled = true, label = "Compare")
+        setEntryContent(enabled = true, label = "Compare")
 
         composeRule.onNodeWithTag("compare_images_entry").assertIsDisplayed()
         composeRule.onNodeWithText("Compare").assertIsDisplayed()
-    }
-
-    @Test
-    fun compareEntry_showsComparisonsLabel_forLibrary() {
-        setEntryContent(isCompareEnabled = true, label = "Comparisons")
-
-        composeRule.onNodeWithTag("compare_images_entry").assertIsDisplayed()
-        composeRule.onNodeWithText("Comparisons").assertIsDisplayed()
     }
 
     private val fakeCompareInput = CompareInput(
@@ -127,7 +111,6 @@ class CameraCompareEntryTest {
 
     private fun setOverlayContent(
         compareInput: CompareInput? = null,
-        hasSavedSessions: Boolean = false,
         onCompareClick: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -143,7 +126,6 @@ class CameraCompareEntryTest {
                     CameraControlsOverlay(
                         referenceUri = null,
                         compareInput = compareInput,
-                        hasSavedSessions = hasSavedSessions,
                         onCompareClick = onCompareClick,
                         alpha = 0.5f,
                         onAlphaChange = {},
@@ -159,16 +141,8 @@ class CameraCompareEntryTest {
     }
 
     @Test
-    fun compareEntry_notVisible_whenNoCompareInputAndNoSavedSessions() {
-        setOverlayContent(compareInput = null, hasSavedSessions = false)
-
-        composeRule.onNodeWithTag("compare_images_entry")
-            .assertDoesNotExist()
-    }
-
-    @Test
-    fun compareEntry_visible_whenCompareInputExists() {
-        setOverlayContent(compareInput = fakeCompareInput, hasSavedSessions = false)
+    fun compareEntry_alwaysVisible_whenNoCompareInput() {
+        setOverlayContent(compareInput = null)
 
         composeRule.onNodeWithTag("compare_images_entry")
             .assertIsDisplayed()
@@ -176,8 +150,8 @@ class CameraCompareEntryTest {
     }
 
     @Test
-    fun compareEntry_visible_whenOnlySavedSessionsExist() {
-        setOverlayContent(compareInput = null, hasSavedSessions = true)
+    fun compareEntry_visible_whenCompareInputExists() {
+        setOverlayContent(compareInput = fakeCompareInput)
 
         composeRule.onNodeWithTag("compare_images_entry")
             .assertIsDisplayed()
@@ -188,6 +162,17 @@ class CameraCompareEntryTest {
     fun compareEntry_clickInvokesCallback() {
         var callbackCount = 0
         setOverlayContent(compareInput = fakeCompareInput, onCompareClick = { callbackCount++ })
+
+        composeRule.onNodeWithTag("compare_images_entry").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, callbackCount)
+    }
+
+    @Test
+    fun compareEntry_clickInvokesCallback_whenDisabled() {
+        var callbackCount = 0
+        setOverlayContent(compareInput = null, onCompareClick = { callbackCount++ })
 
         composeRule.onNodeWithTag("compare_images_entry").performClick()
         composeRule.waitForIdle()

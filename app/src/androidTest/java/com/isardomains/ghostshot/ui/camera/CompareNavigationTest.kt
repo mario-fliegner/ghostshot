@@ -15,19 +15,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -174,6 +167,7 @@ class CompareNavigationTest {
             )
             CameraControlsOverlay(
                 referenceUri = Uri.parse("content://ghostshot/reference"),
+                onCompareClick = onCompare,
                 alpha = 0.5f,
                 onAlphaChange = {},
                 onSelectReferenceImage = {},
@@ -181,11 +175,6 @@ class CompareNavigationTest {
                 onCapture = {},
                 isLandscape = false,
                 modifier = Modifier.fillMaxSize()
-            )
-            CompareImagesEntry(
-                label = context.getString(R.string.compare_entry_label),
-                onClick = onCompare,
-                modifier = Modifier.align(Alignment.BottomEnd)
             )
             if (showCaptureSuccessSnackbar) {
                 val snackbarHostState = remember { SnackbarHostState() }
@@ -236,15 +225,11 @@ class CompareNavigationTest {
     @Composable
     private fun CameraRoutingTestContent(
         compareInput: CompareInput? = null,
-        hasSavedSessions: Boolean = false,
-        onNavigateToCompare: () -> Unit = {},
-        onNavigateToLibrary: () -> Unit = {}
+        onNavigateToCompare: () -> Unit = {}
     ) {
         val onCompareClick: () -> Unit = {
             if (compareInput != null) {
                 onNavigateToCompare()
-            } else if (hasSavedSessions) {
-                onNavigateToLibrary()
             }
         }
         Box(modifier = Modifier.fillMaxSize()) {
@@ -255,7 +240,6 @@ class CompareNavigationTest {
             CameraControlsOverlay(
                 referenceUri = null,
                 compareInput = compareInput,
-                hasSavedSessions = hasSavedSessions,
                 onCompareClick = onCompareClick,
                 alpha = 0.5f,
                 onAlphaChange = {},
@@ -269,8 +253,7 @@ class CompareNavigationTest {
     }
 
     private fun setRoutingNavigationContent(
-        compareInput: CompareInput? = null,
-        hasSavedSessions: Boolean = false
+        compareInput: CompareInput? = null
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -290,9 +273,7 @@ class CompareNavigationTest {
                         composable("camera") {
                             CameraRoutingTestContent(
                                 compareInput = compareInput,
-                                hasSavedSessions = hasSavedSessions,
-                                onNavigateToCompare = { navController.navigate("compare") },
-                                onNavigateToLibrary = { navController.navigate("library") }
+                                onNavigateToCompare = { navController.navigate("compare") }
                             )
                         }
                         composable("compare") {
@@ -300,13 +281,6 @@ class CompareNavigationTest {
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .testTag("compare_screen_stub")
-                            ) {}
-                        }
-                        composable("library") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .testTag("compare_library_stub")
                             ) {}
                         }
                     }
@@ -329,39 +303,6 @@ class CompareNavigationTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("compare_screen_stub").assertIsDisplayed()
-    }
-
-    @Test
-    fun clickWithOnlySavedSessions_opensCompareLibrary() {
-        setRoutingNavigationContent(compareInput = null, hasSavedSessions = true)
-
-        composeRule.onNodeWithTag("compare_images_entry").performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag("compare_library_stub").assertIsDisplayed()
-    }
-
-    @Test
-    fun clickWithCompareInputAndSavedSessions_opensCompareScreen() {
-        setRoutingNavigationContent(
-            compareInput = CompareInput(
-                referenceImageUri = Uri.parse("file:///fake/reference.jpg"),
-                captureImageUri = Uri.parse("file:///fake/capture.jpg")
-            ),
-            hasSavedSessions = true
-        )
-
-        composeRule.onNodeWithTag("compare_images_entry").performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag("compare_screen_stub").assertIsDisplayed()
-    }
-
-    @Test
-    fun initialSavedSessionsState_showsEntryWithoutCapture() {
-        setRoutingNavigationContent(compareInput = null, hasSavedSessions = true)
-
-        composeRule.onNodeWithTag("compare_images_entry").assertIsDisplayed()
     }
 
     private data class TestNavigationInput(

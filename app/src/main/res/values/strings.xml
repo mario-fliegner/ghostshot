@@ -84,4 +84,14 @@
     <string name="replace_reference_image">Replace overlay</string>
     <string name="action_stack_replace_label">Replace</string>
     <string name="action_stack_remove_label">Remove</string>
+
+    <!-- Camera top-right navigation -->
+    <string name="camera_history_content_description">Open history</string>
+    <string name="camera_overflow_content_description">More options</string>
+    <string name="camera_overflow_settings">Settings</string>
+    <string name="camera_overflow_about">About</string>
+
+    <!-- Compare button disabled states -->
+    <string name="compare_disabled_no_reference">Add a reference first</string>
+    <string name="compare_disabled_no_capture">Take a photo first</string>
 </resources>

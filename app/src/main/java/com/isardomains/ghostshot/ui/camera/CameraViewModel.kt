@@ -127,8 +127,14 @@ data class CompareInput(
  * persistent UI state.
  */
 sealed interface UiEvent {
-    /** Display a Snackbar with the given message. [isSuccess] controls visual style. */
-    data class ShowSnackbar(@StringRes val messageResId: Int, val isSuccess: Boolean = false) : UiEvent
+    /** Display a Snackbar with the given message. [isSuccess] controls visual style.
+     *  [durationMs] overrides the default duration: null = SnackbarDuration.Short (~4 s),
+     *  non-null = Indefinite display auto-dismissed after [durationMs] milliseconds. */
+    data class ShowSnackbar(
+        @StringRes val messageResId: Int,
+        val isSuccess: Boolean = false,
+        val durationMs: Long? = null
+    ) : UiEvent
     /** Notifies the UI that the pending undo snapshot has been invalidated by a new reference load. */
     data object UndoInvalidated : UiEvent
 }
@@ -661,6 +667,17 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch(ioDispatcher) {
             val sessions = scanSavedSessionsSafely()
             _uiState.update { it.copy(savedSessions = sessions) }
+        }
+    }
+
+    fun onCompareDisabledTapped(referenceUri: Uri?) {
+        viewModelScope.launch {
+            val messageResId = if (referenceUri == null) {
+                R.string.compare_disabled_no_reference
+            } else {
+                R.string.compare_disabled_no_capture
+            }
+            _uiEvent.emit(UiEvent.ShowSnackbar(messageResId, durationMs = 2000L))
         }
     }
 

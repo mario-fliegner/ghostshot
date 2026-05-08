@@ -79,4 +79,14 @@
     <string name="replace_reference_image">Referenzbild ersetzen</string>
     <string name="action_stack_replace_label">Ersetzen</string>
     <string name="action_stack_remove_label">Entfernen</string>
+
+    <!-- Camera top-right navigation -->
+    <string name="camera_history_content_description">Verlauf öffnen</string>
+    <string name="camera_overflow_content_description">Weitere Optionen</string>
+    <string name="camera_overflow_settings">Einstellungen</string>
+    <string name="camera_overflow_about">Über</string>
+
+    <!-- Compare button disabled states -->
+    <string name="compare_disabled_no_reference">Füge zuerst ein Referenzbild hinzu</string>
+    <string name="compare_disabled_no_capture">Nimm zuerst ein Foto auf</string>
 </resources>

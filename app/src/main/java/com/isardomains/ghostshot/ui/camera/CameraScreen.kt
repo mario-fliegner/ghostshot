@@ -55,6 +55,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -70,12 +71,17 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Snackbar
@@ -258,7 +264,6 @@ fun CameraScreen(
             val captureSavedMessage = stringResource(R.string.capture_saved)
             val captureCompareAction = stringResource(R.string.capture_saved_compare_action)
             val compareInput = uiState.compareInput
-            val hasSavedSessions = uiState.savedSessions.isNotEmpty()
             val density = LocalDensity.current
             var frameLeftDp by remember { mutableStateOf(0.dp) }
             var frameTopDp by remember { mutableStateOf(0.dp) }
@@ -269,8 +274,8 @@ fun CameraScreen(
                 if (compareInput != null) {
                     if (BuildConfig.DEBUG) { Log.d(TAG, "Compare opened") }
                     onCompareImages(compareInput)
-                } else if (hasSavedSessions) {
-                    onOpenCompareLibrary()
+                } else {
+                    viewModel.onCompareDisabledTapped(referenceUri)
                 }
             }
 
@@ -315,11 +320,18 @@ fun CameraScreen(
             val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
 
             LaunchedEffect(pendingSnackbarEvent) {
-                if (pendingMessage != null) {
+                val event = pendingSnackbarEvent ?: return@LaunchedEffect
+                val message = pendingMessage ?: return@LaunchedEffect
+                snackbarHostState.currentSnackbarData?.dismiss()
+                val durationMs = event.durationMs
+                if (durationMs != null) {
+                    launch { snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Indefinite) }
+                    delay(durationMs)
                     snackbarHostState.currentSnackbarData?.dismiss()
-                    snackbarHostState.showSnackbar(pendingMessage)
-                    pendingSnackbarEvent = null
+                } else {
+                    snackbarHostState.showSnackbar(message)
                 }
+                pendingSnackbarEvent = null
             }
 
             LaunchedEffect(captureFlashVisible) {
@@ -519,7 +531,6 @@ fun CameraScreen(
                 CameraControlsOverlay(
                     referenceUri = referenceUri,
                     compareInput = compareInput,
-                    hasSavedSessions = hasSavedSessions,
                     onCompareClick = onCompareClick,
                     alpha = uiState.overlayAlpha,
                     onAlphaChange = { viewModel.onOverlayAlphaChanged(it) },
@@ -548,6 +559,15 @@ fun CameraScreen(
                     isLandscape = isLandscape,
                     hasOverlay = uiState.referenceImageUri != null,
                     modifier = Modifier.align(Alignment.BottomCenter)
+                )
+
+                // ── Layer 7: Top-right navigation ─────────────────────────────────────
+                CameraTopRightActions(
+                    onOpenHistory = onOpenCompareLibrary,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(end = 4.dp, top = 4.dp)
                 )
 
             }
@@ -870,7 +890,6 @@ internal fun cameraSnackbarBottomPadding(isLandscape: Boolean, hasOverlay: Boole
 internal fun CameraControlsOverlay(
     referenceUri: Uri?,
     compareInput: CompareInput? = null,
-    hasSavedSessions: Boolean = false,
     onCompareClick: () -> Unit = {},
     alpha: Float,
     onAlphaChange: (Float) -> Unit,
@@ -970,19 +989,12 @@ internal fun CameraControlsOverlay(
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val controlGap = 16.dp
                 val sliderButtonGap = 8.dp
-                val rightControlsVisible = compareInput != null || hasSavedSessions
                 val sideControlsPadding = maxWidth / 2 + CameraShutterButtonSize / 2 + controlGap
-                val sliderGroupWidth = if (rightControlsVisible) {
-                    CameraSecondaryActionMinWidth +
-                        controlGap +
-                        CameraShutterButtonSize +
-                        controlGap +
-                        CameraSecondaryActionMinWidth
-                } else {
-                    CameraSecondaryActionMinWidth +
-                        controlGap +
-                        CameraShutterButtonSize
-                }
+                val sliderGroupWidth = CameraSecondaryActionMinWidth +
+                    controlGap +
+                    CameraShutterButtonSize +
+                    controlGap +
+                    CameraSecondaryActionMinWidth
 
                 val navigationBottomPadding =
                     WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -1035,19 +1047,14 @@ internal fun CameraControlsOverlay(
                     horizontalArrangement = Arrangement.spacedBy(controlGap),
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    if (compareInput != null || hasSavedSessions) {
-                        val compareLabel = when {
-                            compareInput != null -> stringResource(R.string.compare_entry_label)
-                            else -> stringResource(R.string.compare_library_entry_label)
-                        }
-                        CompareImagesEntry(
-                            label = compareLabel,
-                            onClick = onCompareClick,
-                            modifier = Modifier
-                                .height(CameraShutterButtonSize)
-                                .wrapContentHeight(align = Alignment.CenterVertically)
-                        )
-                    }
+                    CompareImagesEntry(
+                        label = stringResource(R.string.compare_entry_label),
+                        onClick = onCompareClick,
+                        enabled = compareInput != null,
+                        modifier = Modifier
+                            .height(CameraShutterButtonSize)
+                            .wrapContentHeight(align = Alignment.CenterVertically)
+                    )
                 }
 
                 if (referenceUri != null) {
@@ -1096,25 +1103,20 @@ internal fun CameraControlsOverlay(
                 }
             }
 
-            if (compareInput != null || hasSavedSessions) {
-                val compareLabel = when {
-                    compareInput != null -> stringResource(R.string.compare_entry_label)
-                    else -> stringResource(R.string.compare_library_entry_label)
-                }
-                CompareImagesEntry(
-                    label = compareLabel,
-                    onClick = onCompareClick,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .navigationBarsPadding()
-                        .padding(
-                            end = horizontalPadding,
-                            bottom = bottomPadding
-                        )
-                        .height(CameraShutterButtonSize)
-                        .wrapContentHeight(align = Alignment.CenterVertically)
-                )
-            }
+            CompareImagesEntry(
+                label = stringResource(R.string.compare_entry_label),
+                onClick = onCompareClick,
+                enabled = compareInput != null,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(
+                        end = horizontalPadding,
+                        bottom = bottomPadding
+                    )
+                    .height(CameraShutterButtonSize)
+                    .wrapContentHeight(align = Alignment.CenterVertically)
+            )
 
             ShutterButton(
                 onCapture = onCapture,
@@ -1131,8 +1133,10 @@ internal fun CameraControlsOverlay(
 internal fun CompareImagesEntry(
     label: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val contentAlpha = if (enabled) 1f else 0.4f
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
@@ -1148,14 +1152,69 @@ internal fun CompareImagesEntry(
             Icon(
                 imageVector = Icons.Default.SwapHoriz,
                 contentDescription = null,
-                tint = GhostShotTextPrimary
+                tint = GhostShotTextPrimary.copy(alpha = contentAlpha)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = GhostShotTextPrimary
+                color = GhostShotTextPrimary.copy(alpha = contentAlpha)
             )
+        }
+    }
+}
+
+@Composable
+internal fun CameraTopRightActions(
+    onOpenHistory: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var overflowExpanded by remember { mutableStateOf(false) }
+    val historyDescription = stringResource(R.string.camera_history_content_description)
+    val overflowDescription = stringResource(R.string.camera_overflow_content_description)
+    val settingsLabel = stringResource(R.string.camera_overflow_settings)
+    val aboutLabel = stringResource(R.string.camera_overflow_about)
+
+    Row(modifier = modifier) {
+        IconButton(
+            onClick = onOpenHistory,
+            modifier = Modifier
+                .testTag("camera_history_button")
+                .semantics { contentDescription = historyDescription }
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.History,
+                contentDescription = historyDescription,
+                tint = GhostShotTextPrimary
+            )
+        }
+        Box {
+            IconButton(
+                onClick = { overflowExpanded = true },
+                modifier = Modifier
+                    .testTag("camera_overflow_button")
+                    .semantics { contentDescription = overflowDescription }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = overflowDescription,
+                    tint = GhostShotTextPrimary
+                )
+            }
+            DropdownMenu(
+                expanded = overflowExpanded,
+                onDismissRequest = { overflowExpanded = false },
+                modifier = Modifier.testTag("camera_overflow_menu")
+            ) {
+                DropdownMenuItem(
+                    text = { Text(settingsLabel) },
+                    onClick = { overflowExpanded = false }
+                )
+                DropdownMenuItem(
+                    text = { Text(aboutLabel) },
+                    onClick = { overflowExpanded = false }
+                )
+            }
         }
     }
 }

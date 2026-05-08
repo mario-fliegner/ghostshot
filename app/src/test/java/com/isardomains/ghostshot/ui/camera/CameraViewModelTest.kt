@@ -1372,6 +1372,58 @@ class CameraViewModelTest {
         assertEquals(R.string.compare_screen_title_save_failed, snackbars[0].messageResId)
     }
 
+    // --- onCompareDisabledTapped ---
+
+    @Test
+    fun onCompareDisabledTapped_noReference_emitsSnackbarWithDuration2000() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+
+        viewModel.onCompareDisabledTapped(referenceUri = null)
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.compare_disabled_no_reference, snackbars[0].messageResId)
+        assertEquals(2000L, snackbars[0].durationMs)
+    }
+
+    @Test
+    fun onCompareDisabledTapped_withReference_emitsSnackbarWithDuration2000() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+
+        viewModel.onCompareDisabledTapped(referenceUri = mock())
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.compare_disabled_no_capture, snackbars[0].messageResId)
+        assertEquals(2000L, snackbars[0].durationMs)
+    }
+
+    @Test
+    fun otherSnackbarEvents_haveNullDurationMs() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null }
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.reference_image_load_failed, snackbars[0].messageResId)
+        assertNull(snackbars[0].durationMs)
+    }
+
     // --- helpers ---
 
     private fun testViewModelWithScanner(

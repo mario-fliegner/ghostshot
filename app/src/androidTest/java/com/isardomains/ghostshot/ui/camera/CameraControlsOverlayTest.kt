@@ -125,7 +125,10 @@ class CameraControlsOverlayTest {
         val captureBounds = composeRule
             .onNodeWithContentDescription(captureDescription())
             .getUnclippedBoundsInRoot()
-        val buttonGroupWidth = captureBounds.right - referenceBounds.left
+        val compareBounds = composeRule
+            .onNodeWithTag("compare_images_entry")
+            .getUnclippedBoundsInRoot()
+        val buttonGroupWidth = compareBounds.right - referenceBounds.left
 
         assertCenterXWithin(sliderBounds, captureBounds, 1.dp)
         assert(sliderBounds.right - sliderBounds.left <= buttonGroupWidth)
@@ -133,14 +136,14 @@ class CameraControlsOverlayTest {
         assert(sliderBounds.right <= rootBounds.right)
         assertNoOverlap(sliderBounds, referenceBounds)
         assertNoOverlap(sliderBounds, captureBounds)
+        assertNoOverlap(sliderBounds, compareBounds)
     }
 
     @Test
     fun captureButton_inLandscape_staysHorizontallyCenteredWithReferenceCompareAndSlider() {
         setControlsContent(
             referenceUri = Uri.parse("content://ghostshot/test-reference"),
-            isLandscape = true,
-            hasSavedSessions = true
+            isLandscape = true
         )
 
         val rootBounds = composeRule
@@ -1008,8 +1011,7 @@ class CameraControlsOverlayTest {
     fun compareEntry_inLandscape_isInBottomZone() {
         setControlsContent(
             referenceUri = Uri.parse("content://ghostshot/test-reference"),
-            isLandscape = true,
-            hasSavedSessions = true
+            isLandscape = true
         )
 
         val compareEntryBounds = composeRule
@@ -1031,8 +1033,7 @@ class CameraControlsOverlayTest {
     fun compareEntry_doesNotOverlapControls() {
         setControlsContent(
             referenceUri = Uri.parse("content://ghostshot/test-reference"),
-            isLandscape = true,
-            hasSavedSessions = true
+            isLandscape = true
         )
 
         val compareEntryBounds = composeRule
@@ -1069,7 +1070,6 @@ class CameraControlsOverlayTest {
                     Box(modifier = Modifier.fillMaxSize()) {
                         CameraControlsOverlay(
                             referenceUri = Uri.parse("content://ghostshot/test-reference"),
-                            hasSavedSessions = true,
                             alpha = 0.5f,
                             onAlphaChange = {},
                             onSelectReferenceImage = {},
@@ -1375,7 +1375,6 @@ class CameraControlsOverlayTest {
                     Box(modifier = Modifier.fillMaxSize()) {
                         CameraControlsOverlay(
                             referenceUri = Uri.parse("content://ghostshot/test-reference"),
-                            hasSavedSessions = true,
                             alpha = 0.5f,
                             onAlphaChange = {},
                             onSelectReferenceImage = {},
@@ -1396,7 +1395,6 @@ class CameraControlsOverlayTest {
         referenceUri: Uri?,
         isLandscape: Boolean,
         hasViewportMismatch: Boolean = false,
-        hasSavedSessions: Boolean = false,
         onSelectReferenceImage: () -> Unit = {},
         onResetOverlay: () -> Unit = {},
         onRemoveReferenceImage: () -> Unit = {},
@@ -1415,7 +1413,6 @@ class CameraControlsOverlayTest {
                 GhostShotTheme {
                     CameraControlsOverlay(
                         referenceUri = referenceUri,
-                        hasSavedSessions = hasSavedSessions,
                         alpha = 0.5f,
                         onAlphaChange = {},
                         onSelectReferenceImage = onSelectReferenceImage,
