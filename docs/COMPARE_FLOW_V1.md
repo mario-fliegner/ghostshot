@@ -965,24 +965,31 @@ Closed-testing status:
 
 ---
 
-## 35. CAMERA SCREEN LANDSCAPE CONTROL CONTEXT (2026-04-28)
+## 35. CAMERA SCREEN LANDSCAPE CONTROL CONTEXT (2026-05-08)
 
 This document remains focused on the compare flow.
-This section only protects the camera-to-compare entry point and prevents layout regressions around the `Shots` / `Compare Images` control.
+This section only protects the camera-to-compare entry point and prevents layout regressions around the `Compare` control.
+
+CameraScreen UX semantics are now defined by `CAMERA_WORKFLOW_UX_V1.md`.
+If this section conflicts with `CAMERA_WORKFLOW_UX_V1.md`, the CameraScreen UX specification wins for CameraScreen layout and navigation semantics.
 
 ### Current camera-control decision
 
 Landscape camera controls must mirror the portrait structure conceptually:
 
-- Bottom row: `Overlay` / `Capture` / `Shots`
+- Bottom row: `Overlay` / `Capture` / `Compare`
 - Opacity slider: separate row above the bottom row
+- Sessions/History access: top-right CameraScreen navigation
+- Settings/Overflow access: top-right CameraScreen app-level actions
 
 ### Required landscape invariants
 
 - Capture remains exactly centered at the bottom of the root
 - Overlay remains left of capture
-- Shots / Compare entry remains right of capture
-- Overlay and Shots / Compare are symmetrically spaced around capture
+- Compare remains right of capture
+- Overlay and Compare are symmetrically spaced around capture
+- Compare remains a stable workflow action and must not dynamically switch to Shots/History
+- Sessions/History must not replace Compare in the bottom row
 - Slider is centered above capture
 - Slider is above the button row
 - Slider width is no greater than the button-group width
@@ -991,17 +998,22 @@ Landscape camera controls must mirror the portrait structure conceptually:
 
 ### Forbidden approaches
 
-- Placing the opacity slider to the right of Shots / Compare
+- Reintroducing `Shots` / `History` as the right bottom button
+- Dynamically switching the right bottom button between `Compare` and `Shots` / `History`
+- Hiding Sessions/History inside the Compare button
+- Placing Settings or app-level overflow actions in the bottom row
+- Placing the opacity slider to the right of Compare
 - Calculating slider width from remaining right-side space
 - Reusing `safeEndPadding`, `rightControlsStart`, or equivalent right-control width logic for the slider
 - Inline slider in the bottom button row
 - Fallback alignments that move the slider to TopEnd or BottomStart
 - Moving capture away from bottom center
-- Squeezing Overlay or Shots / Compare with hard equal-width button constraints
+- Squeezing Overlay or Compare with hard equal-width button constraints
 
 ### Compare-flow relevance
 
-The `Shots` / `Compare Images` entry must remain reachable and visually stable in landscape.
+The `Compare` entry must remain reachable and visually stable in landscape.
+Sessions/History access belongs to the top-right CameraScreen navigation area and must not take over the bottom-right workflow slot.
 The landscape layout fix must not change `CompareScreen`, session storage, delete behavior, or compare navigation contracts.
 
 ---
