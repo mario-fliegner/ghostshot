@@ -100,8 +100,11 @@ class CompareNavigationTest {
         setNavigationContent()
 
         composeRule.onNodeWithTag("compare_images_entry").performClick()
+        composeRule.waitForIdle()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithTag("compare_slider").fetchSemanticsNodes().isNotEmpty()
+            runCatching {
+                composeRule.onAllNodesWithTag("compare_slider").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
         }
         composeRule.onNodeWithTag("compare_viewport").performTouchInput {
             down(center)
