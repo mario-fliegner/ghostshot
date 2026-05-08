@@ -871,7 +871,16 @@ Long press on a session tile activates multi-select mode. Selected sessions can 
 
 ### Navigation
 
-Accessible from the camera screen. A button labeled "Comparisons" appears when at least one saved session exists. After deletion, the library refreshes and either shows the remaining sessions or an empty-state message.
+Accessible from the camera screen through the persistent top-right History action.
+
+The History action:
+- is always visible
+- opens the Compare Library directly
+- remains available even when no sessions exist
+- may show the Compare Library empty state
+
+The Compare bottom-bar action must not dynamically switch to Library/History.
+After deletion, the library refreshes and either shows the remaining sessions or an empty-state message.
 
 ---
 
@@ -957,6 +966,9 @@ The following components are implemented and are part of the current release sta
 | Compare fullscreen viewing mode | Implemented |
 | Session title support | Implemented |
 | Compare/library delete behavior | Implemented |
+| CameraScreen stable bottom workflow `Overlay` / `Capture` / `Compare` | Implemented |
+| CameraScreen top-right History and Overflow navigation | Implemented |
+| Short disabled-Compare snackbar hints | Implemented |
 
 Closed-testing status:
 - No known critical blocker is documented for the compare flow
@@ -980,7 +992,9 @@ Landscape camera controls must mirror the portrait structure conceptually:
 - Bottom row: `Overlay` / `Capture` / `Compare`
 - Opacity slider: separate row above the bottom row
 - Sessions/History access: top-right CameraScreen navigation
-- Settings/Overflow access: top-right CameraScreen app-level actions
+- History access: persistent top-right CameraScreen navigation
+- Overflow access: persistent top-right CameraScreen app-level actions
+- Current overflow entries: Settings and About
 
 ### Required landscape invariants
 
@@ -1013,8 +1027,12 @@ Landscape camera controls must mirror the portrait structure conceptually:
 ### Compare-flow relevance
 
 The `Compare` entry must remain reachable and visually stable in landscape.
-Sessions/History access belongs to the top-right CameraScreen navigation area and must not take over the bottom-right workflow slot.
+History access belongs to the top-right CameraScreen navigation area and must not take over the bottom-right workflow slot. The top-right Overflow action belongs to app-level actions such as Settings and About.
 The landscape layout fix must not change `CompareScreen`, session storage, delete behavior, or compare navigation contracts.
+
+### Disabled Compare hint timing
+
+Disabled Compare taps may show short workflow hints. These hints should dismiss after approximately 2000 ms and must not become navigation anchors or persistent error states.
 
 ---
 

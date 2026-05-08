@@ -5,7 +5,9 @@ Future UI changes should follow this specification unless explicitly superseded.
 
 ## Status
 
-Draft UX specification for the GhostShot main camera workflow and navigation structure.
+Current UX specification for the GhostShot main camera workflow and navigation structure.
+
+Last updated: 2026-05-08.
 
 This document defines the intended long-term UX semantics for:
 - CameraScreen
@@ -133,43 +135,61 @@ Never:
 
 ## Compare states
 
-### No reference image
-Compare may appear disabled.
+The Compare button remains visible in all states.
 
-Optional:
-- tap hint/snackbar:
-  "Add a reference image first"
+### No reference image
+Compare may appear visually disabled.
+
+Tap feedback:
+- short snackbar/hint:
+  "Add a reference first"
 
 ### Reference image exists but no compare capture exists yet
-Compare may appear disabled.
+Compare may appear visually disabled.
 
-Optional:
-- tap hint/snackbar:
-  "Take a comparison shot first"
+Tap feedback:
+- short snackbar/hint:
+  "Take a photo first"
 
 ### Compare available
 Tap:
 - opens latest compare session
 
+## Compare-disabled snackbar timing
+
+Compare-disabled snackbar hints should be short-lived:
+- approximately 2000 ms
+- shorter than normal error snackbars
+- not used as workflow navigation
+
 ---
 
-# 6. Shots / History Rules
+# 6. History Rules
 
-Shots/History is a SECONDARY navigation area.
+History is a SECONDARY navigation area.
 
 It is not part of the primary capture workflow.
 
 Therefore:
-- Shots should NOT replace Compare in the bottom bar
-- Shots should NOT dynamically take over the Compare button
+- History must NOT replace Compare in the bottom bar
+- History must NOT dynamically take over the Compare button
+- History must NOT be hidden inside the Compare button
 
-## Preferred placement
+## Placement
 
-Shots/History should be accessible from the top-right area of CameraScreen.
+History is accessible from the top-right area of CameraScreen.
 
-Possible UI:
-- gallery icon
-- history icon
+Final UI:
+- dedicated History icon
+- positioned left of the Overflow icon
+- always visible, even when no sessions exist
+
+Tap:
+- opens the Compare Library / History screen directly
+
+Empty history is valid:
+- the History screen may show its empty state
+- navigation should not be blocked by a snackbar or disabled icon
 
 The goal:
 - fast access
@@ -189,16 +209,24 @@ Therefore:
 - Settings do NOT replace Compare
 - Settings do NOT belong in Overlay menu
 
-## Preferred placement
+## Placement
 
-Top-right area of CameraScreen:
-- overflow menu
-- settings icon
-- or combined overflow structure
+Top-right area of CameraScreen.
 
-Potential future entries:
+Final UI:
+- Overflow icon placed at the far right
+- History icon placed directly left of Overflow
+
+Current prepared overflow entries:
 - Settings
 - About
+
+Current behavior:
+- Settings/About entries may exist before their final destination screens
+- tapping placeholder entries must close the menu cleanly
+- no fake route and no crash are allowed
+
+Potential future entries:
 - Help
 - Feedback
 
@@ -227,6 +255,14 @@ Snackbar allowed:
 No success snackbar required.
 
 The Compare button itself represents the persistent workflow continuation.
+
+### Compare disabled hints
+Short snackbar hints are allowed for disabled Compare taps:
+- no reference image
+- reference exists but no compare capture exists yet
+
+These hints should be dismissed after approximately 2000 ms.
+They are workflow hints, not error states and not navigation anchors.
 
 ---
 
@@ -264,8 +300,12 @@ Bottom:
 - Compare
 
 Top-right:
-- Shots/History access
-- Settings/Overflow access
+- History access
+- Overflow access
+
+Final order:
+- History
+- Overflow
 
 ## CompareScreen
 
