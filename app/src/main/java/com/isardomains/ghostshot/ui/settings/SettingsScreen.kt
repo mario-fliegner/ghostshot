@@ -3,7 +3,6 @@ package com.isardomains.ghostshot.ui.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -43,9 +41,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.camera.GridType
-import com.isardomains.ghostshot.ui.theme.GhostShotAppDivider
-import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotAppSurfaceElevated
+import com.isardomains.ghostshot.ui.theme.GhostShotSettingsCardSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotSettingsControlOutline
+import com.isardomains.ghostshot.ui.theme.GhostShotSettingsControlSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotSettingsHeaderText
+import com.isardomains.ghostshot.ui.theme.GhostShotSettingsLabelText
+import com.isardomains.ghostshot.ui.theme.GhostShotSettingsSecondaryText
+import com.isardomains.ghostshot.ui.theme.GhostShotSettingsSelectedSegment
+import com.isardomains.ghostshot.ui.theme.GhostShotSettingsUnselectedSegment
 
 @Composable
 fun SettingsScreen(
@@ -113,7 +116,7 @@ internal fun SettingsScreenContent(
                 Text(
                     text = stringResource(R.string.settings_grid_type_title),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = GhostShotSettingsSecondaryText
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 GridTypeSegmentedControl(
@@ -143,10 +146,9 @@ private fun SettingsCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = GhostShotAppSurface,
+        color = GhostShotSettingsCardSurface,
         tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, GhostShotAppDivider)
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
@@ -154,7 +156,7 @@ private fun SettingsCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = GhostShotSettingsHeaderText
             )
             Spacer(modifier = Modifier.height(12.dp))
             content()
@@ -180,6 +182,7 @@ private fun SettingsSwitchRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
+            color = GhostShotSettingsLabelText,
             modifier = Modifier.weight(1f)
         )
         Switch(
@@ -255,8 +258,8 @@ private fun GridTypeSegmentedControl(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(GhostShotAppSurfaceElevated)
-            .border(1.dp, GhostShotAppDivider, MaterialTheme.shapes.medium)
+            .background(GhostShotSettingsControlSurface)
+            .border(1.dp, GhostShotSettingsControlOutline, MaterialTheme.shapes.medium)
             .padding(3.dp)
             .selectableGroup()
     ) {
@@ -284,7 +287,7 @@ private fun GridTypeSegmentButton(
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
             .background(
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else Color.Transparent
+                if (selected) GhostShotSettingsSelectedSegment else GhostShotSettingsUnselectedSegment
             )
             .selectable(
                 selected = selected,
@@ -299,7 +302,7 @@ private fun GridTypeSegmentButton(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (selected) GhostShotSettingsLabelText else GhostShotSettingsSecondaryText
         )
     }
 }

@@ -61,3 +61,27 @@ val GhostShotCompareOriginalLabelContent = Color(0xFFFFFFFF)
 
 /** Original-reference peek letterbox background in compare — matches app surface. */
 val GhostShotCompareOriginalLetterboxBackground = Color(0xFF17202F)
+
+/** Settings cards: quiet grouped surface, aligned with the app-level card tone. */
+val GhostShotSettingsCardSurface = GhostShotAppSurface
+
+/** Settings controls: slightly lifted inner surface for segmented controls. */
+val GhostShotSettingsControlSurface = GhostShotAppSurfaceElevated
+
+/** Settings card headings: calm, high-clarity header tone. */
+val GhostShotSettingsHeaderText = Color(0xFFE8EEF8)
+
+/** Settings primary row labels. */
+val GhostShotSettingsLabelText = GhostShotTextPrimary
+
+/** Settings secondary labels, such as field captions and inactive segments. */
+val GhostShotSettingsSecondaryText = GhostShotTextSecondary
+
+/** Settings control outline: softer than the general divider. */
+val GhostShotSettingsControlOutline = Color(0x1FFFFFFF)
+
+/** Settings selected segment fill, using the CI accent at a restrained dark-theme strength. */
+val GhostShotSettingsSelectedSegment = Color(0x384F8CFF)
+
+/** Settings unselected segment fill. */
+val GhostShotSettingsUnselectedSegment = Color.Transparent
