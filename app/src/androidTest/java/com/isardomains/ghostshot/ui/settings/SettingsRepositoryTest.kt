@@ -38,7 +38,7 @@ class SettingsRepositoryTest {
         val fileName = "test_settings_${UUID.randomUUID()}.preferences_pb"
         testFile = context.preferencesDataStoreFile(fileName)
         dataStore = PreferenceDataStoreFactory.create(
-            scope = testScope,
+            scope = testScope.backgroundScope,
             produceFile = { testFile }
         )
         repository = SettingsRepository(dataStore)
