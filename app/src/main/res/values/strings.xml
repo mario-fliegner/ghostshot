@@ -1,7 +1,8 @@
 <resources>
     <string name="app_name">Then &amp; Now Camera</string>
+    <string name="app_launcher_name">Then &amp; Now</string>
     <!-- Camera permission screens -->
-    <string name="camera_permission_rationale">GhostShot needs camera access to take photos.</string>
+    <string name="camera_permission_rationale">Then &amp; Now Camera needs camera access to take photos.</string>
     <string name="grant_permission">Allow camera</string>
     <string name="camera_permission_denied">Camera access is blocked. Enable it in app settings.</string>
     <string name="open_settings">Open settings</string>
@@ -101,13 +102,13 @@
     <!-- About -->
     <string name="about_screen_title">About</string>
     <string name="about_back">Back</string>
-    <string name="about_app_name">GhostShot</string>
-    <string name="about_subtitle">Then &amp; Now Camera</string>
-    <string name="about_description">Recreate photos with a reference overlay.</string>
-    <string name="about_trust_no_tracking">No tracking</string>
-    <string name="about_trust_no_cloud_sync">No cloud sync</string>
-    <string name="about_trust_photos_stay_device">Photos stay on your device</string>
-    <string name="about_version">Version %1$s</string>
+    <string name="about_app_name">Then &amp; Now Camera</string>
+    <string name="about_description">Recreate past photos with live overlays.</string>
+    <string name="about_local_device">Designed to work locally on your device.</string>
+    <string name="about_no_account_required">No account required.</string>
+    <string name="about_version">v%1$s</string>
+    <string name="about_send_feedback">Send Feedback</string>
+    <string name="about_feedback_subject">Then &amp; Now Camera Feedback</string>
 
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Open history</string>

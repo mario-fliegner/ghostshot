@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -48,13 +49,13 @@ class AboutScreenTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("GhostShot").assertIsDisplayed()
+        composeRule.onNodeWithTag("about_app_icon").assertIsDisplayed()
         composeRule.onNodeWithText("Then & Now Camera").assertIsDisplayed()
-        composeRule.onNodeWithText("Recreate photos with a reference overlay.").assertIsDisplayed()
-        composeRule.onNodeWithText("No tracking").assertIsDisplayed()
-        composeRule.onNodeWithText("No cloud sync").assertIsDisplayed()
-        composeRule.onNodeWithText("Photos stay on your device").assertIsDisplayed()
-        composeRule.onNodeWithText("Version 9.9").assertIsDisplayed()
+        composeRule.onNodeWithText("Recreate past photos with live overlays.").assertIsDisplayed()
+        composeRule.onNodeWithText("Designed to work locally on your device.").assertIsDisplayed()
+        composeRule.onNodeWithText("No account required.").assertIsDisplayed()
+        composeRule.onNodeWithText("v9.9").assertIsDisplayed()
+        composeRule.onNodeWithText("Send Feedback").assertIsDisplayed()
     }
 
     private fun wakeTestDevice() {

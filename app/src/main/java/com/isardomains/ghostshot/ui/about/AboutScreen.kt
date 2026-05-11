@@ -1,14 +1,14 @@
 package com.isardomains.ghostshot.ui.about
 
-import androidx.compose.foundation.Image
+import android.content.Intent
+import android.net.Uri
+import android.widget.ImageView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,10 +28,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
@@ -54,6 +55,9 @@ fun AboutScreenContent(
     versionName: String,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val feedbackSubject = stringResource(R.string.about_feedback_subject)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -82,12 +86,21 @@ fun AboutScreenContent(
             Spacer(modifier = Modifier.height(44.dp))
 
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                TrustRow(text = stringResource(R.string.about_trust_no_tracking))
-                TrustRow(text = stringResource(R.string.about_trust_no_cloud_sync))
-                TrustRow(text = stringResource(R.string.about_trust_photos_stay_device))
+                Text(
+                    text = stringResource(R.string.about_local_device),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = GhostShotTextSecondary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.about_no_account_required),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = GhostShotTextSecondary,
+                    textAlign = TextAlign.Center
+                )
             }
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -97,6 +110,22 @@ fun AboutScreenContent(
                 style = MaterialTheme.typography.bodySmall,
                 color = GhostShotTextSecondary,
                 textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = stringResource(R.string.about_send_feedback),
+                style = MaterialTheme.typography.labelMedium,
+                color = GhostShotTextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:support@isardomains.com")
+                        putExtra(Intent.EXTRA_SUBJECT, feedbackSubject)
+                    }
+                    context.startActivity(intent)
+                }
             )
         }
     }
@@ -111,10 +140,16 @@ private fun AboutHero() {
             .background(GhostShotAppSurface),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            modifier = Modifier.size(72.dp)
+        AndroidView(
+            factory = { context ->
+                ImageView(context).apply {
+                    setImageResource(R.mipmap.ic_launcher)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                }
+            },
+            modifier = Modifier
+                .size(72.dp)
+                .testTag("about_app_icon")
         )
     }
 
@@ -126,13 +161,6 @@ private fun AboutHero() {
         color = MaterialTheme.colorScheme.onBackground,
         textAlign = TextAlign.Center
     )
-    Text(
-        text = stringResource(R.string.about_subtitle),
-        style = MaterialTheme.typography.titleMedium,
-        color = GhostShotTextSecondary,
-        textAlign = TextAlign.Center
-    )
-
     Spacer(modifier = Modifier.height(14.dp))
 
     Text(
@@ -141,27 +169,4 @@ private fun AboutHero() {
         color = GhostShotTextSecondary,
         textAlign = TextAlign.Center
     )
-}
-
-@Composable
-private fun TrustRow(
-    text: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Default.CheckCircle,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(22.dp)
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-    }
 }
