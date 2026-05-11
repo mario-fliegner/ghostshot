@@ -150,12 +150,30 @@ The active compare session is cleared only when:
 
 - the reference image is removed or replaced
 - a new shot is started (optimistic clear, reset if shot fails — see State Contract in COMPARE_FLOW_V1.md)
+- the optional `Reset overlay after capture` setting is enabled and a capture completes successfully
 
 The active compare session must NOT be cleared by:
 
 - navigating to CompareScreen
 - returning from CompareScreen
 - camera preview pausing or resuming
+
+## Reset overlay after capture interaction
+
+When `Reset overlay after capture` is enabled, the app may clear the active reference image after a successful capture.
+
+This means the CameraScreen returns to State A after the successful capture, while the just-created compare session remains stored internally and remains reachable through History.
+
+This is intentional current product behavior.
+
+The setting must not:
+- delete the saved MediaStore photo
+- delete the internal compare session
+- remove the newly stored session from History
+- reset overlay opacity
+- trigger compare navigation by itself
+
+If `Auto-open compare after capture` is also enabled, auto-open may still navigate to CompareScreen after a successful capture, provided valid compare session data exists before the reference reset is applied.
 
 ## Compare states
 
@@ -183,7 +201,8 @@ Compare is enabled.
 
 Tap: opens the active compare session.
 
-This state persists after returning from CompareScreen.
+This state persists after returning from CompareScreen unless a setting or explicit user action clears the active reference image.
+
 Returning from CompareScreen must NOT reset Compare to State B.
 
 ## Compare-disabled snackbar timing
@@ -254,7 +273,7 @@ Current overflow entries:
 
 Current behavior:
 - Settings opens the implemented Settings screen
-- About may still be a lightweight placeholder or future destination
+- About opens the implemented About screen
 - tapping any non-routed placeholder entry must close the menu cleanly
 - no fake route and no crash are allowed
 
@@ -280,17 +299,22 @@ They are NOT:
 ## Current intended behavior
 
 ### Capture without reference image
+
 Snackbar allowed:
 - "Photo saved"
 
 ### Capture with active reference image
+
 No success snackbar required.
 
-The Compare button itself represents the persistent workflow continuation.
+The Compare button itself represents the persistent workflow continuation when the reference remains active.
+
+If `Reset overlay after capture` is enabled, the reference may be cleared after a successful capture. In that case, the Compare button may return to disabled/no-reference state, while the saved compare session remains reachable through History.
 
 If the optional setting `Auto-open compare after capture` is enabled, the app may navigate directly to CompareScreen after a successful capture with valid compare session data. This is a user-selected workflow pacing option and must not change the stable bottom-bar semantics.
 
 ### Compare disabled hints
+
 Short snackbar hints are allowed for disabled Compare taps:
 - no reference image
 - reference exists but no compare capture exists yet
@@ -413,7 +437,19 @@ Implemented settings must not destabilize CameraScreen workflow semantics.
 Current workflow-affecting settings:
 - Grid Type controls only the preview grid overlay
 - Keep screen awake applies only while CameraScreen is visible and must be cleared when CameraScreen leaves composition
-- Reset overlay after capture resets only overlay transform after successful capture; it must not remove the reference image, reset opacity, or clear compare state
+- Reset overlay after capture may automatically clear the active reference after a successful capture when enabled
+- Reset overlay after capture clears:
+  - reference image URI
+  - reference metadata
+  - display mode state
+  - overlay transform state
+  - overlay coverage warning state
+  - user display-mode override state
+- Reset overlay after capture preserves:
+  - overlay opacity
+  - saved MediaStore capture
+  - newly created internal compare session
+  - History access to the saved compare session
 - Auto-open compare after capture may navigate to CompareScreen after successful capture only when a valid compare session exists
 
 Settings must not:
@@ -422,6 +458,7 @@ Settings must not:
 - turn Compare into a menu
 - trigger compare navigation without a valid compare session
 - replay navigation after rotation or recomposition
+- delete internal compare sessions unless the user explicitly deletes them
 
 ---
 
