@@ -31,12 +31,14 @@ import com.isardomains.ghostshot.ui.camera.CameraViewModel
 import com.isardomains.ghostshot.ui.camera.UiEvent
 import com.isardomains.ghostshot.ui.compare.CompareLibraryScreen
 import com.isardomains.ghostshot.ui.compare.CompareScreen
+import com.isardomains.ghostshot.ui.settings.SettingsScreen
 import com.isardomains.ghostshot.ui.theme.GhostShotTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 private const val ROUTE_CAMERA = "camera"
 private const val ROUTE_COMPARE = "compare"
 private const val ROUTE_COMPARE_LIBRARY = "compare_library"
+private const val ROUTE_SETTINGS = "settings"
 private const val ARG_REFERENCE_URI = "referenceUri"
 private const val ARG_CAPTURE_URI = "captureUri"
 private const val ARG_SESSION_ID = "sessionId"
@@ -89,8 +91,14 @@ class MainActivity : ComponentActivity() {
                             },
                             onOpenCompareLibrary = {
                                 navController.navigate(ROUTE_COMPARE_LIBRARY)
+                            },
+                            onOpenSettings = {
+                                navController.navigate(ROUTE_SETTINGS)
                             }
                         )
+                    }
+                    composable(ROUTE_SETTINGS) {
+                        SettingsScreen(onBack = { navController.popBackStack() })
                     }
                     composable(ROUTE_COMPARE_LIBRARY) { navBackStackEntry ->
                         val cameraEntry = remember(navBackStackEntry) {

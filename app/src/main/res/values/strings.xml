@@ -85,6 +85,14 @@
     <string name="action_stack_replace_label">Replace</string>
     <string name="action_stack_remove_label">Remove</string>
 
+    <!-- Settings -->
+    <string name="settings_screen_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_grid_type_title">Grid Type</string>
+    <string name="settings_grid_type_none">Off</string>
+    <string name="settings_grid_type_rule_of_thirds">Rule of Thirds</string>
+    <string name="settings_grid_type_quarters">Quarters</string>
+
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Open history</string>
     <string name="camera_overflow_content_description">More options</string>

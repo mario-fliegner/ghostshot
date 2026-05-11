@@ -197,7 +197,8 @@ private enum class CameraPermissionState {
 fun CameraScreen(
     viewModel: CameraViewModel = hiltViewModel(),
     onCompareImages: (CompareInput) -> Unit = {},
-    onOpenCompareLibrary: () -> Unit = {}
+    onOpenCompareLibrary: () -> Unit = {},
+    onOpenSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -561,6 +562,7 @@ fun CameraScreen(
                 // ── Layer 7: Top-right navigation ─────────────────────────────────────
                 CameraTopRightActions(
                     onOpenHistory = onOpenCompareLibrary,
+                    onOpenSettings = onOpenSettings,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .statusBarsPadding()
@@ -1177,6 +1179,7 @@ internal fun CompareImagesEntry(
 @Composable
 internal fun CameraTopRightActions(
     onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
@@ -1218,7 +1221,7 @@ internal fun CameraTopRightActions(
             ) {
                 DropdownMenuItem(
                     text = { Text(settingsLabel) },
-                    onClick = { overflowExpanded = false }
+                    onClick = { overflowExpanded = false; onOpenSettings() }
                 )
                 DropdownMenuItem(
                     text = { Text(aboutLabel) },

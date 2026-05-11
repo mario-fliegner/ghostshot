@@ -169,7 +169,24 @@ class CameraTopRightNavigationTest {
         composeRule.onNodeWithTag("history_screen_stub").assertIsDisplayed()
     }
 
-    private fun setTopRightContent(onOpenHistory: () -> Unit = {}) {
+    @Test
+    fun overflowMenu_settingsTap_invokesSettingsCallback() {
+        var settingsOpenCount = 0
+        setTopRightContent(onOpenSettings = { settingsOpenCount++ })
+
+        composeRule.onNodeWithTag("camera_overflow_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.camera_overflow_settings))
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, settingsOpenCount)
+    }
+
+    private fun setTopRightContent(
+        onOpenHistory: () -> Unit = {},
+        onOpenSettings: () -> Unit = {}
+    ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario?.onActivity { activity ->
@@ -181,7 +198,10 @@ class CameraTopRightNavigationTest {
             activity.setContent {
                 GhostShotTheme {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        CameraTopRightActions(onOpenHistory = onOpenHistory)
+                        CameraTopRightActions(
+                            onOpenHistory = onOpenHistory,
+                            onOpenSettings = onOpenSettings
+                        )
                     }
                 }
             }
