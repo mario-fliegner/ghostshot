@@ -91,4 +91,22 @@ class SettingsRepositoryTest {
         repository.setKeepScreenOn(true)
         assertEquals(true, repository.keepScreenOn.first())
     }
+
+    @Test
+    fun resetOverlayAfterCapture_defaultsToFalse() = testScope.runTest {
+        assertEquals(false, repository.resetOverlayAfterCapture.first())
+    }
+
+    @Test
+    fun setResetOverlayAfterCapture_trueIsPersisted() = testScope.runTest {
+        repository.setResetOverlayAfterCapture(true)
+        assertEquals(true, repository.resetOverlayAfterCapture.first())
+    }
+
+    @Test
+    fun setResetOverlayAfterCapture_falseCanBeSetBack() = testScope.runTest {
+        repository.setResetOverlayAfterCapture(true)
+        repository.setResetOverlayAfterCapture(false)
+        assertEquals(false, repository.resetOverlayAfterCapture.first())
+    }
 }

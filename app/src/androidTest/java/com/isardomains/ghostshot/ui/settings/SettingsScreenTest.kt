@@ -41,6 +41,8 @@ class SettingsScreenTest {
         onGridTypeSelected: (GridType) -> Unit = {},
         keepScreenOn: Boolean = true,
         onKeepScreenOnChanged: (Boolean) -> Unit = {},
+        resetOverlayAfterCapture: Boolean = false,
+        onResetOverlayAfterCaptureChanged: (Boolean) -> Unit = {},
         onBack: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -58,6 +60,8 @@ class SettingsScreenTest {
                         onGridTypeSelected = onGridTypeSelected,
                         keepScreenOn = keepScreenOn,
                         onKeepScreenOnChanged = onKeepScreenOnChanged,
+                        resetOverlayAfterCapture = resetOverlayAfterCapture,
+                        onResetOverlayAfterCaptureChanged = onResetOverlayAfterCaptureChanged,
                         onBack = onBack
                     )
                 }
@@ -166,5 +170,34 @@ class SettingsScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(true, received)
+    }
+
+    @Test
+    fun resetOverlayAfterCapture_switch_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithTag("settings_reset_overlay_after_capture").assertIsDisplayed()
+    }
+
+    @Test
+    fun tap_resetOverlayAfterCapture_whenFalse_invokesCallbackWithTrue() {
+        var received: Boolean? = null
+        setContent(resetOverlayAfterCapture = false, onResetOverlayAfterCaptureChanged = { received = it })
+
+        composeRule.onNodeWithTag("settings_reset_overlay_after_capture").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, received)
+    }
+
+    @Test
+    fun tap_resetOverlayAfterCapture_whenTrue_invokesCallbackWithFalse() {
+        var received: Boolean? = null
+        setContent(resetOverlayAfterCapture = true, onResetOverlayAfterCaptureChanged = { received = it })
+
+        composeRule.onNodeWithTag("settings_reset_overlay_after_capture").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(false, received)
     }
 }

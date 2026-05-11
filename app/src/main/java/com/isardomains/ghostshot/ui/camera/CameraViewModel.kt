@@ -97,6 +97,7 @@ data class CameraUiState(
     val referenceImageHasViewportMismatch: Boolean = false,
     val referenceImageMetadata: ReferenceImageMetadata? = null,
     val isCaptureInProgress: Boolean = false,
+    val resetOverlayAfterCapture: Boolean = false,
     val canUndoReferenceRemoval: Boolean = false,
     val referenceRemovalUndoGeneration: Long = 0L,
     val undoExpiresAtMillis: Long = 0L,
@@ -251,6 +252,11 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.keepScreenOn.collect { enabled ->
                 _uiState.update { it.copy(keepScreenOn = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.resetOverlayAfterCapture.collect { enabled ->
+                _uiState.update { it.copy(resetOverlayAfterCapture = enabled) }
             }
         }
     }
@@ -644,7 +650,7 @@ class CameraViewModel @Inject constructor(
     internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null) {
         if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture completed") }
         _uiState.update { current ->
-            current.copy(
+            val base = current.copy(
                 captureSuccessGeneration = current.captureSuccessGeneration + 1L,
                 captureSuccessHadReference = sessionRef != null,
                 compareInput = sessionRef?.let {
@@ -654,8 +660,15 @@ class CameraViewModel @Inject constructor(
                         sessionId = it.sessionId,
                         timestamp = it.timestamp
                     )
-                }
+                },
+                overlayOffsetX = if (current.resetOverlayAfterCapture) 0f else current.overlayOffsetX,
+                overlayOffsetY = if (current.resetOverlayAfterCapture) 0f else current.overlayOffsetY,
+                overlayScale = if (current.resetOverlayAfterCapture) 1f else current.overlayScale,
             )
+            if (current.resetOverlayAfterCapture)
+                base.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(base))
+            else
+                base
         }
     }
 

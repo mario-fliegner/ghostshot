@@ -34,11 +34,14 @@ fun SettingsScreen(
 ) {
     val gridType by viewModel.gridType.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+    val resetOverlayAfterCapture by viewModel.resetOverlayAfterCapture.collectAsStateWithLifecycle()
     SettingsScreenContent(
         gridType = gridType,
         onGridTypeSelected = viewModel::onGridTypeSelected,
         keepScreenOn = keepScreenOn,
         onKeepScreenOnChanged = viewModel::onKeepScreenOnChanged,
+        resetOverlayAfterCapture = resetOverlayAfterCapture,
+        onResetOverlayAfterCaptureChanged = viewModel::onResetOverlayAfterCaptureChanged,
         onBack = onBack
     )
 }
@@ -50,6 +53,8 @@ internal fun SettingsScreenContent(
     onGridTypeSelected: (GridType) -> Unit,
     keepScreenOn: Boolean,
     onKeepScreenOnChanged: (Boolean) -> Unit,
+    resetOverlayAfterCapture: Boolean,
+    onResetOverlayAfterCaptureChanged: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -98,6 +103,14 @@ internal fun SettingsScreenContent(
                 onClick = { onGridTypeSelected(GridType.QUARTERS) },
                 testTag = "settings_grid_type_quarters"
             )
+            Text(
+                text = stringResource(R.string.settings_overlay_compare_title),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            ResetOverlayAfterCaptureRow(
+                checked = resetOverlayAfterCapture,
+                onCheckedChange = onResetOverlayAfterCaptureChanged
+            )
         }
     }
 }
@@ -117,6 +130,30 @@ private fun KeepScreenOnRow(
     ) {
         Text(
             text = stringResource(R.string.settings_keep_screen_on),
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+private fun ResetOverlayAfterCaptureRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .testTag("settings_reset_overlay_after_capture")
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.settings_reset_overlay_after_capture),
             modifier = Modifier.weight(1f)
         )
         Switch(

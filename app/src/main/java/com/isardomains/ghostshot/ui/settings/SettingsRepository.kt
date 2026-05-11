@@ -18,6 +18,7 @@ class SettingsRepository @Inject constructor(
     private object Keys {
         val GRID_TYPE = stringPreferencesKey("grid_type")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        val RESET_OVERLAY_AFTER_CAPTURE = booleanPreferencesKey("reset_overlay_after_capture")
     }
 
     val gridType: Flow<GridType> = dataStore.data.map { prefs ->
@@ -41,6 +42,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setKeepScreenOn(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.KEEP_SCREEN_ON] = enabled
+        }
+    }
+
+    val resetOverlayAfterCapture: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.RESET_OVERLAY_AFTER_CAPTURE] ?: false
+    }
+
+    suspend fun setResetOverlayAfterCapture(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.RESET_OVERLAY_AFTER_CAPTURE] = enabled
         }
     }
 }

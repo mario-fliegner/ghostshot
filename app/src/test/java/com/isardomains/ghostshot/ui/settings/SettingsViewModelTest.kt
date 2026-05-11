@@ -34,6 +34,7 @@ class SettingsViewModelTest {
         keepScreenOnFlow = MutableStateFlow(true)
         whenever(repository.gridType).thenReturn(gridTypeFlow)
         whenever(repository.keepScreenOn).thenReturn(keepScreenOnFlow)
+        whenever(repository.resetOverlayAfterCapture).thenReturn(MutableStateFlow(false))
         viewModel = SettingsViewModel(repository)
     }
 
@@ -90,5 +91,24 @@ class SettingsViewModelTest {
         viewModel.onKeepScreenOnChanged(true)
         advanceUntilIdle()
         verify(repository).setKeepScreenOn(true)
+    }
+
+    @Test
+    fun initialResetOverlayAfterCapture_isFalse() {
+        assertEquals(false, viewModel.resetOverlayAfterCapture.value)
+    }
+
+    @Test
+    fun onResetOverlayAfterCaptureChanged_true_callsRepository() = runTest {
+        viewModel.onResetOverlayAfterCaptureChanged(true)
+        advanceUntilIdle()
+        verify(repository).setResetOverlayAfterCapture(true)
+    }
+
+    @Test
+    fun onResetOverlayAfterCaptureChanged_false_callsRepository() = runTest {
+        viewModel.onResetOverlayAfterCaptureChanged(false)
+        advanceUntilIdle()
+        verify(repository).setResetOverlayAfterCapture(false)
     }
 }

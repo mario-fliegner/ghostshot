@@ -35,6 +35,7 @@ class CameraViewModelTest {
     private val fakeSettingsRepository: SettingsRepository = mock {
         on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
         on { keepScreenOn } doReturn flowOf(true)
+        on { resetOverlayAfterCapture } doReturn flowOf(false)
     }
 
     @Before
@@ -1659,8 +1660,79 @@ class CameraViewModelTest {
         val settingsRepo: SettingsRepository = mock {
             on { gridType } doReturn flowOf(GridType.QUARTERS)
             on { keepScreenOn } doReturn flowOf(true)
+            on { resetOverlayAfterCapture } doReturn flowOf(false)
         }
         val testViewModel = CameraViewModel(mock(), settingsRepo)
         assertEquals(GridType.QUARTERS, testViewModel.uiState.value.gridType)
+    }
+
+    // --- resetOverlayAfterCapture ---
+
+    @Test
+    fun onCaptureSaved_withResetEnabled_resetsOverlayTransform() = runTest {
+        val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = true)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onOverlayDragged(0.3f, -0.2f)
+        testViewModel.onOverlayScaled(1.8f)
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+
+        assertEquals(0f, testViewModel.uiState.value.overlayOffsetX)
+        assertEquals(0f, testViewModel.uiState.value.overlayOffsetY)
+        assertEquals(1f, testViewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun onCaptureSaved_withResetEnabled_preservesAlphaAndReferenceUri() = runTest {
+        val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = true)
+        val uri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(uri)
+        testViewModel.onOverlayAlphaChanged(0.8f)
+        testViewModel.onOverlayDragged(0.2f, 0.1f)
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+
+        assertEquals(0.8f, testViewModel.uiState.value.overlayAlpha)
+        assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
+    }
+
+    @Test
+    fun onCaptureSaved_withResetDisabled_preservesOverlayTransform() = runTest {
+        val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = false)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onOverlayDragged(0.3f, -0.2f)
+        testViewModel.onOverlayScaled(1.8f)
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+
+        assertEquals(0.3f, testViewModel.uiState.value.overlayOffsetX)
+        assertEquals(-0.2f, testViewModel.uiState.value.overlayOffsetY)
+        assertEquals(1.8f, testViewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun onCaptureSaved_withResetEnabled_doesNotClearCompareInput() = runTest {
+        val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = true)
+        testViewModel.onReferenceImageSelected(mock())
+        val savedRef = fakeSavedSessionRef()
+
+        testViewModel.onCaptureSaved(mock(), savedRef)
+
+        assertNotNull(testViewModel.uiState.value.compareInput)
+        assertEquals(savedRef.sessionId, testViewModel.uiState.value.compareInput?.sessionId)
+    }
+
+    private fun testViewModelWithMetadataAndReset(resetEnabled: Boolean): CameraViewModel {
+        val settingsRepo: SettingsRepository = mock {
+            on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+            on { keepScreenOn } doReturn flowOf(true)
+            on { resetOverlayAfterCapture } doReturn flowOf(resetEnabled)
+        }
+        return CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            settingsRepo
+        )
     }
 }

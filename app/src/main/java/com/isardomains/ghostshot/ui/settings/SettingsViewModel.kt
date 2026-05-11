@@ -28,4 +28,11 @@ class SettingsViewModel @Inject constructor(
     fun onKeepScreenOnChanged(enabled: Boolean) {
         viewModelScope.launch { repository.setKeepScreenOn(enabled) }
     }
+
+    val resetOverlayAfterCapture: StateFlow<Boolean> = repository.resetOverlayAfterCapture
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun onResetOverlayAfterCaptureChanged(enabled: Boolean) {
+        viewModelScope.launch { repository.setResetOverlayAfterCapture(enabled) }
+    }
 }
