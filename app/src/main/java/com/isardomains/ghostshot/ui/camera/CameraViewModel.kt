@@ -668,19 +668,22 @@ class CameraViewModel @Inject constructor(
             )
         }
         val autoOpen = _uiState.value.autoOpenCompareAfterCapture
+        val doReset = _uiState.value.resetOverlayAfterCapture
+        if (doReset) displayModeChangedByUser = false
         _uiState.update { current ->
-            val base = current.copy(
+            current.copy(
                 captureSuccessGeneration = current.captureSuccessGeneration + 1L,
                 captureSuccessHadReference = sessionRef != null,
                 compareInput = newCompareInput,
-                overlayOffsetX = if (current.resetOverlayAfterCapture) 0f else current.overlayOffsetX,
-                overlayOffsetY = if (current.resetOverlayAfterCapture) 0f else current.overlayOffsetY,
-                overlayScale = if (current.resetOverlayAfterCapture) 1f else current.overlayScale,
+                referenceImageUri = if (doReset) null else current.referenceImageUri,
+                referenceImageMetadata = if (doReset) null else current.referenceImageMetadata,
+                referenceImageHasViewportMismatch = if (doReset) false else current.referenceImageHasViewportMismatch,
+                referenceImageDisplayMode = if (doReset) ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW else current.referenceImageDisplayMode,
+                overlayOffsetX = if (doReset) 0f else current.overlayOffsetX,
+                overlayOffsetY = if (doReset) 0f else current.overlayOffsetY,
+                overlayScale = if (doReset) 1f else current.overlayScale,
+                isOverlayNearlyInvisible = if (doReset) false else current.isOverlayNearlyInvisible,
             )
-            if (current.resetOverlayAfterCapture)
-                base.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(base))
-            else
-                base
         }
         if (autoOpen && newCompareInput != null) {
             viewModelScope.launch {
