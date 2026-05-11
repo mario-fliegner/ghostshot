@@ -51,7 +51,25 @@ Current release state:
 - Disabled Compare taps show short workflow hints (~2000 ms)
 - Top-right CameraScreen navigation contains persistent History and Overflow actions
 - History opens the internal Compare Library even when it is empty
-- Overflow is prepared with Settings and About entries
+- Overflow contains Settings and About entries
+
+### Settings
+- SettingsScreen is implemented and reachable from the CameraScreen top-right Overflow menu
+- Settings are persisted locally via DataStore Preferences in `ghostshot_settings`
+- Implemented settings:
+  - Grid Type: Off / Rule of Thirds / Quarters
+  - Keep screen awake
+  - Reset overlay after capture
+  - Auto-open compare after capture
+- Grid Type updates CameraScreen grid rendering through `CameraViewModel` state
+- Keep screen awake is applied only while `CameraScreen` is visible and is cleared on dispose
+- Reset overlay after capture removes the reference image entirely after a successful capture:
+  - `referenceImageUri`, `referenceImageMetadata`, `referenceImageHasViewportMismatch`,
+    `referenceImageDisplayMode`, `overlayOffsetX`, `overlayOffsetY`, `overlayScale`,
+    `isOverlayNearlyInvisible`, `displayModeChangedByUser`
+- `overlayAlpha` and `compareInput` are preserved; compare session remains accessible after reset
+- Auto-open compare after capture emits a one-shot navigation event only after successful capture with valid session data
+- Auto-open compare does not replay on rotation or recomposition
 
 ### Permissions
 - Full permission flow implemented:
@@ -78,6 +96,10 @@ Current release state:
 ### Grid
 - Grid overlay implemented as a preview-only Canvas layer
 - Grid is not written into captured images
+- Supported grid types:
+  - Off
+  - Rule of Thirds
+  - Quarters
 
 ### Compare
 - `CompareScreen` is implemented as a separate fullscreen slider-based comparison screen
@@ -91,7 +113,8 @@ Active compare session lifecycle — fully implemented:
 - `compareInput` persists across lifecycle transitions, camera rebinds, capture errors, and CompareScreen navigation
 - `compareInput` is cleared by: reference removed, reference replaced, new successful capture, or session deleted
 - `deleteSessions` atomically clears `compareInput` when the active session's ID is in the deleted set
-- Full spec: COMPARE_FLOW_V1.md sections 14 and 38
+- Optional auto-open compare after capture is implemented as a one-shot `UiEvent.NavigateToCompare` and does not change `compareInput` lifecycle rules
+- Full spec: COMPARE_FLOW_V1.md sections 14, 38 and 39
 
 ### Compare Library
 - `CompareLibraryScreen` is implemented as a focused internal session overview
@@ -175,6 +198,7 @@ Accepted residual risks:
 - Very large reference images can still increase memory pressure during session creation; failures are caught and the main MediaStore save remains the source of truth
 - Overlay and library thumbnail image-load failures may produce limited visual feedback, but do not block navigation or core capture
 - Delete failures are handled by rescanning state, but currently do not show a dedicated user-facing error
+- DataStore read/write failures currently fall back to default settings behavior and do not show dedicated user-facing feedback
 
 These are robustness/polish items, not known Closed Testing blockers.
 
@@ -220,6 +244,12 @@ Existing tests cover the critical release paths around:
 - stable Compare button semantics and disabled Compare hints
 - Camera controls, landscape alignment, grid, and capture feedback
 - Overlay coverage computation and live visibility warning state
+- Settings persistence and settings-driven workflow behavior
+
+Latest verified test state:
+- `testDebugUnitTest` passing
+- `connectedDebugAndroidTest` passing
+- 299/299 instrumentation tests green on real device
 
 Before Closed Testing, the useful final verification remains:
 - unit tests

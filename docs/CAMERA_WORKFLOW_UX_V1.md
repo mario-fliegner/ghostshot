@@ -7,7 +7,7 @@ Future UI changes should follow this specification unless explicitly superseded.
 
 Current UX specification for the GhostShot main camera workflow and navigation structure.
 
-Last updated: 2026-05-08.
+Last updated: 2026-05-11.
 
 This document defines the intended long-term UX semantics for:
 - CameraScreen
@@ -248,13 +248,14 @@ Final UI:
 - Overflow icon placed at the far right
 - History icon placed directly left of Overflow
 
-Current prepared overflow entries:
+Current overflow entries:
 - Settings
 - About
 
 Current behavior:
-- Settings/About entries may exist before their final destination screens
-- tapping placeholder entries must close the menu cleanly
+- Settings opens the implemented Settings screen
+- About may still be a lightweight placeholder or future destination
+- tapping any non-routed placeholder entry must close the menu cleanly
 - no fake route and no crash are allowed
 
 Potential future entries:
@@ -286,6 +287,8 @@ Snackbar allowed:
 No success snackbar required.
 
 The Compare button itself represents the persistent workflow continuation.
+
+If the optional setting `Auto-open compare after capture` is enabled, the app may navigate directly to CompareScreen after a successful capture with valid compare session data. This is a user-selected workflow pacing option and must not change the stable bottom-bar semantics.
 
 ### Compare disabled hints
 Short snackbar hints are allowed for disabled Compare taps:
@@ -403,7 +406,26 @@ Shown when the reference image has a strong aspect ratio mismatch with the curre
 
 ---
 
-# 13. Intent
+# 13. Settings Impact on Camera Workflow
+
+Implemented settings must not destabilize CameraScreen workflow semantics.
+
+Current workflow-affecting settings:
+- Grid Type controls only the preview grid overlay
+- Keep screen awake applies only while CameraScreen is visible and must be cleared when CameraScreen leaves composition
+- Reset overlay after capture resets only overlay transform after successful capture; it must not remove the reference image, reset opacity, or clear compare state
+- Auto-open compare after capture may navigate to CompareScreen after successful capture only when a valid compare session exists
+
+Settings must not:
+- replace bottom-bar actions
+- add bottom-bar entries
+- turn Compare into a menu
+- trigger compare navigation without a valid compare session
+- replay navigation after rotation or recomposition
+
+---
+
+# 14. Intent
 
 The long-term goal is a professional, calm and highly understandable camera workflow with:
 - stable interaction patterns

@@ -5,6 +5,7 @@ This document defines the intended settings architecture and UX philosophy for G
 This specification defines:
 - settings placement
 - settings categories
+- implemented settings
 - settings behavior
 - persistence rules
 - future extensibility boundaries
@@ -109,11 +110,25 @@ The current intended Settings structure is:
 
 No additional categories are currently planned.
 
+Current implemented settings:
+- Keep Screen Awake
+- Grid Type
+- Reset Overlay After Capture
+- Auto-Open Compare After Capture
+
+Reserved but not yet implemented settings/features:
+- Hide Reference Peek Hint
+- Theme selection beyond the current dark theme
+- Future GPS Guidance
+
 ---
 
 # 6. Camera Settings
 
 ## 6.1 Keep Screen Awake
+
+Status:
+Implemented.
 
 Purpose:
 Prevent the display from dimming or turning off while using CameraScreen.
@@ -123,7 +138,9 @@ ON
 
 Behavior:
 - active whenever CameraScreen is visible
+- cleared automatically when CameraScreen leaves composition
 - independent from reference image state
+- no WAKE_LOCK permission is required
 
 Rationale:
 The app is tripod/alignment-oriented and should not interrupt long framing workflows.
@@ -158,6 +175,9 @@ But camera switching itself belongs to workflow UI.
 
 ## 6.3 Grid Type
 
+Status:
+Implemented.
+
 Purpose:
 Optional framing assistance.
 
@@ -185,6 +205,9 @@ Rule of Thirds
 
 ## 7.1 Reset Overlay After Capture
 
+Status:
+Implemented.
+
 Purpose:
 Automatically reset overlay scale/offset after a successful capture.
 
@@ -192,14 +215,20 @@ Default:
 OFF
 
 When enabled:
-- overlay transform resets after successful capture
-- reference image itself remains loaded
+- reference image is removed after successful capture (URI and metadata cleared)
+- overlay transform is reset (offset and scale)
+- display mode is reset to default
+- opacity remains unchanged
+- compare input remains set from the capture session
 
 This setting exists for users repeatedly recreating many locations quickly.
 
 ---
 
 ## 7.2 Auto-Open Compare After Capture
+
+Status:
+Implemented.
 
 Purpose:
 Automatically navigate to CompareScreen immediately after successful capture.
@@ -212,9 +241,18 @@ Many users may prefer taking multiple attempts before opening Compare.
 
 This setting changes workflow pacing significantly and therefore must remain optional.
 
+Behavior:
+- only triggers after successful capture with a valid compare session
+- does not trigger without a reference image
+- does not trigger on capture error or capture interrupt
+- does not replay after rotation or recomposition
+
 ---
 
 ## 7.3 Hide Reference Peek Hint
+
+Status:
+Reserved. Not implemented.
 
 Purpose:
 Allow advanced users to suppress onboarding-style helper hints.
@@ -246,6 +284,9 @@ The app is intentionally not optimized around bright/light UI usage.
 ---
 
 ## 8.1 Theme
+
+Status:
+Prepared/reserved. No user-selectable theme setting is implemented yet.
 
 Current supported theme:
 - Dark
@@ -355,7 +396,7 @@ GPS functionality must NEVER:
 
 # 11. Persistence Rules
 
-All settings should persist locally on-device.
+All implemented settings persist locally on-device via DataStore Preferences.
 
 Settings persistence must:
 - survive app restarts

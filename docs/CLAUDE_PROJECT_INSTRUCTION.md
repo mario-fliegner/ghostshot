@@ -10,6 +10,17 @@
 - Grid overlay implemented (purely visual, not part of capture output)
 - Landscape controls aligned strictly to preview center (nav bar independent)
 
+### Addendum (2026-05-11 – Settings)
+
+- SettingsScreen is implemented and reachable from the CameraScreen top-right Overflow menu
+- Implemented settings: Grid Type, Keep screen awake, Reset overlay after capture, Auto-open compare after capture
+- Settings persist locally via DataStore Preferences
+- Grid Type supports Off, Rule of Thirds, and Quarters
+- Keep screen awake is CameraScreen-local and must be cleared when CameraScreen leaves composition
+- Reset overlay after capture removes the reference image entirely after successful capture (clears URI, metadata, display mode, and overlay transform); it must not reset opacity or compare input
+- Auto-open compare after capture is optional and must only navigate after successful capture with valid compare session data
+- Auto-open compare must not replay after rotation or recomposition and must not change CompareScreen or navigation architecture
+
 
 This addendum documents current product decisions after the compare-flow, session-library, landscape-control, debug-logging, and hybrid-fullscreen iterations.
 It supplements the existing rules below without removing or weakening them.

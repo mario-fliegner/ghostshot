@@ -1735,16 +1735,58 @@ class CameraViewModelTest {
     }
 
     @Test
-    fun onCaptureSaved_withResetEnabled_preservesAlphaAndReferenceUri() = runTest {
+    fun onCaptureSaved_withResetEnabled_clearsReferenceUri() = runTest {
         val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = true)
-        val uri = mock<Uri>()
-        testViewModel.onReferenceImageSelected(uri)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+
+        assertNull(testViewModel.uiState.value.referenceImageUri)
+    }
+
+    @Test
+    fun onCaptureSaved_withResetEnabled_clearsReferenceMetadata() = runTest {
+        val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = true)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+
+        assertNull(testViewModel.uiState.value.referenceImageMetadata)
+    }
+
+    @Test
+    fun onCaptureSaved_withResetEnabled_resetsDisplayMode() = runTest {
+        val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = true)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.onReferenceImageDisplayModeChanged(ReferenceImageDisplayMode.SHOW_FULL_IMAGE)
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+
+        assertEquals(
+            ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+    }
+
+    @Test
+    fun onCaptureSaved_withResetEnabled_preservesAlpha() = runTest {
+        val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = true)
+        testViewModel.onReferenceImageSelected(mock())
         testViewModel.onOverlayAlphaChanged(0.8f)
-        testViewModel.onOverlayDragged(0.2f, 0.1f)
 
         testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
         assertEquals(0.8f, testViewModel.uiState.value.overlayAlpha)
+    }
+
+    @Test
+    fun onCaptureSaved_withResetDisabled_preservesReferenceUri() = runTest {
+        val testViewModel = testViewModelWithMetadataAndReset(resetEnabled = false)
+        val uri = mock<Uri>()
+        testViewModel.onReferenceImageSelected(uri)
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+
         assertEquals(uri, testViewModel.uiState.value.referenceImageUri)
     }
 

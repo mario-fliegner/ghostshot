@@ -78,7 +78,7 @@ The intended user flow is:
 1. User selects a reference image
 2. User aligns the live camera preview with the reference
 3. User captures a new image
-4. User taps **Compare Images**
+4. User taps **Compare Images**, or Compare opens automatically if the optional setting `Auto-open compare after capture` is enabled
 5. A dedicated fullscreen compare screen opens
 6. User compares the images using a draggable slider
 7. User returns to camera using back
@@ -1161,3 +1161,35 @@ The active compare session is cleared only when:
 
 After returning from CompareScreen, state must remain in the third row.
 Returning from CompareScreen must not transition Compare back to the second row.
+
+
+---
+
+## 39. AUTO-OPEN COMPARE AFTER CAPTURE SETTING (2026-05-11)
+
+`Auto-open compare after capture` is implemented as an optional workflow pacing setting.
+
+Default:
+- OFF
+
+When enabled:
+- after a successful capture with a valid compare session, CameraScreen emits a one-shot navigation event to CompareScreen
+- the event must carry the exact `CompareInput` created from the successful session save
+- the event must not be derived later by rereading camera state
+
+Required guards:
+- no auto-open without reference image
+- no auto-open without valid `sessionRef` / `CompareInput`
+- no auto-open on capture error
+- no auto-open on capture interrupt
+- no auto-open replay after rotation or recomposition
+
+Implementation contract:
+- use the existing CameraScreen `onCompareImages` callback path
+- do not change MainActivity navigation architecture
+- do not change CompareScreen
+- do not change Compare Library
+- do not change active `compareInput` lifecycle semantics
+- do not introduce a generic event system
+
+This setting does not create a second compare mode. It only changes whether the existing CompareScreen opens automatically after a successful capture.
