@@ -98,6 +98,17 @@
     <string name="settings_reset_overlay_after_capture">Reset overlay after capture</string>
     <string name="settings_auto_open_compare_after_capture">Auto-open compare after capture</string>
 
+    <!-- About -->
+    <string name="about_screen_title">About</string>
+    <string name="about_back">Back</string>
+    <string name="about_app_name">GhostShot</string>
+    <string name="about_subtitle">Then &amp; Now Camera</string>
+    <string name="about_description">Recreate photos with a reference overlay.</string>
+    <string name="about_trust_no_tracking">No tracking</string>
+    <string name="about_trust_no_cloud_sync">No cloud sync</string>
+    <string name="about_trust_photos_stay_device">Photos stay on your device</string>
+    <string name="about_version">Version %1$s</string>
+
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Open history</string>
     <string name="camera_overflow_content_description">More options</string>

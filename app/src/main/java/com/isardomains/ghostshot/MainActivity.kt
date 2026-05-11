@@ -29,6 +29,7 @@ import androidx.navigation.navArgument
 import com.isardomains.ghostshot.ui.camera.CameraScreen
 import com.isardomains.ghostshot.ui.camera.CameraViewModel
 import com.isardomains.ghostshot.ui.camera.UiEvent
+import com.isardomains.ghostshot.ui.about.AboutScreenRoute
 import com.isardomains.ghostshot.ui.compare.CompareLibraryScreen
 import com.isardomains.ghostshot.ui.compare.CompareScreen
 import com.isardomains.ghostshot.ui.settings.SettingsScreen
@@ -39,6 +40,7 @@ private const val ROUTE_CAMERA = "camera"
 private const val ROUTE_COMPARE = "compare"
 private const val ROUTE_COMPARE_LIBRARY = "compare_library"
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_ABOUT = "about"
 private const val ARG_REFERENCE_URI = "referenceUri"
 private const val ARG_CAPTURE_URI = "captureUri"
 private const val ARG_SESSION_ID = "sessionId"
@@ -94,11 +96,17 @@ class MainActivity : ComponentActivity() {
                             },
                             onOpenSettings = {
                                 navController.navigate(ROUTE_SETTINGS)
+                            },
+                            onOpenAbout = {
+                                navController.navigate(ROUTE_ABOUT)
                             }
                         )
                     }
                     composable(ROUTE_SETTINGS) {
                         SettingsScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable(ROUTE_ABOUT) {
+                        AboutScreenRoute(onBack = { navController.popBackStack() })
                     }
                     composable(ROUTE_COMPARE_LIBRARY) { navBackStackEntry ->
                         val cameraEntry = remember(navBackStackEntry) {

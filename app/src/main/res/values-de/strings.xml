@@ -93,6 +93,17 @@
     <string name="settings_reset_overlay_after_capture">Overlay nach Aufnahme zurücksetzen</string>
     <string name="settings_auto_open_compare_after_capture">Vergleich nach Aufnahme automatisch öffnen</string>
 
+    <!-- About -->
+    <string name="about_screen_title">&#220;ber</string>
+    <string name="about_back">Zur&#252;ck</string>
+    <string name="about_app_name">GhostShot</string>
+    <string name="about_subtitle">Then &amp; Now Camera</string>
+    <string name="about_description">Stelle Fotos mit einem Referenz-Overlay nach.</string>
+    <string name="about_trust_no_tracking">Kein Tracking</string>
+    <string name="about_trust_no_cloud_sync">Keine Cloud-Synchronisierung</string>
+    <string name="about_trust_photos_stay_device">Fotos bleiben auf deinem Ger&#228;t</string>
+    <string name="about_version">Version %1$s</string>
+
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Verlauf öffnen</string>
     <string name="camera_overflow_content_description">Weitere Optionen</string>

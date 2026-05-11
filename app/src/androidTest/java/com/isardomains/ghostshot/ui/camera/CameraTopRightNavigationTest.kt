@@ -116,8 +116,9 @@ class CameraTopRightNavigationTest {
     }
 
     @Test
-    fun overflowMenu_aboutTap_closesMenu() {
-        setTopRightContent()
+    fun overflowMenu_aboutTap_invokesAboutCallback() {
+        var aboutOpenCount = 0
+        setTopRightContent(onOpenAbout = { aboutOpenCount++ })
 
         composeRule.onNodeWithTag("camera_overflow_button").performClick()
         composeRule.waitForIdle()
@@ -125,8 +126,7 @@ class CameraTopRightNavigationTest {
             .performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("camera_overflow_button").assertIsDisplayed()
-        composeRule.onNodeWithTag("camera_history_button").assertIsDisplayed()
+        assertEquals(1, aboutOpenCount)
     }
 
     @Test
@@ -185,7 +185,8 @@ class CameraTopRightNavigationTest {
 
     private fun setTopRightContent(
         onOpenHistory: () -> Unit = {},
-        onOpenSettings: () -> Unit = {}
+        onOpenSettings: () -> Unit = {},
+        onOpenAbout: () -> Unit = {}
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -200,7 +201,8 @@ class CameraTopRightNavigationTest {
                     Box(modifier = Modifier.fillMaxSize()) {
                         CameraTopRightActions(
                             onOpenHistory = onOpenHistory,
-                            onOpenSettings = onOpenSettings
+                            onOpenSettings = onOpenSettings,
+                            onOpenAbout = onOpenAbout
                         )
                     }
                 }

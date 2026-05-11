@@ -198,7 +198,8 @@ fun CameraScreen(
     viewModel: CameraViewModel = hiltViewModel(),
     onCompareImages: (CompareInput) -> Unit = {},
     onOpenCompareLibrary: () -> Unit = {},
-    onOpenSettings: () -> Unit = {}
+    onOpenSettings: () -> Unit = {},
+    onOpenAbout: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -572,6 +573,7 @@ fun CameraScreen(
                 CameraTopRightActions(
                     onOpenHistory = onOpenCompareLibrary,
                     onOpenSettings = onOpenSettings,
+                    onOpenAbout = onOpenAbout,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .statusBarsPadding()
@@ -1189,6 +1191,7 @@ internal fun CompareImagesEntry(
 internal fun CameraTopRightActions(
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
@@ -1234,7 +1237,7 @@ internal fun CameraTopRightActions(
                 )
                 DropdownMenuItem(
                     text = { Text(aboutLabel) },
-                    onClick = { overflowExpanded = false }
+                    onClick = { overflowExpanded = false; onOpenAbout() }
                 )
             }
         }
