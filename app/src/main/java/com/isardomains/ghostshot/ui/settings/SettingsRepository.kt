@@ -19,6 +19,7 @@ class SettingsRepository @Inject constructor(
         val GRID_TYPE = stringPreferencesKey("grid_type")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val RESET_OVERLAY_AFTER_CAPTURE = booleanPreferencesKey("reset_overlay_after_capture")
+        val AUTO_OPEN_COMPARE_AFTER_CAPTURE = booleanPreferencesKey("auto_open_compare_after_capture")
     }
 
     val gridType: Flow<GridType> = dataStore.data.map { prefs ->
@@ -52,6 +53,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setResetOverlayAfterCapture(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.RESET_OVERLAY_AFTER_CAPTURE] = enabled
+        }
+    }
+
+    val autoOpenCompareAfterCapture: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.AUTO_OPEN_COMPARE_AFTER_CAPTURE] ?: false
+    }
+
+    suspend fun setAutoOpenCompareAfterCapture(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.AUTO_OPEN_COMPARE_AFTER_CAPTURE] = enabled
         }
     }
 }

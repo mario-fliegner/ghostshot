@@ -43,6 +43,8 @@ class SettingsScreenTest {
         onKeepScreenOnChanged: (Boolean) -> Unit = {},
         resetOverlayAfterCapture: Boolean = false,
         onResetOverlayAfterCaptureChanged: (Boolean) -> Unit = {},
+        autoOpenCompareAfterCapture: Boolean = false,
+        onAutoOpenCompareAfterCaptureChanged: (Boolean) -> Unit = {},
         onBack: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -62,6 +64,8 @@ class SettingsScreenTest {
                         onKeepScreenOnChanged = onKeepScreenOnChanged,
                         resetOverlayAfterCapture = resetOverlayAfterCapture,
                         onResetOverlayAfterCaptureChanged = onResetOverlayAfterCaptureChanged,
+                        autoOpenCompareAfterCapture = autoOpenCompareAfterCapture,
+                        onAutoOpenCompareAfterCaptureChanged = onAutoOpenCompareAfterCaptureChanged,
                         onBack = onBack
                     )
                 }
@@ -199,5 +203,26 @@ class SettingsScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(false, received)
+    }
+
+    @Test
+    fun autoOpenCompareAfterCapture_switch_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithTag("settings_auto_open_compare_after_capture").assertIsDisplayed()
+    }
+
+    @Test
+    fun autoOpenCompareAfterCapture_switch_toggle_callsCallback() {
+        var received: Boolean? = null
+        setContent(
+            autoOpenCompareAfterCapture = false,
+            onAutoOpenCompareAfterCaptureChanged = { received = it }
+        )
+
+        composeRule.onNodeWithTag("settings_auto_open_compare_after_capture").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, received)
     }
 }

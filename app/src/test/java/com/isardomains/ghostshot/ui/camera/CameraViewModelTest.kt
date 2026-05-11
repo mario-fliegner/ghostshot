@@ -36,6 +36,7 @@ class CameraViewModelTest {
         on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
         on { keepScreenOn } doReturn flowOf(true)
         on { resetOverlayAfterCapture } doReturn flowOf(false)
+        on { autoOpenCompareAfterCapture } doReturn flowOf(false)
     }
 
     @Before
@@ -1599,6 +1600,56 @@ class CameraViewModelTest {
         assertEquals(false, testViewModel.uiState.value.isOverlayNearlyInvisible)
     }
 
+    // --- autoOpenCompareAfterCapture ---
+
+    @Test
+    fun onCaptureSaved_autoOpenEnabled_withSession_emitsNavigateToCompare() = runTest {
+        val testViewModel = testViewModelWithAutoOpen(autoOpenEnabled = true)
+        testViewModel.onReferenceImageSelected(mock())
+        val sessionRef = fakeSavedSessionRef()
+
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.onCaptureSaved(mock(), sessionRef)
+        advanceUntilIdle()
+
+        job.cancel()
+        val navigateEvents = events.filterIsInstance<UiEvent.NavigateToCompare>()
+        assertEquals(1, navigateEvents.size)
+        assertEquals(sessionRef.referenceFileUri, navigateEvents[0].input.referenceImageUri)
+        assertEquals(sessionRef.captureFileUri, navigateEvents[0].input.captureImageUri)
+    }
+
+    @Test
+    fun onCaptureSaved_autoOpenEnabled_withoutSession_doesNotEmitNavigateToCompare() = runTest {
+        val testViewModel = testViewModelWithAutoOpen(autoOpenEnabled = true)
+
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.onCaptureSaved(mock(), sessionRef = null)
+        advanceUntilIdle()
+
+        job.cancel()
+        assertEquals(0, events.filterIsInstance<UiEvent.NavigateToCompare>().size)
+    }
+
+    @Test
+    fun onCaptureSaved_autoOpenDisabled_withSession_doesNotEmitNavigateToCompare() = runTest {
+        val testViewModel = testViewModelWithAutoOpen(autoOpenEnabled = false)
+        testViewModel.onReferenceImageSelected(mock())
+
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
+        advanceUntilIdle()
+
+        job.cancel()
+        assertEquals(0, events.filterIsInstance<UiEvent.NavigateToCompare>().size)
+    }
+
     // --- helpers ---
 
     private fun testViewModelWithScanner(
@@ -1661,6 +1712,7 @@ class CameraViewModelTest {
             on { gridType } doReturn flowOf(GridType.QUARTERS)
             on { keepScreenOn } doReturn flowOf(true)
             on { resetOverlayAfterCapture } doReturn flowOf(false)
+            on { autoOpenCompareAfterCapture } doReturn flowOf(false)
         }
         val testViewModel = CameraViewModel(mock(), settingsRepo)
         assertEquals(GridType.QUARTERS, testViewModel.uiState.value.gridType)
@@ -1727,6 +1779,22 @@ class CameraViewModelTest {
             on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
             on { keepScreenOn } doReturn flowOf(true)
             on { resetOverlayAfterCapture } doReturn flowOf(resetEnabled)
+            on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+        }
+        return CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            settingsRepo
+        )
+    }
+
+    private fun testViewModelWithAutoOpen(autoOpenEnabled: Boolean): CameraViewModel {
+        val settingsRepo: SettingsRepository = mock {
+            on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+            on { keepScreenOn } doReturn flowOf(true)
+            on { resetOverlayAfterCapture } doReturn flowOf(false)
+            on { autoOpenCompareAfterCapture } doReturn flowOf(autoOpenEnabled)
         }
         return CameraViewModel(
             mock(),

@@ -35,6 +35,7 @@ fun SettingsScreen(
     val gridType by viewModel.gridType.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val resetOverlayAfterCapture by viewModel.resetOverlayAfterCapture.collectAsStateWithLifecycle()
+    val autoOpenCompareAfterCapture by viewModel.autoOpenCompareAfterCapture.collectAsStateWithLifecycle()
     SettingsScreenContent(
         gridType = gridType,
         onGridTypeSelected = viewModel::onGridTypeSelected,
@@ -42,6 +43,8 @@ fun SettingsScreen(
         onKeepScreenOnChanged = viewModel::onKeepScreenOnChanged,
         resetOverlayAfterCapture = resetOverlayAfterCapture,
         onResetOverlayAfterCaptureChanged = viewModel::onResetOverlayAfterCaptureChanged,
+        autoOpenCompareAfterCapture = autoOpenCompareAfterCapture,
+        onAutoOpenCompareAfterCaptureChanged = viewModel::onAutoOpenCompareAfterCaptureChanged,
         onBack = onBack
     )
 }
@@ -55,6 +58,8 @@ internal fun SettingsScreenContent(
     onKeepScreenOnChanged: (Boolean) -> Unit,
     resetOverlayAfterCapture: Boolean,
     onResetOverlayAfterCaptureChanged: (Boolean) -> Unit,
+    autoOpenCompareAfterCapture: Boolean,
+    onAutoOpenCompareAfterCaptureChanged: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -111,6 +116,10 @@ internal fun SettingsScreenContent(
                 checked = resetOverlayAfterCapture,
                 onCheckedChange = onResetOverlayAfterCaptureChanged
             )
+            AutoOpenCompareAfterCaptureRow(
+                checked = autoOpenCompareAfterCapture,
+                onCheckedChange = onAutoOpenCompareAfterCaptureChanged
+            )
         }
     }
 }
@@ -154,6 +163,30 @@ private fun ResetOverlayAfterCaptureRow(
     ) {
         Text(
             text = stringResource(R.string.settings_reset_overlay_after_capture),
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+private fun AutoOpenCompareAfterCaptureRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .testTag("settings_auto_open_compare_after_capture")
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.settings_auto_open_compare_after_capture),
             modifier = Modifier.weight(1f)
         )
         Switch(

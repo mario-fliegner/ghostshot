@@ -299,6 +299,9 @@ fun CameraScreen(
                         is UiEvent.UndoInvalidated -> {
                             snackbarHostState.currentSnackbarData?.dismiss()
                         }
+                        is UiEvent.NavigateToCompare -> {
+                            onCompareImages(event.input)
+                        }
                     }
                 }
             }

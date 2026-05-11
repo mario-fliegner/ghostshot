@@ -91,6 +91,7 @@
     <string name="settings_grid_type_quarters">Viertel-Raster</string>
     <string name="settings_overlay_compare_title">Overlay &amp; Vergleich</string>
     <string name="settings_reset_overlay_after_capture">Overlay nach Aufnahme zurücksetzen</string>
+    <string name="settings_auto_open_compare_after_capture">Vergleich nach Aufnahme automatisch öffnen</string>
 
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Verlauf öffnen</string>

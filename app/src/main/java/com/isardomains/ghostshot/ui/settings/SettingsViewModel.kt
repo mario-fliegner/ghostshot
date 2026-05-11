@@ -35,4 +35,11 @@ class SettingsViewModel @Inject constructor(
     fun onResetOverlayAfterCaptureChanged(enabled: Boolean) {
         viewModelScope.launch { repository.setResetOverlayAfterCapture(enabled) }
     }
+
+    val autoOpenCompareAfterCapture: StateFlow<Boolean> = repository.autoOpenCompareAfterCapture
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun onAutoOpenCompareAfterCaptureChanged(enabled: Boolean) {
+        viewModelScope.launch { repository.setAutoOpenCompareAfterCapture(enabled) }
+    }
 }

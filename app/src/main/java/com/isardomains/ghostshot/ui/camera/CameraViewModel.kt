@@ -98,6 +98,7 @@ data class CameraUiState(
     val referenceImageMetadata: ReferenceImageMetadata? = null,
     val isCaptureInProgress: Boolean = false,
     val resetOverlayAfterCapture: Boolean = false,
+    val autoOpenCompareAfterCapture: Boolean = false,
     val canUndoReferenceRemoval: Boolean = false,
     val referenceRemovalUndoGeneration: Long = 0L,
     val undoExpiresAtMillis: Long = 0L,
@@ -142,6 +143,10 @@ sealed interface UiEvent {
     ) : UiEvent
     /** Notifies the UI that the pending undo snapshot has been invalidated by a new reference load. */
     data object UndoInvalidated : UiEvent
+    /** Triggers automatic navigation to CompareScreen after a successful capture when the
+     *  auto-open setting is enabled. Contains a pre-built [CompareInput] from the session that
+     *  was just saved, so the receiver does not need to read state after the event is emitted. */
+    data class NavigateToCompare(val input: CompareInput) : UiEvent
 }
 
 private data class ReferenceUndoSnapshot(
@@ -257,6 +262,11 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.resetOverlayAfterCapture.collect { enabled ->
                 _uiState.update { it.copy(resetOverlayAfterCapture = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.autoOpenCompareAfterCapture.collect { enabled ->
+                _uiState.update { it.copy(autoOpenCompareAfterCapture = enabled) }
             }
         }
     }
@@ -649,18 +659,20 @@ class CameraViewModel @Inject constructor(
 
     internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null) {
         if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture completed") }
+        val newCompareInput: CompareInput? = sessionRef?.let {
+            CompareInput(
+                referenceImageUri = it.referenceFileUri,
+                captureImageUri = it.captureFileUri,
+                sessionId = it.sessionId,
+                timestamp = it.timestamp
+            )
+        }
+        val autoOpen = _uiState.value.autoOpenCompareAfterCapture
         _uiState.update { current ->
             val base = current.copy(
                 captureSuccessGeneration = current.captureSuccessGeneration + 1L,
                 captureSuccessHadReference = sessionRef != null,
-                compareInput = sessionRef?.let {
-                    CompareInput(
-                        referenceImageUri = it.referenceFileUri,
-                        captureImageUri = it.captureFileUri,
-                        sessionId = it.sessionId,
-                        timestamp = it.timestamp
-                    )
-                },
+                compareInput = newCompareInput,
                 overlayOffsetX = if (current.resetOverlayAfterCapture) 0f else current.overlayOffsetX,
                 overlayOffsetY = if (current.resetOverlayAfterCapture) 0f else current.overlayOffsetY,
                 overlayScale = if (current.resetOverlayAfterCapture) 1f else current.overlayScale,
@@ -669,6 +681,11 @@ class CameraViewModel @Inject constructor(
                 base.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(base))
             else
                 base
+        }
+        if (autoOpen && newCompareInput != null) {
+            viewModelScope.launch {
+                _uiEvent.emit(UiEvent.NavigateToCompare(newCompareInput))
+            }
         }
     }
 

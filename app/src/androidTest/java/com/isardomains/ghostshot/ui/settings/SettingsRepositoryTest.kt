@@ -109,4 +109,22 @@ class SettingsRepositoryTest {
         repository.setResetOverlayAfterCapture(false)
         assertEquals(false, repository.resetOverlayAfterCapture.first())
     }
+
+    @Test
+    fun autoOpenCompareAfterCapture_defaultsToFalse() = testScope.runTest {
+        assertEquals(false, repository.autoOpenCompareAfterCapture.first())
+    }
+
+    @Test
+    fun setAutoOpenCompareAfterCapture_trueIsPersisted() = testScope.runTest {
+        repository.setAutoOpenCompareAfterCapture(true)
+        assertEquals(true, repository.autoOpenCompareAfterCapture.first())
+    }
+
+    @Test
+    fun setAutoOpenCompareAfterCapture_falseCanBeSetBack() = testScope.runTest {
+        repository.setAutoOpenCompareAfterCapture(true)
+        repository.setAutoOpenCompareAfterCapture(false)
+        assertEquals(false, repository.autoOpenCompareAfterCapture.first())
+    }
 }

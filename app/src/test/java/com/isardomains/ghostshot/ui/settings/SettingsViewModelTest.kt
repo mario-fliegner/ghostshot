@@ -35,6 +35,7 @@ class SettingsViewModelTest {
         whenever(repository.gridType).thenReturn(gridTypeFlow)
         whenever(repository.keepScreenOn).thenReturn(keepScreenOnFlow)
         whenever(repository.resetOverlayAfterCapture).thenReturn(MutableStateFlow(false))
+        whenever(repository.autoOpenCompareAfterCapture).thenReturn(MutableStateFlow(false))
         viewModel = SettingsViewModel(repository)
     }
 
@@ -110,5 +111,24 @@ class SettingsViewModelTest {
         viewModel.onResetOverlayAfterCaptureChanged(false)
         advanceUntilIdle()
         verify(repository).setResetOverlayAfterCapture(false)
+    }
+
+    @Test
+    fun initialAutoOpenCompareAfterCapture_isFalse() {
+        assertEquals(false, viewModel.autoOpenCompareAfterCapture.value)
+    }
+
+    @Test
+    fun onAutoOpenCompareAfterCaptureChanged_true_callsRepository() = runTest {
+        viewModel.onAutoOpenCompareAfterCaptureChanged(true)
+        advanceUntilIdle()
+        verify(repository).setAutoOpenCompareAfterCapture(true)
+    }
+
+    @Test
+    fun onAutoOpenCompareAfterCaptureChanged_false_callsRepository() = runTest {
+        viewModel.onAutoOpenCompareAfterCaptureChanged(false)
+        advanceUntilIdle()
+        verify(repository).setAutoOpenCompareAfterCapture(false)
     }
 }

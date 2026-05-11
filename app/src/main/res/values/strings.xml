@@ -96,6 +96,7 @@
     <string name="settings_grid_type_quarters">Quarters</string>
     <string name="settings_overlay_compare_title">Overlay &amp; Compare</string>
     <string name="settings_reset_overlay_after_capture">Reset overlay after capture</string>
+    <string name="settings_auto_open_compare_after_capture">Auto-open compare after capture</string>
 
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Open history</string>
