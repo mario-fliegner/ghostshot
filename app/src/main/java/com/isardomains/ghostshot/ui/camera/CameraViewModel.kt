@@ -78,6 +78,7 @@ data class ReferenceImageMetadata(
  *   Clamped to [CameraViewModel.MIN_SCALE, CameraViewModel.MAX_SCALE].
  * @param overlayAlpha Opacity of the overlay, clamped to [0.1, 0.9]. Default is 0.5.
  * @param gridType The type of grid to draw; [GridType.NONE] means no grid is shown.
+ * @param keepScreenOn Whether the display should stay on while [CameraScreen] is visible.
  * @param interactionMode The currently active gesture interaction mode.
  * @param viewportWidth Width of the camera preview viewport in pixels. 0 until first layout.
  * @param viewportHeight Height of the camera preview viewport in pixels. 0 until first layout.
@@ -89,6 +90,7 @@ data class CameraUiState(
     val overlayScale: Float = 1f,
     val overlayAlpha: Float = 0.5f,
     val gridType: GridType = GridType.RULE_OF_THIRDS,
+    val keepScreenOn: Boolean = true,
     val interactionMode: InteractionMode = InteractionMode.OVERLAY_ADJUST,
     val activeAspectRatio: TargetAspectRatio = TargetAspectRatio.RATIO_16_9,
     val referenceImageDisplayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
@@ -244,6 +246,11 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.gridType.collect { type ->
                 _uiState.update { it.copy(gridType = type) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.keepScreenOn.collect { enabled ->
+                _uiState.update { it.copy(keepScreenOn = enabled) }
             }
         }
     }

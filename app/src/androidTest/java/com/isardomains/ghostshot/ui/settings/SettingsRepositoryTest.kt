@@ -73,4 +73,22 @@ class SettingsRepositoryTest {
         repository.setGridType(GridType.RULE_OF_THIRDS)
         assertEquals(GridType.RULE_OF_THIRDS, repository.gridType.first())
     }
+
+    @Test
+    fun keepScreenOn_defaultsToTrue() = testScope.runTest {
+        assertEquals(true, repository.keepScreenOn.first())
+    }
+
+    @Test
+    fun setKeepScreenOn_falseIsPersisted() = testScope.runTest {
+        repository.setKeepScreenOn(false)
+        assertEquals(false, repository.keepScreenOn.first())
+    }
+
+    @Test
+    fun setKeepScreenOn_trueCanBeSetBack() = testScope.runTest {
+        repository.setKeepScreenOn(false)
+        repository.setKeepScreenOn(true)
+        assertEquals(true, repository.keepScreenOn.first())
+    }
 }

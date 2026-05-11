@@ -83,6 +83,8 @@
     <!-- Settings -->
     <string name="settings_screen_title">Einstellungen</string>
     <string name="settings_back">Zurück</string>
+    <string name="settings_camera_title">Kamera</string>
+    <string name="settings_keep_screen_on">Display aktiv halten</string>
     <string name="settings_grid_type_title">Rastertyp</string>
     <string name="settings_grid_type_none">Aus</string>
     <string name="settings_grid_type_rule_of_thirds">Drittel-Raster</string>

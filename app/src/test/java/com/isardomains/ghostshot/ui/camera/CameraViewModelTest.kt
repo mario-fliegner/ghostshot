@@ -34,6 +34,7 @@ class CameraViewModelTest {
 
     private val fakeSettingsRepository: SettingsRepository = mock {
         on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+        on { keepScreenOn } doReturn flowOf(true)
     }
 
     @Before
@@ -1657,6 +1658,7 @@ class CameraViewModelTest {
     fun gridType_updatesWhenSettingsEmitNewValue() = runTest {
         val settingsRepo: SettingsRepository = mock {
             on { gridType } doReturn flowOf(GridType.QUARTERS)
+            on { keepScreenOn } doReturn flowOf(true)
         }
         val testViewModel = CameraViewModel(mock(), settingsRepo)
         assertEquals(GridType.QUARTERS, testViewModel.uiState.value.gridType)

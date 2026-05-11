@@ -207,6 +207,12 @@ fun CameraScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
+    val view = LocalView.current
+    DisposableEffect(uiState.keepScreenOn) {
+        view.keepScreenOn = uiState.keepScreenOn
+        onDispose { view.keepScreenOn = false }
+    }
+
     var permissionState by remember {
         val isGranted = ContextCompat.checkSelfPermission(
             context, Manifest.permission.CAMERA

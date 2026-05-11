@@ -12,6 +12,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -32,9 +33,12 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val gridType by viewModel.gridType.collectAsStateWithLifecycle()
+    val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     SettingsScreenContent(
         gridType = gridType,
         onGridTypeSelected = viewModel::onGridTypeSelected,
+        keepScreenOn = keepScreenOn,
+        onKeepScreenOnChanged = viewModel::onKeepScreenOnChanged,
         onBack = onBack
     )
 }
@@ -44,6 +48,8 @@ fun SettingsScreen(
 internal fun SettingsScreenContent(
     gridType: GridType,
     onGridTypeSelected: (GridType) -> Unit,
+    keepScreenOn: Boolean,
+    onKeepScreenOnChanged: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -62,6 +68,14 @@ internal fun SettingsScreenContent(
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
+            Text(
+                text = stringResource(R.string.settings_camera_title),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            KeepScreenOnRow(
+                checked = keepScreenOn,
+                onCheckedChange = onKeepScreenOnChanged
+            )
             Text(
                 text = stringResource(R.string.settings_grid_type_title),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -85,6 +99,30 @@ internal fun SettingsScreenContent(
                 testTag = "settings_grid_type_quarters"
             )
         }
+    }
+}
+
+@Composable
+private fun KeepScreenOnRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .testTag("settings_keep_screen_on")
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.settings_keep_screen_on),
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
 

@@ -21,4 +21,11 @@ class SettingsViewModel @Inject constructor(
     fun onGridTypeSelected(type: GridType) {
         viewModelScope.launch { repository.setGridType(type) }
     }
+
+    val keepScreenOn: StateFlow<Boolean> = repository.keepScreenOn
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun onKeepScreenOnChanged(enabled: Boolean) {
+        viewModelScope.launch { repository.setKeepScreenOn(enabled) }
+    }
 }

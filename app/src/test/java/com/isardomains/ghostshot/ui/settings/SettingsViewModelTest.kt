@@ -23,6 +23,7 @@ class SettingsViewModelTest {
 
     private lateinit var repository: SettingsRepository
     private lateinit var gridTypeFlow: MutableStateFlow<GridType>
+    private lateinit var keepScreenOnFlow: MutableStateFlow<Boolean>
     private lateinit var viewModel: SettingsViewModel
 
     @Before
@@ -30,7 +31,9 @@ class SettingsViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         repository = mock()
         gridTypeFlow = MutableStateFlow(GridType.RULE_OF_THIRDS)
+        keepScreenOnFlow = MutableStateFlow(true)
         whenever(repository.gridType).thenReturn(gridTypeFlow)
+        whenever(repository.keepScreenOn).thenReturn(keepScreenOnFlow)
         viewModel = SettingsViewModel(repository)
     }
 
@@ -68,5 +71,24 @@ class SettingsViewModelTest {
         viewModel.onGridTypeSelected(GridType.QUARTERS)
         advanceUntilIdle()
         verify(repository).setGridType(GridType.QUARTERS)
+    }
+
+    @Test
+    fun initialKeepScreenOn_isTrue() {
+        assertEquals(true, viewModel.keepScreenOn.value)
+    }
+
+    @Test
+    fun onKeepScreenOnChanged_false_callsRepository() = runTest {
+        viewModel.onKeepScreenOnChanged(false)
+        advanceUntilIdle()
+        verify(repository).setKeepScreenOn(false)
+    }
+
+    @Test
+    fun onKeepScreenOnChanged_true_callsRepository() = runTest {
+        viewModel.onKeepScreenOnChanged(true)
+        advanceUntilIdle()
+        verify(repository).setKeepScreenOn(true)
     }
 }

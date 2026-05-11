@@ -39,6 +39,8 @@ class SettingsScreenTest {
     private fun setContent(
         gridType: GridType = GridType.RULE_OF_THIRDS,
         onGridTypeSelected: (GridType) -> Unit = {},
+        keepScreenOn: Boolean = true,
+        onKeepScreenOnChanged: (Boolean) -> Unit = {},
         onBack: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -54,6 +56,8 @@ class SettingsScreenTest {
                     SettingsScreenContent(
                         gridType = gridType,
                         onGridTypeSelected = onGridTypeSelected,
+                        keepScreenOn = keepScreenOn,
+                        onKeepScreenOnChanged = onKeepScreenOnChanged,
                         onBack = onBack
                     )
                 }
@@ -133,5 +137,34 @@ class SettingsScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(GridType.QUARTERS, selected)
+    }
+
+    @Test
+    fun keepScreenAwake_switch_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithTag("settings_keep_screen_on").assertIsDisplayed()
+    }
+
+    @Test
+    fun tap_keepScreenAwake_whenTrue_invokesCallback_withFalse() {
+        var received: Boolean? = null
+        setContent(keepScreenOn = true, onKeepScreenOnChanged = { received = it })
+
+        composeRule.onNodeWithTag("settings_keep_screen_on").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(false, received)
+    }
+
+    @Test
+    fun tap_keepScreenAwake_whenFalse_invokesCallback_withTrue() {
+        var received: Boolean? = null
+        setContent(keepScreenOn = false, onKeepScreenOnChanged = { received = it })
+
+        composeRule.onNodeWithTag("settings_keep_screen_on").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, received)
     }
 }
