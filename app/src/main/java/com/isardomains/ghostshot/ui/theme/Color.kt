@@ -85,3 +85,21 @@ val GhostShotSettingsSelectedSegment = Color(0x384F8CFF)
 
 /** Settings unselected segment fill. */
 val GhostShotSettingsUnselectedSegment = Color.Transparent
+
+/** About screen main card surface. */
+val GhostShotAboutCardSurface = GhostShotAppSurface
+
+/** About screen icon container surface. */
+val GhostShotAboutIconSurface = GhostShotAppSurfaceElevated
+
+/** About screen app title text. */
+val GhostShotAboutTitleText = GhostShotTextPrimary
+
+/** About screen descriptive body text. */
+val GhostShotAboutBodyText = GhostShotTextSecondary
+
+/** About screen footer text. */
+val GhostShotAboutFooterText = GhostShotTextSecondary
+
+/** About screen feedback action text. */
+val GhostShotAboutActionText = GhostShotAccent

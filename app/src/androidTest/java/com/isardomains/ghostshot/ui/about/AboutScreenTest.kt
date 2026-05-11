@@ -4,12 +4,14 @@ import android.os.Build
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
+import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotTheme
 import org.junit.After
 import org.junit.Rule
@@ -20,6 +22,7 @@ class AboutScreenTest {
     @get:Rule
     val composeRule = createEmptyComposeRule()
 
+    private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private var scenario: ActivityScenario<ComponentActivity>? = null
 
     @After
@@ -50,12 +53,14 @@ class AboutScreenTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("about_app_icon").assertIsDisplayed()
-        composeRule.onNodeWithText("Then & Now Camera").assertIsDisplayed()
-        composeRule.onNodeWithText("Recreate past photos with live overlays.").assertIsDisplayed()
-        composeRule.onNodeWithText("Designed to work locally on your device.").assertIsDisplayed()
-        composeRule.onNodeWithText("No account required.").assertIsDisplayed()
-        composeRule.onNodeWithText("v9.9").assertIsDisplayed()
-        composeRule.onNodeWithText("Send Feedback").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_app_name)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_description)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_local_device)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_no_account_required)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_version, "9.9")).assertIsDisplayed()
+        composeRule.onNodeWithTag("about_send_feedback")
+            .assertIsDisplayed()
+            .assertHasClickAction()
     }
 
     private fun wakeTestDevice() {

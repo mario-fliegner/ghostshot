@@ -5,10 +5,13 @@ import android.net.Uri
 import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -36,8 +40,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
+import com.isardomains.ghostshot.ui.theme.GhostShotAboutActionText
+import com.isardomains.ghostshot.ui.theme.GhostShotAboutBodyText
+import com.isardomains.ghostshot.ui.theme.GhostShotAboutCardSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotAboutFooterText
+import com.isardomains.ghostshot.ui.theme.GhostShotAboutIconSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotAboutTitleText
 
 @Composable
 fun AboutScreenRoute(
@@ -78,48 +86,14 @@ fun AboutScreenContent(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 28.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            AboutHero()
-
-            Spacer(modifier = Modifier.height(44.dp))
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = stringResource(R.string.about_local_device),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = GhostShotTextSecondary,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = stringResource(R.string.about_no_account_required),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = GhostShotTextSecondary,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            Text(
-                text = stringResource(R.string.about_version, versionName),
-                style = MaterialTheme.typography.bodySmall,
-                color = GhostShotTextSecondary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            Text(
-                text = stringResource(R.string.about_send_feedback),
-                style = MaterialTheme.typography.labelMedium,
-                color = GhostShotTextSecondary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.clickable {
+            AboutHeroCard()
+            AboutFooter(
+                versionName = versionName,
+                onFeedbackClick = {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
                         data = Uri.parse("mailto:support@isardomains.com")
                         putExtra(Intent.EXTRA_SUBJECT, feedbackSubject)
@@ -132,41 +106,100 @@ fun AboutScreenContent(
 }
 
 @Composable
-private fun AboutHero() {
-    Box(
-        modifier = Modifier
-            .size(96.dp)
-            .clip(CircleShape)
-            .background(GhostShotAppSurface),
-        contentAlignment = Alignment.Center
+private fun AboutHeroCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = GhostShotAboutCardSurface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
     ) {
-        AndroidView(
-            factory = { context ->
-                ImageView(context).apply {
-                    setImageResource(R.mipmap.ic_launcher)
-                    scaleType = ImageView.ScaleType.FIT_CENTER
-                }
-            },
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(104.dp)
+                    .clip(CircleShape)
+                    .background(GhostShotAboutIconSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                AndroidView(
+                    factory = { context ->
+                        ImageView(context).apply {
+                            setImageResource(R.mipmap.ic_launcher)
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                        }
+                    },
+                    modifier = Modifier
+                        .size(72.dp)
+                        .testTag("about_app_icon")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = stringResource(R.string.about_app_name),
+                style = MaterialTheme.typography.headlineSmall,
+                color = GhostShotAboutTitleText,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = stringResource(R.string.about_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = GhostShotAboutBodyText,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = stringResource(R.string.about_local_device),
+                style = MaterialTheme.typography.bodyMedium,
+                color = GhostShotAboutBodyText,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.about_no_account_required),
+                style = MaterialTheme.typography.bodyMedium,
+                color = GhostShotAboutBodyText,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutFooter(
+    versionName: String,
+    onFeedbackClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.about_version, versionName),
+            style = MaterialTheme.typography.bodySmall,
+            color = GhostShotAboutFooterText,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.about_send_feedback),
+            style = MaterialTheme.typography.labelMedium,
+            color = GhostShotAboutActionText,
+            textAlign = TextAlign.Center,
             modifier = Modifier
-                .size(72.dp)
-                .testTag("about_app_icon")
+                .defaultMinSize(minHeight = 48.dp)
+                .clickable(onClick = onFeedbackClick)
+                .testTag("about_send_feedback")
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         )
     }
-
-    Spacer(modifier = Modifier.height(24.dp))
-
-    Text(
-        text = stringResource(R.string.about_app_name),
-        style = MaterialTheme.typography.headlineMedium,
-        color = MaterialTheme.colorScheme.onBackground,
-        textAlign = TextAlign.Center
-    )
-    Spacer(modifier = Modifier.height(14.dp))
-
-    Text(
-        text = stringResource(R.string.about_description),
-        style = MaterialTheme.typography.bodyMedium,
-        color = GhostShotTextSecondary,
-        textAlign = TextAlign.Center
-    )
 }
