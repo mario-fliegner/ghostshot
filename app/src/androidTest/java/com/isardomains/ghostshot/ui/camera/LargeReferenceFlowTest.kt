@@ -2,8 +2,10 @@ package com.isardomains.ghostshot.ui.camera
 
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.isardomains.ghostshot.ui.settings.SettingsRepository
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,7 +42,10 @@ class LargeReferenceFlowTest {
 
     @Test
     fun largeReferenceImage_capturePipelineCompletesWithoutStuckLock() {
-        val viewModel = CameraViewModel(appContext)
+        val prefs = PreferenceDataStoreFactory.create {
+            File(appContext.cacheDir, "settings_test_${System.nanoTime()}.preferences_pb")
+        }
+        val viewModel = CameraViewModel(appContext, SettingsRepository(prefs))
         val referenceUri = Uri.fromFile(referenceFile)
 
         viewModel.onReferenceImageSelected(referenceUri)

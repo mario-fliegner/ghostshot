@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
+import com.isardomains.ghostshot.ui.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -76,8 +77,7 @@ data class ReferenceImageMetadata(
  * @param overlayScale Scale factor applied to the overlay. 1.0 represents the default fit size.
  *   Clamped to [CameraViewModel.MIN_SCALE, CameraViewModel.MAX_SCALE].
  * @param overlayAlpha Opacity of the overlay, clamped to [0.1, 0.9]. Default is 0.5.
- * @param isGridVisible Whether the camera grid overlay is currently shown.
- * @param gridType The type of grid to draw when [isGridVisible] is true.
+ * @param gridType The type of grid to draw; [GridType.NONE] means no grid is shown.
  * @param interactionMode The currently active gesture interaction mode.
  * @param viewportWidth Width of the camera preview viewport in pixels. 0 until first layout.
  * @param viewportHeight Height of the camera preview viewport in pixels. 0 until first layout.
@@ -88,7 +88,6 @@ data class CameraUiState(
     val overlayOffsetY: Float = 0f,
     val overlayScale: Float = 1f,
     val overlayAlpha: Float = 0.5f,
-    val isGridVisible: Boolean = true,
     val gridType: GridType = GridType.RULE_OF_THIRDS,
     val interactionMode: InteractionMode = InteractionMode.OVERLAY_ADJUST,
     val activeAspectRatio: TargetAspectRatio = TargetAspectRatio.RATIO_16_9,
@@ -184,7 +183,8 @@ internal data class CaptureResult(
  */
 @HiltViewModel
 class CameraViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -226,9 +226,10 @@ class CameraViewModel @Inject constructor(
         context: Context,
         ioDispatcher: CoroutineDispatcher,
         referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata?,
+        settingsRepository: SettingsRepository,
         sessionScanner: (Context) -> List<ScannedSession> = { ctx -> SessionScanner.scan(ctx) },
         sessionTitleUpdater: ((File, String, String?) -> Boolean)? = null
-    ) : this(context) {
+    ) : this(context, settingsRepository) {
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
         this.sessionScanner = sessionScanner
@@ -238,6 +239,14 @@ class CameraViewModel @Inject constructor(
     }
 
     private val _uiState = MutableStateFlow(CameraUiState())
+
+    init {
+        viewModelScope.launch {
+            settingsRepository.gridType.collect { type ->
+                _uiState.update { it.copy(gridType = type) }
+            }
+        }
+    }
 
     /** Observed by [CameraScreen] to render the current UI state. */
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()

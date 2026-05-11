@@ -5,7 +5,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import com.isardomains.ghostshot.R
+import com.isardomains.ghostshot.ui.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -21,6 +23,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -29,10 +32,14 @@ class CameraViewModelTest {
 
     private lateinit var viewModel: CameraViewModel
 
+    private val fakeSettingsRepository: SettingsRepository = mock {
+        on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+    }
+
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
-        viewModel = CameraViewModel(mock())
+        viewModel = CameraViewModel(mock(), fakeSettingsRepository)
     }
 
     @After
@@ -95,7 +102,8 @@ class CameraViewModelTest {
 
                     else -> error("Unexpected reference URI")
                 }
-            }
+            },
+            fakeSettingsRepository
         )
         testViewModel.onReferenceViewportChanged(1080, 1920)
 
@@ -116,7 +124,8 @@ class CameraViewModelTest {
         val testViewModel = CameraViewModel(
             mock(),
             UnconfinedTestDispatcher(),
-            { null }
+            { null },
+            fakeSettingsRepository
         )
         val events = mutableListOf<UiEvent>()
         val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
@@ -207,7 +216,8 @@ class CameraViewModelTest {
                     orientedHeight = 1080,
                     exifOrientation = null
                 )
-            }
+            },
+            fakeSettingsRepository
         )
 
         testViewModel.onReferenceImageSelected(uri)
@@ -655,7 +665,8 @@ class CameraViewModelTest {
                     // Second load fails (returns null)
                     null
                 }
-            }
+            },
+            fakeSettingsRepository
         )
         testViewModel.onReferenceImageSelected(firstUri)
         testViewModel.onReferenceImageRemoveConfirmed()
@@ -914,6 +925,7 @@ class CameraViewModelTest {
             mock(),
             UnconfinedTestDispatcher(),
             { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            fakeSettingsRepository,
             { _ -> listOf(scannedSession) }
         )
         testViewModel.refreshSavedSessions()
@@ -1288,6 +1300,7 @@ class CameraViewModelTest {
             mock(),
             UnconfinedTestDispatcher(),
             { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            fakeSettingsRepository,
             { _ -> listOf(fakeSession) }
         )
         testViewModel.refreshSavedSessions()
@@ -1366,6 +1379,7 @@ class CameraViewModelTest {
             mock(),
             UnconfinedTestDispatcher(),
             { null },
+            fakeSettingsRepository,
             { _ -> emptyList() },
             { _, _, t -> capturedTitle = t; true }
         )
@@ -1383,6 +1397,7 @@ class CameraViewModelTest {
             mock(),
             UnconfinedTestDispatcher(),
             { null },
+            fakeSettingsRepository,
             { _ -> emptyList() },
             { _, _, t -> capturedTitle = t; true }
         )
@@ -1406,6 +1421,7 @@ class CameraViewModelTest {
             mock(),
             UnconfinedTestDispatcher(),
             { null },
+            fakeSettingsRepository,
             { _ -> sessionList },
             { _, _, _ -> true }
         )
@@ -1422,6 +1438,7 @@ class CameraViewModelTest {
             mock(),
             UnconfinedTestDispatcher(),
             { null },
+            fakeSettingsRepository,
             { _ -> emptyList() },
             { _, _, _ -> false }
         )
@@ -1474,7 +1491,8 @@ class CameraViewModelTest {
         val testViewModel = CameraViewModel(
             mock(),
             UnconfinedTestDispatcher(),
-            { null }
+            { null },
+            fakeSettingsRepository
         )
         val events = mutableListOf<UiEvent>()
         val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
@@ -1588,6 +1606,7 @@ class CameraViewModelTest {
             mock(),
             UnconfinedTestDispatcher(),
             { null },
+            fakeSettingsRepository,
             scanner
         )
     }
@@ -1610,7 +1629,8 @@ class CameraViewModelTest {
                     orientedHeight = orientedHeight,
                     exifOrientation = exifOrientation
                 )
-            }
+            },
+            fakeSettingsRepository
         )
     }
 
@@ -1624,5 +1644,21 @@ class CameraViewModelTest {
             referenceFileUri = mock(),
             captureFileUri = mock()
         )
+    }
+
+    // --- gridType from SettingsRepository ---
+
+    @Test
+    fun gridType_initialValue_matchesSettingsRepositoryDefault() = runTest {
+        assertEquals(GridType.RULE_OF_THIRDS, viewModel.uiState.value.gridType)
+    }
+
+    @Test
+    fun gridType_updatesWhenSettingsEmitNewValue() = runTest {
+        val settingsRepo: SettingsRepository = mock {
+            on { gridType } doReturn flowOf(GridType.QUARTERS)
+        }
+        val testViewModel = CameraViewModel(mock(), settingsRepo)
+        assertEquals(GridType.QUARTERS, testViewModel.uiState.value.gridType)
     }
 }

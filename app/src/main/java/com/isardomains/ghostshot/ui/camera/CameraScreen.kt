@@ -504,7 +504,7 @@ fun CameraScreen(
                 }
 
                 // ── Layer 3: Camera grid overlay ─────────────────────────────────────
-                if (uiState.isGridVisible) {
+                if (uiState.gridType != GridType.NONE) {
                     CameraGridOverlay(
                         gridType = uiState.gridType,
                         modifier = Modifier

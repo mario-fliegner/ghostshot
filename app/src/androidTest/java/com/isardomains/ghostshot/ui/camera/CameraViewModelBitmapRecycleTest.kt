@@ -1,12 +1,15 @@
 package com.isardomains.ghostshot.ui.camera
 
 import android.graphics.Bitmap
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.isardomains.ghostshot.ui.settings.SettingsRepository
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 /**
  * Verifies that [CameraViewModel.onPhotoCaptured] recycles all Bitmap objects it receives or
@@ -22,9 +25,11 @@ class CameraViewModelBitmapRecycleTest {
 
     @Before
     fun setUp() {
-        viewModel = CameraViewModel(
-            InstrumentationRegistry.getInstrumentation().targetContext
-        )
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs = PreferenceDataStoreFactory.create {
+            File(context.cacheDir, "settings_test_${System.nanoTime()}.preferences_pb")
+        }
+        viewModel = CameraViewModel(context, SettingsRepository(prefs))
     }
 
     /**
