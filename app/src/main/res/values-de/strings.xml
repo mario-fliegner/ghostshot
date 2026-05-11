@@ -90,6 +90,9 @@
     <string name="settings_grid_type_none">Aus</string>
     <string name="settings_grid_type_rule_of_thirds">Drittel-Raster</string>
     <string name="settings_grid_type_quarters">Viertel-Raster</string>
+    <string name="settings_grid_type_none_short">Aus</string>
+    <string name="settings_grid_type_rule_of_thirds_short">Drittel</string>
+    <string name="settings_grid_type_quarters_short">Viertel</string>
     <string name="settings_overlay_compare_title">Overlay &amp; Vergleich</string>
     <string name="settings_reset_overlay_after_capture">Overlay nach Aufnahme zurücksetzen</string>
     <string name="settings_auto_open_compare_after_capture">Vergleich nach Aufnahme automatisch öffnen</string>

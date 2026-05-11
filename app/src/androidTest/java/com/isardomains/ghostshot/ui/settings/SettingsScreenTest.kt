@@ -5,6 +5,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -82,14 +83,30 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun allThreeOptions_areDisplayed() {
+    fun cameraCardTitle_isDisplayed() {
         setContent()
 
-        composeRule.onNodeWithText(context.getString(R.string.settings_grid_type_none))
+        composeRule.onNodeWithText(context.getString(R.string.settings_camera_title))
             .assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.settings_grid_type_rule_of_thirds))
+    }
+
+    @Test
+    fun overlayCompareCardTitle_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_overlay_compare_title))
             .assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.settings_grid_type_quarters))
+    }
+
+    @Test
+    fun allThreeGridSegments_areDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_grid_type_none_short))
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.settings_grid_type_rule_of_thirds_short))
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.settings_grid_type_quarters_short))
             .assertIsDisplayed()
     }
 
@@ -112,6 +129,13 @@ class SettingsScreenTest {
         setContent(gridType = GridType.QUARTERS)
 
         composeRule.onNodeWithTag("settings_grid_type_quarters").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectedGridTypeSegment_isSelected() {
+        setContent(gridType = GridType.QUARTERS)
+
+        composeRule.onNodeWithTag("settings_grid_type_quarters").assertIsSelected()
     }
 
     @Test

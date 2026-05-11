@@ -95,6 +95,9 @@
     <string name="settings_grid_type_none">Off</string>
     <string name="settings_grid_type_rule_of_thirds">Rule of Thirds</string>
     <string name="settings_grid_type_quarters">Quarters</string>
+    <string name="settings_grid_type_none_short">Off</string>
+    <string name="settings_grid_type_rule_of_thirds_short">Thirds</string>
+    <string name="settings_grid_type_quarters_short">Quarters</string>
     <string name="settings_overlay_compare_title">Overlay &amp; Compare</string>
     <string name="settings_reset_overlay_after_capture">Reset overlay after capture</string>
     <string name="settings_auto_open_compare_after_capture">Auto-open compare after capture</string>

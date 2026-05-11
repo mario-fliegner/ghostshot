@@ -1,17 +1,31 @@
 package com.isardomains.ghostshot.ui.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -19,13 +33,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.camera.GridType
+import com.isardomains.ghostshot.ui.theme.GhostShotAppDivider
+import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotAppSurfaceElevated
 
 @Composable
 fun SettingsScreen(
@@ -77,50 +97,95 @@ internal fun SettingsScreenContent(
             )
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            Text(
-                text = stringResource(R.string.settings_camera_title),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            KeepScreenOnRow(
-                checked = keepScreenOn,
-                onCheckedChange = onKeepScreenOnChanged
-            )
-            Text(
-                text = stringResource(R.string.settings_grid_type_title),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            GridTypeRow(
-                label = stringResource(R.string.settings_grid_type_none),
-                selected = gridType == GridType.NONE,
-                onClick = { onGridTypeSelected(GridType.NONE) },
-                testTag = "settings_grid_type_none"
-            )
-            GridTypeRow(
-                label = stringResource(R.string.settings_grid_type_rule_of_thirds),
-                selected = gridType == GridType.RULE_OF_THIRDS,
-                onClick = { onGridTypeSelected(GridType.RULE_OF_THIRDS) },
-                testTag = "settings_grid_type_rule_of_thirds"
-            )
-            GridTypeRow(
-                label = stringResource(R.string.settings_grid_type_quarters),
-                selected = gridType == GridType.QUARTERS,
-                onClick = { onGridTypeSelected(GridType.QUARTERS) },
-                testTag = "settings_grid_type_quarters"
-            )
-            Text(
-                text = stringResource(R.string.settings_overlay_compare_title),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            ResetOverlayAfterCaptureRow(
-                checked = resetOverlayAfterCapture,
-                onCheckedChange = onResetOverlayAfterCaptureChanged
-            )
-            AutoOpenCompareAfterCaptureRow(
-                checked = autoOpenCompareAfterCapture,
-                onCheckedChange = onAutoOpenCompareAfterCaptureChanged
-            )
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            SettingsCard(title = stringResource(R.string.settings_camera_title)) {
+                KeepScreenOnRow(
+                    checked = keepScreenOn,
+                    onCheckedChange = onKeepScreenOnChanged
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = stringResource(R.string.settings_grid_type_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                GridTypeSegmentedControl(
+                    selectedGridType = gridType,
+                    onGridTypeSelected = onGridTypeSelected
+                )
+            }
+            SettingsCard(title = stringResource(R.string.settings_overlay_compare_title)) {
+                ResetOverlayAfterCaptureRow(
+                    checked = resetOverlayAfterCapture,
+                    onCheckedChange = onResetOverlayAfterCaptureChanged
+                )
+                AutoOpenCompareAfterCaptureRow(
+                    checked = autoOpenCompareAfterCapture,
+                    onCheckedChange = onAutoOpenCompareAfterCaptureChanged
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun SettingsCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = GhostShotAppSurface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, GhostShotAppDivider)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsSwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    testTag: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .testTag(testTag)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
 
@@ -129,23 +194,12 @@ private fun KeepScreenOnRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .testTag("settings_keep_screen_on")
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = stringResource(R.string.settings_keep_screen_on),
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_keep_screen_on),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        testTag = "settings_keep_screen_on"
+    )
 }
 
 @Composable
@@ -153,23 +207,12 @@ private fun ResetOverlayAfterCaptureRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .testTag("settings_reset_overlay_after_capture")
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = stringResource(R.string.settings_reset_overlay_after_capture),
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_reset_overlay_after_capture),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        testTag = "settings_reset_overlay_after_capture"
+    )
 }
 
 @Composable
@@ -177,47 +220,92 @@ private fun AutoOpenCompareAfterCaptureRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_auto_open_compare_after_capture),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        testTag = "settings_auto_open_compare_after_capture"
+    )
+}
+
+@Composable
+private fun GridTypeSegmentedControl(
+    selectedGridType: GridType,
+    onGridTypeSelected: (GridType) -> Unit
+) {
+    val items = listOf(
+        GridTypeSegment(
+            type = GridType.NONE,
+            label = stringResource(R.string.settings_grid_type_none_short),
+            testTag = "settings_grid_type_none"
+        ),
+        GridTypeSegment(
+            type = GridType.RULE_OF_THIRDS,
+            label = stringResource(R.string.settings_grid_type_rule_of_thirds_short),
+            testTag = "settings_grid_type_rule_of_thirds"
+        ),
+        GridTypeSegment(
+            type = GridType.QUARTERS,
+            label = stringResource(R.string.settings_grid_type_quarters_short),
+            testTag = "settings_grid_type_quarters"
+        )
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .testTag("settings_auto_open_compare_after_capture")
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clip(MaterialTheme.shapes.medium)
+            .background(GhostShotAppSurfaceElevated)
+            .border(1.dp, GhostShotAppDivider, MaterialTheme.shapes.medium)
+            .padding(3.dp)
+            .selectableGroup()
     ) {
-        Text(
-            text = stringResource(R.string.settings_auto_open_compare_after_capture),
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
+        items.forEach { item ->
+            GridTypeSegmentButton(
+                label = item.label,
+                selected = selectedGridType == item.type,
+                onClick = { onGridTypeSelected(item.type) },
+                testTag = item.testTag,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 
 @Composable
-private fun GridTypeRow(
+private fun GridTypeSegmentButton(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    testTag: String
+    testTag: String,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
+    Box(
+        modifier = modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else Color.Transparent
+            )
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton
+            )
             .testTag(testTag)
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .defaultMinSize(minHeight = 48.dp)
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = null
-        )
         Text(
             text = label,
-            modifier = Modifier.padding(start = 8.dp)
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
+
+private data class GridTypeSegment(
+    val type: GridType,
+    val label: String,
+    val testTag: String
+)
