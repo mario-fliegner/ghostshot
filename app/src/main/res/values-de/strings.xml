@@ -1,7 +1,8 @@
 <resources>
     <string name="app_name">Then &amp; Now Camera</string>
+    <string name="app_launcher_name">Then &amp; Now</string>
 
-    <string name="camera_permission_rationale">GhostShot braucht Zugriff auf die Kamera, um Fotos aufzunehmen.</string>
+    <string name="camera_permission_rationale">Then &amp; Now Camera braucht Zugriff auf die Kamera, um Fotos aufzunehmen.</string>
     <string name="grant_permission">Kamera erlauben</string>
     <string name="camera_permission_denied">Kamerazugriff ist blockiert. Aktiviere ihn in den App-Einstellungen.</string>
     <string name="open_settings">Einstellungen öffnen</string>
@@ -96,12 +97,10 @@
     <!-- About -->
     <string name="about_screen_title">&#220;ber</string>
     <string name="about_back">Zur&#252;ck</string>
-    <string name="about_app_name">GhostShot</string>
-    <string name="about_subtitle">Then &amp; Now Camera</string>
-    <string name="about_description">Stelle Fotos mit einem Referenz-Overlay nach.</string>
-    <string name="about_trust_no_tracking">Kein Tracking</string>
-    <string name="about_trust_no_cloud_sync">Keine Cloud-Synchronisierung</string>
-    <string name="about_trust_photos_stay_device">Fotos bleiben auf deinem Ger&#228;t</string>
+    <string name="about_app_name">Then &amp; Now Camera</string>
+    <string name="about_description">Erstelle fr&#252;here Fotos mit Live-Overlays nach.</string>
+    <string name="about_local_device">Entwickelt f&#252;r die lokale Nutzung auf deinem Ger&#228;t.</string>
+    <string name="about_no_account_required">Kein Konto erforderlich.</string>
     <string name="about_version">Version %1$s</string>
 
     <!-- Camera top-right navigation -->
