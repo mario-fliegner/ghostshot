@@ -112,6 +112,7 @@
     <string name="about_version">v%1$s</string>
     <string name="about_send_feedback">Send Feedback</string>
     <string name="about_feedback_subject">Then &amp; Now Camera Feedback</string>
+    <string name="about_feedback_no_email_app">No email app found</string>
 
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Open history</string>

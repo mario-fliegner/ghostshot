@@ -1,5 +1,7 @@
 package com.isardomains.ghostshot.ui.about
 
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.ImageView
@@ -25,10 +27,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +52,7 @@ import com.isardomains.ghostshot.ui.theme.GhostShotAboutCardSurface
 import com.isardomains.ghostshot.ui.theme.GhostShotAboutFooterText
 import com.isardomains.ghostshot.ui.theme.GhostShotAboutIconSurface
 import com.isardomains.ghostshot.ui.theme.GhostShotAboutTitleText
+import kotlinx.coroutines.launch
 
 @Composable
 fun AboutScreenRoute(
@@ -61,12 +68,20 @@ fun AboutScreenRoute(
 @Composable
 fun AboutScreenContent(
     versionName: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    feedbackIntentLauncher: ((Intent) -> Boolean)? = null
 ) {
     val context = LocalContext.current
     val feedbackSubject = stringResource(R.string.about_feedback_subject)
+    val noEmailAppMessage = stringResource(R.string.about_feedback_no_email_app)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    val openFeedbackIntent = feedbackIntentLauncher ?: { intent: Intent ->
+        startFeedbackIntent(context, intent)
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.about_screen_title)) },
@@ -98,12 +113,24 @@ fun AboutScreenContent(
                         data = Uri.parse("mailto:support@isardomains.com")
                         putExtra(Intent.EXTRA_SUBJECT, feedbackSubject)
                     }
-                    context.startActivity(intent)
+                    if (!openFeedbackIntent(intent)) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(noEmailAppMessage)
+                        }
+                    }
                 }
             )
         }
     }
 }
+
+private fun startFeedbackIntent(context: Context, intent: Intent): Boolean =
+    try {
+        context.startActivity(intent)
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
 
 @Composable
 private fun AboutHeroCard() {

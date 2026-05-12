@@ -9,11 +9,13 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotTheme
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -33,6 +35,48 @@ class AboutScreenTest {
 
     @Test
     fun aboutContent_showsCoreV1Information() {
+        setAboutContent()
+
+        composeRule.onNodeWithTag("about_app_icon").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_app_name)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_description)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_local_device)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_no_account_required)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_version, "9.9")).assertIsDisplayed()
+        composeRule.onNodeWithTag("about_send_feedback")
+            .assertIsDisplayed()
+            .assertHasClickAction()
+    }
+
+    @Test
+    fun feedbackClick_invokesFeedbackAction() {
+        var launchCount = 0
+        setAboutContent(
+            feedbackIntentLauncher = {
+                launchCount++
+                true
+            }
+        )
+
+        composeRule.onNodeWithTag("about_send_feedback").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, launchCount)
+    }
+
+    @Test
+    fun feedbackClick_whenNoEmailApp_showsFallbackMessage() {
+        setAboutContent(feedbackIntentLauncher = { false })
+
+        composeRule.onNodeWithTag("about_send_feedback").performClick()
+
+        composeRule.onNodeWithText(context.getString(R.string.about_feedback_no_email_app))
+            .assertIsDisplayed()
+    }
+
+    private fun setAboutContent(
+        feedbackIntentLauncher: ((android.content.Intent) -> Boolean)? = null
+    ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario?.onActivity { activity ->
@@ -45,22 +89,13 @@ class AboutScreenTest {
                 GhostShotTheme {
                     AboutScreenContent(
                         versionName = "9.9",
-                        onBack = {}
+                        onBack = {},
+                        feedbackIntentLauncher = feedbackIntentLauncher
                     )
                 }
             }
         }
         composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag("about_app_icon").assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.about_app_name)).assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.about_description)).assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.about_local_device)).assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.about_no_account_required)).assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.about_version, "9.9")).assertIsDisplayed()
-        composeRule.onNodeWithTag("about_send_feedback")
-            .assertIsDisplayed()
-            .assertHasClickAction()
     }
 
     private fun wakeTestDevice() {
