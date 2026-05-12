@@ -251,7 +251,7 @@ Required behavior:
 ### Required image order
 
 - Left side = Reference image
-- Right side = Capture image
+- Right side = Current image
 
 This ordering is mandatory for V1 and must not be made configurable now.
 
@@ -594,7 +594,7 @@ At minimum, if visible in V1:
 - compare entry label ("Compare Images")
 - back content description if shown
 - fallback/error text
-- optional image labels such as "Reference" and "New" / "Capture"
+- optional image labels such as "Reference" and "Current"
 
 ### Implementation rule
 

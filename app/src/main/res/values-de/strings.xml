@@ -35,7 +35,7 @@
     <string name="compare_screen_title">Vergleich</string>
     <string name="compare_back">Zur Kamera</string>
     <string name="compare_label_reference">Referenz</string>
-    <string name="compare_label_capture">Aufnahme</string>
+    <string name="compare_label_capture">Aktuell</string>
     <string name="compare_slider_content_description">Vergleichs-Slider</string>
     <string name="compare_error_missing_images">Beide Bilder werden benötigt</string>
     <string name="compare_error_load_failed">Bilder konnten nicht geladen werden</string>

@@ -125,6 +125,30 @@ class CompareScreenTest {
     }
 
     @Test
+    fun compareScreen_roleBadgesUseLocalizedCompareLabels() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithText(context.getString(R.string.compare_label_reference))
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_label_capture))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun compareScreen_imageContentDescriptionsUseLocalizedCompareLabels() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.compare_label_reference))
+            .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.compare_label_capture))
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun originalPeek_badgeAppearsWhenOriginalReferenceExists() {
         val compareInput = createSessionCompareInput(includeOriginalReference = true)
         setCompareContent(compareInput.referenceUri, compareInput.captureUri)
