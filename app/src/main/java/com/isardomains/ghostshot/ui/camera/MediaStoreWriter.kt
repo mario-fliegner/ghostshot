@@ -9,6 +9,9 @@ import android.os.Build
 import android.provider.MediaStore
 import com.isardomains.ghostshot.AppConstants
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Saves bitmaps to the MediaStore using [ContentResolver] exclusively.
@@ -19,7 +22,9 @@ import java.io.IOException
  */
 object MediaStoreWriter {
 
-    private const val FOLDER = "Pictures/GhostShot"
+    private const val FOLDER = "Pictures/ThenAndNowCamera"
+    private const val FILE_PREFIX = "ThenAndNowCamera"
+    private const val FILE_TIMESTAMP_PATTERN = "yyyyMMdd_HHmmss_SSS"
     private const val MIME_TYPE = "image/jpeg"
     private const val JPEG_QUALITY = 95
 
@@ -33,11 +38,11 @@ object MediaStoreWriter {
      *   On failure the orphaned MediaStore entry is cleaned up automatically.
      */
     fun save(resolver: ContentResolver, bitmap: Bitmap): Result<Uri> {
-        val filename = "GhostShot_${System.currentTimeMillis()}.jpg"
+        val filename = generateDisplayName()
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, filename)
             put(MediaStore.Images.Media.MIME_TYPE, MIME_TYPE)
-            put(MediaStore.Images.Media.RELATIVE_PATH, FOLDER)
+            put(MediaStore.Images.Media.RELATIVE_PATH, relativePath())
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
@@ -70,6 +75,13 @@ object MediaStoreWriter {
             Result.failure(e)
         }
     }
+
+    internal fun generateDisplayName(timestampMillis: Long = System.currentTimeMillis()): String {
+        val timestamp = SimpleDateFormat(FILE_TIMESTAMP_PATTERN, Locale.US).format(Date(timestampMillis))
+        return "${FILE_PREFIX}_$timestamp.jpg"
+    }
+
+    internal fun relativePath(): String = FOLDER
 
     private fun writeSoftwareExif(resolver: ContentResolver, uri: Uri) {
         try {
