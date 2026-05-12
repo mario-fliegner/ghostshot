@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -42,10 +44,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -281,6 +283,9 @@ private fun CompareSessionTile(
     )
     val selectedDesc = stringResource(R.string.compare_library_session_selected)
     val notSelectedDesc = stringResource(R.string.compare_library_session_not_selected)
+    val reservedTextHeight = with(LocalDensity.current) {
+        MaterialTheme.typography.labelSmall.lineHeight.toDp() * 2
+    }
 
     Box(
         modifier = modifier
@@ -326,11 +331,7 @@ private fun CompareSessionTile(
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                // Invisible height anchor to always reserve two-line area
-                Column(modifier = Modifier.alpha(0f)) {
-                    Text(text = "X", style = MaterialTheme.typography.labelSmall)
-                    Text(text = "X", style = MaterialTheme.typography.labelSmall)
-                }
+                Spacer(modifier = Modifier.height(reservedTextHeight))
                 if (!session.title.isNullOrEmpty()) {
                     Column {
                         Text(

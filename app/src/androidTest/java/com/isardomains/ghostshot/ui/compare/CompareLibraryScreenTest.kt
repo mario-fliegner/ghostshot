@@ -412,6 +412,13 @@ class CompareLibraryScreenTest {
         composeRule.onNodeWithText("Untitled").assertDoesNotExist()
     }
 
+    @Test
+    fun sessions_tileDoesNotExposeLayoutAnchorText() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithText("X", useUnmergedTree = true).assertDoesNotExist()
+    }
+
     private fun createFakeSession(id: String = fakeSessionId, title: String? = null) = ScannedSession(
         sessionId = id,
         timestamp = fakeTimestamp,
