@@ -59,13 +59,13 @@
     <string name="select_reference_image_label">Referenzbild</string>
     <string name="overlay_content_description">Referenzbild</string>
     <string name="overlay_opacity_label">Deckkraft</string>
-    <string name="reset_overlay_label">Reset</string>
+    <string name="reset_overlay_label">Zurücksetzen</string>
     <string name="remove_reference_image">Referenzbild entfernen</string>
     <string name="remove_reference_image_dialog_title">Referenzbild entfernen?</string>
     <string name="remove_reference_image_dialog_message">Das Referenzbild wird entfernt</string>
     <string name="remove_reference_image_confirm">Entfernen</string>
     <string name="remove_reference_image_cancel">Abbrechen</string>
-    <string name="toggle_reference_display_mode">Referenz-Modus wechseln</string>
+    <string name="toggle_reference_display_mode">Ansicht der Referenz wechseln</string>
     <string name="reference_viewport_mismatch">Referenzbild kann leicht abweichen</string>
     <string name="reference_format_mismatch_description">Referenzbild passt evtl. nicht exakt</string>
     <string name="reference_format_mismatch_bubble">Referenzbild leicht versetzt</string>
@@ -74,9 +74,9 @@
     <string name="reference_removed_undo">Rückgängig</string>
     <string name="reference_options_badge">Referenzbild-Optionen</string>
     <string name="reference_options_badge_text">•••</string>
-    <string name="action_stack_reset_label">Reset</string>
+    <string name="action_stack_reset_label">Zurücksetzen</string>
     <string name="action_stack_display_mode_compare_label">Vergleichsmodus</string>
-    <string name="action_stack_display_mode_fit_label">Fit-Modus</string>
+    <string name="action_stack_display_mode_fit_label">Einpassen</string>
     <string name="replace_reference_image">Referenzbild ersetzen</string>
     <string name="action_stack_replace_label">Ersetzen</string>
     <string name="action_stack_remove_label">Entfernen</string>
@@ -121,5 +121,5 @@
 
     <!-- Overlay visibility warning -->
     <string name="overlay_visibility_warning_description">Referenz kaum sichtbar</string>
-    <string name="overlay_visibility_warning_bubble">Die Referenz ist kaum sichtbar. Sie können trotzdem aufnehmen, der Vergleich kann aber unbrauchbar werden.</string>
+    <string name="overlay_visibility_warning_bubble">Die Referenz ist kaum sichtbar. Du kannst trotzdem aufnehmen, aber der Vergleich kann ungenau werden.</string>
 </resources>
