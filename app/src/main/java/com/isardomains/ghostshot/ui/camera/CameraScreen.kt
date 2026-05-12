@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,6 +55,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.WindowInsets
@@ -83,6 +85,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Snackbar
@@ -90,8 +93,10 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -117,6 +122,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -126,10 +132,17 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -157,6 +170,8 @@ private val CameraOpacitySliderPortraitBottom = 128.dp
 private val CameraOpacitySliderHeight = 56.dp
 private val CameraOpacitySliderLandscapeMaxWidth = 320.dp
 private val CameraGridLineWidth = 1.dp
+private val LandscapeTopActionsTopDistance = 20.dp
+private val LandscapeOverflowMenuGap = 8.dp
 private const val CaptureSuccessSnackbarStateKey =
     "com.isardomains.ghostshot.ui.camera.CaptureSuccessSnackbar"
 private const val CaptureSuccessSnackbarLastShownGenerationKey = "lastShownGeneration"
@@ -570,15 +585,27 @@ fun CameraScreen(
                 )
 
                 // ── Layer 7: Top-right navigation ─────────────────────────────────────
-                CameraTopRightActions(
-                    onOpenHistory = onOpenCompareLibrary,
-                    onOpenSettings = onOpenSettings,
-                    onOpenAbout = onOpenAbout,
-                    modifier = Modifier
+                if (isLandscape) {
+                    CameraLandscapeTopActions(
+                        onOpenHistory = onOpenCompareLibrary,
+                        onOpenSettings = onOpenSettings,
+                        onOpenAbout = onOpenAbout,
+                        frameLeft = frameLeftDp,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    val topRightActionsModifier = Modifier
                         .align(Alignment.TopEnd)
                         .statusBarsPadding()
-                        .padding(end = 4.dp, top = 4.dp)
-                )
+                        .padding(end = 4.dp, top = 0.dp)
+                    CameraTopRightActions(
+                        onOpenHistory = onOpenCompareLibrary,
+                        onOpenSettings = onOpenSettings,
+                        onOpenAbout = onOpenAbout,
+                        iconSize = 22.dp,
+                        modifier = topRightActionsModifier
+                    )
+                }
 
             }
         }
@@ -1188,10 +1215,79 @@ internal fun CompareImagesEntry(
 }
 
 @Composable
+internal fun CameraLandscapeTopActions(
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
+    frameLeft: Dp,
+    modifier: Modifier = Modifier,
+    navigationLeftInset: Dp = WindowInsets.navigationBars.asPaddingValues()
+        .calculateLeftPadding(LayoutDirection.Ltr),
+    navigationRightInset: Dp = WindowInsets.navigationBars.asPaddingValues()
+        .calculateRightPadding(LayoutDirection.Ltr),
+    safeTopInset: Dp = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding(),
+    safeBottomInset: Dp = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+) {
+    val actionsOnStart = navigationRightInset > navigationLeftInset
+    val railWidth = maxOf(frameLeft, 64.dp)
+    val horizontalPadding = 8.dp
+    val bottomReservedHeight = cameraBottomPadding(true) + CameraShutterButtonSize + CameraBottomControlGap
+    val railAlignment = if (actionsOnStart) Alignment.CenterStart else Alignment.CenterEnd
+
+    Box(modifier = modifier.testTag("camera_landscape_top_actions_root")) {
+        Box(
+            modifier = Modifier
+                .align(railAlignment)
+                .fillMaxHeight()
+                .width(railWidth)
+                .padding(
+                    start = if (actionsOnStart) maxOf(navigationLeftInset, horizontalPadding) else horizontalPadding,
+                    end = if (actionsOnStart) horizontalPadding else maxOf(navigationRightInset, horizontalPadding),
+                    top = safeTopInset + 12.dp,
+                    bottom = safeBottomInset + bottomReservedHeight
+                )
+                .testTag("camera_landscape_top_actions_rail"),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                CameraTopRightActions(
+                    onOpenHistory = onOpenHistory,
+                    onOpenSettings = onOpenSettings,
+                    onOpenAbout = onOpenAbout,
+                    vertical = true,
+                    overflowMenuPlacement = if (actionsOnStart) {
+                        OverflowMenuPlacement.OpenToEnd
+                    } else {
+                        OverflowMenuPlacement.OpenToStart
+                    },
+                    overflowMenuGap = LandscapeOverflowMenuGap,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = LandscapeTopActionsTopDistance)
+                        .testTag("camera_landscape_top_actions")
+                )
+            }
+        }
+    }
+}
+
+internal enum class OverflowMenuPlacement {
+    OpenToStart,
+    OpenToEnd
+}
+
+@Composable
 internal fun CameraTopRightActions(
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
+    iconSize: Dp = 24.dp,
+    vertical: Boolean = false,
+    overflowMenuLayoutDirection: LayoutDirection = LayoutDirection.Ltr,
+    overflowMenuOffset: DpOffset = DpOffset.Zero,
+    overflowMenuPlacement: OverflowMenuPlacement? = null,
+    overflowMenuGap: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
@@ -1200,47 +1296,170 @@ internal fun CameraTopRightActions(
     val settingsLabel = stringResource(R.string.camera_overflow_settings)
     val aboutLabel = stringResource(R.string.camera_overflow_about)
 
-    Row(modifier = modifier) {
+    val actions: @Composable () -> Unit = {
         IconButton(
             onClick = onOpenHistory,
             modifier = Modifier
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 .testTag("camera_history_button")
                 .semantics { contentDescription = historyDescription }
         ) {
             Icon(
                 imageVector = Icons.Outlined.History,
                 contentDescription = historyDescription,
-                tint = GhostShotTextPrimary
+                tint = GhostShotTextPrimary,
+                modifier = Modifier.size(iconSize)
             )
         }
         Box {
             IconButton(
                 onClick = { overflowExpanded = true },
                 modifier = Modifier
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                     .testTag("camera_overflow_button")
                     .semantics { contentDescription = overflowDescription }
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = overflowDescription,
-                    tint = GhostShotTextPrimary
+                    tint = GhostShotTextPrimary,
+                    modifier = Modifier.size(iconSize)
                 )
             }
-            DropdownMenu(
-                expanded = overflowExpanded,
-                onDismissRequest = { overflowExpanded = false },
-                modifier = Modifier.testTag("camera_overflow_menu")
-            ) {
+            if (overflowMenuPlacement != null) {
+                CameraSideAwareOverflowMenu(
+                    expanded = overflowExpanded,
+                    onDismissRequest = { overflowExpanded = false },
+                    placement = overflowMenuPlacement,
+                    gap = overflowMenuGap,
+                    settingsLabel = settingsLabel,
+                    aboutLabel = aboutLabel,
+                    onOpenSettings = onOpenSettings,
+                    onOpenAbout = onOpenAbout
+                )
+            } else {
+                CompositionLocalProvider(LocalLayoutDirection provides overflowMenuLayoutDirection) {
+                    DropdownMenu(
+                        expanded = overflowExpanded,
+                        onDismissRequest = { overflowExpanded = false },
+                        offset = overflowMenuOffset,
+                        modifier = Modifier.testTag("camera_overflow_menu")
+                    ) {
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            DropdownMenuItem(
+                                text = { Text(settingsLabel) },
+                                onClick = { overflowExpanded = false; onOpenSettings() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(aboutLabel) },
+                                onClick = { overflowExpanded = false; onOpenAbout() }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (vertical) {
+        Column(
+            modifier = modifier,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            actions()
+        }
+    } else {
+        Row(modifier = modifier) {
+            actions()
+        }
+    }
+}
+
+@Composable
+private fun CameraSideAwareOverflowMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    placement: OverflowMenuPlacement,
+    gap: Dp,
+    settingsLabel: String,
+    aboutLabel: String,
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit
+) {
+    if (!expanded) return
+
+    val density = LocalDensity.current
+    val positionProvider = remember(placement, gap, density) {
+        SideAwareOverflowMenuPositionProvider(
+            opensToEnd = placement == OverflowMenuPlacement.OpenToEnd,
+            gapPx = with(density) { gap.roundToPx() },
+            verticalMarginPx = with(density) { 8.dp.roundToPx() }
+        )
+    }
+
+    Popup(
+        onDismissRequest = onDismissRequest,
+        popupPositionProvider = positionProvider,
+        properties = PopupProperties(focusable = true)
+    ) {
+        Surface(
+            modifier = Modifier
+                .wrapContentWidth()
+                .wrapContentHeight()
+                .width(176.dp)
+                .testTag("camera_overflow_menu"),
+            shape = MenuDefaults.shape,
+            color = MenuDefaults.containerColor,
+            tonalElevation = MenuDefaults.TonalElevation,
+            shadowElevation = MenuDefaults.ShadowElevation
+        ) {
+            Column {
                 DropdownMenuItem(
                     text = { Text(settingsLabel) },
-                    onClick = { overflowExpanded = false; onOpenSettings() }
+                    onClick = {
+                        onDismissRequest()
+                        onOpenSettings()
+                    }
                 )
                 DropdownMenuItem(
                     text = { Text(aboutLabel) },
-                    onClick = { overflowExpanded = false; onOpenAbout() }
+                    onClick = {
+                        onDismissRequest()
+                        onOpenAbout()
+                    }
                 )
             }
         }
+    }
+}
+
+internal class SideAwareOverflowMenuPositionProvider(
+    internal val opensToEnd: Boolean,
+    internal val gapPx: Int,
+    internal val verticalMarginPx: Int
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset {
+        val minX = 0
+        val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(minX)
+        val preferredX = if (opensToEnd) {
+            anchorBounds.right + gapPx
+        } else {
+            anchorBounds.left - popupContentSize.width - gapPx
+        }
+        val x = preferredX.coerceIn(minX, maxX)
+
+        val minY = verticalMarginPx
+        val maxY = (windowSize.height - verticalMarginPx - popupContentSize.height)
+            .coerceAtLeast(minY)
+        val preferredY = anchorBounds.top
+        val y = preferredY.coerceIn(minY, maxY)
+
+        return IntOffset(x, y)
     }
 }
 
