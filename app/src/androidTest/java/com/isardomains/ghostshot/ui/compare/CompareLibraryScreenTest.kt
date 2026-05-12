@@ -52,8 +52,51 @@ class CompareLibraryScreenTest {
         setLibraryContent(sessions = emptyList())
 
         composeRule.onNodeWithTag("compare_library_empty_state").assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.compare_library_empty_state))
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_empty_title))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyState_cardIsVisibleWhenSessionsIsEmpty() {
+        setLibraryContent(sessions = emptyList())
+
+        composeRule.onNodeWithTag("compare_library_empty_card").assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyState_ctaIsVisibleWhenSessionsIsEmpty() {
+        setLibraryContent(sessions = emptyList())
+
+        composeRule.onNodeWithTag("compare_library_empty_cta").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_empty_cta))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyState_ctaInvokesOnBackCallback() {
+        var backCount = 0
+        setLibraryContent(sessions = emptyList(), onBack = { backCount++ })
+
+        composeRule.onNodeWithTag("compare_library_empty_cta").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, backCount)
+    }
+
+    @Test
+    fun emptyState_bodyAndHintDoNotExistWhenSessionsIsEmpty() {
+        setLibraryContent(sessions = emptyList())
+
+        composeRule.onNodeWithText(
+            "Your saved comparisons will appear here after you capture a photo with a reference image."
+        ).assertDoesNotExist()
+        composeRule.onNodeWithText("Photos and comparisons stay on this device.")
+            .assertDoesNotExist()
+        composeRule.onNodeWithText(
+            "Ihre gespeicherten Vergleiche erscheinen hier, sobald Sie ein Foto mit Referenzbild aufnehmen."
+        ).assertDoesNotExist()
+        composeRule.onNodeWithText("Fotos und Vergleiche bleiben auf diesem Gerät.")
+            .assertDoesNotExist()
     }
 
     @Test
@@ -69,6 +112,7 @@ class CompareLibraryScreenTest {
 
         composeRule.onNodeWithTag("compare_library_grid").assertIsDisplayed()
         composeRule.onNodeWithTag("compare_library_empty_state").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_library_empty_card").assertDoesNotExist()
     }
 
     @Test
@@ -217,17 +261,6 @@ class CompareLibraryScreenTest {
         composeRule.onNodeWithText(context.getString(R.string.compare_library_selection_count, 0))
             .assertIsDisplayed()
         composeRule.onNodeWithTag("compare_library_delete_button").assertIsDisplayed()
-    }
-
-    @Test
-    fun emptyState_ctaInvokesOnBackCallback() {
-        var backCount = 0
-        setLibraryContent(sessions = emptyList(), onBack = { backCount++ })
-
-        composeRule.onNodeWithTag("compare_library_empty_cta").performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(1, backCount)
     }
 
     @Test

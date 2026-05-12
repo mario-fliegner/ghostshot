@@ -14,7 +14,7 @@
     <string name="capture_failed">Foto konnte nicht gespeichert werden</string>
 
     <string name="compare_library_title">Vergleiche</string>
-    <string name="compare_library_empty_state">Noch keine Vergleiche</string>
+    <string name="compare_library_empty_title">Noch keine Vergleiche</string>
     <string name="compare_library_empty_cta">Mach deinen ersten Vergleich</string>
     <string name="compare_library_session_content_description">Vergleich vom %s</string>
     <string name="compare_library_selection_count">%d ausgewählt</string>
