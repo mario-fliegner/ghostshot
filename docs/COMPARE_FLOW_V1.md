@@ -987,7 +987,7 @@ The following components are implemented and are part of the current release sta
 | Compare fullscreen viewing mode | Implemented |
 | Session title support | Implemented |
 | Compare/library delete behavior | Implemented |
-| CameraScreen stable bottom workflow `Overlay` / `Capture` / `Compare` | Implemented |
+| CameraScreen stable bottom workflow `Reference` / `Capture` / `Compare` | Implemented |
 | CameraScreen top-right History and Overflow navigation | Implemented |
 | Short disabled-Compare snackbar hints | Implemented |
 
@@ -1010,7 +1010,7 @@ If this section conflicts with `CAMERA_WORKFLOW_UX_V1.md`, the CameraScreen UX s
 
 Landscape camera controls must mirror the portrait structure conceptually:
 
-- Bottom row: `Overlay` / `Capture` / `Compare`
+- Bottom row: `Reference` / `Capture` / `Compare`
 - Opacity slider: separate row above the bottom row
 - Sessions/History access: top-right CameraScreen navigation
 - History access: persistent top-right CameraScreen navigation

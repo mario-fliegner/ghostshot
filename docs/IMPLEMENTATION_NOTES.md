@@ -46,7 +46,7 @@ Current release state:
 - Capture and save via MediaStore
 - Capture flash and haptic feedback on capture trigger
 - Save failures show user-facing feedback and keep the app usable
-- CameraScreen bottom workflow is stable: `Overlay` / `Capture` / `Compare`
+- CameraScreen bottom workflow is stable: `Reference` / `Capture` / `Compare`
 - Compare is always visible and never dynamically switches to Shots/History
 - Disabled Compare taps show short workflow hints (~2000 ms)
 - Top-right CameraScreen navigation contains persistent History and Overflow actions
@@ -145,7 +145,7 @@ Active compare session lifecycle — fully implemented:
 - UI is layered above the preview and does not resize it
 - Portrait controls are stacked above the bottom bar
 - Landscape controls are aligned to the preview center, independent of the navigation bar
-- Landscape bottom row is `Overlay` / `Capture` / `Compare`
+- Landscape bottom row is `Reference` / `Capture` / `Compare`
 - Landscape opacity slider is centered above the button row
 - Top-right History and Overflow actions stay visible in portrait and landscape
 - Overlay action menu stays visible and inside root bounds

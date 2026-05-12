@@ -66,6 +66,7 @@ class CameraControlsOverlayTest {
         setControlsContent(referenceUri = null, isLandscape = false)
 
         composeRule.onNodeWithContentDescription(referenceDescription()).assertIsDisplayed()
+        composeRule.onNodeWithText(referenceLabel()).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(captureDescription()).assertIsDisplayed()
         composeRule.onNodeWithTag("reference_action_add_indicator", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onAllNodesWithTag("reference_action_active_indicator", useUnmergedTree = true).assertCountEquals(0)
@@ -86,6 +87,7 @@ class CameraControlsOverlayTest {
         composeRule.onNodeWithContentDescription(captureDescription()).assertIsDisplayed()
         composeRule.onNodeWithTag("reference_action_active_indicator", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag("reference_action_options_badge", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(referenceOptionsDescription()).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(opacityDescription()).assertIsDisplayed()
         composeRule.onAllNodesWithContentDescription(displayModeDescription()).assertCountEquals(0)
         composeRule.onAllNodesWithContentDescription(resetDescription()).assertCountEquals(0)
@@ -1491,6 +1493,10 @@ class CameraControlsOverlayTest {
     }
 
     private fun referenceDescription() = context.getString(R.string.select_reference_image)
+
+    private fun referenceLabel() = context.getString(R.string.select_reference_image_label)
+
+    private fun referenceOptionsDescription() = context.getString(R.string.reference_options_badge)
 
     private fun captureDescription() = context.getString(R.string.capture_button_content_description)
 

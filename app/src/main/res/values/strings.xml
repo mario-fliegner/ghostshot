@@ -60,29 +60,29 @@
     <string name="compare_screen_title_save_failed">Couldn\'t save title</string>
 
     <!-- Reference image overlay -->
-    <string name="select_reference_image">Choose overlay</string>
-    <string name="select_reference_image_label">Overlay</string>
-    <string name="overlay_content_description">Overlay image</string>
+    <string name="select_reference_image">Choose reference image</string>
+    <string name="select_reference_image_label">Reference</string>
+    <string name="overlay_content_description">Reference image</string>
     <string name="overlay_opacity_label">Opacity</string>
     <string name="reset_overlay_label">Reset</string>
-    <string name="remove_reference_image">Remove overlay</string>
-    <string name="remove_reference_image_dialog_title">Remove overlay?</string>
-    <string name="remove_reference_image_dialog_message">The overlay will be removed.</string>
+    <string name="remove_reference_image">Remove reference image</string>
+    <string name="remove_reference_image_dialog_title">Remove reference image?</string>
+    <string name="remove_reference_image_dialog_message">The reference image will be removed.</string>
     <string name="remove_reference_image_confirm">Remove</string>
     <string name="remove_reference_image_cancel">Cancel</string>
     <string name="toggle_reference_display_mode">Switch overlay mode</string>
     <string name="reference_viewport_mismatch">Overlay may be slightly off</string>
     <string name="reference_format_mismatch_description">Overlay may not match perfectly.</string>
     <string name="reference_format_mismatch_bubble">Overlay slightly off</string>
-    <string name="reference_image_load_failed">Couldn\'t load overlay</string>
-    <string name="reference_removed_snackbar">Overlay removed</string>
+    <string name="reference_image_load_failed">Couldn\'t load reference image</string>
+    <string name="reference_removed_snackbar">Reference image removed</string>
     <string name="reference_removed_undo">Undo</string>
-    <string name="reference_options_badge">Overlay options</string>
+    <string name="reference_options_badge">Reference options</string>
     <string name="reference_options_badge_text">•••</string>
     <string name="action_stack_reset_label">Reset</string>
     <string name="action_stack_display_mode_compare_label">Compare mode</string>
     <string name="action_stack_display_mode_fit_label">Fit mode</string>
-    <string name="replace_reference_image">Replace overlay</string>
+    <string name="replace_reference_image">Replace reference image</string>
     <string name="action_stack_replace_label">Replace</string>
     <string name="action_stack_remove_label">Remove</string>
 

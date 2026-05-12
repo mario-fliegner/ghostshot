@@ -69,7 +69,7 @@ It must stay:
 ## Bottom Bar Structure
 
 Left:
-- Overlay
+- Reference
 
 Center:
 - Capture
@@ -81,18 +81,18 @@ This structure should remain persistent.
 
 ---
 
-# 4. Overlay Button Semantics
+# 4. Reference Button Semantics
 
-The Overlay button is a TOOL button.
+The Reference button is a TOOL button.
 
-It represents reference image management and related actions.
+It represents reference image management and related overlay options.
 
-## Overlay button behavior
+## Reference button behavior
 
 Tap:
-- opens overlay menu
+- opens the reference menu
 
-The overlay menu may contain:
+The reference menu may contain:
 - choose image
 - replace image
 - remove image
@@ -103,7 +103,7 @@ This menu behavior is intentional and accepted.
 
 ## Important
 
-The Overlay button is NOT required to behave identically to the Compare button.
+The Reference button is NOT required to behave identically to the Compare button.
 
 Semantic consistency is more important than mechanical symmetry.
 
@@ -257,7 +257,7 @@ Settings are NOT workflow actions.
 Therefore:
 - Settings do NOT belong in the bottom bar
 - Settings do NOT replace Compare
-- Settings do NOT belong in Overlay menu
+- Settings do NOT belong in the Reference menu
 
 ## Placement
 
@@ -353,7 +353,7 @@ Prefer:
 ## CameraScreen
 
 Bottom:
-- Overlay
+- Reference
 - Capture
 - Compare
 
