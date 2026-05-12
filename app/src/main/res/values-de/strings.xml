@@ -104,7 +104,7 @@
     <string name="about_description">Erstelle fr&#252;here Fotos mit Live-Overlays nach.</string>
     <string name="about_local_device">Entwickelt f&#252;r die lokale Nutzung auf deinem Ger&#228;t.</string>
     <string name="about_no_account_required">Kein Konto erforderlich.</string>
-    <string name="about_version">v%1$s</string>
+    <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_send_feedback">Feedback senden</string>
     <string name="about_feedback_subject">Then &amp; Now Camera Feedback</string>
     <string name="about_feedback_no_email_app">Keine E-Mail-App gefunden</string>

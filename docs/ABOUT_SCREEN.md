@@ -1,6 +1,6 @@
-# ABOUT_SCREEN_V1
+# ABOUT_SCREEN_V2
 
-This document defines the intended V1 About screen behavior and UX philosophy for GhostShot / Then & Now Camera.
+This document defines the intended V2 About screen behavior and UX philosophy for GhostShot / Then & Now Camera.
 
 This specification defines:
 - About screen purpose
@@ -80,24 +80,23 @@ About must NOT open as:
 
 ---
 
-# 3. V1 Scope
+# 3. V2 Scope
 
 ## Included
 
-V1 About screen may contain:
+V2 About screen may contain:
 - App icon
 - App name
-- Short subtitle/tagline
 - Short app description
 - Trust/privacy statements
 - App version
-- Optional build information
+- App version code
 - Optional support email
 - Back navigation
 
 ## Explicitly excluded
 
-The following are intentionally NOT part of V1:
+The following are intentionally NOT part of V2:
 - changelog
 - open-source license browser
 - WebView
@@ -119,13 +118,12 @@ The following are intentionally NOT part of V1:
 
 The About screen should feel visually lighter and calmer than Settings.
 
-Recommended structure:
+Current V2 structure:
 
 1. TopAppBar
-2. Hero section
-3. Trust section
-4. Optional feedback/contact section
-5. Footer/version section
+2. Bounded content column
+3. Hero card
+4. Footer card with version and feedback action
 
 ---
 
@@ -148,12 +146,12 @@ The hero section is the visual identity block.
 
 Recommended contents:
 - app icon
-- app name: GhostShot
-- subtitle: Then & Now Camera
+- app name: Then & Now Camera
 - short one-line description
+- short trust/privacy statements
 
 Example tone:
-- "Recreate photos with a reference overlay."
+- "Recreate past photos with live overlays."
 
 Rules:
 - concise
@@ -170,15 +168,14 @@ The hero section should visually anchor the screen.
 Purpose:
 Provide fast reassurance about privacy and product philosophy.
 
-Recommended V1 statements:
+Current V2 statements:
 - No tracking
 - No cloud sync
 - Photos stay on your device
 
 Presentation:
-- short rows
-- optional icons
-- no nested cards
+- short text statements
+- visually quiet
 - no legal-style paragraphs
 
 Rules:
@@ -199,10 +196,10 @@ Contact is optional.
 
 It should exist ONLY when a real support address is actively maintained.
 
-Recommended V1 approach:
-- visible support email address
-- optional "Email support" action
+Current V2 approach:
+- lightweight feedback action
 - uses ACTION_SENDTO with mailto:
+- shows a snackbar fallback when no email app is available
 
 Forbidden:
 - embedded feedback forms
@@ -222,30 +219,19 @@ The About screen should expose lightweight release information.
 ## Release builds
 
 Recommended:
-- Version 1.0
-- optional small Build number
+- Version 1.0 (1)
 
 Version source:
 - BuildConfig.VERSION_NAME
-
-Optional:
-- BuildConfig.VERSION_CODE shown as small secondary text
-
-## Debug/internal builds
-
-Optional:
-- short Git SHA
+- BuildConfig.VERSION_CODE
 
 Rules:
-- commit hash must not dominate the UI
-- commit hash should remain hidden in public releases unless explicitly required
+- version and code must remain lightweight footer information
+- commit hash must not be shown in normal release builds
 - no runtime Git access
 - no filesystem Git parsing
 - no network dependency
-
-Recommended implementation:
-- optional buildConfigField generated during build
-- fallback values allowed for local builds
+- no additional build automation for About V2
 
 ---
 
@@ -257,7 +243,9 @@ The About screen should visually align with:
 - CameraScreen dark theme
 
 Preferred design:
-- centered hero block
+- centered, max-width bounded content
+- hero card aligned with Settings card language
+- separate calm footer card
 - generous spacing
 - calm typography hierarchy
 - restrained icon usage
@@ -308,7 +296,7 @@ English and German must remain aligned.
 
 The About screen should remain lightweight.
 
-Preferred V1 architecture:
+Preferred V2 architecture:
 - dedicated AboutScreen composable
 - no repository layer
 - no DataStore integration
@@ -316,7 +304,7 @@ Preferred V1 architecture:
 - no ViewModel required unless future complexity demands it
 
 Recommended structure:
-- AboutScreenRoute reads BuildConfig values
+- AboutScreenRoute reads BuildConfig.VERSION_NAME and BuildConfig.VERSION_CODE
 - AboutScreenContent receives plain data parameters
 
 This allows:
@@ -336,13 +324,15 @@ Navigation:
 
 UI:
 - app name visible
-- subtitle visible
-- trust rows visible
+- description visible
+- trust statements visible
 - version visible
+- version code visible
 
 If support email exists:
 - support action visible
 - support action invokes callback or intent path correctly
+- no-email-app fallback remains visible through snackbar
 
 Preferred:
 - AboutScreenContent parameterized for fake version/build testing

@@ -34,7 +34,7 @@ class AboutScreenTest {
     }
 
     @Test
-    fun aboutContent_showsCoreV1Information() {
+    fun aboutContent_showsCoreV2Information() {
         setAboutContent()
 
         composeRule.onNodeWithTag("about_app_icon").assertIsDisplayed()
@@ -42,7 +42,7 @@ class AboutScreenTest {
         composeRule.onNodeWithText(context.getString(R.string.about_description)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.about_local_device)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.about_no_account_required)).assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.about_version, "9.9")).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.about_version, "9.9", 99)).assertIsDisplayed()
         composeRule.onNodeWithTag("about_send_feedback")
             .assertIsDisplayed()
             .assertHasClickAction()
@@ -89,6 +89,7 @@ class AboutScreenTest {
                 GhostShotTheme {
                     AboutScreenContent(
                         versionName = "9.9",
+                        versionCode = 99,
                         onBack = {},
                         feedbackIntentLauncher = feedbackIntentLauncher
                     )

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -60,6 +61,7 @@ fun AboutScreenRoute(
 ) {
     AboutScreenContent(
         versionName = BuildConfig.VERSION_NAME,
+        versionCode = BuildConfig.VERSION_CODE,
         onBack = onBack
     )
 }
@@ -68,6 +70,7 @@ fun AboutScreenRoute(
 @Composable
 fun AboutScreenContent(
     versionName: String,
+    versionCode: Int,
     onBack: () -> Unit,
     feedbackIntentLauncher: ((Intent) -> Boolean)? = null
 ) {
@@ -103,23 +106,31 @@ fun AboutScreenContent(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            AboutHeroCard()
-            AboutFooter(
-                versionName = versionName,
-                onFeedbackClick = {
-                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:support@isardomains.com")
-                        putExtra(Intent.EXTRA_SUBJECT, feedbackSubject)
-                    }
-                    if (!openFeedbackIntent(intent)) {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(noEmailAppMessage)
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 520.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                AboutHeroCard()
+                AboutFooter(
+                    versionName = versionName,
+                    versionCode = versionCode,
+                    onFeedbackClick = {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:support@isardomains.com")
+                            putExtra(Intent.EXTRA_SUBJECT, feedbackSubject)
+                        }
+                        if (!openFeedbackIntent(intent)) {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(noEmailAppMessage)
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         }
     }
 }
@@ -142,12 +153,12 @@ private fun AboutHeroCard() {
         shadowElevation = 0.dp
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
-                    .size(104.dp)
+                    .size(88.dp)
                     .clip(CircleShape)
                     .background(GhostShotAboutIconSurface),
                 contentAlignment = Alignment.Center
@@ -160,12 +171,12 @@ private fun AboutHeroCard() {
                         }
                     },
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(60.dp)
                         .testTag("about_app_icon")
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = stringResource(R.string.about_app_name),
@@ -173,7 +184,7 @@ private fun AboutHeroCard() {
                 color = GhostShotAboutTitleText,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = stringResource(R.string.about_description),
@@ -182,7 +193,7 @@ private fun AboutHeroCard() {
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             Text(
                 text = stringResource(R.string.about_local_device),
@@ -204,29 +215,46 @@ private fun AboutHeroCard() {
 @Composable
 private fun AboutFooter(
     versionName: String,
+    versionCode: Int,
     onFeedbackClick: () -> Unit
 ) {
-    Column(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        shape = MaterialTheme.shapes.medium,
+        color = GhostShotAboutCardSurface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
     ) {
-        Text(
-            text = stringResource(R.string.about_version, versionName),
-            style = MaterialTheme.typography.bodySmall,
-            color = GhostShotAboutFooterText,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.about_send_feedback),
-            style = MaterialTheme.typography.labelMedium,
-            color = GhostShotAboutActionText,
-            textAlign = TextAlign.Center,
+        Column(
             modifier = Modifier
-                .defaultMinSize(minHeight = 48.dp)
-                .clickable(onClick = onFeedbackClick)
-                .testTag("about_send_feedback")
-                .padding(horizontal = 16.dp, vertical = 14.dp)
-        )
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = stringResource(R.string.about_version, versionName, versionCode),
+                style = MaterialTheme.typography.bodySmall,
+                color = GhostShotAboutFooterText,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.small)
+                    .background(GhostShotAboutIconSurface)
+                    .defaultMinSize(minHeight = 48.dp)
+                    .clickable(onClick = onFeedbackClick)
+                    .testTag("about_send_feedback")
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.about_send_feedback),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = GhostShotAboutActionText,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
