@@ -148,6 +148,10 @@ Active compare session lifecycle — fully implemented:
 - Landscape bottom row is `Reference` / `Capture` / `Compare`
 - Landscape opacity slider is centered above the button row
 - Top-right History and Overflow actions stay visible in portrait and landscape
+- Portrait uses the classic top-right horizontal History/Overflow layout
+- Landscape uses adaptive side-rail History/Overflow placement based on navigation bar insets
+- Landscape History/Overflow actions are vertically aligned and positioned in the upper side-rail area
+- Landscape Overflow popup opens toward the free side area instead of overlapping the rail
 - Overlay action menu stays visible and inside root bounds
 
 ---

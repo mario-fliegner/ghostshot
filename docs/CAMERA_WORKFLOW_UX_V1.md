@@ -234,6 +234,21 @@ Final UI:
 - positioned left of the Overflow icon
 - always visible, even when no sessions exist
 
+Portrait behavior:
+- History and Overflow remain in the classic top-right area
+- History stays left of Overflow
+- actions remain horizontally aligned
+
+Landscape behavior:
+- History and Overflow use an adaptive side-rail navigation area
+- actions move to the opposite side of the system navigation / navigation bar area
+- actions are vertically aligned
+- History remains above Overflow
+- actions sit in the upper side-rail zone instead of geometric center alignment
+- the Overflow popup opens toward the free side area:
+  - left rail -> popup opens right
+  - right rail -> popup opens left
+
 Tap:
 - opens the Compare Library / History screen directly
 
