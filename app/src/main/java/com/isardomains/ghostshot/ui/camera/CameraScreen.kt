@@ -417,7 +417,7 @@ fun CameraScreen(
             }
             val onCapture: () -> Unit = onCapture@{
                 val imageCapture = imageCaptureState.value ?: return@onCapture
-                if (!viewModel.tryStartCapture()) return@onCapture
+                val captureToken = viewModel.tryStartCapture() ?: return@onCapture
                 captureFlashVisible = true
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 try {
@@ -428,25 +428,25 @@ fun CameraScreen(
                                 try {
                                     val bitmap = image.toBitmap()
                                     val rotation = image.imageInfo.rotationDegrees
-                                    viewModel.onPhotoCaptured(bitmap, rotation)
+                                    viewModel.onPhotoCaptured(captureToken, bitmap, rotation)
                                 } catch (_: Exception) {
-                                    viewModel.onPhotoCaptureError()
+                                    viewModel.onPhotoCaptureError(captureToken)
                                 } catch (_: OutOfMemoryError) {
-                                    viewModel.onPhotoCaptureError()
+                                    viewModel.onPhotoCaptureError(captureToken)
                                 } finally {
                                     image.close()
                                 }
                             }
 
                             override fun onError(exception: ImageCaptureException) {
-                                viewModel.onPhotoCaptureError()
+                                viewModel.onPhotoCaptureError(captureToken)
                             }
                         }
                     )
                 } catch (_: Exception) {
-                    viewModel.onPhotoCaptureError()
+                    viewModel.onPhotoCaptureError(captureToken)
                 } catch (_: OutOfMemoryError) {
-                    viewModel.onPhotoCaptureError()
+                    viewModel.onPhotoCaptureError(captureToken)
                 }
             }
 

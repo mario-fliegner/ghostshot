@@ -25,6 +25,7 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -532,22 +533,23 @@ class CameraViewModelTest {
     fun tryStartCapture_firstCallStartsSecondCallIsRejected() {
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
 
-        assertEquals(true, viewModel.tryStartCapture())
+        val token = viewModel.tryStartCapture()
+        assertNotNull(token)
         assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
 
-        assertEquals(false, viewModel.tryStartCapture())
+        assertNull(viewModel.tryStartCapture())
         assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
     }
 
     @Test
     fun onCaptureInterrupted_releasesCaptureLock_whenCallbackDoesNotArrive() {
-        assertEquals(true, viewModel.tryStartCapture())
+        assertNotNull(viewModel.tryStartCapture())
         assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
 
         viewModel.onCaptureInterrupted()
 
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
-        assertEquals(true, viewModel.tryStartCapture())
+        assertNotNull(viewModel.tryStartCapture())
     }
 
     @Test
@@ -557,14 +559,14 @@ class CameraViewModelTest {
         viewModel.onCaptureInterrupted()
 
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
-        assertEquals(true, viewModel.tryStartCapture())
+        assertNotNull(viewModel.tryStartCapture())
     }
 
     @Test
     fun onPhotoCaptureError_resetsCaptureInProgress() {
-        viewModel.tryStartCapture()
+        val token = viewModel.tryStartCapture()!!
 
-        viewModel.onPhotoCaptureError()
+        viewModel.onPhotoCaptureError(token)
 
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
     }
@@ -574,10 +576,105 @@ class CameraViewModelTest {
         val events = mutableListOf<UiEvent>()
         val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
 
-        viewModel.onPhotoCaptureError()
+        val token = viewModel.tryStartCapture()!!
+        viewModel.onPhotoCaptureError(token)
         advanceUntilIdle()
 
         job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.capture_failed, snackbars.single().messageResId)
+    }
+
+    @Test
+    fun staleSuccess_afterCaptureInterrupted_isIgnored() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+        val token = viewModel.tryStartCapture()!!
+        viewModel.onCaptureInterrupted()
+        val bitmap = mock<Bitmap>()
+
+        viewModel.onPhotoCaptured(token, bitmap, 0)
+        advanceUntilIdle()
+
+        job.cancel()
+        verify(bitmap).recycle()
+        assertNull(viewModel.lastCaptureSnapshot)
+        assertNull(viewModel.uiState.value.compareInput)
+        assertEquals(0, events.filterIsInstance<UiEvent.ShowSnackbar>().size)
+        assertEquals(0, events.filterIsInstance<UiEvent.NavigateToCompare>().size)
+    }
+
+    @Test
+    fun staleError_afterCaptureInterrupted_isIgnored() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+        val token = viewModel.tryStartCapture()!!
+        viewModel.onCaptureInterrupted()
+
+        viewModel.onPhotoCaptureError(token)
+        advanceUntilIdle()
+
+        job.cancel()
+        assertEquals(0, events.filterIsInstance<UiEvent.ShowSnackbar>().size)
+    }
+
+    @Test
+    fun tryStartCapture_afterInterrupt_returnsDifferentToken() {
+        val firstToken = viewModel.tryStartCapture()!!
+
+        viewModel.onCaptureInterrupted()
+        val secondToken = viewModel.tryStartCapture()!!
+
+        assertNotEquals(firstToken, secondToken)
+    }
+
+    @Test
+    fun staleError_doesNotReleaseNewCaptureLock() {
+        val staleToken = viewModel.tryStartCapture()!!
+        viewModel.onCaptureInterrupted()
+        assertNotNull(viewModel.tryStartCapture())
+
+        viewModel.onPhotoCaptureError(staleToken)
+
+        assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
+        assertNull(viewModel.tryStartCapture())
+    }
+
+    @Test
+    fun staleSuccess_afterInterrupt_doesNotEmitAutoOpenCompare() = runTest {
+        val testViewModel = testViewModelWithAutoOpen(autoOpenEnabled = true)
+        testViewModel.onReferenceImageSelected(mock())
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+        val token = testViewModel.tryStartCapture()!!
+        testViewModel.onCaptureInterrupted()
+        val bitmap = mock<Bitmap>()
+
+        testViewModel.onPhotoCaptured(token, bitmap, 0)
+        advanceUntilIdle()
+
+        job.cancel()
+        verify(bitmap).recycle()
+        assertEquals(0, events.filterIsInstance<UiEvent.NavigateToCompare>().size)
+    }
+
+    @Test
+    fun onPhotoCaptured_withValidToken_runsNormalPipeline() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+        val token = testViewModel.tryStartCapture()!!
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+
+        testViewModel.onPhotoCaptured(token, bitmap, 0)
+        advanceUntilIdle()
+
+        job.cancel()
+        verify(bitmap).recycle()
+        assertEquals(false, testViewModel.uiState.value.isCaptureInProgress)
         val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
         assertEquals(1, snackbars.size)
         assertEquals(R.string.capture_failed, snackbars.single().messageResId)
@@ -742,10 +839,11 @@ class CameraViewModelTest {
     @Test
     fun noReference_captureStillProceedsNormally() {
         // No reference → capture lock should still work.
-        assertEquals(true, viewModel.tryStartCapture())
+        val token = viewModel.tryStartCapture()
+        assertNotNull(token)
         assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
 
-        viewModel.onPhotoCaptureError()
+        viewModel.onPhotoCaptureError(token!!)
 
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
     }
@@ -1026,7 +1124,8 @@ class CameraViewModelTest {
         testViewModel.onReferenceImageSelected(mock())
         testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef())
 
-        testViewModel.onPhotoCaptureError()
+        val token = testViewModel.tryStartCapture()!!
+        testViewModel.onPhotoCaptureError(token)
 
         assertNotNull(testViewModel.uiState.value.compareInput)
     }
@@ -1101,9 +1200,9 @@ class CameraViewModelTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         testViewModel.onReferenceViewportChanged(1080, 1920)
         testViewModel.onReferenceImageSelected(mock())
-        testViewModel.tryStartCapture()
+        val token = testViewModel.tryStartCapture()!!
 
-        testViewModel.onPhotoCaptureError()
+        testViewModel.onPhotoCaptureError(token)
 
         assertNull(testViewModel.lastCaptureResult)
     }

@@ -55,10 +55,11 @@ class LargeReferenceFlowTest {
         }
         assertEquals(referenceUri, viewModel.uiState.value.referenceImageUri)
 
-        assertTrue(viewModel.tryStartCapture())
+        val captureToken = viewModel.tryStartCapture()
+        assertTrue(captureToken != null)
         val bitmap = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
 
-        viewModel.onPhotoCaptured(bitmap, rotationDegrees = 0)
+        viewModel.onPhotoCaptured(captureToken!!, bitmap, rotationDegrees = 0)
 
         waitUntil(timeoutMillis = 10_000) {
             !viewModel.uiState.value.isCaptureInProgress

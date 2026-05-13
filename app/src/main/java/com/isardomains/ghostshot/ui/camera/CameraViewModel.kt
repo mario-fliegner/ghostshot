@@ -7,6 +7,7 @@ import java.io.File
 import android.graphics.Matrix
 import android.net.Uri
 import android.util.Log
+import java.util.concurrent.atomic.AtomicLong
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -182,6 +183,10 @@ internal data class CaptureResult(
     val savedUri: Uri
 )
 
+internal data class CaptureToken(
+    val id: Long
+)
+
 /**
  * ViewModel for the camera screen.
  *
@@ -215,6 +220,8 @@ class CameraViewModel @Inject constructor(
     private val clock: () -> Long = { System.currentTimeMillis() }
     private var referenceImageSelectionJob: Job? = null
     private var referenceImageSelectionRequestId = 0L
+    private val nextCaptureTokenId = AtomicLong(0L)
+    private val activeCaptureTokenId = AtomicLong(NO_CAPTURE_TOKEN_ID)
 
     // Visible for testing — holds the result of the most recent successfully completed capture.
     // Null until the first successful save, and reset to null on every new capture attempt
@@ -286,6 +293,7 @@ class CameraViewModel @Inject constructor(
         const val MAX_SCALE = 3.0f
 
         private const val LOG_TAG = "GhostShot"
+        private const val NO_CAPTURE_TOKEN_ID = 0L
     }
 
     /**
@@ -548,19 +556,21 @@ class CameraViewModel @Inject constructor(
     /**
      * Atomically acquires the capture lock.
      *
-     * @return true if the lock was acquired, false if a capture is already in progress.
+     * @return a token if the lock was acquired, null if a capture is already in progress.
      */
-    fun tryStartCapture(): Boolean {
+    internal fun tryStartCapture(): CaptureToken? {
         while (true) {
             val current = _uiState.value
-            if (current.isCaptureInProgress) return false
+            if (current.isCaptureInProgress) return null
             if (_uiState.compareAndSet(
                     current,
                     current.copy(isCaptureInProgress = true)
                 )
             ) {
+                val token = CaptureToken(nextCaptureTokenId.incrementAndGet())
+                activeCaptureTokenId.set(token.id)
                 if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture started") }
-                return true
+                return token
             }
         }
     }
@@ -570,6 +580,7 @@ class CameraViewModel @Inject constructor(
      * before CameraX can reliably deliver its success or error callback.
      */
     fun onCaptureInterrupted() {
+        activeCaptureTokenId.set(NO_CAPTURE_TOKEN_ID)
         lastCaptureResult = null
         finishCapture()
     }
@@ -585,7 +596,11 @@ class CameraViewModel @Inject constructor(
      * @param bitmap Raw bitmap from ImageProxy.toBitmap(), may require rotation correction.
      * @param rotationDegrees Clockwise degrees to apply, from ImageInfo.rotationDegrees.
      */
-    fun onPhotoCaptured(bitmap: Bitmap, rotationDegrees: Int) {
+    internal fun onPhotoCaptured(token: CaptureToken, bitmap: Bitmap, rotationDegrees: Int) {
+        if (!isActiveCaptureToken(token)) {
+            bitmap.recycle()
+            return
+        }
         val currentState = _uiState.value
         val snapshot: CaptureSessionSnapshot? = if (
             currentState.referenceImageUri != null &&
@@ -652,9 +667,18 @@ class CameraViewModel @Inject constructor(
                 } else {
                     bitmap.recycle()
                 }
-                finishCapture()
+                finishCapture(token)
             }
         }
+    }
+
+    fun onPhotoCaptured(bitmap: Bitmap, rotationDegrees: Int) {
+        val tokenId = activeCaptureTokenId.get()
+        if (tokenId == NO_CAPTURE_TOKEN_ID) {
+            bitmap.recycle()
+            return
+        }
+        onPhotoCaptured(CaptureToken(tokenId), bitmap, rotationDegrees)
     }
 
     internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null) {
@@ -696,12 +720,19 @@ class CameraViewModel @Inject constructor(
      * Called by [CameraScreen] when [ImageCapture] reports a hardware or session error
      * before a frame could be delivered.
      */
-    fun onPhotoCaptureError() {
+    internal fun onPhotoCaptureError(token: CaptureToken) {
+        if (!activeCaptureTokenId.compareAndSet(token.id, NO_CAPTURE_TOKEN_ID)) return
         lastCaptureResult = null
         finishCapture()
         viewModelScope.launch {
             _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
         }
+    }
+
+    fun onPhotoCaptureError() {
+        val tokenId = activeCaptureTokenId.get()
+        if (tokenId == NO_CAPTURE_TOKEN_ID) return
+        onPhotoCaptureError(CaptureToken(tokenId))
     }
 
     fun onCameraStartError() {
@@ -712,6 +743,16 @@ class CameraViewModel @Inject constructor(
 
     private fun finishCapture() {
         _uiState.update { it.copy(isCaptureInProgress = false) }
+    }
+
+    private fun finishCapture(token: CaptureToken) {
+        if (activeCaptureTokenId.compareAndSet(token.id, NO_CAPTURE_TOKEN_ID)) {
+            finishCapture()
+        }
+    }
+
+    private fun isActiveCaptureToken(token: CaptureToken): Boolean {
+        return token.id != NO_CAPTURE_TOKEN_ID && activeCaptureTokenId.get() == token.id
     }
 
     fun updateSessionTitle(sessionId: String, title: String?) {
