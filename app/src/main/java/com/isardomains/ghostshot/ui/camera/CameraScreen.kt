@@ -230,9 +230,32 @@ fun CameraScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     val view = LocalView.current
-    DisposableEffect(uiState.keepScreenOn) {
-        view.keepScreenOn = uiState.keepScreenOn
-        onDispose { view.keepScreenOn = false }
+    DisposableEffect(view, lifecycleOwner, uiState.keepScreenOn) {
+        val lifecycle = lifecycleOwner.lifecycle
+
+        fun applyKeepScreenOn() {
+            view.keepScreenOn = uiState.keepScreenOn &&
+                lifecycle.currentState == Lifecycle.State.RESUMED
+        }
+
+        applyKeepScreenOn()
+
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> view.keepScreenOn = uiState.keepScreenOn
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP,
+                Lifecycle.Event.ON_DESTROY -> view.keepScreenOn = false
+                else -> applyKeepScreenOn()
+            }
+        }
+
+        lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycle.removeObserver(observer)
+            view.keepScreenOn = false
+        }
     }
 
     var permissionState by remember {
