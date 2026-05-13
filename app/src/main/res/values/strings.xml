@@ -15,10 +15,10 @@
     <string name="capture_failed">Couldn’t save photo</string>
 
     <!-- Compare Library -->
-    <string name="compare_library_title">Shots</string>
-    <string name="compare_library_empty_title">No shots yet</string>
+    <string name="compare_library_title">Compares</string>
+    <string name="compare_library_empty_title">No compares yet</string>
     <string name="compare_library_empty_cta">Take your first shot</string>
-    <string name="compare_library_session_content_description">Shot from %s</string>
+    <string name="compare_library_session_content_description">Compare from %s</string>
     <string name="compare_library_selection_count">%d selected</string>
     <string name="compare_library_cancel_selection">Cancel</string>
     <string name="compare_library_select_all">Select all</string>
@@ -26,15 +26,15 @@
     <string name="compare_library_delete_selected">Delete selected</string>
     <string name="compare_library_session_selected">Selected</string>
     <string name="compare_library_session_not_selected">Not selected</string>
-    <string name="compare_library_delete_dialog_title">Delete shots?</string>
-    <string name="compare_library_delete_dialog_message">The selected shots will be deleted.</string>
+    <string name="compare_library_delete_dialog_title">Delete compares?</string>
+    <string name="compare_library_delete_dialog_message">The selected compares will be deleted.</string>
     <string name="compare_library_delete_confirm">Delete</string>
     <string name="compare_library_delete_cancel">Cancel</string>
 
     <!-- Compare flow -->
     <string name="compare_images">Compare</string>
     <string name="compare_entry_label">Compare</string>
-    <string name="compare_library_entry_label">Shots</string>
+    <string name="compare_library_entry_label">Compares</string>
     <string name="compare_screen_title">Compare</string>
     <string name="compare_back">Back to camera</string>
     <string name="compare_label_reference">Reference</string>
@@ -47,9 +47,9 @@
     <string name="compare_error_load_failed">Couldn’t load images.</string>
 
     <!-- Compare screen (detail view) -->
-    <string name="compare_screen_delete">Delete shot</string>
-    <string name="compare_screen_delete_dialog_title">Delete shot?</string>
-    <string name="compare_screen_delete_dialog_message">This shot will be deleted.</string>
+    <string name="compare_screen_delete">Delete compare</string>
+    <string name="compare_screen_delete_dialog_title">Delete compare?</string>
+    <string name="compare_screen_delete_dialog_message">This compare will be deleted.</string>
     <string name="compare_screen_more_options">Options</string>
     <string name="compare_screen_edit_title">Edit title</string>
     <string name="compare_screen_edit_title_dialog_title">Edit title</string>
@@ -71,9 +71,9 @@
     <string name="remove_reference_image_confirm">Remove</string>
     <string name="remove_reference_image_cancel">Cancel</string>
     <string name="toggle_reference_display_mode">Switch overlay mode</string>
-    <string name="reference_viewport_mismatch">Overlay may be slightly off</string>
-    <string name="reference_format_mismatch_description">Overlay may not match perfectly.</string>
-    <string name="reference_format_mismatch_bubble">Overlay slightly off</string>
+    <string name="reference_viewport_mismatch">Reference may be slightly off</string>
+    <string name="reference_format_mismatch_description">Reference may not match perfectly.</string>
+    <string name="reference_format_mismatch_bubble">Reference slightly off</string>
     <string name="reference_image_load_failed">Couldn\'t load reference image</string>
     <string name="reference_removed_snackbar">Reference image removed</string>
     <string name="reference_removed_undo">Undo</string>
@@ -99,14 +99,14 @@
     <string name="settings_grid_type_rule_of_thirds_short">Thirds</string>
     <string name="settings_grid_type_quarters_short">Quarters</string>
     <string name="settings_overlay_compare_title">Overlay &amp; Compare</string>
-    <string name="settings_reset_overlay_after_capture">Reset overlay after capture</string>
+    <string name="settings_reset_overlay_after_capture">Reset reference after capture</string>
     <string name="settings_auto_open_compare_after_capture">Auto-open compare after capture</string>
 
     <!-- About -->
     <string name="about_screen_title">About</string>
     <string name="about_back">Back</string>
     <string name="about_app_name">Then &amp; Now Camera</string>
-    <string name="about_description">Recreate past photos with live overlays.</string>
+    <string name="about_description">Recreate past photos with a live reference overlay.</string>
     <string name="about_local_device">Designed to work locally on your device.</string>
     <string name="about_no_account_required">No account required.</string>
     <string name="about_version">Version %1$s (%2$d)</string>
