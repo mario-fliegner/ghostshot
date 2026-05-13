@@ -41,6 +41,7 @@ import kotlin.math.min
  * Orientation (portrait vs landscape) is determined by the device at render time, not stored here.
  */
 private const val UNDO_TIMEOUT_MS = 2500L
+private const val CAPTURE_CALLBACK_TIMEOUT_MS = 15_000L
 
 enum class TargetAspectRatio { RATIO_4_3, RATIO_16_9 }
 
@@ -220,6 +221,7 @@ class CameraViewModel @Inject constructor(
     private val clock: () -> Long = { System.currentTimeMillis() }
     private var referenceImageSelectionJob: Job? = null
     private var referenceImageSelectionRequestId = 0L
+    private var captureWatchdogJob: Job? = null
     private val nextCaptureTokenId = AtomicLong(0L)
     private val activeCaptureTokenId = AtomicLong(NO_CAPTURE_TOKEN_ID)
 
@@ -569,9 +571,25 @@ class CameraViewModel @Inject constructor(
             ) {
                 val token = CaptureToken(nextCaptureTokenId.incrementAndGet())
                 activeCaptureTokenId.set(token.id)
+                startCaptureWatchdog(token)
                 if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture started") }
                 return token
             }
+        }
+    }
+
+    private fun startCaptureWatchdog(token: CaptureToken) {
+        captureWatchdogJob?.cancel()
+        captureWatchdogJob = viewModelScope.launch {
+            delay(CAPTURE_CALLBACK_TIMEOUT_MS)
+            failCapture(token, cancelWatchdog = false)
+        }
+    }
+
+    private fun cancelCaptureWatchdog(token: CaptureToken) {
+        if (activeCaptureTokenId.get() == token.id) {
+            captureWatchdogJob?.cancel()
+            captureWatchdogJob = null
         }
     }
 
@@ -580,6 +598,8 @@ class CameraViewModel @Inject constructor(
      * before CameraX can reliably deliver its success or error callback.
      */
     fun onCaptureInterrupted() {
+        captureWatchdogJob?.cancel()
+        captureWatchdogJob = null
         activeCaptureTokenId.set(NO_CAPTURE_TOKEN_ID)
         lastCaptureResult = null
         finishCapture()
@@ -601,6 +621,7 @@ class CameraViewModel @Inject constructor(
             bitmap.recycle()
             return
         }
+        cancelCaptureWatchdog(token)
         val currentState = _uiState.value
         val snapshot: CaptureSessionSnapshot? = if (
             currentState.referenceImageUri != null &&
@@ -721,7 +742,15 @@ class CameraViewModel @Inject constructor(
      * before a frame could be delivered.
      */
     internal fun onPhotoCaptureError(token: CaptureToken) {
+        failCapture(token, cancelWatchdog = true)
+    }
+
+    private fun failCapture(token: CaptureToken, cancelWatchdog: Boolean) {
         if (!activeCaptureTokenId.compareAndSet(token.id, NO_CAPTURE_TOKEN_ID)) return
+        if (cancelWatchdog) {
+            captureWatchdogJob?.cancel()
+            captureWatchdogJob = null
+        }
         lastCaptureResult = null
         finishCapture()
         viewModelScope.launch {

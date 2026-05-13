@@ -31,6 +31,10 @@ import org.mockito.kotlin.whenever
 @OptIn(ExperimentalCoroutinesApi::class)
 class CameraViewModelTest {
 
+    private companion object {
+        const val CAPTURE_CALLBACK_TIMEOUT_MS = 15_000L
+    }
+
     private lateinit var viewModel: CameraViewModel
 
     private val fakeSettingsRepository: SettingsRepository = mock {
@@ -539,6 +543,8 @@ class CameraViewModelTest {
 
         assertNull(viewModel.tryStartCapture())
         assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
+
+        viewModel.onCaptureInterrupted()
     }
 
     @Test
@@ -656,6 +662,126 @@ class CameraViewModelTest {
 
         job.cancel()
         verify(bitmap).recycle()
+        assertEquals(0, events.filterIsInstance<UiEvent.NavigateToCompare>().size)
+    }
+
+    @Test
+    fun captureWatchdog_withoutCallback_releasesCaptureLockAfterTimeout() = runTest {
+        assertNotNull(viewModel.tryStartCapture())
+        assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
+
+        advanceTimeBy(CAPTURE_CALLBACK_TIMEOUT_MS)
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+        assertNotNull(viewModel.tryStartCapture())
+        viewModel.onCaptureInterrupted()
+    }
+
+    @Test
+    fun captureWatchdog_withoutCallback_emitsCaptureFailedOnce() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+
+        assertNotNull(viewModel.tryStartCapture())
+        advanceTimeBy(CAPTURE_CALLBACK_TIMEOUT_MS)
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.capture_failed, snackbars.single().messageResId)
+    }
+
+    @Test
+    fun captureWatchdog_successBeforeTimeout_doesNotEmitLaterTimeoutSnackbar() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+        val token = testViewModel.tryStartCapture()!!
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+
+        testViewModel.onPhotoCaptured(token, bitmap, 0)
+        advanceUntilIdle()
+        advanceTimeBy(CAPTURE_CALLBACK_TIMEOUT_MS)
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.capture_failed, snackbars.single().messageResId)
+    }
+
+    @Test
+    fun captureWatchdog_errorBeforeTimeout_doesNotEmitLaterTimeoutSnackbar() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+        val token = viewModel.tryStartCapture()!!
+
+        viewModel.onPhotoCaptureError(token)
+        advanceUntilIdle()
+        advanceTimeBy(CAPTURE_CALLBACK_TIMEOUT_MS)
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.capture_failed, snackbars.single().messageResId)
+    }
+
+    @Test
+    fun captureWatchdog_interruptBeforeTimeout_doesNotEmitLaterTimeoutSnackbar() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+
+        assertNotNull(viewModel.tryStartCapture())
+        viewModel.onCaptureInterrupted()
+        advanceTimeBy(CAPTURE_CALLBACK_TIMEOUT_MS)
+        advanceUntilIdle()
+
+        job.cancel()
+        assertEquals(0, events.filterIsInstance<UiEvent.ShowSnackbar>().size)
+    }
+
+    @Test
+    fun captureWatchdog_staleTimeoutDoesNotReleaseNewCapture() = runTest {
+        val timedOutToken = viewModel.tryStartCapture()!!
+        advanceTimeBy(CAPTURE_CALLBACK_TIMEOUT_MS)
+        advanceUntilIdle()
+        assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
+
+        val newToken = viewModel.tryStartCapture()!!
+        assertNotEquals(timedOutToken, newToken)
+        val staleBitmap = mock<Bitmap>()
+
+        viewModel.onPhotoCaptured(timedOutToken, staleBitmap, 0)
+
+        assertEquals(true, viewModel.uiState.value.isCaptureInProgress)
+        assertNull(viewModel.tryStartCapture())
+        verify(staleBitmap).recycle()
+        viewModel.onCaptureInterrupted()
+    }
+
+    @Test
+    fun staleSuccess_afterCaptureWatchdogTimeout_isIgnoredAndRecyclesBitmap() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+        val token = viewModel.tryStartCapture()!!
+
+        advanceTimeBy(CAPTURE_CALLBACK_TIMEOUT_MS)
+        advanceUntilIdle()
+        val bitmap = mock<Bitmap>()
+
+        viewModel.onPhotoCaptured(token, bitmap, 0)
+        advanceUntilIdle()
+
+        job.cancel()
+        verify(bitmap).recycle()
+        assertNull(viewModel.lastCaptureSnapshot)
+        assertNull(viewModel.uiState.value.compareInput)
+        assertEquals(1, events.filterIsInstance<UiEvent.ShowSnackbar>().size)
         assertEquals(0, events.filterIsInstance<UiEvent.NavigateToCompare>().size)
     }
 
