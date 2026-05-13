@@ -106,31 +106,48 @@ internal object SessionStorage {
     }
 
     fun updateTitle(sessionsRoot: File, sessionId: String, title: String?): Boolean {
-        val rootCanonical = sessionsRoot.canonicalPath + File.separator
-        val targetCanonical = File(sessionsRoot, sessionId).canonicalPath
-        if (!targetCanonical.startsWith(rootCanonical)) return false
+        return try {
+            val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
+            val normalizedTitle = title?.trim()?.ifEmpty { null }
 
-        val normalizedTitle = title?.trim()?.ifEmpty { null }
+            val metadataFile = File(sessionDir, "metadata.json")
+            if (!metadataFile.exists()) return false
 
-        val metadataFile = File(File(sessionsRoot, sessionId), "metadata.json")
-        if (!metadataFile.exists()) return false
+            val json = try {
+                JSONObject(metadataFile.readText())
+            } catch (e: Exception) {
+                return false
+            }
 
-        val json = try {
-            JSONObject(metadataFile.readText())
-        } catch (e: Exception) {
+            val content = json.optJSONObject("content") ?: JSONObject()
+            if (normalizedTitle != null) {
+                content.put("title", normalizedTitle)
+            } else {
+                content.remove("title")
+            }
+            json.put("content", content)
+
+            metadataFile.writeText(json.toString())
+            true
+        } catch (e: SecurityException) {
+            false
+        } catch (e: IOException) {
             return false
         }
+    }
 
-        val content = json.optJSONObject("content") ?: JSONObject()
-        if (normalizedTitle != null) {
-            content.put("title", normalizedTitle)
-        } else {
-            content.remove("title")
-        }
-        json.put("content", content)
+    private fun resolveDirectSessionDir(sessionsRoot: File, sessionId: String): File? {
+        if (sessionId.isEmpty()) return null
+        if (sessionId == "." || sessionId == "..") return null
+        if (sessionId.contains('/') || sessionId.contains('\\')) return null
+        if (File(sessionId).isAbsolute) return null
 
-        metadataFile.writeText(json.toString())
-        return true
+        val rootCanonical = sessionsRoot.canonicalFile
+        val targetCanonical = File(sessionsRoot, sessionId).canonicalFile
+        val parentCanonical = targetCanonical.parentFile?.canonicalFile ?: return null
+        if (parentCanonical.path != rootCanonical.path) return null
+        if (targetCanonical.name != sessionId) return null
+        return targetCanonical
     }
 
     private fun resolveUniqueDir(parent: File, baseName: String): File {

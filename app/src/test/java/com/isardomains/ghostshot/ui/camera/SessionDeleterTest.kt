@@ -58,4 +58,48 @@ class SessionDeleterTest {
         assertFalse(result)
         assertTrue(outsideDir.exists())
     }
+
+    @Test
+    fun nestedRelativePath_isRejected() {
+        val sessionsRoot = tempFolder.newFolder("sessions")
+        val nestedDir = File(File(sessionsRoot, "a"), "b")
+        nestedDir.mkdirs()
+        File(nestedDir, "metadata.json").writeText("{}")
+
+        val result = SessionDeleter.delete(sessionsRoot, "a/b")
+
+        assertFalse(result)
+        assertTrue(nestedDir.exists())
+    }
+
+    @Test
+    fun backslashPath_isRejected() {
+        val sessionsRoot = tempFolder.newFolder("sessions")
+
+        val result = SessionDeleter.delete(sessionsRoot, "a\\b")
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun emptyDotAndDotDotSessionIds_areRejected() {
+        val sessionsRoot = tempFolder.newFolder("sessions")
+
+        assertFalse(SessionDeleter.delete(sessionsRoot, ""))
+        assertFalse(SessionDeleter.delete(sessionsRoot, "."))
+        assertFalse(SessionDeleter.delete(sessionsRoot, ".."))
+    }
+
+    @Test
+    fun invalidDelete_doesNotDeleteDirectSession() {
+        val sessionsRoot = tempFolder.newFolder("sessions")
+        val sessionDir = File(sessionsRoot, "keep")
+        sessionDir.mkdirs()
+        File(sessionDir, "metadata.json").writeText("{}")
+
+        val result = SessionDeleter.delete(sessionsRoot, "keep/nested")
+
+        assertFalse(result)
+        assertTrue(sessionDir.exists())
+    }
 }

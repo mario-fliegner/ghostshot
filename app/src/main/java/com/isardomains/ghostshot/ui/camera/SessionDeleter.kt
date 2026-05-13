@@ -6,13 +6,8 @@ import java.io.IOException
 internal object SessionDeleter {
 
     fun delete(sessionsRoot: File, sessionId: String): Boolean {
-        val target = File(sessionsRoot, sessionId)
         return try {
-            val rootCanonical = sessionsRoot.canonicalPath + File.separator
-            val targetCanonical = target.canonicalPath
-            if (!targetCanonical.startsWith(rootCanonical)) {
-                return false
-            }
+            val target = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
             if (!target.exists()) {
                 return true
             }
@@ -22,5 +17,19 @@ internal object SessionDeleter {
         } catch (e: IOException) {
             false
         }
+    }
+
+    private fun resolveDirectSessionDir(sessionsRoot: File, sessionId: String): File? {
+        if (sessionId.isEmpty()) return null
+        if (sessionId == "." || sessionId == "..") return null
+        if (sessionId.contains('/') || sessionId.contains('\\')) return null
+        if (File(sessionId).isAbsolute) return null
+
+        val rootCanonical = sessionsRoot.canonicalFile
+        val targetCanonical = File(sessionsRoot, sessionId).canonicalFile
+        val parentCanonical = targetCanonical.parentFile?.canonicalFile ?: return null
+        if (parentCanonical.path != rootCanonical.path) return null
+        if (targetCanonical.name != sessionId) return null
+        return targetCanonical
     }
 }

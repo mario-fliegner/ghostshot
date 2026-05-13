@@ -342,4 +342,46 @@ class SessionStorageMetadataTest {
 
         assertFalse(result)
     }
+
+    @Test
+    fun updateTitle_missingDirectSession_returnsFalse() {
+        val result = SessionStorage.updateTitle(testRoot, "does-not-exist", "Title")
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun updateTitle_absolutePath_returnsFalse() {
+        val absoluteSessionId = File(testRoot, "absolute-session").absolutePath
+
+        val result = SessionStorage.updateTitle(testRoot, absoluteSessionId, "Title")
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun updateTitle_nestedRelativePath_returnsFalseAndDoesNotWrite() {
+        val nestedDir = createV2Session("a/b")
+        val metadataFile = File(nestedDir, "metadata.json")
+        val metadataBefore = metadataFile.readText()
+
+        val result = SessionStorage.updateTitle(testRoot, "a/b", "Title")
+
+        assertFalse(result)
+        assertEquals(metadataBefore, metadataFile.readText())
+    }
+
+    @Test
+    fun updateTitle_backslashPath_returnsFalse() {
+        val result = SessionStorage.updateTitle(testRoot, "a\\b", "Title")
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun updateTitle_emptyDotAndDotDotSessionIds_returnFalse() {
+        assertFalse(SessionStorage.updateTitle(testRoot, "", "Title"))
+        assertFalse(SessionStorage.updateTitle(testRoot, ".", "Title"))
+        assertFalse(SessionStorage.updateTitle(testRoot, "..", "Title"))
+    }
 }
