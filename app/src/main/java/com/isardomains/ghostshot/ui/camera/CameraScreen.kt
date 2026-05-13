@@ -482,11 +482,27 @@ fun CameraScreen(
                 // Keyed by isLandscape only — the reference image must never influence
                 // CameraX sensor/capture mode selection.
                 key(isLandscape) {
+                    var isCameraBindingReleased by remember { mutableStateOf(false) }
+                    var boundCameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+                    var boundPreview by remember { mutableStateOf<Preview?>(null) }
                     val imageCapture = remember {
                         ImageCapture.Builder()
                             .setTargetAspectRatio(AspectRatio.RATIO_16_9)
                             .build()
                             .also { imageCaptureState.value = it }
+                    }
+                    DisposableEffect(imageCapture) {
+                        onDispose {
+                            isCameraBindingReleased = true
+                            imageCaptureState.value = null
+                            val cameraProvider = boundCameraProvider
+                            val preview = boundPreview
+                            if (cameraProvider != null && preview != null) {
+                                cameraProvider.unbind(preview, imageCapture)
+                            }
+                            boundCameraProvider = null
+                            boundPreview = null
+                        }
                     }
                     Box(modifier = Modifier.fillMaxSize()) {
                         // ── Layer 1: Camera preview ───────────────────────────────────────
@@ -497,7 +513,9 @@ fun CameraScreen(
                                 cameraProviderFuture.addListener(
                                     {
                                         try {
+                                            if (isCameraBindingReleased) return@addListener
                                             val cameraProvider = cameraProviderFuture.get()
+                                            if (isCameraBindingReleased) return@addListener
                                             if (!cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) {
                                                 imageCaptureState.value = null
                                                 viewModel.onCameraStartError()
@@ -525,6 +543,8 @@ fun CameraScreen(
                                                 CameraSelector.DEFAULT_BACK_CAMERA,
                                                 useCaseGroup
                                             )
+                                            boundCameraProvider = cameraProvider
+                                            boundPreview = preview
                                         } catch (_: Exception) {
                                             imageCaptureState.value = null
                                             viewModel.onCameraStartError()
