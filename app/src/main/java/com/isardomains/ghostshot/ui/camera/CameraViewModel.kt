@@ -704,6 +704,12 @@ class CameraViewModel @Inject constructor(
         }
     }
 
+    fun onCameraStartError() {
+        viewModelScope.launch {
+            _uiEvent.emit(UiEvent.ShowSnackbar(R.string.camera_start_failed))
+        }
+    }
+
     private fun finishCapture() {
         _uiState.update { it.copy(isCaptureInProgress = false) }
     }

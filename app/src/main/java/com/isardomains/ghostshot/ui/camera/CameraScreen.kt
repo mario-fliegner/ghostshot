@@ -500,7 +500,7 @@ fun CameraScreen(
                                             val cameraProvider = cameraProviderFuture.get()
                                             if (!cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) {
                                                 imageCaptureState.value = null
-                                                viewModel.onPhotoCaptureError()
+                                                viewModel.onCameraStartError()
                                                 return@addListener
                                             }
 
@@ -527,7 +527,7 @@ fun CameraScreen(
                                             )
                                         } catch (_: Exception) {
                                             imageCaptureState.value = null
-                                            viewModel.onPhotoCaptureError()
+                                            viewModel.onCameraStartError()
                                         }
                                     },
                                     ContextCompat.getMainExecutor(ctx)

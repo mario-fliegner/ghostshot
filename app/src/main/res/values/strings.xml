@@ -14,6 +14,7 @@
     <string name="capture_saved">Photo saved</string>
     <string name="capture_saved_compare_action">Compare</string>
     <string name="capture_failed">Couldn’t save photo</string>
+    <string name="camera_start_failed">Camera could not be started.</string>
 
     <!-- Compare Library -->
     <string name="compare_library_title">Compares</string>
@@ -44,8 +45,10 @@
     <string name="compare_original_reference">ORIGINAL</string>
     <string name="compare_show_original_reference">Show original reference</string>
     <string name="compare_original_reference_active">Original reference visible</string>
-    <string name="compare_error_missing_images">Add both images.</string>
-    <string name="compare_error_load_failed">Couldn’t load images.</string>
+    <string name="compare_error_missing_images">Images missing</string>
+    <string name="compare_error_missing_images_body">Add a reference and take a photo before comparing.</string>
+    <string name="compare_error_load_failed">Images could not be loaded</string>
+    <string name="compare_error_load_failed_body">One of the images is missing or unreadable.</string>
 
     <!-- Compare screen (detail view) -->
     <string name="compare_screen_delete">Delete compare</string>

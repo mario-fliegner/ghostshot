@@ -569,6 +569,35 @@ class CameraViewModelTest {
         assertEquals(false, viewModel.uiState.value.isCaptureInProgress)
     }
 
+    @Test
+    fun onPhotoCaptureError_emitsCaptureFailed() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+
+        viewModel.onPhotoCaptureError()
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.capture_failed, snackbars.single().messageResId)
+    }
+
+    @Test
+    fun onCameraStartError_emitsCameraStartFailed_notCaptureFailed() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { viewModel.uiEvent.collect { events.add(it) } }
+
+        viewModel.onCameraStartError()
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.camera_start_failed, snackbars.single().messageResId)
+        assertNotEquals(R.string.capture_failed, snackbars.single().messageResId)
+    }
+
     // --- onReferenceImageRemoveUndo ---
 
     @Test

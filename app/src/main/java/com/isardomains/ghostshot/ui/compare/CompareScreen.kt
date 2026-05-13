@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -85,6 +86,7 @@ import coil.imageLoader
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.theme.GhostShotAccent
 import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotAppSurfaceElevated
 import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeBackground
 import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeBackgroundActive
 import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeContent
@@ -92,6 +94,8 @@ import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeContentAc
 import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLabelBackground
 import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLabelContent
 import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLetterboxBackground
+import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
+import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -319,7 +323,8 @@ fun CompareScreen(
                             ) {
                                 when {
                                     !hasValidInput -> CompareMessageFallback(
-                                        text = stringResource(R.string.compare_error_missing_images),
+                                        title = stringResource(R.string.compare_error_missing_images),
+                                        body = stringResource(R.string.compare_error_missing_images_body),
                                         testTag = "compare_missing_input_fallback"
                                     )
                                     else -> CompareSliderViewport(
@@ -387,7 +392,8 @@ fun CompareScreen(
                 ) {
                     when {
                         !hasValidInput -> CompareMessageFallback(
-                            text = stringResource(R.string.compare_error_missing_images),
+                            title = stringResource(R.string.compare_error_missing_images),
+                            body = stringResource(R.string.compare_error_missing_images_body),
                             testTag = "compare_missing_input_fallback"
                         )
 
@@ -468,7 +474,8 @@ private fun CompareSliderViewport(
 
     if (loadFailed) {
         CompareMessageFallback(
-            text = stringResource(R.string.compare_error_load_failed),
+            title = stringResource(R.string.compare_error_load_failed),
+            body = stringResource(R.string.compare_error_load_failed_body),
             testTag = "compare_load_failed_fallback"
         )
         return
@@ -860,25 +867,60 @@ private fun CompareDivider(
 
 @Composable
 private fun CompareMessageFallback(
-    text: String,
+    title: String,
+    body: String,
     testTag: String
 ) {
-    Column(
-        modifier = Modifier.testTag(testTag),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.size(32.dp)
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Surface(
+            modifier = Modifier
+                .widthIn(max = 520.dp)
+                .fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = GhostShotAppSurface,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(GhostShotAppSurfaceElevated),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = GhostShotTextPrimary.copy(alpha = 0.88f),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = GhostShotTextPrimary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = GhostShotTextSecondary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
 

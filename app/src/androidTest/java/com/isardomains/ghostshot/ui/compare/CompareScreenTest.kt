@@ -88,6 +88,11 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_missing_input_fallback").assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.compare_error_missing_images))
             .assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_error_missing_images_body))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_back_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_back_button").performClick()
+        composeRule.waitForIdle()
     }
 
     @Test
@@ -839,6 +844,11 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_load_failed_fallback").assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.compare_error_load_failed))
             .assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_error_load_failed_body))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_back_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_back_button").performClick()
+        composeRule.waitForIdle()
     }
 
     @Test
