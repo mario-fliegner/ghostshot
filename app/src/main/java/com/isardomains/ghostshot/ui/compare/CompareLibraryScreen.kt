@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -260,6 +261,9 @@ fun CompareLibraryScreen(
                         Spacer(modifier = Modifier.height(18.dp))
                         Button(
                             onClick = onBack,
+                            colors = ButtonDefaults.buttonColors(
+                                contentColor = GhostShotTextPrimary
+                            ),
                             modifier = Modifier.testTag("compare_library_empty_cta")
                         ) {
                             Text(stringResource(R.string.compare_library_empty_cta))
