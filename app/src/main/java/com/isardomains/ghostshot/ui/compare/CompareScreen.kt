@@ -857,10 +857,18 @@ private fun CompareDivider(
         ) {
             Box(
                 modifier = Modifier
-                    .size(10.dp)
+                    .size(16.dp)
                     .clip(CircleShape)
-                    .background(GhostShotAccent)
-            )
+                    .background(GhostShotTextPrimary.copy(alpha = 0.95f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(GhostShotAccent)
+                )
+            }
         }
     }
 }
