@@ -786,9 +786,13 @@ class CameraViewModel @Inject constructor(
 
     fun updateSessionTitle(sessionId: String, title: String?) {
         viewModelScope.launch {
-            val success = withContext(ioDispatcher) {
-                val sessionsRoot = File(context.filesDir, "sessions")
-                sessionTitleUpdater(sessionsRoot, sessionId, title?.trim()?.ifEmpty { null })
+            val success = try {
+                withContext(ioDispatcher) {
+                    val sessionsRoot = File(context.filesDir, "sessions")
+                    sessionTitleUpdater(sessionsRoot, sessionId, title?.trim()?.ifEmpty { null })
+                }
+            } catch (e: Exception) {
+                false
             }
             if (!success) {
                 _uiEvent.emit(UiEvent.ShowSnackbar(R.string.compare_screen_title_save_failed))

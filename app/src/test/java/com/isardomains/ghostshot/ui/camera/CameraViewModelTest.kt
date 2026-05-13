@@ -1711,6 +1711,28 @@ class CameraViewModelTest {
         assertEquals(R.string.compare_screen_title_save_failed, snackbars[0].messageResId)
     }
 
+    @Test
+    fun updateSessionTitle_updaterThrows_emitsSnackbarFailure() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null },
+            fakeSettingsRepository,
+            { _ -> emptyList() },
+            { _, _, _ -> throw RuntimeException("unexpected disk error") }
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.updateSessionTitle("session-1", "Some Title")
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.compare_screen_title_save_failed, snackbars[0].messageResId)
+    }
+
     // --- onCompareDisabledTapped ---
 
     @Test
