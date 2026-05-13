@@ -145,7 +145,7 @@ Active compare session lifecycle — fully implemented:
 - Titles are trimmed; blank titles are stored as absent
 - CompareScreen allows editing and removing a title
 - CompareLibrary displays titles above timestamps when present
-- Title-save failures show a Snackbar
+- Title-save failures, including unexpected exceptions from the title updater, are handled via the existing failure Snackbar (`compare_screen_title_save_failed`); the ViewModel launch does not surface uncaught exceptions
 
 ### Layout
 - Fullscreen `Box` root
@@ -250,6 +250,7 @@ Existing tests cover the critical release paths around:
 - snackbar replay protection
 - session scanner/storage/deleter behavior
 - title metadata read/write behavior
+- title-update exception boundary (ViewModel-level `catch(Exception)`, failure Snackbar path verified via `updateSessionTitle_updaterThrows_emitsSnackbarFailure`)
 - compare navigation
 - compare slider and fullscreen behavior
 - compare library grid, navigation, selection, delete, and title display
