@@ -4,13 +4,17 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.ui.camera.GridType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -20,6 +24,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -71,6 +76,35 @@ class SettingsRepositoryTest {
     fun setGridType_ruleOfThirdsCanBeSetExplicitly() = testScope.runTest {
         repository.setGridType(GridType.QUARTERS)
         repository.setGridType(GridType.RULE_OF_THIRDS)
+        assertEquals(GridType.RULE_OF_THIRDS, repository.gridType.first())
+    }
+
+    @Test
+    fun gridType_readException_defaultsToRuleOfThirds() = testScope.runTest {
+        val failingRepository = SettingsRepository(
+            object : DataStore<Preferences> {
+                override val data: Flow<Preferences> = flow {
+                    throw IOException("read failed")
+                }
+
+                override suspend fun updateData(
+                    transform: suspend (t: Preferences) -> Preferences
+                ): Preferences {
+                    error("updateData should not be called")
+                }
+            }
+        )
+
+        assertEquals(GridType.RULE_OF_THIRDS, failingRepository.gridType.first())
+    }
+
+    @Test
+    fun gridType_invalidStoredValue_defaultsToRuleOfThirds() = testScope.runTest {
+        val key = stringPreferencesKey("grid_type")
+        dataStore.edit { prefs ->
+            prefs[key] = "not-a-grid-type"
+        }
+
         assertEquals(GridType.RULE_OF_THIRDS, repository.gridType.first())
     }
 

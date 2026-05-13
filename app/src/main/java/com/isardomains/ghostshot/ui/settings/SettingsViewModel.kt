@@ -19,27 +19,35 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GridType.RULE_OF_THIRDS)
 
     fun onGridTypeSelected(type: GridType) {
-        viewModelScope.launch { repository.setGridType(type) }
+        viewModelScope.launch {
+            runCatching { repository.setGridType(type) }
+        }
     }
 
     val keepScreenOn: StateFlow<Boolean> = repository.keepScreenOn
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     fun onKeepScreenOnChanged(enabled: Boolean) {
-        viewModelScope.launch { repository.setKeepScreenOn(enabled) }
+        viewModelScope.launch {
+            runCatching { repository.setKeepScreenOn(enabled) }
+        }
     }
 
     val resetOverlayAfterCapture: StateFlow<Boolean> = repository.resetOverlayAfterCapture
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun onResetOverlayAfterCaptureChanged(enabled: Boolean) {
-        viewModelScope.launch { repository.setResetOverlayAfterCapture(enabled) }
+        viewModelScope.launch {
+            runCatching { repository.setResetOverlayAfterCapture(enabled) }
+        }
     }
 
     val autoOpenCompareAfterCapture: StateFlow<Boolean> = repository.autoOpenCompareAfterCapture
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun onAutoOpenCompareAfterCaptureChanged(enabled: Boolean) {
-        viewModelScope.launch { repository.setAutoOpenCompareAfterCapture(enabled) }
+        viewModelScope.launch {
+            runCatching { repository.setAutoOpenCompareAfterCapture(enabled) }
+        }
     }
 }

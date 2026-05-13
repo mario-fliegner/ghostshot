@@ -14,6 +14,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -73,6 +74,18 @@ class SettingsViewModelTest {
         viewModel.onGridTypeSelected(GridType.QUARTERS)
         advanceUntilIdle()
         verify(repository).setGridType(GridType.QUARTERS)
+    }
+
+    @Test
+    fun onGridTypeSelected_repositoryThrows_doesNotCrashScope() = runTest {
+        doThrow(RuntimeException("write failed"))
+            .whenever(repository)
+            .setGridType(GridType.NONE)
+
+        viewModel.onGridTypeSelected(GridType.NONE)
+        advanceUntilIdle()
+
+        assertEquals(GridType.RULE_OF_THIRDS, viewModel.gridType.value)
     }
 
     @Test
