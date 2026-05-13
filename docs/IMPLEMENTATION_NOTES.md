@@ -43,9 +43,13 @@ Current release state:
 - CameraX Preview working reliably
 - Back camera only
 - Lifecycle-safe preview handling
+- Locally bound CameraX use cases are released when the Camera composition is disposed; async provider binding is guarded against late bind after dispose
 - Capture and save via MediaStore
+- Capture callbacks are protected with ViewModel-issued capture tokens so stale CameraX success/error callbacks after rotation or navigation are ignored before starting the save pipeline
+- Stale capture success callbacks recycle the delivered bitmap and do not emit save, compare, navigation, or snackbar side effects
 - Capture flash and haptic feedback on capture trigger
 - Save failures show user-facing feedback and keep the app usable
+- Camera start/bind failures use a dedicated camera-start error path and invalidate `imageCaptureState`
 - CameraScreen bottom workflow is stable: `Reference` / `Capture` / `Compare`
 - Compare is always visible and never dynamically switches to Shots/History
 - Disabled Compare taps show short workflow hints (~2000 ms)
@@ -76,6 +80,9 @@ Current release state:
   - initial request
   - rationale
   - permanent denial -> app settings
+- Camera permission is rechecked on `ON_RESUME` after returning from Android Settings
+- Returning from Settings does not trigger an automatic permission re-request
+- Permanently denied state updates without requiring an app restart
 
 ### Reference Image
 - Android Photo Picker integration
@@ -130,6 +137,7 @@ Active compare session lifecycle — fully implemented:
 - Missing, corrupt, or incomplete session metadata is ignored during scanning
 - Session writes are best-effort and do not invalidate the main MediaStore save
 - Session deletion only removes internal session folders
+- Session operations accept only direct child session IDs; nested or traversal-like IDs are rejected with controlled failure
 
 ### Shot Titles
 - Optional session title stored in `metadata.json`
@@ -188,6 +196,7 @@ Important:
 - `data_extraction_rules.xml` excludes `sessions/` from cloud backup and device transfer
 - `SessionDeleter` validates target paths against path traversal
 - `SessionStorage.updateTitle` validates target paths against path traversal
+- Invalid session IDs are rejected before IO/path traversal behavior and return controlled failure (`false`)
 - Debug/session logs are guarded by `BuildConfig.DEBUG`
 - R8 minify and resource shrinking are enabled for release
 - Build and release artifacts are ignored by `.gitignore`

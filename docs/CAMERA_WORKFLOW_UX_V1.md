@@ -7,7 +7,7 @@ Future UI changes should follow this specification unless explicitly superseded.
 
 Current UX specification for the GhostShot main camera workflow and navigation structure.
 
-Last updated: 2026-05-11.
+Last updated: 2026-05-13.
 
 This document defines the intended long-term UX semantics for:
 - CameraScreen
@@ -292,6 +292,8 @@ Current behavior:
 - tapping any non-routed placeholder entry must close the menu cleanly
 - no fake route and no crash are allowed
 
+When camera permission is blocked, CameraScreen shows a dedicated polished fallback state and updates the blocked state after returning from Android Settings.
+
 Potential future entries:
 - Help
 - Feedback
@@ -474,6 +476,8 @@ Settings must not:
 - trigger compare navigation without a valid compare session
 - replay navigation after rotation or recomposition
 - delete internal compare sessions unless the user explicitly deletes them
+
+CameraScreen internally ignores stale capture callbacks after rotation or navigation so old CameraX success/error callbacks do not create new compare, navigation, save, or snackbar side effects.
 
 ---
 
