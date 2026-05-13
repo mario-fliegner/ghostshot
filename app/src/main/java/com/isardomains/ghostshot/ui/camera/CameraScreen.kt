@@ -80,6 +80,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -132,6 +133,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -147,11 +149,15 @@ import androidx.compose.ui.zIndex
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import coil.compose.AsyncImage
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
+import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
+import com.isardomains.ghostshot.ui.theme.GhostShotAppSurfaceElevated
 import com.isardomains.ghostshot.ui.theme.GhostShotGridLine
 import com.isardomains.ghostshot.ui.theme.GhostShotOverlayScrim
 import com.isardomains.ghostshot.ui.theme.GhostShotPreviewFrameScrim
@@ -250,6 +256,39 @@ fun CameraScreen(
                 activity, Manifest.permission.CAMERA
             ) -> CameraPermissionState.SHOW_RATIONALE
             else -> CameraPermissionState.PERMANENTLY_DENIED
+        }
+    }
+    val currentPermissionState = rememberUpdatedState(permissionState)
+
+    DisposableEffect(lifecycleOwner, context, activity) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
+            val isGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+            if (isGranted) {
+                permissionState = CameraPermissionState.GRANTED
+                return@LifecycleEventObserver
+            }
+            if (currentPermissionState.value == CameraPermissionState.CHECKING) {
+                return@LifecycleEventObserver
+            }
+            permissionState = if (
+                activity != null &&
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity,
+                    Manifest.permission.CAMERA
+                )
+            ) {
+                CameraPermissionState.SHOW_RATIONALE
+            } else {
+                CameraPermissionState.PERMANENTLY_DENIED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -633,25 +672,67 @@ fun CameraScreen(
         CameraPermissionState.PERMANENTLY_DENIED -> {
             // Permission permanently blocked; only the system settings page can unblock it.
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(32.dp)
+                Surface(
+                    modifier = Modifier
+                        .widthIn(max = 520.dp)
+                        .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    color = GhostShotAppSurface,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp
                 ) {
-                    Text(stringResource(R.string.camera_permission_denied))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = {
-                        val intent = Intent(
-                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                        ).apply {
-                            data = Uri.fromParts("package", context.packageName, null)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(GhostShotAppSurfaceElevated),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = GhostShotTextPrimary.copy(alpha = 0.88f)
+                            )
                         }
-                        context.startActivity(intent)
-                    }) {
-                        Text(stringResource(R.string.open_settings))
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text(
+                            text = stringResource(R.string.camera_permission_blocked_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = GhostShotTextPrimary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = stringResource(R.string.camera_permission_blocked_body),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = GhostShotTextSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Button(
+                            onClick = {
+                                val intent = Intent(
+                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                                ).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                }
+                                context.startActivity(intent)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                contentColor = GhostShotTextPrimary
+                            )
+                        ) {
+                            Text(stringResource(R.string.open_settings))
+                        }
                     }
                 }
             }

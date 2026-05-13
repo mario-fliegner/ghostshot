@@ -4,7 +4,8 @@
 
     <string name="camera_permission_rationale">Then &amp; Now Camera braucht Zugriff auf die Kamera, um Fotos aufzunehmen.</string>
     <string name="grant_permission">Kamera erlauben</string>
-    <string name="camera_permission_denied">Kamerazugriff ist blockiert. Aktiviere ihn in den App-Einstellungen.</string>
+    <string name="camera_permission_blocked_title">Kamerazugriff erforderlich</string>
+    <string name="camera_permission_blocked_body">Aktiviere den Kamerazugriff in den Android-Einstellungen, um Fotos aufzunehmen.</string>
     <string name="open_settings">Einstellungen öffnen</string>
 
     <string name="capture_button_content_description">Foto aufnehmen</string>

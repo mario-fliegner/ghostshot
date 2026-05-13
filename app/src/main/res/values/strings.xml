@@ -4,7 +4,8 @@
     <!-- Camera permission screens -->
     <string name="camera_permission_rationale">Then &amp; Now Camera needs camera access to take photos.</string>
     <string name="grant_permission">Allow camera</string>
-    <string name="camera_permission_denied">Camera access is blocked. Enable it in app settings.</string>
+    <string name="camera_permission_blocked_title">Camera access needed</string>
+    <string name="camera_permission_blocked_body">Enable camera access in Android settings to take photos.</string>
     <string name="open_settings">Open settings</string>
 
     <!-- Capture -->
