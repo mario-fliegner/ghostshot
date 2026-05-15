@@ -58,6 +58,7 @@
     <string name="compare_screen_edit_title_hint">Titel</string>
     <string name="compare_screen_remove_title">Titel entfernen</string>
     <string name="compare_screen_title_save_failed">Titel konnte nicht gespeichert werden</string>
+    <string name="delete_failed">Vergleich konnte nicht gelöscht werden</string>
 
     <string name="select_reference_image">Referenzbild auswählen</string>
     <string name="select_reference_image_label">Referenzbild</string>

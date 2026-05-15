@@ -4,12 +4,14 @@ package com.isardomains.ghostshot.ui.camera
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import java.io.File
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -19,8 +21,10 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.doReturn
@@ -1627,6 +1631,91 @@ class CameraViewModelTest {
         assertNull(testViewModel.uiState.value.compareInput)
     }
 
+    @Test
+    fun deleteSessions_whenDeleteFails_emitsDeleteFailedSnackbar() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, { _, _ -> false }
+        )
+
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+        testViewModel.deleteSessions(listOf("session-x"))
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.delete_failed, snackbars.first().messageResId)
+    }
+
+    @Test
+    fun deleteSessions_whenDeleteFails_preservesCompareInput() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, { _, _ -> false }
+        )
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef(sessionId = "active-session"))
+        assertNotNull(testViewModel.uiState.value.compareInput)
+
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect {} }
+        testViewModel.deleteSessions(listOf("active-session"))
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        assertNotNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun deleteSessions_whenDeleteSucceeds_clearsCompareInput() = runTest {
+        val testViewModel = testViewModelWithDeleter { _, _ -> true }
+        testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef(sessionId = "active-session"))
+        assertNotNull(testViewModel.uiState.value.compareInput)
+
+        testViewModel.deleteSessions(listOf("active-session"))
+        advanceUntilIdle()
+
+        assertNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
+    fun deleteSessions_whenDeleteSucceeds_emitsNoDeleteFailedSnackbar() = runTest {
+        val events = mutableListOf<UiEvent>()
+        val testViewModel = testViewModelWithDeleter { _, _ -> true }
+
+        val job = launch { testViewModel.uiEvent.collect { events.add(it) } }
+        testViewModel.deleteSessions(listOf("session-x"))
+        advanceUntilIdle()
+        job.cancel()
+
+        val deleteFailedSnackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+            .filter { it.messageResId == R.string.delete_failed }
+        assertEquals(0, deleteFailedSnackbars.size)
+    }
+
+    @Test
+    fun deleteSession_whenDeleteSucceeds_returnsTrue() = runTest {
+        val testViewModel = testViewModelWithDeleter { _, _ -> true }
+
+        val result = testViewModel.deleteSession("session-x")
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun deleteSession_whenDeleteFails_returnsFalse() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, { _, _ -> false }
+        )
+
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect {} }
+        val result = testViewModel.deleteSession("session-x")
+        collectJob.cancel()
+
+        assertFalse(result)
+    }
+
     // --- updateSessionTitle ---
 
     @Test
@@ -1937,6 +2026,20 @@ class CameraViewModelTest {
             { null },
             fakeSettingsRepository,
             scanner
+        )
+    }
+
+    private fun testViewModelWithDeleter(
+        deleter: (File, String) -> Boolean
+    ): CameraViewModel {
+        return CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { null },
+            fakeSettingsRepository,
+            { _ -> emptyList() },
+            null,
+            deleter
         )
     }
 

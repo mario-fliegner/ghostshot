@@ -215,6 +215,9 @@ class CameraViewModel @Inject constructor(
     private var sessionTitleUpdater: (File, String, String?) -> Boolean =
         { root, id, title -> SessionStorage.updateTitle(root, id, title) }
 
+    private var sessionDeleter: (File, String) -> Boolean =
+        { root, id -> SessionDeleter.delete(root, id) }
+
     private var displayModeChangedByUser = false
     private var undoSnapshot: ReferenceUndoSnapshot? = null
     private var undoTimeoutJob: Job? = null
@@ -245,13 +248,17 @@ class CameraViewModel @Inject constructor(
         referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata?,
         settingsRepository: SettingsRepository,
         sessionScanner: (Context) -> List<ScannedSession> = { ctx -> SessionScanner.scan(ctx) },
-        sessionTitleUpdater: ((File, String, String?) -> Boolean)? = null
+        sessionTitleUpdater: ((File, String, String?) -> Boolean)? = null,
+        sessionDeleter: ((File, String) -> Boolean)? = null
     ) : this(context, settingsRepository) {
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
         this.sessionScanner = sessionScanner
         if (sessionTitleUpdater != null) {
             this.sessionTitleUpdater = sessionTitleUpdater
+        }
+        if (sessionDeleter != null) {
+            this.sessionDeleter = sessionDeleter
         }
     }
 
@@ -820,21 +827,46 @@ class CameraViewModel @Inject constructor(
     }
 
     fun deleteSessions(sessionIds: List<String>) {
-        val deletedSet = sessionIds.toSet()
         viewModelScope.launch(ioDispatcher) {
             val sessionsRoot = File(context.filesDir, "sessions")
+            val failedIds = mutableSetOf<String>()
             for (sessionId in sessionIds) {
-                SessionDeleter.delete(sessionsRoot, sessionId)
+                if (!sessionDeleter(sessionsRoot, sessionId)) {
+                    failedIds.add(sessionId)
+                }
             }
+            val succeededIds = sessionIds.toSet() - failedIds
             val sessions = scanSavedSessionsSafely()
             _uiState.update { current ->
                 val activeSessionDeleted = current.compareInput?.sessionId
-                    ?.let { it in deletedSet } ?: false
+                    ?.let { it in succeededIds } ?: false
                 current.copy(
                     savedSessions = sessions,
                     compareInput = if (activeSessionDeleted) null else current.compareInput
                 )
             }
+            if (failedIds.isNotEmpty()) {
+                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.delete_failed))
+            }
+        }
+    }
+
+    suspend fun deleteSession(sessionId: String): Boolean {
+        return withContext(ioDispatcher) {
+            val sessionsRoot = File(context.filesDir, "sessions")
+            val succeeded = sessionDeleter(sessionsRoot, sessionId)
+            val sessions = scanSavedSessionsSafely()
+            _uiState.update { current ->
+                val activeSessionDeleted = succeeded && current.compareInput?.sessionId == sessionId
+                current.copy(
+                    savedSessions = sessions,
+                    compareInput = if (activeSessionDeleted) null else current.compareInput
+                )
+            }
+            if (!succeeded) {
+                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.delete_failed))
+            }
+            succeeded
         }
     }
 

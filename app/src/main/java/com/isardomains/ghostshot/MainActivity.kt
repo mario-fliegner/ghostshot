@@ -15,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import com.isardomains.ghostshot.ui.compare.CompareScreen
 import com.isardomains.ghostshot.ui.settings.SettingsScreen
 import com.isardomains.ghostshot.ui.theme.GhostShotTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 private const val ROUTE_CAMERA = "camera"
 private const val ROUTE_COMPARE = "compare"
@@ -114,22 +116,46 @@ class MainActivity : ComponentActivity() {
                         }
                         val viewModel: CameraViewModel = hiltViewModel(cameraEntry)
                         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                        CompareLibraryScreen(
-                            sessions = uiState.savedSessions,
-                            onRefresh = viewModel::refreshSavedSessions,
-                            onSessionClick = { session ->
-                                navController.navigate(
-                                    compareRoute(
-                                        referenceImageUri = session.referenceFileUri,
-                                        captureImageUri = session.captureFileUri,
-                                        sessionId = session.sessionId,
-                                        timestamp = session.timestamp
+                        val snackbarHostState = remember { SnackbarHostState() }
+                        var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
+                        LaunchedEffect(viewModel) {
+                            viewModel.uiEvent.collect { event ->
+                                if (event is UiEvent.ShowSnackbar) {
+                                    pendingSnackbarEvent = event
+                                }
+                            }
+                        }
+                        val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
+                        LaunchedEffect(pendingSnackbarEvent) {
+                            if (pendingMessage != null) {
+                                snackbarHostState.showSnackbar(pendingMessage)
+                                pendingSnackbarEvent = null
+                            }
+                        }
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            CompareLibraryScreen(
+                                sessions = uiState.savedSessions,
+                                onRefresh = viewModel::refreshSavedSessions,
+                                onSessionClick = { session ->
+                                    navController.navigate(
+                                        compareRoute(
+                                            referenceImageUri = session.referenceFileUri,
+                                            captureImageUri = session.captureFileUri,
+                                            sessionId = session.sessionId,
+                                            timestamp = session.timestamp
+                                        )
                                     )
-                                )
-                            },
-                            onBack = { navController.popBackStack() },
-                            onDeleteSessions = viewModel::deleteSessions
-                        )
+                                },
+                                onBack = { navController.popBackStack() },
+                                onDeleteSessions = viewModel::deleteSessions
+                            )
+                            SnackbarHost(
+                                hostState = snackbarHostState,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .navigationBarsPadding()
+                            )
+                        }
                     }
                     composable(
                         route = ROUTE_COMPARE_WITH_ARGS,
@@ -169,6 +195,7 @@ class MainActivity : ComponentActivity() {
                             ?.title
 
                         val snackbarHostState = remember { SnackbarHostState() }
+                        val coroutineScope = rememberCoroutineScope()
                         var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
 
                         LaunchedEffect(viewModel) {
@@ -200,8 +227,12 @@ class MainActivity : ComponentActivity() {
                                 timestamp = timestamp,
                                 onDelete = if (sessionId != null) {
                                     {
-                                        viewModel.deleteSessions(listOf(sessionId))
-                                        navController.popBackStack()
+                                        coroutineScope.launch {
+                                            val deleted = viewModel.deleteSession(sessionId)
+                                            if (deleted) {
+                                                navController.popBackStack()
+                                            }
+                                        }
                                     }
                                 } else null,
                                 sessionTitle = sessionTitle,

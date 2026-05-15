@@ -62,6 +62,7 @@
     <string name="compare_screen_edit_title_hint">Title</string>
     <string name="compare_screen_remove_title">Remove title</string>
     <string name="compare_screen_title_save_failed">Couldn\'t save title</string>
+    <string name="delete_failed">Could not delete compare</string>
 
     <!-- Reference image overlay -->
     <string name="select_reference_image">Choose reference image</string>
