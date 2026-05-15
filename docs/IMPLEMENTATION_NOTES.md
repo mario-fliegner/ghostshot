@@ -49,6 +49,7 @@ Current release state:
 - Stale capture success callbacks recycle the delivered bitmap and do not emit save, compare, navigation, or snackbar side effects
 - Capture flash and haptic feedback on capture trigger
 - Save failures show user-facing feedback and keep the app usable
+- Session-save failures (MediaStore save succeeded, but `SessionStorage.saveSession` returns null) surface a dedicated `capture_saved_compare_failed` Snackbar; `compareInput` remains null and auto-open compare is not triggered; the generic `capture_saved` Snackbar is suppressed in this case
 - Camera start/bind failures use a dedicated camera-start error path and invalidate `imageCaptureState`
 - CameraScreen bottom workflow is stable: `Reference` / `Capture` / `Compare`
 - Compare is always visible and never dynamically switches to Shots/History
@@ -135,7 +136,7 @@ Active compare session lifecycle — fully implemented:
 - Each session stores `capture.jpg`, `reference.jpg`, and `metadata.json`
 - `metadata.json` includes schema version, timestamp, file names, MediaStore URI, picker URI, and optional title
 - Missing, corrupt, or incomplete session metadata is ignored during scanning
-- Session writes are best-effort and do not invalidate the main MediaStore save
+- Session writes are best-effort and do not invalidate the main MediaStore save; if `SessionStorage.saveSession` returns null after a successful MediaStore save, the user receives `capture_saved_compare_failed` instead of the generic `capture_saved`
 - Session deletion only removes internal session folders
 - Session operations accept only direct child session IDs; nested or traversal-like IDs are rejected with controlled failure
 
@@ -251,6 +252,7 @@ Existing tests cover the critical release paths around:
 - session scanner/storage/deleter behavior
 - title metadata read/write behavior
 - title-update exception boundary (ViewModel-level `catch(Exception)`, failure Snackbar path verified via `updateSessionTitle_updaterThrows_emitsSnackbarFailure`)
+- session-save failure feedback path: `capture_saved_compare_failed` Snackbar surfaced when MediaStore save succeeds but `SessionStorage.saveSession` returns null (`onCaptureSaved_withSnapshotButNoSessionRef_emitsCaptureCompareFailedSnackbar`, `onCaptureSaved_withSnapshotButNoSessionRef_setsCaptureSuccessHadReferenceTrue`)
 - compare navigation
 - compare slider and fullscreen behavior
 - compare library grid, navigation, selection, delete, and title display
