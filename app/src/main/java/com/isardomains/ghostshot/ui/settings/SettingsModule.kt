@@ -25,6 +25,6 @@ object SettingsModule {
             corruptionHandler = ReplaceFileCorruptionHandler(
                 produceNewData = { emptyPreferences() }
             ),
-            produceFile = { context.preferencesDataStoreFile("ghostshot_settings") }
+            produceFile = { context.preferencesDataStoreFile("then_and_now_camera_settings") }
         )
 }

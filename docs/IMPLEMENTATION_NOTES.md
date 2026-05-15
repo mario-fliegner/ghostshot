@@ -60,7 +60,7 @@ Current release state:
 
 ### Settings
 - SettingsScreen is implemented and reachable from the CameraScreen top-right Overflow menu
-- Settings are persisted locally via DataStore Preferences in `ghostshot_settings`
+- Settings are persisted locally via DataStore Preferences in `then_and_now_camera_settings`
 - Implemented settings:
   - Grid Type: Off / Rule of Thirds / Quarters
   - Keep screen awake

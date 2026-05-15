@@ -75,6 +75,7 @@ fun AboutScreenContent(
     feedbackIntentLauncher: ((Intent) -> Boolean)? = null
 ) {
     val context = LocalContext.current
+    val feedbackEmail = stringResource(R.string.about_feedback_email)
     val feedbackSubject = stringResource(R.string.about_feedback_subject)
     val noEmailAppMessage = stringResource(R.string.about_feedback_no_email_app)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -120,7 +121,7 @@ fun AboutScreenContent(
                     versionCode = versionCode,
                     onFeedbackClick = {
                         val intent = Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:support@isardomains.com")
+                            data = Uri.parse("mailto:$feedbackEmail")
                             putExtra(Intent.EXTRA_SUBJECT, feedbackSubject)
                         }
                         if (!openFeedbackIntent(intent)) {
