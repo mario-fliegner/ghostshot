@@ -1014,18 +1014,14 @@ internal fun CaptureSuccessSnackbarEffect(
             lastShownGeneration = captureSuccessGeneration
             hostState.currentSnackbarData?.dismiss()
             if (captureSuccessHadReference) return@LaunchedEffect
-            val durationMs = if (captureSuccessHadReference) 2500L else 2000L
             launch {
-                val result = hostState.showSnackbar(
+                hostState.showSnackbar(
                     message = message,
-                    actionLabel = if (captureSuccessHadReference) actionLabel else null,
+                    actionLabel = null,
                     duration = SnackbarDuration.Indefinite
                 )
-                if (result == SnackbarResult.ActionPerformed) {
-                    onCompare()
-                }
             }
-            delay(durationMs)
+            delay(2000L)
             hostState.currentSnackbarData?.dismiss()
         }
     }

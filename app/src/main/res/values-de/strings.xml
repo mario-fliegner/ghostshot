@@ -13,6 +13,7 @@
     <string name="capture_saved">Foto gespeichert</string>
     <string name="capture_saved_compare_action">Vergleich ansehen</string>
     <string name="capture_failed">Foto konnte nicht gespeichert werden</string>
+    <string name="capture_saved_compare_failed">Foto gespeichert, Vergleich konnte nicht erstellt werden</string>
     <string name="camera_start_failed">Kamera konnte nicht gestartet werden.</string>
 
     <string name="compare_library_title">Vergleiche</string>

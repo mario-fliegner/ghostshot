@@ -1039,6 +1039,33 @@ class CameraViewModelTest {
     }
 
     @Test
+    fun onCaptureSaved_withSnapshotButNoSessionRef_emitsCaptureCompareFailedSnackbar() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.onCaptureSaved(mock(), sessionRef = null, hadSnapshotButNoSession = true)
+        advanceUntilIdle()
+
+        job.cancel()
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.capture_saved_compare_failed, snackbars.single().messageResId)
+    }
+
+    @Test
+    fun onCaptureSaved_withSnapshotButNoSessionRef_setsCaptureSuccessHadReferenceTrue() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+
+        testViewModel.onCaptureSaved(mock(), sessionRef = null, hadSnapshotButNoSession = true)
+
+        assertEquals(true, testViewModel.uiState.value.captureSuccessHadReference)
+        assertNull(testViewModel.uiState.value.compareInput)
+    }
+
+    @Test
     fun onCaptureSaved_withSessionRef_usesSessionReferenceFileUri() = runTest {
         val testViewModel = testViewModelWithMetadata(1080, 1920)
         val mediaStoreCaptureUri = mock<Uri>()

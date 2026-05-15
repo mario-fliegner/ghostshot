@@ -678,7 +678,7 @@ class CameraViewModel @Inject constructor(
                         val sessions = scanSavedSessionsSafely()
                         _uiState.update { it.copy(savedSessions = sessions) }
                     }
-                    onCaptureSaved(savedUri, sessionRef)
+                    onCaptureSaved(savedUri, sessionRef, hadSnapshotButNoSession = snapshot != null && sessionRef == null)
                 } else {
                     _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_failed))
                 }
@@ -709,7 +709,7 @@ class CameraViewModel @Inject constructor(
         onPhotoCaptured(CaptureToken(tokenId), bitmap, rotationDegrees)
     }
 
-    internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null) {
+    internal fun onCaptureSaved(savedUri: Uri, sessionRef: SavedSessionRef? = null, hadSnapshotButNoSession: Boolean = false) {
         if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Capture completed") }
         val newCompareInput: CompareInput? = sessionRef?.let {
             CompareInput(
@@ -725,7 +725,7 @@ class CameraViewModel @Inject constructor(
         _uiState.update { current ->
             current.copy(
                 captureSuccessGeneration = current.captureSuccessGeneration + 1L,
-                captureSuccessHadReference = sessionRef != null,
+                captureSuccessHadReference = sessionRef != null || hadSnapshotButNoSession,
                 compareInput = newCompareInput,
                 referenceImageUri = if (doReset) null else current.referenceImageUri,
                 referenceImageMetadata = if (doReset) null else current.referenceImageMetadata,
@@ -740,6 +740,11 @@ class CameraViewModel @Inject constructor(
         if (autoOpen && newCompareInput != null) {
             viewModelScope.launch {
                 _uiEvent.emit(UiEvent.NavigateToCompare(newCompareInput))
+            }
+        }
+        if (hadSnapshotButNoSession) {
+            viewModelScope.launch {
+                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.capture_saved_compare_failed))
             }
         }
     }

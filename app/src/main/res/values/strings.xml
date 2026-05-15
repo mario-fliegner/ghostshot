@@ -14,6 +14,7 @@
     <string name="capture_saved">Photo saved</string>
     <string name="capture_saved_compare_action">Compare</string>
     <string name="capture_failed">Couldn’t save photo</string>
+    <string name="capture_saved_compare_failed">Photo saved, but compare couldn\’t be created</string>
     <string name="camera_start_failed">Camera could not be started.</string>
 
     <!-- Compare Library -->
