@@ -28,6 +28,7 @@ Permissions:
 - CAMERA only
 - No INTERNET permission
 - No READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE permission
+- ACCESS_FINE_LOCATION is reserved for the GPS Recreation System (not yet implemented; see GPS_RECREATION_SYSTEM_V1.md)
 
 Current release state:
 - Closed-testing-ready based on the current code and documented verification

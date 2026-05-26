@@ -347,50 +347,11 @@ About should remain lightweight.
 
 # 10. Future GPS Guidance
 
-GPS Guidance is considered an important future feature.
+GPS Recreation Guidance is an important future feature. Its full specification — including the single "Recreation guidance" setting, permission strategy, data model, lifecycle rules, UI design, and product boundaries — is defined in `GPS_RECREATION_SYSTEM_V1.md`.
 
-However:
-- it is NOT part of the current implementation scope
-- it is NOT part of current Settings behavior
-- it is reserved for future work
+The setting for this feature will appear in this category (Category 4) when implemented.
 
----
-
-## Planned GPS Guidance Goals
-
-Future GPS Guidance may support:
-
-- distance comparison to original location
-- directional guidance
-- alignment assistance
-- color-coded proximity feedback
-- location-aware recreation workflows
-
-Possible future indicators:
-- green = close
-- orange = moderate deviation
-- red = far away
-
-Potential future capabilities:
-- directional arrow guidance
-- compass integration
-- recreation alignment assistance
-
----
-
-## GPS Metadata Rules
-
-Future GPS workflows should:
-- reuse EXIF metadata when available
-- avoid unnecessary cloud/location storage
-- remain privacy-conscious
-- remain fully optional
-
-GPS functionality must NEVER:
-- become mandatory
-- block capture
-- require account systems
-- require cloud sync
+GPS functionality must never affect Compare rendering or overlay geometry. See `GPS_RECREATION_SYSTEM_V1.md` for all architectural constraints.
 
 ---
 

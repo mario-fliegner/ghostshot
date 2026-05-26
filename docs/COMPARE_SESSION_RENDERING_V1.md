@@ -167,6 +167,8 @@ Example structure:
 
 The metadata schema must remain forward-compatible.
 
+Schema version 3 extends this structure with optional GPS location fields (`captureLocation`, `referenceLocation`). The complete v3 schema is defined in `GPS_RECREATION_SYSTEM_V1.md`. GPS fields are fully optional — parsers must not fail on their absence.
+
 ---
 
 # Deterministic Compare Rule
@@ -569,7 +571,7 @@ This architecture intentionally preserves compatibility for:
 
 - future re-alignment
 - export features
-- GPS compare
+- GPS location metadata in sessions (architecture defined in `GPS_RECREATION_SYSTEM_V1.md`)
 - cloud sync
 - compare editing
 - advanced rendering workflows
