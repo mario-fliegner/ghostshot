@@ -84,18 +84,18 @@ import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.ui.theme.GhostShotAccent
-import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotAppSurfaceElevated
-import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeBackground
-import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeBackgroundActive
-import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeContent
-import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalBadgeContentActive
-import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLabelBackground
-import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLabelContent
-import com.isardomains.ghostshot.ui.theme.GhostShotCompareOriginalLetterboxBackground
-import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
-import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
+import com.isardomains.ghostshot.ui.theme.SameViewAccent
+import com.isardomains.ghostshot.ui.theme.SameViewAppSurface
+import com.isardomains.ghostshot.ui.theme.SameViewAppSurfaceElevated
+import com.isardomains.ghostshot.ui.theme.SameViewCompareOriginalBadgeBackground
+import com.isardomains.ghostshot.ui.theme.SameViewCompareOriginalBadgeBackgroundActive
+import com.isardomains.ghostshot.ui.theme.SameViewCompareOriginalBadgeContent
+import com.isardomains.ghostshot.ui.theme.SameViewCompareOriginalBadgeContentActive
+import com.isardomains.ghostshot.ui.theme.SameViewCompareOriginalLabelBackground
+import com.isardomains.ghostshot.ui.theme.SameViewCompareOriginalLabelContent
+import com.isardomains.ghostshot.ui.theme.SameViewCompareOriginalLetterboxBackground
+import com.isardomains.ghostshot.ui.theme.SameViewTextPrimary
+import com.isardomains.ghostshot.ui.theme.SameViewTextSecondary
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -516,7 +516,7 @@ private fun CompareSliderViewport(
                     .align(Alignment.Center)
                     .size(width = targetWidth, height = targetHeight)
                     .clip(RoundedCornerShape(CompareViewportCornerRadius))
-                    .background(GhostShotAppSurface)
+                    .background(SameViewAppSurface)
                     .onSizeChanged { size ->
                         viewportWidthPx = size.width.coerceAtLeast(1).toFloat()
                     }
@@ -660,7 +660,7 @@ private fun BoxScope.OriginalReferencePeekOverlay(
             modifier = Modifier
                 .matchParentSize()
                 .clip(RoundedCornerShape(CompareViewportCornerRadius))
-                .background(GhostShotCompareOriginalLetterboxBackground)
+                .background(SameViewCompareOriginalLetterboxBackground)
                 .testTag("compare_original_reference_image")
         ) {
             androidx.compose.foundation.Image(
@@ -727,14 +727,14 @@ private fun OriginalReferenceBadge(
     modifier: Modifier = Modifier
 ) {
     val background = if (isActive) {
-        GhostShotCompareOriginalBadgeBackgroundActive
+        SameViewCompareOriginalBadgeBackgroundActive
     } else {
-        GhostShotCompareOriginalBadgeBackground
+        SameViewCompareOriginalBadgeBackground
     }
     val content = if (isActive) {
-        GhostShotCompareOriginalBadgeContentActive
+        SameViewCompareOriginalBadgeContentActive
     } else {
-        GhostShotCompareOriginalBadgeContent
+        SameViewCompareOriginalBadgeContent
     }
 
     Surface(
@@ -782,12 +782,12 @@ private fun CompareOriginalReferenceLabel(
     Surface(
         modifier = modifier.shadow(2.dp, RoundedCornerShape(8.dp)),
         shape = RoundedCornerShape(8.dp),
-        color = GhostShotCompareOriginalLabelBackground
+        color = SameViewCompareOriginalLabelBackground
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,
-            color = GhostShotCompareOriginalLabelContent,
+            color = SameViewCompareOriginalLabelContent,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         )
     }
@@ -859,14 +859,14 @@ private fun CompareDivider(
                 modifier = Modifier
                     .size(16.dp)
                     .clip(CircleShape)
-                    .background(GhostShotTextPrimary.copy(alpha = 0.95f)),
+                    .background(SameViewTextPrimary.copy(alpha = 0.95f)),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .size(12.dp)
                         .clip(CircleShape)
-                        .background(GhostShotAccent)
+                        .background(SameViewAccent)
                 )
             }
         }
@@ -891,7 +891,7 @@ private fun CompareMessageFallback(
                 .widthIn(max = 520.dp)
                 .fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
-            color = GhostShotAppSurface,
+            color = SameViewAppSurface,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
@@ -903,13 +903,13 @@ private fun CompareMessageFallback(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(GhostShotAppSurfaceElevated),
+                        .background(SameViewAppSurfaceElevated),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
-                        tint = GhostShotTextPrimary.copy(alpha = 0.88f),
+                        tint = SameViewTextPrimary.copy(alpha = 0.88f),
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -917,14 +917,14 @@ private fun CompareMessageFallback(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = GhostShotTextPrimary,
+                    color = SameViewTextPrimary,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = body,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = GhostShotTextSecondary,
+                    color = SameViewTextSecondary,
                     textAlign = TextAlign.Center
                 )
             }

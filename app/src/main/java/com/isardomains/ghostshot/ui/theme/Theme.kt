@@ -12,19 +12,19 @@ import androidx.compose.ui.graphics.Color
 // so that overlay controls are always readable against the camera preview scrim.
 
 private val SameViewDarkColorScheme = darkColorScheme(
-    primary = GhostShotAccent,
-    background = GhostShotAppBackground,
-    surface = GhostShotAppSurface,
-    surfaceVariant = GhostShotSliderInactive,
+    primary = SameViewAccent,
+    background = SameViewAppBackground,
+    surface = SameViewAppSurface,
+    surfaceVariant = SameViewSliderInactive,
     onBackground = Color.White,
     onSurface = Color.White,
-    onSurfaceVariant = GhostShotTextSecondary,
-    outlineVariant = GhostShotAppDivider,
+    onSurfaceVariant = SameViewTextSecondary,
+    outlineVariant = SameViewAppDivider,
 )
 
 private val SameViewLightColorScheme = lightColorScheme(
-    primary = GhostShotAccent,
-    surfaceVariant = GhostShotSliderInactive,
+    primary = SameViewAccent,
+    surfaceVariant = SameViewSliderInactive,
     background = Color.White,
     surface = Color.White,
 )

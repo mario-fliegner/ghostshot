@@ -47,12 +47,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.ui.theme.GhostShotAboutActionText
-import com.isardomains.ghostshot.ui.theme.GhostShotAboutBodyText
-import com.isardomains.ghostshot.ui.theme.GhostShotAboutCardSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotAboutFooterText
-import com.isardomains.ghostshot.ui.theme.GhostShotAboutIconSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotAboutTitleText
+import com.isardomains.ghostshot.ui.theme.SameViewAboutActionText
+import com.isardomains.ghostshot.ui.theme.SameViewAboutBodyText
+import com.isardomains.ghostshot.ui.theme.SameViewAboutCardSurface
+import com.isardomains.ghostshot.ui.theme.SameViewAboutFooterText
+import com.isardomains.ghostshot.ui.theme.SameViewAboutIconSurface
+import com.isardomains.ghostshot.ui.theme.SameViewAboutTitleText
 import kotlinx.coroutines.launch
 
 @Composable
@@ -149,7 +149,7 @@ private fun AboutHeroCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = GhostShotAboutCardSurface,
+        color = SameViewAboutCardSurface,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
@@ -161,7 +161,7 @@ private fun AboutHeroCard() {
                 modifier = Modifier
                     .size(88.dp)
                     .clip(CircleShape)
-                    .background(GhostShotAboutIconSurface),
+                    .background(SameViewAboutIconSurface),
                 contentAlignment = Alignment.Center
             ) {
                 AndroidView(
@@ -182,7 +182,7 @@ private fun AboutHeroCard() {
             Text(
                 text = stringResource(R.string.about_app_name),
                 style = MaterialTheme.typography.headlineSmall,
-                color = GhostShotAboutTitleText,
+                color = SameViewAboutTitleText,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -190,7 +190,7 @@ private fun AboutHeroCard() {
             Text(
                 text = stringResource(R.string.about_description),
                 style = MaterialTheme.typography.bodyMedium,
-                color = GhostShotAboutBodyText,
+                color = SameViewAboutBodyText,
                 textAlign = TextAlign.Center
             )
 
@@ -199,14 +199,14 @@ private fun AboutHeroCard() {
             Text(
                 text = stringResource(R.string.about_local_device),
                 style = MaterialTheme.typography.bodyMedium,
-                color = GhostShotAboutBodyText,
+                color = SameViewAboutBodyText,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = stringResource(R.string.about_no_account_required),
                 style = MaterialTheme.typography.bodyMedium,
-                color = GhostShotAboutBodyText,
+                color = SameViewAboutBodyText,
                 textAlign = TextAlign.Center
             )
         }
@@ -222,7 +222,7 @@ private fun AboutFooter(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = GhostShotAboutCardSurface,
+        color = SameViewAboutCardSurface,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
@@ -235,14 +235,14 @@ private fun AboutFooter(
             Text(
                 text = stringResource(R.string.about_version, versionName, versionCode),
                 style = MaterialTheme.typography.bodySmall,
-                color = GhostShotAboutFooterText,
+                color = SameViewAboutFooterText,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(10.dp))
             Box(
                 modifier = Modifier
                     .clip(MaterialTheme.shapes.small)
-                    .background(GhostShotAboutIconSurface)
+                    .background(SameViewAboutIconSurface)
                     .defaultMinSize(minHeight = 48.dp)
                     .clickable(onClick = onFeedbackClick)
                     .testTag("about_send_feedback")
@@ -252,7 +252,7 @@ private fun AboutFooter(
                 Text(
                     text = stringResource(R.string.about_send_feedback),
                     style = MaterialTheme.typography.labelMedium,
-                    color = GhostShotAboutActionText,
+                    color = SameViewAboutActionText,
                     textAlign = TextAlign.Center
                 )
             }

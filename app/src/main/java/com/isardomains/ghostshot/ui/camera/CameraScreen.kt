@@ -156,13 +156,13 @@ import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import coil.compose.AsyncImage
 import com.isardomains.ghostshot.BuildConfig
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotAppSurfaceElevated
-import com.isardomains.ghostshot.ui.theme.GhostShotGridLine
-import com.isardomains.ghostshot.ui.theme.GhostShotOverlayScrim
-import com.isardomains.ghostshot.ui.theme.GhostShotPreviewFrameScrim
-import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
-import com.isardomains.ghostshot.ui.theme.GhostShotTextSecondary
+import com.isardomains.ghostshot.ui.theme.SameViewAppSurface
+import com.isardomains.ghostshot.ui.theme.SameViewAppSurfaceElevated
+import com.isardomains.ghostshot.ui.theme.SameViewGridLine
+import com.isardomains.ghostshot.ui.theme.SameViewOverlayScrim
+import com.isardomains.ghostshot.ui.theme.SameViewPreviewFrameScrim
+import com.isardomains.ghostshot.ui.theme.SameViewTextPrimary
+import com.isardomains.ghostshot.ui.theme.SameViewTextSecondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -476,7 +476,7 @@ fun CameraScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(GhostShotPreviewFrameScrim)
+                    .background(SameViewPreviewFrameScrim)
                     .onSizeChanged { size ->
                         if (!isLandscape) {
                             val effectiveHeight = minOf(size.height, size.width * 16 / 9)
@@ -579,7 +579,7 @@ fun CameraScreen(
                             },
                             update = { view ->
                                 view.scaleType = PreviewView.ScaleType.FIT_CENTER
-                                view.setBackgroundColor(GhostShotPreviewFrameScrim.toArgb())
+                                view.setBackgroundColor(SameViewPreviewFrameScrim.toArgb())
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -627,7 +627,7 @@ fun CameraScreen(
                             .fillMaxSize()
                             .padding(horizontal = frameLeftDp, vertical = frameTopDp)
                             .graphicsLayer { alpha = captureFlashAlpha.value }
-                            .background(GhostShotTextPrimary)
+                            .background(SameViewTextPrimary)
                     )
                 }
 
@@ -725,7 +725,7 @@ fun CameraScreen(
                         .widthIn(max = 520.dp)
                         .fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium,
-                    color = GhostShotAppSurface,
+                    color = SameViewAppSurface,
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp
                 ) {
@@ -737,27 +737,27 @@ fun CameraScreen(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(GhostShotAppSurfaceElevated),
+                                .background(SameViewAppSurfaceElevated),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Warning,
                                 contentDescription = null,
-                                tint = GhostShotTextPrimary.copy(alpha = 0.88f)
+                                tint = SameViewTextPrimary.copy(alpha = 0.88f)
                             )
                         }
                         Spacer(modifier = Modifier.height(18.dp))
                         Text(
                             text = stringResource(R.string.camera_permission_blocked_title),
                             style = MaterialTheme.typography.titleMedium,
-                            color = GhostShotTextPrimary,
+                            color = SameViewTextPrimary,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = stringResource(R.string.camera_permission_blocked_body),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = GhostShotTextSecondary,
+                            color = SameViewTextSecondary,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(18.dp))
@@ -771,7 +771,7 @@ fun CameraScreen(
                                 context.startActivity(intent)
                             },
                             colors = ButtonDefaults.buttonColors(
-                                contentColor = GhostShotTextPrimary
+                                contentColor = SameViewTextPrimary
                             )
                         ) {
                             Text(stringResource(R.string.open_settings))
@@ -1310,7 +1310,7 @@ internal fun CompareImagesEntry(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(GhostShotOverlayScrim)
+            .background(SameViewOverlayScrim)
             .widthIn(min = CameraSecondaryActionMinWidth)
             .testTag("compare_images_entry")
             .semantics { contentDescription = label }
@@ -1322,13 +1322,13 @@ internal fun CompareImagesEntry(
             Icon(
                 imageVector = Icons.Default.SwapHoriz,
                 contentDescription = null,
-                tint = GhostShotTextPrimary.copy(alpha = contentAlpha)
+                tint = SameViewTextPrimary.copy(alpha = contentAlpha)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = GhostShotTextPrimary.copy(alpha = contentAlpha)
+                color = SameViewTextPrimary.copy(alpha = contentAlpha)
             )
         }
     }
@@ -1427,7 +1427,7 @@ internal fun CameraTopRightActions(
             Icon(
                 imageVector = Icons.Outlined.History,
                 contentDescription = historyDescription,
-                tint = GhostShotTextPrimary,
+                tint = SameViewTextPrimary,
                 modifier = Modifier.size(iconSize)
             )
         }
@@ -1442,7 +1442,7 @@ internal fun CameraTopRightActions(
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = overflowDescription,
-                    tint = GhostShotTextPrimary,
+                    tint = SameViewTextPrimary,
                     modifier = Modifier.size(iconSize)
                 )
             }
@@ -1623,7 +1623,7 @@ private fun OverlayVisibilityWarning(
             Box(
                 modifier = Modifier
                     .size(28.dp)
-                    .background(GhostShotOverlayScrim.copy(alpha = 0.34f), CircleShape),
+                    .background(SameViewOverlayScrim.copy(alpha = 0.34f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1632,7 +1632,7 @@ private fun OverlayVisibilityWarning(
                     modifier = Modifier
                         .size(14.dp)
                         .testTag("overlay_visibility_warning_icon"),
-                    tint = GhostShotTextPrimary.copy(alpha = 0.82f)
+                    tint = SameViewTextPrimary.copy(alpha = 0.82f)
                 )
             }
         }
@@ -1649,13 +1649,13 @@ private fun OverlayVisibilityWarning(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(GhostShotOverlayScrim.copy(alpha = 0.68f))
+                    .background(SameViewOverlayScrim.copy(alpha = 0.68f))
                     .padding(horizontal = 8.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = bubbleText,
                     style = MaterialTheme.typography.labelSmall,
-                    color = GhostShotTextPrimary,
+                    color = SameViewTextPrimary,
                     maxLines = 1
                 )
             }
@@ -1703,7 +1703,7 @@ private fun FormatMismatchHint(
             Box(
                 modifier = Modifier
                     .size(28.dp)
-                    .background(GhostShotOverlayScrim.copy(alpha = 0.34f), CircleShape),
+                    .background(SameViewOverlayScrim.copy(alpha = 0.34f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1712,7 +1712,7 @@ private fun FormatMismatchHint(
                     modifier = Modifier
                         .size(14.dp)
                         .testTag("format_mismatch_hint_icon"),
-                    tint = GhostShotTextPrimary.copy(alpha = 0.82f)
+                    tint = SameViewTextPrimary.copy(alpha = 0.82f)
                 )
             }
         }
@@ -1729,13 +1729,13 @@ private fun FormatMismatchHint(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(GhostShotOverlayScrim.copy(alpha = 0.68f))
+                    .background(SameViewOverlayScrim.copy(alpha = 0.68f))
                     .padding(horizontal = 8.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = bubbleText,
                     style = MaterialTheme.typography.labelSmall,
-                    color = GhostShotTextPrimary,
+                    color = SameViewTextPrimary,
                     maxLines = 1
                 )
             }
@@ -1784,7 +1784,7 @@ private fun ReferenceAction(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(GhostShotOverlayScrim)
+            .background(SameViewOverlayScrim)
             .widthIn(min = CameraSecondaryActionMinWidth)
             .then(
                 if (isActive) {
@@ -1813,13 +1813,13 @@ private fun ReferenceAction(
                 modifier = Modifier.testTag(
                     if (isActive) "reference_action_active_indicator" else "reference_action_add_indicator"
                 ),
-                tint = GhostShotTextPrimary
+                tint = SameViewTextPrimary
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.select_reference_image_label),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (isActive) GhostShotTextPrimary else GhostShotTextSecondary
+                color = if (isActive) SameViewTextPrimary else SameViewTextSecondary
             )
         }
         if (isActive) {
@@ -1835,7 +1835,7 @@ private fun ReferenceAction(
                 Text(
                     text = optionsBadgeText,
                     style = MaterialTheme.typography.labelSmall,
-                    color = GhostShotTextPrimary
+                    color = SameViewTextPrimary
                 )
             }
         }
@@ -1866,7 +1866,7 @@ private fun ReferenceActionStack(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(GhostShotOverlayScrim)
+            .background(SameViewOverlayScrim)
             .testTag("reference_action_menu")
             .widthIn(min = 176.dp, max = 216.dp)
     ) {
@@ -1882,12 +1882,12 @@ private fun ReferenceActionStack(
             Icon(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = null,
-                tint = GhostShotTextPrimary
+                tint = SameViewTextPrimary
             )
             Text(
                 text = stringResource(R.string.action_stack_reset_label),
                 style = MaterialTheme.typography.bodyMedium,
-                color = GhostShotTextPrimary
+                color = SameViewTextPrimary
             )
         }
         Row(
@@ -1906,12 +1906,12 @@ private fun ReferenceActionStack(
                 },
                 contentDescription = null,
                 modifier = Modifier.testTag("reference_display_mode_icon"),
-                tint = GhostShotTextPrimary
+                tint = SameViewTextPrimary
             )
             Text(
                 text = displayModeText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = GhostShotTextPrimary
+                color = SameViewTextPrimary
             )
         }
         Row(
@@ -1926,15 +1926,15 @@ private fun ReferenceActionStack(
             Icon(
                 imageVector = Icons.Default.SwapHoriz,
                 contentDescription = null,
-                tint = GhostShotTextPrimary
+                tint = SameViewTextPrimary
             )
             Text(
                 text = stringResource(R.string.action_stack_replace_label),
                 style = MaterialTheme.typography.bodyMedium,
-                color = GhostShotTextPrimary
+                color = SameViewTextPrimary
             )
         }
-        HorizontalDivider(color = GhostShotTextPrimary.copy(alpha = 0.2f))
+        HorizontalDivider(color = SameViewTextPrimary.copy(alpha = 0.2f))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1962,7 +1962,7 @@ private fun ReferenceActionStack(
 private fun CameraGridOverlay(
     gridType: GridType,
     modifier: Modifier = Modifier,
-    lineColor: Color = GhostShotGridLine,
+    lineColor: Color = SameViewGridLine,
     lineWidth: Dp = CameraGridLineWidth,
 ) {
     if (gridType == GridType.NONE) return

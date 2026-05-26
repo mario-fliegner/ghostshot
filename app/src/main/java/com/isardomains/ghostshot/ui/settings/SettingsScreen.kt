@@ -41,14 +41,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.camera.GridType
-import com.isardomains.ghostshot.ui.theme.GhostShotSettingsCardSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotSettingsControlOutline
-import com.isardomains.ghostshot.ui.theme.GhostShotSettingsControlSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotSettingsHeaderText
-import com.isardomains.ghostshot.ui.theme.GhostShotSettingsLabelText
-import com.isardomains.ghostshot.ui.theme.GhostShotSettingsSecondaryText
-import com.isardomains.ghostshot.ui.theme.GhostShotSettingsSelectedSegment
-import com.isardomains.ghostshot.ui.theme.GhostShotSettingsUnselectedSegment
+import com.isardomains.ghostshot.ui.theme.SameViewSettingsCardSurface
+import com.isardomains.ghostshot.ui.theme.SameViewSettingsControlOutline
+import com.isardomains.ghostshot.ui.theme.SameViewSettingsControlSurface
+import com.isardomains.ghostshot.ui.theme.SameViewSettingsHeaderText
+import com.isardomains.ghostshot.ui.theme.SameViewSettingsLabelText
+import com.isardomains.ghostshot.ui.theme.SameViewSettingsSecondaryText
+import com.isardomains.ghostshot.ui.theme.SameViewSettingsSelectedSegment
+import com.isardomains.ghostshot.ui.theme.SameViewSettingsUnselectedSegment
 
 @Composable
 fun SettingsScreen(
@@ -116,7 +116,7 @@ internal fun SettingsScreenContent(
                 Text(
                     text = stringResource(R.string.settings_grid_type_title),
                     style = MaterialTheme.typography.labelLarge,
-                    color = GhostShotSettingsSecondaryText
+                    color = SameViewSettingsSecondaryText
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 GridTypeSegmentedControl(
@@ -146,7 +146,7 @@ private fun SettingsCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = GhostShotSettingsCardSurface,
+        color = SameViewSettingsCardSurface,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
@@ -156,7 +156,7 @@ private fun SettingsCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = GhostShotSettingsHeaderText
+                color = SameViewSettingsHeaderText
             )
             Spacer(modifier = Modifier.height(12.dp))
             content()
@@ -182,7 +182,7 @@ private fun SettingsSwitchRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            color = GhostShotSettingsLabelText,
+            color = SameViewSettingsLabelText,
             modifier = Modifier.weight(1f)
         )
         Switch(
@@ -258,8 +258,8 @@ private fun GridTypeSegmentedControl(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(GhostShotSettingsControlSurface)
-            .border(1.dp, GhostShotSettingsControlOutline, MaterialTheme.shapes.medium)
+            .background(SameViewSettingsControlSurface)
+            .border(1.dp, SameViewSettingsControlOutline, MaterialTheme.shapes.medium)
             .padding(3.dp)
             .selectableGroup()
     ) {
@@ -287,7 +287,7 @@ private fun GridTypeSegmentButton(
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
             .background(
-                if (selected) GhostShotSettingsSelectedSegment else GhostShotSettingsUnselectedSegment
+                if (selected) SameViewSettingsSelectedSegment else SameViewSettingsUnselectedSegment
             )
             .selectable(
                 selected = selected,
@@ -302,7 +302,7 @@ private fun GridTypeSegmentButton(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) GhostShotSettingsLabelText else GhostShotSettingsSecondaryText
+            color = if (selected) SameViewSettingsLabelText else SameViewSettingsSecondaryText
         )
     }
 }

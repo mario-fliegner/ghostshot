@@ -63,10 +63,10 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.camera.ScannedSession
-import com.isardomains.ghostshot.ui.theme.GhostShotAccent
-import com.isardomains.ghostshot.ui.theme.GhostShotAppSurface
-import com.isardomains.ghostshot.ui.theme.GhostShotSelectionOverlay
-import com.isardomains.ghostshot.ui.theme.GhostShotTextPrimary
+import com.isardomains.ghostshot.ui.theme.SameViewAccent
+import com.isardomains.ghostshot.ui.theme.SameViewAppSurface
+import com.isardomains.ghostshot.ui.theme.SameViewSelectionOverlay
+import com.isardomains.ghostshot.ui.theme.SameViewTextPrimary
 import java.text.DateFormat
 import java.util.Date
 
@@ -218,7 +218,7 @@ fun CompareLibraryScreen(
                         .fillMaxWidth()
                         .testTag("compare_library_empty_card"),
                     shape = MaterialTheme.shapes.medium,
-                    color = GhostShotAppSurface,
+                    color = SameViewAppSurface,
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp
                 ) {
@@ -255,14 +255,14 @@ fun CompareLibraryScreen(
                         Text(
                             text = stringResource(R.string.compare_library_empty_title),
                             style = MaterialTheme.typography.titleMedium,
-                            color = GhostShotTextPrimary,
+                            color = SameViewTextPrimary,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(18.dp))
                         Button(
                             onClick = onBack,
                             colors = ButtonDefaults.buttonColors(
-                                contentColor = GhostShotTextPrimary
+                                contentColor = SameViewTextPrimary
                             ),
                             modifier = Modifier.testTag("compare_library_empty_cta")
                         ) {
@@ -339,7 +339,7 @@ private fun CompareSessionTile(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(GhostShotAppSurface)
+            .background(SameViewAppSurface)
             .testTag("compare_library_session_tile_${session.sessionId}")
             .semantics {
                 contentDescription = tileDescription
@@ -418,7 +418,7 @@ private fun CompareSessionTile(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(GhostShotSelectionOverlay)
+                    .background(SameViewSelectionOverlay)
             )
         }
         if (isSelectionMode) {
@@ -426,8 +426,8 @@ private fun CompareSessionTile(
                 checked = isSelected,
                 onCheckedChange = null,
                 colors = CheckboxDefaults.colors(
-                    checkedColor = GhostShotAccent,
-                    checkmarkColor = GhostShotTextPrimary,
+                    checkedColor = SameViewAccent,
+                    checkmarkColor = SameViewTextPrimary,
                 ),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
