@@ -8,4 +8,4 @@ import dagger.hilt.android.HiltAndroidApp
  * Must be declared in AndroidManifest.xml via android:name.
  */
 @HiltAndroidApp
-class GhostShotApplication : Application()
+class SameViewApplication : Application()

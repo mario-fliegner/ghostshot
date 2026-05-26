@@ -15,7 +15,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -76,7 +76,7 @@ class CameraCompareEntryTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     CompareImagesEntry(
                         label = label,
                         onClick = onCompareImages,
@@ -122,7 +122,7 @@ class CameraCompareEntryTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     CameraControlsOverlay(
                         referenceUri = null,
                         compareInput = compareInput,

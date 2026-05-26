@@ -28,7 +28,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.ui.camera.ScannedSession
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -157,7 +157,7 @@ class CompareLibraryNavigationTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,

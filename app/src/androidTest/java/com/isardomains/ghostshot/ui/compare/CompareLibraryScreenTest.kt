@@ -18,7 +18,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.camera.ScannedSession
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -394,7 +394,7 @@ class CompareLibraryScreenTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     CompareLibraryScreen(
                         sessions = sessions,
                         onRefresh = onRefresh,

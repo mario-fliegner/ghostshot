@@ -38,7 +38,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -763,7 +763,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     Box(modifier = Modifier.fillMaxSize()) {
                         CameraControlsOverlay(
                             referenceUri = Uri.parse("content://ghostshot/test-reference"),
@@ -821,7 +821,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     CaptureSuccessSnackbarTestHost(
                         captureSuccessGeneration = 1L,
                         captureSuccessHadReference = false,
@@ -845,7 +845,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     CaptureSuccessSnackbarTestHost(
                         captureSuccessGeneration = 1L,
                         captureSuccessHadReference = false,
@@ -1068,7 +1068,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     Box(modifier = Modifier.fillMaxSize()) {
                         CameraControlsOverlay(
                             referenceUri = Uri.parse("content://ghostshot/test-reference"),
@@ -1178,7 +1178,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     Box(modifier = Modifier.fillMaxSize()) {
                         CameraControlsOverlay(
                             referenceUri = referenceUri,
@@ -1245,7 +1245,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     content()
                 }
             }
@@ -1263,7 +1263,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     content()
                 }
             }
@@ -1316,7 +1316,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     CaptureSuccessSnackbarTestHost(
                         captureSuccessGeneration = captureSuccessGeneration,
                         captureSuccessHadReference = captureSuccessHadReference,
@@ -1373,7 +1373,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     Box(modifier = Modifier.fillMaxSize()) {
                         CameraControlsOverlay(
                             referenceUri = Uri.parse("content://ghostshot/test-reference"),
@@ -1413,7 +1413,7 @@ class CameraControlsOverlayTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     CameraControlsOverlay(
                         referenceUri = referenceUri,
                         alpha = 0.5f,

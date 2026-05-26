@@ -34,7 +34,7 @@ import com.isardomains.ghostshot.ui.about.AboutScreenRoute
 import com.isardomains.ghostshot.ui.compare.CompareLibraryScreen
 import com.isardomains.ghostshot.ui.compare.CompareScreen
 import com.isardomains.ghostshot.ui.settings.SettingsScreen
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -52,7 +52,7 @@ private const val ROUTE_COMPARE_WITH_ARGS =
         "&$ARG_SESSION_ID={$ARG_SESSION_ID}&$ARG_TIMESTAMP={$ARG_TIMESTAMP}"
 
 /**
- * The single activity for the GhostShot app.
+ * The single activity for the SameView app.
  *
  * Hosts the Compose [NavHost] and serves as the Hilt entry point.
  * All navigation destinations are declared here.
@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         )
         setContent {
-            GhostShotTheme {
+            SameViewTheme {
                 val navController = rememberNavController()
                 NavHost(
                     navController = navController,

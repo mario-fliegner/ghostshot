@@ -13,7 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -86,7 +86,7 @@ class AboutScreenTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     AboutScreenContent(
                         versionName = "9.9",
                         versionCode = 99,

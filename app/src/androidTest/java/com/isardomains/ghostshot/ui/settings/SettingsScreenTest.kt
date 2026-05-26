@@ -15,7 +15,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.camera.GridType
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -57,7 +57,7 @@ class SettingsScreenTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     SettingsScreenContent(
                         gridType = gridType,
                         onGridTypeSelected = onGridTypeSelected,

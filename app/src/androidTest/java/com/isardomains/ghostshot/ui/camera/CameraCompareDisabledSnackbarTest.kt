@@ -24,7 +24,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.junit.After
@@ -114,7 +114,7 @@ class CameraCompareDisabledSnackbarTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     Box(modifier = Modifier.fillMaxSize()) {
                         val snackbarHostState = remember { SnackbarHostState() }
                         LaunchedEffect(Unit) {

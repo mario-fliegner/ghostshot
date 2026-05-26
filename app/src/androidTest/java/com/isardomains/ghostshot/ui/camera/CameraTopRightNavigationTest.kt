@@ -27,7 +27,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.R
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -310,7 +310,7 @@ class CameraTopRightNavigationTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     val navController = rememberNavController()
                     NavHost(navController = navController, startDestination = "camera") {
                         composable("camera") {
@@ -367,7 +367,7 @@ class CameraTopRightNavigationTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -402,7 +402,7 @@ class CameraTopRightNavigationTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     CameraLandscapeTopActions(
                         onOpenHistory = onOpenHistory,
                         onOpenSettings = onOpenSettings,

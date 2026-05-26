@@ -29,7 +29,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.ghostshot.R
 import com.isardomains.ghostshot.ui.compare.CompareScreen
-import com.isardomains.ghostshot.ui.theme.GhostShotTheme
+import com.isardomains.ghostshot.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -132,7 +132,7 @@ class CompareNavigationTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
@@ -267,7 +267,7 @@ class CompareNavigationTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                GhostShotTheme {
+                SameViewTheme {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
