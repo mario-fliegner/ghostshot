@@ -261,7 +261,7 @@ Existing tests cover the critical release paths around:
 Latest verified test state:
 - `testDebugUnitTest` passing
 - `connectedDebugAndroidTest` passing
-- 299/299 instrumentation tests green on real device
+- 329/329 instrumentation tests green on real device
 
 Before Closed Testing, the useful final verification remains:
 - unit tests
