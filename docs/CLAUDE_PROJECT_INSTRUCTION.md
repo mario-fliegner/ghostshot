@@ -95,22 +95,16 @@ Each successful capture with an active reference image can create an internal co
 
 ### Comparison Output Decision
 
-Comparison is intentionally pragmatic and visual.
-The overlay has no influence on the saved camera output.
+The authoritative rendering specification is `COMPARE_SESSION_RENDERING_V1.md`.
 
-The active compare approach means:
+The compare rendering architecture is deterministic and geometry-based:
 
-1. Keep the saved camera image independent from the overlay
-2. Store the captured image and reference image as an internal session pair when available
-3. Render both compare images with the same viewport, alignment, and scaling rules
-4. Keep slider behavior stable and reproducible
-5. Do not attempt perfect geometric reconstruction of the camera preview or overlay state
-
-Important:
-- The overlay is a visual alignment aid only
-- Overlay position, overlay scale, viewport size, and preview-to-capture mapping are not part of the comparison model
-- Geometry-based comparison logic must not be reintroduced without explicit approval
-- The reference overlay is never baked into the saved full camera image
+- Overlay transforms (overlayScale, overlayOffsetX, overlayOffsetY, referenceImageDisplayMode, viewport) are frozen at capture time via `CaptureSessionSnapshot`
+- `reference.jpg` is rendered deterministically via `ReferenceRenderer.render()` with the frozen geometry
+- `reference-original.jpg` stores the EXIF-oriented original, separate from the rendered compare file
+- `capture.jpg` is the unmodified camera output and is never cropped or composited with the overlay
+- `CompareScreen` renders only the stored session files — no geometry reconstruction at compare time
+- Overlay alpha, grid, and UI elements are never rendered into any saved file
 
 ### Debug Logging
 

@@ -38,10 +38,7 @@ The compare flow is a focused product feature directly tied to the app's main pr
 - capture new image
 - compare reference vs new image
 
-The current compare approach is intentionally pragmatic and stable. It prioritizes
-consistent presentation, predictable slider behavior, and reliable session handling.
-It does not claim perfect geometric reconstruction of the camera preview, overlay
-position, or preview-to-capture mapping.
+The compare rendering architecture is defined by `COMPARE_SESSION_RENDERING_V1.md`. Overlay geometry (scale, offset, display mode, viewport) is frozen at capture time and rendered deterministically into `reference.jpg`. `CompareScreen` renders passively from the stored session files only.
 
 > Note (2026-04-27): A Compare Library is now implemented as part of V1. It is a focused internal session overview and does not expand the feature into a gallery, history browser, or general image review module. Sessions are only the internal capture+reference pairs created by the app's own capture flow. The Compare Library does not browse MediaStore or the device photo library. The product purpose described in this section remains unchanged.
 
@@ -496,8 +493,9 @@ At minimum:
 This input must be sufficient to render the compare screen without re-deriving unrelated camera state.
 
 The compare screen must not depend on reconstructing the previous camera preview geometry.
-Overlay position, overlay scale, viewport size, and preview-to-capture mapping are not
-part of the active compare rendering contract.
+Overlay position, overlay scale, viewport size, and preview-to-capture mapping are frozen
+into `reference.jpg` at capture time (see `COMPARE_SESSION_RENDERING_V1.md`). `CompareScreen`
+does not recompute these at render time — it renders only the already-finalized session files.
 
 ### Persistent compare session state vs transient capture lock
 

@@ -167,21 +167,17 @@ Active compare session lifecycle — fully implemented:
 
 ## Compare Approach
 
-The current compare approach is intentionally pragmatic and stable.
+The authoritative rendering architecture is `COMPARE_SESSION_RENDERING_V1.md`.
 
-It focuses on:
-- consistent rendering rules for both images
-- stable slider UX
-- reproducible session behavior
-- clear fallback states when images cannot be loaded
+Session files per capture:
 
-It does not claim perfect geometric reconstruction of the camera preview or overlay state.
+- `capture.jpg` — unmodified camera output
+- `reference.jpg` — rendered deterministically via `ReferenceRenderer.render()` with frozen overlay geometry (overlayScale, overlayOffsetX, overlayOffsetY, referenceImageDisplayMode, viewport)
+- `reference-original.jpg` — EXIF-oriented original reference, not used in normal compare rendering
 
-Important:
-- The old geometry reconstruction / `ComparisonFrame` direction is no longer the active product approach
-- Overlay position, overlay scale, viewport size, and preview-to-capture mapping are not used to reconstruct a mathematically exact comparison frame
-- The overlay remains a visual alignment aid
-- The saved MediaStore capture is not composited with the overlay
+`CompareScreen` renders only `capture.jpg` + `reference.jpg` — no geometry reconstruction at compare time.
+
+The saved MediaStore capture is never composited with the overlay.
 
 ---
 
