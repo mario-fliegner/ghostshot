@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">Then &amp; Now Camera</string>
-    <string name="app_launcher_name">Then &amp; Now</string>
+    <string name="app_name">SameView</string>
+    <string name="app_launcher_name">SameView</string>
     <!-- Camera permission screens -->
-    <string name="camera_permission_rationale">Then &amp; Now Camera needs camera access to take photos.</string>
+    <string name="camera_permission_rationale">SameView needs camera access to take photos.</string>
     <string name="grant_permission">Allow camera</string>
     <string name="camera_permission_blocked_title">Camera access needed</string>
     <string name="camera_permission_blocked_body">Enable camera access in Android settings to take photos.</string>
@@ -111,14 +111,14 @@
     <!-- About -->
     <string name="about_screen_title">About</string>
     <string name="about_back">Back</string>
-    <string name="about_app_name">Then &amp; Now Camera</string>
-    <string name="about_description">Recreate past photos with a live reference overlay.</string>
+    <string name="about_app_name">SameView</string>
+    <string name="about_description">Recreate your photos</string>
     <string name="about_local_device">Designed to work locally on your device.</string>
     <string name="about_no_account_required">No account required.</string>
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_send_feedback">Send Feedback</string>
-    <string name="about_feedback_email" translatable="false">support@isardomains.com</string>
-    <string name="about_feedback_subject">Then &amp; Now Camera Feedback</string>
+    <string name="about_feedback_email" translatable="false">support@sameview.app</string>
+    <string name="about_feedback_subject">SameView Feedback</string>
     <string name="about_feedback_no_email_app">No email app found</string>
 
     <!-- Camera top-right navigation -->
