@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.isardomains.ghostshot"
+    namespace = "com.isardomains.sameview"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.isardomains.ghostshot"
+        applicationId = "com.isardomains.sameview"
         minSdk = 29
         targetSdk = 35
         versionCode = 1
