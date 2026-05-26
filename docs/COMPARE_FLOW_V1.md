@@ -2,7 +2,7 @@
 
 ## 1. DOCUMENT STATUS
 
-This document is the **authoritative execution specification** for the V1 compare flow in the GhostShot / OverlayPast Android app.
+This document is the **authoritative execution specification** for the V1 compare flow in the SameView Android app.
 
 It is written for:
 - AI coding systems
@@ -956,7 +956,7 @@ Only the internal session folder: `filesDir/sessions/<sessionId>/`, including `c
 
 ### What does not get deleted
 
-The captured photo in MediaStore (`Pictures/GhostShot/`) is never affected. No other files, preferences, or app data are touched.
+The captured photo in MediaStore (`Pictures/SameView/`) is never affected. No other files, preferences, or app data are touched.
 
 ### How delete is performed
 

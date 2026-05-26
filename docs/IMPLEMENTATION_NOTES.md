@@ -14,7 +14,7 @@ If there is any conflict, `CLAUDE_PROJECT_INSTRUCTION.md` remains the source of 
 ## Current Project Status
 
 Project name:
-- GhostShot / OverlayPast Android app
+- SameView Android app
 
 Technical baseline:
 - Kotlin
@@ -191,7 +191,7 @@ Important:
 - The app has no INTERNET permission
 - No analytics, telemetry, tracking, upload, or network feature is implemented
 - Android Photo Picker is used for reference image selection
-- Captures are saved through MediaStore under `Pictures/GhostShot`
+- Captures are saved through MediaStore under `Pictures/SameView`
 - Internal compare sessions are stored under `filesDir/sessions/`
 - `backup_rules.xml` excludes `sessions/` from Auto Backup
 - `data_extraction_rules.xml` excludes `sessions/` from cloud backup and device transfer

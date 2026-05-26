@@ -1,6 +1,6 @@
 # ABOUT_SCREEN_V2
 
-This document defines the intended V2 About screen behavior and UX philosophy for GhostShot / Then & Now Camera.
+This document defines the intended V2 About screen behavior and UX philosophy for SameView.
 
 This specification defines:
 - About screen purpose
@@ -146,7 +146,7 @@ The hero section is the visual identity block.
 
 Recommended contents:
 - app icon
-- app name: Then & Now Camera
+- app name: SameView
 - short one-line description
 - short trust/privacy statements
 

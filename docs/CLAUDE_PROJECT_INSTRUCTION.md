@@ -1,4 +1,4 @@
-# OverlayPast – Claude Superprompt / Project Instruction (v1)
+# SameView – Claude Superprompt / Project Instruction (v1)
 
 ---
 
@@ -190,7 +190,7 @@ Do not introduce unnecessary permissions.
 
 Use:
 - MediaStore ONLY
-- RELATIVE_PATH = Pictures/GhostShot
+- RELATIVE_PATH = Pictures/SameView
 - JPEG output
 
 Do not use:

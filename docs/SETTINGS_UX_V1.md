@@ -1,6 +1,6 @@
 # SETTINGS_UX_V1
 
-This document defines the intended settings architecture and UX philosophy for GhostShot / Then & Now Camera.
+This document defines the intended settings architecture and UX philosophy for SameView.
 
 This specification defines:
 - settings placement
@@ -27,7 +27,7 @@ Those remain defined by their dedicated specifications.
 
 # 1. Core Philosophy
 
-GhostShot is intentionally:
+SameView is intentionally:
 - camera-focused
 - workflow-focused
 - visually calm
@@ -273,7 +273,7 @@ This setting must NOT:
 
 # 8. Appearance Settings
 
-GhostShot intentionally uses a dark visual design focused on:
+SameView intentionally uses a dark visual design focused on:
 - scene visibility
 - overlay visibility
 - distraction reduction

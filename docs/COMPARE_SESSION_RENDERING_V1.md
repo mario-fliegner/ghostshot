@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the rendering, persistence and comparison architecture for GhostShot / Then & Now Camera session rendering.
+This document defines the rendering, persistence and comparison architecture for SameView session rendering.
 
 The goal is to guarantee:
 

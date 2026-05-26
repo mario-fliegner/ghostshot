@@ -5,7 +5,7 @@ Future UI changes should follow this specification unless explicitly superseded.
 
 ## Status
 
-Current UX specification for the GhostShot main camera workflow and navigation structure.
+Current UX specification for the SameView main camera workflow and navigation structure.
 
 Last updated: 2026-05-13.
 
@@ -28,12 +28,12 @@ The goal is to keep the app:
 
 # 1. Product Philosophy
 
-GhostShot is primarily:
+SameView is primarily:
 - a recreation camera
 - a comparison workflow
 - a then/now capture experience
 
-GhostShot is NOT primarily:
+SameView is NOT primarily:
 - a gallery app
 - a media management app
 - a library browser
