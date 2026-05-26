@@ -167,7 +167,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
 
-private const val TAG = "GhostShot"
+private const val TAG = "SameView"
 private val CameraShutterButtonSize = 96.dp
 private val CameraSecondaryActionMinWidth = 96.dp
 private val CameraBottomControlGap = 16.dp

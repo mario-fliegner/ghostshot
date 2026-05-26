@@ -301,7 +301,7 @@ class CameraViewModel @Inject constructor(
         /** Maximum allowed scale for the reference image overlay. */
         const val MAX_SCALE = 3.0f
 
-        private const val LOG_TAG = "GhostShot"
+        private const val LOG_TAG = "SameView"
         private const val NO_CAPTURE_TOKEN_ID = 0L
     }
 

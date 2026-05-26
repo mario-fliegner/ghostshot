@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "GhostShot"
+rootProject.name = "SameView"
 include(":app")
