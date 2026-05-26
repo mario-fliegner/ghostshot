@@ -7,23 +7,23 @@ import org.junit.Test
 class MediaStoreWriterTest {
 
     @Test
-    fun generatedDisplayName_startsWithThenAndNowCameraPrefix() {
+    fun generatedDisplayName_startsWithSameViewPrefix() {
         val displayName = MediaStoreWriter.generateDisplayName(timestampMillis = 0L)
 
-        assertTrue(displayName.startsWith("ThenAndNowCamera_"))
+        assertTrue(displayName.startsWith("SameView_"))
     }
 
     @Test
-    fun generatedDisplayName_matchesThenAndNowCameraTimestampFormat() {
+    fun generatedDisplayName_matchesSameViewTimestampFormat() {
         val displayName = MediaStoreWriter.generateDisplayName(timestampMillis = 0L)
 
         assertTrue(
-            Regex("""^ThenAndNowCamera_\d{8}_\d{6}_\d{3}\.jpg$""").matches(displayName)
+            Regex("""^SameView_\d{8}_\d{6}_\d{3}\.jpg$""").matches(displayName)
         )
     }
 
     @Test
-    fun relativePath_equalsThenAndNowCameraPicturesFolder() {
-        assertEquals("Pictures/ThenAndNowCamera", MediaStoreWriter.relativePath())
+    fun relativePath_equalsSameViewPicturesFolder() {
+        assertEquals("Pictures/SameView", MediaStoreWriter.relativePath())
     }
 }

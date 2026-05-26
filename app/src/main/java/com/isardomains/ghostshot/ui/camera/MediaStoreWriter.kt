@@ -22,8 +22,8 @@ import java.util.Locale
  */
 object MediaStoreWriter {
 
-    private const val FOLDER = "Pictures/ThenAndNowCamera"
-    private const val FILE_PREFIX = "ThenAndNowCamera"
+    private const val FOLDER = "Pictures/SameView"
+    private const val FILE_PREFIX = "SameView"
     private const val FILE_TIMESTAMP_PATTERN = "yyyyMMdd_HHmmss_SSS"
     private const val MIME_TYPE = "image/jpeg"
     private const val JPEG_QUALITY = 95
