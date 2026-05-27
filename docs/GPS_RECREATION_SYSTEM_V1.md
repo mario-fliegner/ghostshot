@@ -382,6 +382,14 @@ The chip transitions back to neutral/inactive presentation. No alert or "GPS los
 - Aggressive error states or flashing warning indicators
 - Accuracy circles or uncertainty radii
 
+## Real-World Accuracy Expectations
+
+Recreation Guidance is designed for outdoor use. In outdoor conditions with clear sky visibility, GPS typically provides 3–15m accuracy, which is appropriate for locating a reference shooting position.
+
+Accuracy degrades predictably in certain environments: indoors, in dense urban canyons, near large metal structures, in tunnels, under heavy tree canopy, or inside vehicles. In these situations the chip remains in neutral/inactive presentation — reflecting the actual uncertainty of the fix rather than displaying a misleading distance value.
+
+This behavior is by design. Degraded GPS accuracy is a property of the environment and the underlying hardware, not an app failure. The neutral state is the honest state.
+
 ---
 
 # 9. Lifecycle and Battery Rules
