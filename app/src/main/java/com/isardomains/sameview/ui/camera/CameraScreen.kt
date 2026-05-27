@@ -438,6 +438,21 @@ fun CameraScreen(
                     executor.shutdown()
                 }
             }
+            // GPS lifecycle: active when screen is visible and foregrounded
+            DisposableEffect(Unit) {
+                onDispose { viewModel.onCameraScreenInactive() }
+            }
+            DisposableEffect(lifecycleOwner) {
+                val gpsObserver = LifecycleEventObserver { _, event ->
+                    when (event) {
+                        Lifecycle.Event.ON_RESUME -> viewModel.onCameraScreenActive()
+                        Lifecycle.Event.ON_PAUSE -> viewModel.onCameraScreenInactive()
+                        else -> {}
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(gpsObserver)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(gpsObserver) }
+            }
             val onCapture: () -> Unit = onCapture@{
                 val imageCapture = imageCaptureState.value ?: return@onCapture
                 val captureToken = viewModel.tryStartCapture() ?: return@onCapture

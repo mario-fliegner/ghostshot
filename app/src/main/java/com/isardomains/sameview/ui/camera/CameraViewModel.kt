@@ -1,14 +1,22 @@
 // path: app/src/main/java/com/isardomains/sameview/ui/camera/CameraViewModel.kt
 package com.isardomains.sameview.ui.camera
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import java.io.File
 import android.graphics.Matrix
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.net.Uri
+import android.os.Bundle
+import android.os.Looper
 import android.util.Log
 import java.util.concurrent.atomic.AtomicLong
 import androidx.annotation.StringRes
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.sameview.BuildConfig
@@ -231,6 +239,38 @@ class CameraViewModel @Inject constructor(
     private val nextCaptureTokenId = AtomicLong(0L)
     private val activeCaptureTokenId = AtomicLong(NO_CAPTURE_TOKEN_ID)
 
+    // GPS state — foreground-only, active only when all four conditions are met
+    private var recreationGuidanceEnabled = false
+    private var cameraScreenActive = false
+
+    // Visible for testing — true when GPS updates are currently active
+    internal var isGpsActive = false
+        private set
+
+    // Visible for testing — most recent location from LocationManager, null when GPS is inactive
+    @Volatile
+    internal var currentLocation: Location? = null
+        private set
+
+    private var locationProvider: LocationProvider = LocationProvider(context)
+
+    private var locationPermissionChecker: () -> Boolean = {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    private val locationListener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            currentLocation = location
+        }
+        @Suppress("OVERRIDE_DEPRECATION")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+        @Suppress("OVERRIDE_DEPRECATION")
+        override fun onProviderEnabled(provider: String) {}
+        @Suppress("OVERRIDE_DEPRECATION")
+        override fun onProviderDisabled(provider: String) {}
+    }
+
     // Visible for testing — holds the result of the most recent successfully completed capture.
     // Null until the first successful save, and reset to null on every new capture attempt
     // (success, failure, error, or interrupt). Never reflects a failed or incomplete capture.
@@ -252,7 +292,9 @@ class CameraViewModel @Inject constructor(
         settingsRepository: SettingsRepository,
         sessionScanner: (Context) -> List<ScannedSession> = { ctx -> SessionScanner.scan(ctx) },
         sessionTitleUpdater: ((File, String, String?) -> Boolean)? = null,
-        sessionDeleter: ((File, String) -> Boolean)? = null
+        sessionDeleter: ((File, String) -> Boolean)? = null,
+        locationProvider: LocationProvider? = null,
+        locationPermissionChecker: (() -> Boolean)? = null
     ) : this(context, settingsRepository) {
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
@@ -262,6 +304,12 @@ class CameraViewModel @Inject constructor(
         }
         if (sessionDeleter != null) {
             this.sessionDeleter = sessionDeleter
+        }
+        if (locationProvider != null) {
+            this.locationProvider = locationProvider
+        }
+        if (locationPermissionChecker != null) {
+            this.locationPermissionChecker = locationPermissionChecker
         }
     }
 
@@ -286,6 +334,12 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.autoOpenCompareAfterCapture.collect { enabled ->
                 _uiState.update { it.copy(autoOpenCompareAfterCapture = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.recreationGuidance.collect { enabled ->
+                recreationGuidanceEnabled = enabled
+                updateGpsActivation()
             }
         }
     }
@@ -369,6 +423,7 @@ class CameraViewModel @Inject constructor(
                 )
                 updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
             }
+            updateGpsActivation()
             if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Overlay loaded") }
             if (hadUndo) {
                 _uiEvent.emit(UiEvent.UndoInvalidated)
@@ -417,6 +472,7 @@ class CameraViewModel @Inject constructor(
                 undoExpiresAtMillis = if (hasReference) expiresAt else it.undoExpiresAtMillis
             )
         }
+        updateGpsActivation()
         if (hasReference) {
             if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Overlay removed") }
             undoTimeoutJob = viewModelScope.launch {
@@ -453,6 +509,7 @@ class CameraViewModel @Inject constructor(
             )
             updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
         }
+        updateGpsActivation()
         if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Undo triggered") }
     }
 
@@ -783,6 +840,46 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch {
             _uiEvent.emit(UiEvent.ShowSnackbar(R.string.camera_start_failed))
         }
+    }
+
+    // Called by CameraScreen when the composable enters the active foreground state (ON_RESUME).
+    fun onCameraScreenActive() {
+        cameraScreenActive = true
+        updateGpsActivation()
+    }
+
+    // Called by CameraScreen on ON_PAUSE and on dispose to stop GPS when screen is not visible.
+    fun onCameraScreenInactive() {
+        cameraScreenActive = false
+        updateGpsActivation()
+    }
+
+    private fun referenceHasGps(): Boolean =
+        _uiState.value.referenceImageMetadata?.gpsLatitude != null
+
+    private fun updateGpsActivation() {
+        val shouldBeActive = recreationGuidanceEnabled
+            && locationPermissionChecker()
+            && referenceHasGps()
+            && cameraScreenActive
+        if (shouldBeActive && !isGpsActive) {
+            startGps()
+        } else if (!shouldBeActive && isGpsActive) {
+            stopGps()
+        }
+    }
+
+    private fun startGps() {
+        isGpsActive = true
+        val lastKnown = try { locationProvider.getLastKnown() } catch (_: Exception) { null }
+        if (lastKnown != null) currentLocation = lastKnown
+        locationProvider.startUpdates(locationListener)
+    }
+
+    private fun stopGps() {
+        isGpsActive = false
+        locationProvider.stopUpdates(locationListener)
+        currentLocation = null
     }
 
     private fun finishCapture() {

@@ -7,7 +7,7 @@ Block 3 — Settings + Permission-Grundlage                    ✅ DONE (2026-05
   Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL (190 Tests grün)
   Instrumentation: SettingsRepositoryTest 17/17 grün, SettingsScreenTest 20/20 grün
   Hinweis: runCurrent() im ViewModel-Test erforderlich (SharedFlow-Collector muss vor emit subscribed sein)
-Block 4 — LocationProvider + Lifecycle                       ⬜ offen
+Block 4 — LocationProvider + Lifecycle                       ✅ DONE (2026-05-27)
 Block 5 — Guidance State Computation                         ⬜ offen
 Block 6 — Guidance Chip UI                                   ⬜ offen
 Block 7 — Capture GPS Freeze + EXIF Writing                  ⬜ offen
@@ -264,7 +264,13 @@ Play-Store-/Privacy-Relevanz: Ja — ACCESS_FINE_LOCATION im Manifest löst die 
 
 Commit-Fähigkeit: "Recreation guidance"-Toggle in Settings, funktionierender Permission-Flow, kein GPS-Effekt auf CameraScreen. Feature existiert als konfigurierbare Option, tut aber noch nichts.
 
-Block 4 — LocationProvider + Lifecycle
+Block 4 — LocationProvider + Lifecycle  ✅ DONE (2026-05-27)
+Status: Implementiert und getestet — 2026-05-27
+Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL (218 Tests grün, 0 Fehler)
+  LocationProviderTest: 14/14 grün
+  CameraViewModelTest GPS-Tests: 15 neue GPS-Tests grün
+Hinweis: Looper.getMainLooper() gibt null zurück in Android Unit-Test-Stubs. Fix: looperProvider: () -> Looper?-Lambda als injizierbarer Constructor-Parameter mit @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS").
+
 Ziel: LocationManager-basierter Location-Provider als eigenständige, injizierbare Klasse. GPS-Aktivierungsbedingungen in CameraViewModel implementieren. currentLocation als internes ViewModel-Feld.
 
 Warum an dieser Stelle: Benötigt Block 3 (Setting-State + Permission-State). Muss vor Block 5 (Guidance Computation) kommen, weil aktuelle Location die Eingabe der Berechnung ist.

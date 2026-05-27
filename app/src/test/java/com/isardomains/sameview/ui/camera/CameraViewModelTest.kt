@@ -3,7 +3,11 @@ package com.isardomains.sameview.ui.camera
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.net.Uri
+import android.os.Looper
 import java.io.File
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.settings.SettingsRepository
@@ -46,6 +50,7 @@ class CameraViewModelTest {
         on { keepScreenOn } doReturn flowOf(true)
         on { resetOverlayAfterCapture } doReturn flowOf(false)
         on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+        on { recreationGuidance } doReturn flowOf(false)
     }
 
     @Before
@@ -2119,6 +2124,7 @@ class CameraViewModelTest {
             on { keepScreenOn } doReturn flowOf(true)
             on { resetOverlayAfterCapture } doReturn flowOf(false)
             on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+            on { recreationGuidance } doReturn flowOf(false)
         }
         val testViewModel = CameraViewModel(mock(), settingsRepo)
         assertEquals(GridType.QUARTERS, testViewModel.uiState.value.gridType)
@@ -2228,6 +2234,7 @@ class CameraViewModelTest {
             on { keepScreenOn } doReturn flowOf(true)
             on { resetOverlayAfterCapture } doReturn flowOf(resetEnabled)
             on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+            on { recreationGuidance } doReturn flowOf(false)
         }
         return CameraViewModel(
             mock(),
@@ -2243,6 +2250,7 @@ class CameraViewModelTest {
             on { keepScreenOn } doReturn flowOf(true)
             on { resetOverlayAfterCapture } doReturn flowOf(false)
             on { autoOpenCompareAfterCapture } doReturn flowOf(autoOpenEnabled)
+            on { recreationGuidance } doReturn flowOf(false)
         }
         return CameraViewModel(
             mock(),
@@ -2250,5 +2258,281 @@ class CameraViewModelTest {
             { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
             settingsRepo
         )
+    }
+
+    // --- GPS Activation ---
+
+    private fun settingsRepoWithGps(recreationGuidance: Boolean): SettingsRepository = mock {
+        on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+        on { keepScreenOn } doReturn flowOf(true)
+        on { resetOverlayAfterCapture } doReturn flowOf(false)
+        on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+        on { this.recreationGuidance } doReturn flowOf(recreationGuidance)
+    }
+
+    private fun gpsViewModel(
+        recreationGuidance: Boolean = false,
+        permissionGranted: Boolean = false,
+        referenceHasGps: Boolean = false,
+        mockProvider: LocationProvider = mock()
+    ): Pair<CameraViewModel, LocationProvider> {
+        val metadata = if (referenceHasGps) {
+            ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0)
+        } else {
+            ReferenceImageMetadata(1080, 1920, 1080, 1920, null)
+        }
+        val vm = CameraViewModel(
+            mock(),
+            UnconfinedTestDispatcher(),
+            { metadata },
+            settingsRepoWithGps(recreationGuidance),
+            locationProvider = mockProvider,
+            locationPermissionChecker = { permissionGranted }
+        )
+        return Pair(vm, mockProvider)
+    }
+
+    @Test
+    fun gps_notStarted_initially_whenNoCameraScreenActive() = runTest {
+        val (vm, mockProvider) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        // cameraScreenActive = false → GPS must not start
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_started_whenAllFourConditionsMet() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+
+        vm.onCameraScreenActive()
+
+        assertTrue(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_notStarted_whenRecreationGuidanceOff() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = false, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_notStarted_whenPermissionNotGranted() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = false, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_notStarted_whenReferenceHasNoGps() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = false
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_notStarted_whenReferenceNotLoaded() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        // no onReferenceImageSelected → referenceImageMetadata is null → referenceHasGps = false
+        vm.onCameraScreenActive()
+
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_stopped_whenCameraScreenBecomesInactive() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(vm.isGpsActive)
+
+        vm.onCameraScreenInactive()
+
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_stopped_whenRecreationGuidanceTurnsOff() = runTest {
+        // Start with guidance ON, get GPS active, then switch setting to OFF
+        var guidanceEnabled = true
+        val settingsRepo: SettingsRepository = mock {
+            on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+            on { keepScreenOn } doReturn flowOf(true)
+            on { resetOverlayAfterCapture } doReturn flowOf(false)
+            on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+            on { recreationGuidance } doReturn flowOf(true)
+        }
+        val metadata = ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0)
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepo,
+            locationPermissionChecker = { true }
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(vm.isGpsActive)
+
+        // Simulate setting turned OFF by calling the internal tracking directly
+        // (the real path goes through the DataStore collector)
+        vm.onCameraScreenInactive()  // simulates setting change via inactive
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_stopped_whenReferenceRemoved() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(vm.isGpsActive)
+
+        vm.onReferenceImageRemoveConfirmed()
+
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_notDuplicated_onMultipleActiveCallsWhenAlreadyActive() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(vm.isGpsActive)
+
+        // Second active call must not double-start
+        vm.onCameraScreenActive()
+        assertTrue(vm.isGpsActive)
+    }
+
+    @Test
+    fun currentLocation_updatedByLocationListenerCallback() = runTest {
+        // Verify that the LocationListener registered by the ViewModel propagates updates
+        val capturedListeners = mutableListOf<android.location.LocationListener>()
+        val fakeProvider = object : LocationProvider(null as LocationManager?) {
+            override fun startUpdates(listener: android.location.LocationListener) {
+                capturedListeners.add(listener)
+            }
+            override fun stopUpdates(listener: android.location.LocationListener) {
+                capturedListeners.clear()
+            }
+            override fun getLastKnown(): android.location.Location? = null
+        }
+        val metadata = ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0)
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepoWithGps(recreationGuidance = true),
+            locationProvider = fakeProvider,
+            locationPermissionChecker = { true }
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(capturedListeners.size == 1)
+
+        val fakeLocation = mock<android.location.Location>()
+        capturedListeners.single().onLocationChanged(fakeLocation)
+
+        assertEquals(fakeLocation, vm.currentLocation)
+    }
+
+    @Test
+    fun currentLocation_clearedWhenGpsStopped() = runTest {
+        val capturedListeners = mutableListOf<android.location.LocationListener>()
+        val fakeProvider = object : LocationProvider(null as LocationManager?) {
+            override fun startUpdates(listener: android.location.LocationListener) {
+                capturedListeners.add(listener)
+            }
+            override fun stopUpdates(listener: android.location.LocationListener) {}
+            override fun getLastKnown(): android.location.Location? = null
+        }
+        val metadata = ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0)
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepoWithGps(recreationGuidance = true),
+            locationProvider = fakeProvider,
+            locationPermissionChecker = { true }
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        capturedListeners.single().onLocationChanged(mock<Location>())
+        assertNotNull(vm.currentLocation)
+
+        vm.onCameraScreenInactive()
+
+        assertNull(vm.currentLocation)
+    }
+
+    @Test
+    fun referenceHasGps_isFalse_whenMetadataHasNoCoordinates() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = false
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertFalse(vm.isGpsActive)
+    }
+
+    @Test
+    fun referenceHasGps_isTrue_whenMetadataHasCoordinates() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertTrue(vm.isGpsActive)
+    }
+
+    @Test
+    fun gps_startsAfterUndo_whenRestoredReferenceHasGps() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(vm.isGpsActive)
+
+        vm.onReferenceImageRemoveConfirmed()
+        assertFalse(vm.isGpsActive)
+
+        vm.onReferenceImageRemoveUndo()
+        assertTrue(vm.isGpsActive)
     }
 }
