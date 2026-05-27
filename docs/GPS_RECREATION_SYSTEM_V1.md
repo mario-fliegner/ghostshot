@@ -439,7 +439,7 @@ The entire GPS Recreation System is controlled by a single boolean setting. Ther
 - `metadata.json` receives `captureLocation` when a fix is available
 - Guidance chip is available on CameraScreen when reference GPS exists and current fix is available
 
-**Default:** ON
+**Default:** OFF
 
 ## Why One Setting, Not Two
 
@@ -504,8 +504,8 @@ The current architecture preserves compatibility for future work without requiri
 - A device-oriented rotating bearing arrow (TYPE_ROTATION_VECTOR + exponential smoothing) as a UX enhancement, requiring explicit product decision and device validation
 - Re-alignment workflows using `referenceLocation` from `metadata.json` to locate the original shooting position
 - Export workflows that embed `captureLocation` GPS data
-- Session organization features using location proximity to group related sessions
-- Advanced recreation analytics using stored location metadata
+- Optional local-only grouping of sessions by approximate capture location within the Compare Library
+- Optional per-session accuracy display showing the distance between capture location and reference location, using locally stored metadata only
 
 These directions are all additive to the current architecture.
 
