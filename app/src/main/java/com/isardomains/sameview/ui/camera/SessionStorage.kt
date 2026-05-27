@@ -27,7 +27,7 @@ internal data class SavedSessionRef(
 )
 
 /**
- * Writes a v2 session (capture.jpg + reference-original.jpg + reference.jpg + metadata.json)
+ * Writes a v3 session (capture.jpg + reference-original.jpg + reference.jpg + metadata.json)
  * to app-internal storage under filesDir/sessions/YYYY-MM-DD_HH-mm-ss/.
  *
  * A session is only created as a complete set. If any file cannot be written,
@@ -44,7 +44,7 @@ internal object SessionStorage {
     private const val FILE_CAPTURE = "capture.jpg"
     private const val FILE_REFERENCE = "reference.jpg"
     private const val FILE_REFERENCE_ORIGINAL = "reference-original.jpg"
-    private const val METADATA_VERSION = 2
+    private const val METADATA_VERSION = 3
     private const val JPEG_QUALITY = 90
 
     /**
@@ -264,12 +264,6 @@ internal object SessionStorage {
             put("rendering", JSONObject().apply {
                 put("referenceBackgroundColor", "#17202F")
                 put("referenceJpegQuality", JPEG_QUALITY)
-            })
-            put("location", JSONObject().apply {
-                put("latitude", JSONObject.NULL)
-                put("longitude", JSONObject.NULL)
-                put("accuracyMeters", JSONObject.NULL)
-                put("source", JSONObject.NULL)
             })
         }
         File(sessionDir, "metadata.json").writeText(json.toString())

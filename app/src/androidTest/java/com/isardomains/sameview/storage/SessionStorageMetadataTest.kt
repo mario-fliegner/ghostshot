@@ -144,9 +144,9 @@ class SessionStorageMetadataTest {
     }
 
     @Test
-    fun metadataFile_containsVersion2() {
+    fun metadataFile_containsVersion3() {
         val json = readMetadata(saveTestSession())
-        assertEquals(2, json.getInt("version"))
+        assertEquals(3, json.getInt("version"))
     }
 
     @Test
@@ -231,12 +231,18 @@ class SessionStorageMetadataTest {
     // ── Scanner integration ───────────────────────────────────────────────────
 
     @Test
-    fun saveSession_producesScannableV2Session() {
+    fun saveSession_producesScannableSession() {
         val sessionDir = saveTestSession()
         val sessions = SessionScanner.scan(testRoot)
         assertEquals(1, sessions.size)
         assertEquals(sessionDir.name, sessions[0].sessionId)
         assertTrue(sessions[0].timestamp > 0L)
+    }
+
+    @Test
+    fun writtenJson_hasNoLocationBlock() {
+        val json = readMetadata(saveTestSession())
+        assertFalse(json.has("location"))
     }
 
     // ── EXIF software tag ─────────────────────────────────────────────────────

@@ -1,4 +1,15 @@
 GPS Recreation — Finaler Implementierungsplan: Analyse
+
+Fortschritt:
+Block 1 — metadata.json v3 + SessionScanner-Kompatibilität  ✅ DONE (2026-05-27)
+Block 2 — Reference GPS EXIF Extraction                      ⬜ offen
+Block 3 — Settings + Permission-Grundlage                    ⬜ offen
+Block 4 — LocationProvider + Lifecycle                       ⬜ offen
+Block 5 — Guidance State Computation                         ⬜ offen
+Block 6 — Guidance Chip UI                                   ⬜ offen
+Block 7 — Capture GPS Freeze + EXIF Writing                  ⬜ offen
+Block 8 — Test-Hardening + Release-Vorbereitung              ⬜ offen
+
 1. Kurzfazit: Ist die Implementierung startklar?
 Ja — mit zwei konkreten Vorbedingungen die vor Block 1 festzulegen sind.
 
@@ -24,7 +35,7 @@ In Portrait ist Alignment.TopCenter frei. In Landscape liegen History/Overflow-A
 
 3. Empfohlene finale Block-Reihenfolge
 
-Block 1  →  metadata.json v3 + SessionScanner-Kompatibilität
+Block 1  →  metadata.json v3 + SessionScanner-Kompatibilität  ✅ DONE
 Block 2  →  Reference GPS EXIF Extraction
 Block 3  →  Settings + Permission-Grundlage
 Block 4  →  LocationProvider + Lifecycle
@@ -51,7 +62,12 @@ Block 7  ← benötigt Block 1,2,3,4     └──→  Block 8 ← benötigt all
 Blocks 1, 2, 3 sind voneinander unabhängig und könnten theoretisch parallel entwickelt werden. In der Praxis: sequentiell, um Konflikte in der selben Datei (CameraViewModel, ReferenceImageMetadata) zu vermeiden.
 
 4. Detailplan pro Block
-Block 1 — metadata.json v3 + SessionScanner-Kompatibilität
+Block 1 — metadata.json v3 + SessionScanner-Kompatibilität  ✅ DONE
+Status: Implementiert und getestet — 2026-05-27
+Commit: ausstehend
+Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL
+Instrumentation: SessionScannerTest 28/28 grün, SessionStorageMetadataTest 27/27 grün
+
 Ziel: Version auf 3 erhöhen, Scanner für v2 + v3 aktualisieren, den semantisch leeren flachen location-Block entfernen. Keine GPS-Daten, keine UI, keine Permissions — reines Schema-Plumbing.
 
 Warum zuerst: Wenn v3-Sessions vor dem Scanner-Update auf Disk geschrieben würden, wären sie unsichtbar in der Library. Die Scanner-Änderung muss als erstes kommen, bevor irgend etwas v3 schreibt. Das ist der einzige harte Sequenzierungsgrund.

@@ -393,4 +393,69 @@ class SessionScannerTest {
         assertEquals(1, result.size)
         assertNull(result[0].title)
     }
+
+    // ── v3 compatibility tests ────────────────────────────────────────────────
+
+    @Test
+    fun v3_withoutGpsFields_isAccepted() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        val json = JSONObject().apply {
+            put("version", 3)
+            put("session", JSONObject().apply { put("createdAtMs", 5_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun v3_withCaptureLocation_isAccepted() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        val json = JSONObject().apply {
+            put("version", 3)
+            put("session", JSONObject().apply { put("createdAtMs", 5_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("captureLocation", JSONObject().apply {
+                put("latitude", 48.123456)
+                put("longitude", 11.654321)
+                put("accuracyMeters", 8.5)
+                put("provider", "gps")
+                put("fixTimestampMs", 1748000000000L)
+            })
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun v4_isRejected() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        val json = JSONObject().apply {
+            put("version", 4)
+            put("session", JSONObject().apply { put("createdAtMs", 5_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
+    }
 }

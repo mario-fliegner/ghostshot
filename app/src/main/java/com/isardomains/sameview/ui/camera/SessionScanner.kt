@@ -22,7 +22,7 @@ internal object SessionScanner {
     private const val TAG = "SessionScanner"
     private const val SESSIONS_DIR = "sessions"
     private const val METADATA_FILE = "metadata.json"
-    private const val EXPECTED_VERSION = 2
+    private val SUPPORTED_VERSIONS = setOf(2, 3)
 
     fun scan(context: Context): List<ScannedSession> = scan(File(context.filesDir, SESSIONS_DIR))
 
@@ -73,7 +73,7 @@ internal object SessionScanner {
             if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: version field missing or not an Int") }
             return null
         }
-        if (version != EXPECTED_VERSION) {
+        if (version !in SUPPORTED_VERSIONS) {
             if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: unsupported version $version") }
             return null
         }
