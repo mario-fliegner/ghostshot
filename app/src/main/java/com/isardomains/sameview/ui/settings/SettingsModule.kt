@@ -1,6 +1,9 @@
 package com.isardomains.sameview.ui.settings
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -27,4 +30,14 @@ object SettingsModule {
             ),
             produceFile = { context.preferencesDataStoreFile("sameview_settings") }
         )
+
+    @Provides
+    @Singleton
+    fun provideLocationPermissionChecker(@ApplicationContext context: Context): LocationPermissionChecker =
+        LocationPermissionChecker {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        }
 }

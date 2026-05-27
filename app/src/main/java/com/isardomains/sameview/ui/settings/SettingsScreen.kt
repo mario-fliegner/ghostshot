@@ -1,5 +1,9 @@
 package com.isardomains.sameview.ui.settings
 
+import android.Manifest
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +23,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,16 +32,23 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.sameview.R
@@ -59,6 +71,65 @@ fun SettingsScreen(
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val resetOverlayAfterCapture by viewModel.resetOverlayAfterCapture.collectAsStateWithLifecycle()
     val autoOpenCompareAfterCapture by viewModel.autoOpenCompareAfterCapture.collectAsStateWithLifecycle()
+    val recreationGuidance by viewModel.recreationGuidance.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    var showRationaleDialog by remember { mutableStateOf(false) }
+    var showPermissionDeniedHint by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onLocationPermissionResult(granted)
+        if (!granted) {
+            val activity = context as? Activity
+            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            ) {
+                showPermissionDeniedHint = true
+            }
+        } else {
+            showPermissionDeniedHint = false
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.uiEvents.collect { event ->
+            when (event) {
+                SettingsUiEvent.RequestLocationPermission -> showRationaleDialog = true
+            }
+        }
+    }
+
+    if (showRationaleDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showRationaleDialog = false
+                viewModel.onLocationPermissionResult(false)
+            },
+            title = { Text(stringResource(R.string.settings_recreation_guidance_rationale_title)) },
+            text = { Text(stringResource(R.string.settings_recreation_guidance_rationale_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRationaleDialog = false
+                    permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                }) {
+                    Text(stringResource(R.string.settings_recreation_guidance_rationale_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showRationaleDialog = false
+                    viewModel.onLocationPermissionResult(false)
+                }) {
+                    Text(stringResource(R.string.settings_recreation_guidance_rationale_cancel))
+                }
+            }
+        )
+    }
+
     SettingsScreenContent(
         gridType = gridType,
         onGridTypeSelected = viewModel::onGridTypeSelected,
@@ -68,6 +139,9 @@ fun SettingsScreen(
         onResetOverlayAfterCaptureChanged = viewModel::onResetOverlayAfterCaptureChanged,
         autoOpenCompareAfterCapture = autoOpenCompareAfterCapture,
         onAutoOpenCompareAfterCaptureChanged = viewModel::onAutoOpenCompareAfterCaptureChanged,
+        recreationGuidance = recreationGuidance,
+        onRecreationGuidanceChanged = viewModel::onRecreationGuidanceChanged,
+        showLocationPermissionDeniedHint = showPermissionDeniedHint,
         onBack = onBack
     )
 }
@@ -83,6 +157,9 @@ internal fun SettingsScreenContent(
     onResetOverlayAfterCaptureChanged: (Boolean) -> Unit,
     autoOpenCompareAfterCapture: Boolean,
     onAutoOpenCompareAfterCaptureChanged: (Boolean) -> Unit,
+    recreationGuidance: Boolean,
+    onRecreationGuidanceChanged: (Boolean) -> Unit,
+    showLocationPermissionDeniedHint: Boolean = false,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -133,6 +210,21 @@ internal fun SettingsScreenContent(
                     checked = autoOpenCompareAfterCapture,
                     onCheckedChange = onAutoOpenCompareAfterCaptureChanged
                 )
+            }
+            SettingsCard(title = stringResource(R.string.settings_gps_guidance_title)) {
+                RecreationGuidanceRow(
+                    checked = recreationGuidance,
+                    onCheckedChange = onRecreationGuidanceChanged
+                )
+                if (showLocationPermissionDeniedHint) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.settings_recreation_guidance_permission_denied),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SameViewSettingsSecondaryText,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
             }
         }
     }
@@ -228,6 +320,19 @@ private fun AutoOpenCompareAfterCaptureRow(
         checked = checked,
         onCheckedChange = onCheckedChange,
         testTag = "settings_auto_open_compare_after_capture"
+    )
+}
+
+@Composable
+private fun RecreationGuidanceRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_recreation_guidance),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        testTag = "settings_recreation_guidance"
     )
 }
 

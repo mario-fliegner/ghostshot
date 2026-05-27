@@ -107,6 +107,13 @@
     <string name="settings_overlay_compare_title">Overlay &amp; Compare</string>
     <string name="settings_reset_overlay_after_capture">Reset reference after capture</string>
     <string name="settings_auto_open_compare_after_capture">Auto-open compare after capture</string>
+    <string name="settings_gps_guidance_title">GPS Guidance</string>
+    <string name="settings_recreation_guidance">Recreation guidance</string>
+    <string name="settings_recreation_guidance_rationale_title">Location access</string>
+    <string name="settings_recreation_guidance_rationale_message">SameView uses your location to help you find where the original photo was taken. Your location is never shared or uploaded.</string>
+    <string name="settings_recreation_guidance_rationale_confirm">Continue</string>
+    <string name="settings_recreation_guidance_rationale_cancel">Cancel</string>
+    <string name="settings_recreation_guidance_permission_denied">Location access required. Grant access in system Settings.</string>
 
     <!-- About -->
     <string name="about_screen_title">About</string>

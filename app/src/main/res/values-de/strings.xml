@@ -102,6 +102,13 @@
     <string name="settings_overlay_compare_title">Overlay &amp; Vergleich</string>
     <string name="settings_reset_overlay_after_capture">Referenz nach Aufnahme zurücksetzen</string>
     <string name="settings_auto_open_compare_after_capture">Vergleich nach Aufnahme automatisch öffnen</string>
+    <string name="settings_gps_guidance_title">GPS-Navigation</string>
+    <string name="settings_recreation_guidance">Standortführung</string>
+    <string name="settings_recreation_guidance_rationale_title">Standortzugriff</string>
+    <string name="settings_recreation_guidance_rationale_message">SameView nutzt deinen Standort, um dir zu helfen, den Aufnahmeort des Originalfotos zu finden. Dein Standort wird niemals geteilt oder hochgeladen.</string>
+    <string name="settings_recreation_guidance_rationale_confirm">Weiter</string>
+    <string name="settings_recreation_guidance_rationale_cancel">Abbrechen</string>
+    <string name="settings_recreation_guidance_permission_denied">Standortzugriff erforderlich. Bitte in den Systemeinstellungen erteilen.</string>
 
     <!-- About -->
     <string name="about_screen_title">&#220;ber</string>

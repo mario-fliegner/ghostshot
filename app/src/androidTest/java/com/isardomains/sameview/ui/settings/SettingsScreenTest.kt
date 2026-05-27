@@ -46,6 +46,9 @@ class SettingsScreenTest {
         onResetOverlayAfterCaptureChanged: (Boolean) -> Unit = {},
         autoOpenCompareAfterCapture: Boolean = false,
         onAutoOpenCompareAfterCaptureChanged: (Boolean) -> Unit = {},
+        recreationGuidance: Boolean = false,
+        onRecreationGuidanceChanged: (Boolean) -> Unit = {},
+        showLocationPermissionDeniedHint: Boolean = false,
         onBack: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -67,6 +70,9 @@ class SettingsScreenTest {
                         onResetOverlayAfterCaptureChanged = onResetOverlayAfterCaptureChanged,
                         autoOpenCompareAfterCapture = autoOpenCompareAfterCapture,
                         onAutoOpenCompareAfterCaptureChanged = onAutoOpenCompareAfterCaptureChanged,
+                        recreationGuidance = recreationGuidance,
+                        onRecreationGuidanceChanged = onRecreationGuidanceChanged,
+                        showLocationPermissionDeniedHint = showLocationPermissionDeniedHint,
                         onBack = onBack
                     )
                 }
@@ -245,6 +251,26 @@ class SettingsScreenTest {
         )
 
         composeRule.onNodeWithTag("settings_auto_open_compare_after_capture").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, received)
+    }
+
+    @Test
+    fun recreationGuidanceToggle_isVisible_inCategory4() {
+        setContent()
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_gps_guidance_title))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("settings_recreation_guidance").assertIsDisplayed()
+    }
+
+    @Test
+    fun recreationGuidanceToggle_defaultIsOff() {
+        var received: Boolean? = null
+        setContent(recreationGuidance = false, onRecreationGuidanceChanged = { received = it })
+
+        composeRule.onNodeWithTag("settings_recreation_guidance").performClick()
         composeRule.waitForIdle()
 
         assertEquals(true, received)

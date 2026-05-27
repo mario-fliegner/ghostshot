@@ -3,7 +3,10 @@ GPS Recreation — Finaler Implementierungsplan: Analyse
 Fortschritt:
 Block 1 — metadata.json v3 + SessionScanner-Kompatibilität  ✅ DONE (2026-05-27)
 Block 2 — Reference GPS EXIF Extraction                      ✅ DONE (2026-05-27)
-Block 3 — Settings + Permission-Grundlage                    ⬜ offen
+Block 3 — Settings + Permission-Grundlage                    ✅ DONE (2026-05-27)
+  Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL (190 Tests grün)
+  Instrumentation: SettingsRepositoryTest 17/17 grün, SettingsScreenTest 20/20 grün
+  Hinweis: runCurrent() im ViewModel-Test erforderlich (SharedFlow-Collector muss vor emit subscribed sein)
 Block 4 — LocationProvider + Lifecycle                       ⬜ offen
 Block 5 — Guidance State Computation                         ⬜ offen
 Block 6 — Guidance Chip UI                                   ⬜ offen

@@ -22,6 +22,7 @@ class SettingsRepository @Inject constructor(
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val RESET_OVERLAY_AFTER_CAPTURE = booleanPreferencesKey("reset_overlay_after_capture")
         val AUTO_OPEN_COMPARE_AFTER_CAPTURE = booleanPreferencesKey("auto_open_compare_after_capture")
+        val RECREATION_GUIDANCE = booleanPreferencesKey("recreation_guidance")
     }
 
     private val preferences: Flow<Preferences> = dataStore.data
@@ -70,6 +71,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setAutoOpenCompareAfterCapture(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.AUTO_OPEN_COMPARE_AFTER_CAPTURE] = enabled
+        }
+    }
+
+    val recreationGuidance: Flow<Boolean> = preferences.map { prefs ->
+        prefs[Keys.RECREATION_GUIDANCE] ?: false
+    }
+
+    suspend fun setRecreationGuidance(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.RECREATION_GUIDANCE] = enabled
         }
     }
 }

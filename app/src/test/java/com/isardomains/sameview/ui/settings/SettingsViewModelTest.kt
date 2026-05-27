@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -23,21 +24,27 @@ import org.mockito.kotlin.whenever
 class SettingsViewModelTest {
 
     private lateinit var repository: SettingsRepository
+    private lateinit var locationPermissionChecker: LocationPermissionChecker
     private lateinit var gridTypeFlow: MutableStateFlow<GridType>
     private lateinit var keepScreenOnFlow: MutableStateFlow<Boolean>
+    private lateinit var recreationGuidanceFlow: MutableStateFlow<Boolean>
     private lateinit var viewModel: SettingsViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         repository = mock()
+        locationPermissionChecker = mock()
         gridTypeFlow = MutableStateFlow(GridType.RULE_OF_THIRDS)
         keepScreenOnFlow = MutableStateFlow(true)
+        recreationGuidanceFlow = MutableStateFlow(false)
         whenever(repository.gridType).thenReturn(gridTypeFlow)
         whenever(repository.keepScreenOn).thenReturn(keepScreenOnFlow)
         whenever(repository.resetOverlayAfterCapture).thenReturn(MutableStateFlow(false))
         whenever(repository.autoOpenCompareAfterCapture).thenReturn(MutableStateFlow(false))
-        viewModel = SettingsViewModel(repository)
+        whenever(repository.recreationGuidance).thenReturn(recreationGuidanceFlow)
+        whenever(locationPermissionChecker.isGranted()).thenReturn(false)
+        viewModel = SettingsViewModel(repository, locationPermissionChecker)
     }
 
     @After
@@ -143,5 +150,35 @@ class SettingsViewModelTest {
         viewModel.onAutoOpenCompareAfterCaptureChanged(false)
         advanceUntilIdle()
         verify(repository).setAutoOpenCompareAfterCapture(false)
+    }
+
+    @Test
+    fun initialRecreationGuidance_isFalse() {
+        assertEquals(false, viewModel.recreationGuidance.value)
+    }
+
+    @Test
+    fun onRecreationGuidanceOn_withoutPermission_emitsRequestPermissionEvent() = runTest {
+        whenever(locationPermissionChecker.isGranted()).thenReturn(false)
+        val events = mutableListOf<SettingsUiEvent>()
+        val job = launch { viewModel.uiEvents.collect { events.add(it) } }
+        runCurrent() // ensure collector is subscribed before event is emitted
+
+        viewModel.onRecreationGuidanceChanged(true)
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        assertEquals(SettingsUiEvent.RequestLocationPermission, events.first())
+        job.cancel()
+    }
+
+    @Test
+    fun onRecreationGuidanceOn_withPermissionGranted_savesSettingDirectly() = runTest {
+        whenever(locationPermissionChecker.isGranted()).thenReturn(true)
+
+        viewModel.onRecreationGuidanceChanged(true)
+        advanceUntilIdle()
+
+        verify(repository).setRecreationGuidance(true)
     }
 }

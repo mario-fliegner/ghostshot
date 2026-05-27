@@ -161,4 +161,17 @@ class SettingsRepositoryTest {
         repository.setAutoOpenCompareAfterCapture(false)
         assertEquals(false, repository.autoOpenCompareAfterCapture.first())
     }
+
+    @Test
+    fun recreationGuidance_defaultIsFalse() = testScope.runTest {
+        assertEquals(false, repository.recreationGuidance.first())
+    }
+
+    @Test
+    fun recreationGuidance_togglePersists() = testScope.runTest {
+        repository.setRecreationGuidance(true)
+        assertEquals(true, repository.recreationGuidance.first())
+        repository.setRecreationGuidance(false)
+        assertEquals(false, repository.recreationGuidance.first())
+    }
 }
