@@ -121,7 +121,8 @@ data class CameraUiState(
     val viewportWidth: Int = 0,
     val viewportHeight: Int = 0,
     val savedSessions: List<ScannedSession> = emptyList(),
-    val isOverlayNearlyInvisible: Boolean = false
+    val isOverlayNearlyInvisible: Boolean = false,
+    val gpsGuidanceState: GpsGuidanceState = GpsGuidanceState.Hidden
 )
 
 /**
@@ -242,6 +243,8 @@ class CameraViewModel @Inject constructor(
     // GPS state — foreground-only, active only when all four conditions are met
     private var recreationGuidanceEnabled = false
     private var cameraScreenActive = false
+    private var hysteresisPendingColor: ProximityColor? = null
+    private var hysteresisPendingCount: Int = 0
 
     // Visible for testing — true when GPS updates are currently active
     internal var isGpsActive = false
@@ -262,6 +265,7 @@ class CameraViewModel @Inject constructor(
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             currentLocation = location
+            recomputeGuidanceState(location)
         }
         @Suppress("OVERRIDE_DEPRECATION")
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
@@ -871,8 +875,14 @@ class CameraViewModel @Inject constructor(
 
     private fun startGps() {
         isGpsActive = true
+        hysteresisPendingColor = null
+        hysteresisPendingCount = 0
+        _uiState.update { it.copy(gpsGuidanceState = GpsGuidanceState.Neutral) }
         val lastKnown = try { locationProvider.getLastKnown() } catch (_: Exception) { null }
-        if (lastKnown != null) currentLocation = lastKnown
+        if (lastKnown != null) {
+            currentLocation = lastKnown
+            recomputeGuidanceState(lastKnown)
+        }
         locationProvider.startUpdates(locationListener)
     }
 
@@ -880,6 +890,28 @@ class CameraViewModel @Inject constructor(
         isGpsActive = false
         locationProvider.stopUpdates(locationListener)
         currentLocation = null
+        hysteresisPendingColor = null
+        hysteresisPendingCount = 0
+        _uiState.update { it.copy(gpsGuidanceState = GpsGuidanceState.Hidden) }
+    }
+
+    private fun recomputeGuidanceState(location: Location) {
+        val metadata = _uiState.value.referenceImageMetadata ?: return
+        val refLat = metadata.gpsLatitude ?: return
+        val refLon = metadata.gpsLongitude ?: return
+        val result = GuidanceComputer.computeGuidanceState(
+            currentLat = location.latitude,
+            currentLon = location.longitude,
+            accuracyMeters = location.accuracy,
+            refLat = refLat,
+            refLon = refLon,
+            previousState = _uiState.value.gpsGuidanceState,
+            pendingColor = hysteresisPendingColor,
+            pendingCount = hysteresisPendingCount
+        )
+        hysteresisPendingColor = result.pendingColor
+        hysteresisPendingCount = result.pendingCount
+        _uiState.update { it.copy(gpsGuidanceState = result.state) }
     }
 
     private fun finishCapture() {

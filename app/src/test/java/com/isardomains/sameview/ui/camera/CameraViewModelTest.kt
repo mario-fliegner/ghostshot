@@ -2535,4 +2535,77 @@ class CameraViewModelTest {
         vm.onReferenceImageRemoveUndo()
         assertTrue(vm.isGpsActive)
     }
+
+    // --- GpsGuidanceState lifecycle ---
+
+    @Test
+    fun gpsGuidanceState_isHidden_byDefault() = runTest {
+        val (vm, _) = gpsViewModel()
+        assertEquals(GpsGuidanceState.Hidden, vm.uiState.value.gpsGuidanceState)
+    }
+
+    @Test
+    fun gpsGuidanceState_isNeutral_whenGpsStartsWithNoLastKnown() = runTest {
+        val mockProvider = mock<LocationProvider>()
+        whenever(mockProvider.getLastKnown()).thenReturn(null)
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true,
+            mockProvider = mockProvider
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertEquals(GpsGuidanceState.Neutral, vm.uiState.value.gpsGuidanceState)
+    }
+
+    @Test
+    fun gpsGuidanceState_isHidden_afterGpsStopped() = runTest {
+        val mockProvider = mock<LocationProvider>()
+        whenever(mockProvider.getLastKnown()).thenReturn(null)
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true,
+            mockProvider = mockProvider
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertEquals(GpsGuidanceState.Neutral, vm.uiState.value.gpsGuidanceState)
+
+        vm.onCameraScreenInactive()
+
+        assertEquals(GpsGuidanceState.Hidden, vm.uiState.value.gpsGuidanceState)
+    }
+
+    @Test
+    fun gpsGuidanceState_becomesInformative_whenLocationArrivesWithGoodAccuracy() = runTest {
+        val capturedListeners = mutableListOf<android.location.LocationListener>()
+        val fakeProvider = object : LocationProvider(null as LocationManager?) {
+            override fun startUpdates(listener: android.location.LocationListener) {
+                capturedListeners.add(listener)
+            }
+            override fun stopUpdates(listener: android.location.LocationListener) {}
+            override fun getLastKnown(): android.location.Location? = null
+        }
+        val metadata = ReferenceImageMetadata(1080, 1920, 1080, 1920, null,
+            gpsLatitude = 48.001, gpsLongitude = 11.0)
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepoWithGps(recreationGuidance = true),
+            locationProvider = fakeProvider,
+            locationPermissionChecker = { true }
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertEquals(GpsGuidanceState.Neutral, vm.uiState.value.gpsGuidanceState)
+
+        val fakeLocation = mock<android.location.Location>()
+        whenever(fakeLocation.latitude).thenReturn(48.0)
+        whenever(fakeLocation.longitude).thenReturn(11.0)
+        whenever(fakeLocation.accuracy).thenReturn(10f)
+        capturedListeners.single().onLocationChanged(fakeLocation)
+
+        assertTrue(vm.uiState.value.gpsGuidanceState is GpsGuidanceState.Informative)
+    }
 }

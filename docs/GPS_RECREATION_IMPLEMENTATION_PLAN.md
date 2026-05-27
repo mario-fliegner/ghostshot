@@ -8,7 +8,7 @@ Block 3 — Settings + Permission-Grundlage                    ✅ DONE (2026-05
   Instrumentation: SettingsRepositoryTest 17/17 grün, SettingsScreenTest 20/20 grün
   Hinweis: runCurrent() im ViewModel-Test erforderlich (SharedFlow-Collector muss vor emit subscribed sein)
 Block 4 — LocationProvider + Lifecycle                       ✅ DONE (2026-05-27)
-Block 5 — Guidance State Computation                         ⬜ offen
+Block 5 — Guidance State Computation                         ✅ DONE (2026-05-27)
 Block 6 — Guidance Chip UI                                   ⬜ offen
 Block 7 — Capture GPS Freeze + EXIF Writing                  ⬜ offen
 Block 8 — Test-Hardening + Release-Vorbereitung              ⬜ offen
@@ -330,7 +330,13 @@ Play-Store-/Privacy-Relevanz: Kein zusätzlicher Punkt — Permission ist in Blo
 
 Commit-Fähigkeit: GPS-Provider ist aktiv wenn alle vier Bedingungen erfüllt, stoppt sauber. currentLocation wird befüllt aber nicht angezeigt. Feature ist funktional verborgen.
 
-Block 5 — Guidance State Computation
+Block 5 — Guidance State Computation  ✅ DONE (2026-05-27)
+Status: Implementiert und getestet — 2026-05-27
+Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL (243 Tests grün, 0 Fehler)
+  GuidanceComputerTest: 17 neue Tests grün (Proximity-Farben, Bearing, Hysterese, Schwellwerte, Neutral, formatDistance)
+  CameraViewModelTest: 4 neue Guidance-State-Tests grün, alle 218 Vorherigen weiterhin grün
+Neue Dateien: GpsGuidanceState.kt, GuidanceComputer.kt
+
 Ziel: Reine Berechnungsschicht ohne UI. GpsGuidanceState als Sealed Interface. Bearing-, Distanz-, Farbmodell- und Hysterese-Logik als testbare pure Functions. CameraUiState um gpsGuidanceState-Feld erweitern.
 
 Warum an dieser Stelle: Computation vor UI trennt Logik klar ab, erlaubt extensive Unit-Tests ohne Android-Composable-Infrastruktur. CameraViewModel kann currentLocation-Updates sofort in GpsGuidanceState umrechnen, bevor irgend ein UI-Element das liest.
