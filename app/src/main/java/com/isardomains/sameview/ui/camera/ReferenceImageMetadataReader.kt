@@ -36,12 +36,34 @@ object ReferenceImageMetadataReader {
             exifOrientation == ExifInterface.ORIENTATION_ROTATE_270 ||
             exifOrientation == ExifInterface.ORIENTATION_TRANSVERSE
 
+        var gpsLatitude: Double? = null
+        var gpsLongitude: Double? = null
+        var gpsAltitude: Double? = null
+        try {
+            openInputStream()?.use { stream ->
+                val exif = ExifInterface(stream)
+                val latLong = FloatArray(2)
+                if (exif.getLatLong(latLong)) {
+                    gpsLatitude = latLong[0].toDouble()
+                    gpsLongitude = latLong[1].toDouble()
+                }
+                gpsAltitude = exif.getAltitude(Double.NaN).takeIf { !it.isNaN() }
+            }
+        } catch (_: Exception) {
+            gpsLatitude = null
+            gpsLongitude = null
+            gpsAltitude = null
+        }
+
         return ReferenceImageMetadata(
             rawWidth = opts.outWidth,
             rawHeight = opts.outHeight,
             orientedWidth = if (isRotated) opts.outHeight else opts.outWidth,
             orientedHeight = if (isRotated) opts.outWidth else opts.outHeight,
-            exifOrientation = exifOrientation
+            exifOrientation = exifOrientation,
+            gpsLatitude = gpsLatitude,
+            gpsLongitude = gpsLongitude,
+            gpsAltitude = gpsAltitude
         )
     }
 }

@@ -61,7 +61,10 @@ data class ReferenceImageMetadata(
     val rawHeight: Int,
     val orientedWidth: Int,
     val orientedHeight: Int,
-    val exifOrientation: Int?
+    val exifOrientation: Int?,
+    val gpsLatitude: Double? = null,
+    val gpsLongitude: Double? = null,
+    val gpsAltitude: Double? = null
 )
 
 /**

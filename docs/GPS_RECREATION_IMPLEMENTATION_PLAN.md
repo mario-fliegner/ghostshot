@@ -2,7 +2,7 @@ GPS Recreation — Finaler Implementierungsplan: Analyse
 
 Fortschritt:
 Block 1 — metadata.json v3 + SessionScanner-Kompatibilität  ✅ DONE (2026-05-27)
-Block 2 — Reference GPS EXIF Extraction                      ⬜ offen
+Block 2 — Reference GPS EXIF Extraction                      ✅ DONE (2026-05-27)
 Block 3 — Settings + Permission-Grundlage                    ⬜ offen
 Block 4 — LocationProvider + Lifecycle                       ⬜ offen
 Block 5 — Guidance State Computation                         ⬜ offen
@@ -121,7 +121,13 @@ Play-Store-/Privacy-Relevanz: Nein.
 
 Commit-Fähigkeit: Nach diesem Block: v3-Sessions werden geschrieben und gescannt. v2-Sessions bleiben vollständig lesbar. Kein GPS-Inhalt, kein UI-Effekt. Sauber abgeschlossen.
 
-Block 2 — Reference GPS EXIF Extraction
+Block 2 — Reference GPS EXIF Extraction  ✅ DONE
+Status: Implementiert und getestet — 2026-05-27
+Commit: ausstehend
+Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL
+Instrumentation: ReferenceImageMetadataReaderTest 8/8 grün (4 bestehende + 4 neue GPS-Tests)
+Hinweis: ExifInterface.getLatLong(FloatArray) verwendet statt no-arg-Variante (erst ab API 34)
+
 Ziel: GPS-Koordinaten passiv aus dem EXIF des Referenzbildes lesen. Keine Permission benötigt. Fehlende GPS-Daten sind expliziter Normalzustand.
 
 Warum an dieser Stelle: Unabhängig von Settings, Permission, LocationProvider. Kann parallel zu Block 3 entwickelt, aber vorsichtshalber sequentiell gehalten werden um Konflikte in CameraViewModel.kt/ReferenceImageMetadata zu vermeiden. Muss vor Block 5 (Guidance Computation) kommen, weil referenceHasGps eine der vier GPS-Aktivierungsbedingungen ist.
