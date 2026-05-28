@@ -29,7 +29,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.theme.SameViewOverlayScrim
 import com.isardomains.sameview.ui.theme.SameViewTextPrimary
@@ -80,7 +79,7 @@ private fun GpsChipNeutralContent() {
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.size(14.dp)) {
-            drawNorthArrow(color = SameViewTextSecondary.copy(alpha = 0.6f))
+            drawDirectionChevron(color = SameViewTextSecondary.copy(alpha = 0.6f))
         }
     }
 }
@@ -109,14 +108,9 @@ private fun GpsChipInformativeContent(state: GpsGuidanceState.Informative) {
             val bearing = state.bearingDegrees
             Canvas(modifier = Modifier.size(14.dp)) {
                 rotate(degrees = bearing, pivot = center) {
-                    drawNorthArrow(color = SameViewTextPrimary)
+                    drawDirectionChevron(color = SameViewTextPrimary)
                 }
             }
-            Text(
-                text = "N",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                color = SameViewTextSecondary
-            )
         }
         Text(
             text = GuidanceComputer.formatDistance(state.distanceMeters),
@@ -133,12 +127,17 @@ private fun ProximityColor.toColor(): Color? = when (this) {
     ProximityColor.NEUTRAL -> null
 }
 
-private fun DrawScope.drawNorthArrow(color: Color) {
+private fun DrawScope.drawDirectionChevron(color: Color) {
     val cx = size.width / 2f
+    val w = size.width
+    val h = size.height
     val path = Path().apply {
         moveTo(cx, 0f)
-        lineTo(cx + size.width * 0.4f, size.height * 0.75f)
-        lineTo(cx - size.width * 0.4f, size.height * 0.75f)
+        lineTo(cx + w * 0.38f, h * 0.88f)
+        lineTo(cx + w * 0.13f, h * 0.66f)
+        lineTo(cx, h * 0.78f)
+        lineTo(cx - w * 0.13f, h * 0.66f)
+        lineTo(cx - w * 0.38f, h * 0.88f)
         close()
     }
     drawPath(path = path, color = color)
