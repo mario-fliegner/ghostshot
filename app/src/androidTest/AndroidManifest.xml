@@ -4,17 +4,30 @@
         <!-- Test-only ContentProvider that simulates a SAF document provider rejecting
              the require_original flag (SecurityException), used by
              ReferenceImageMetadataReaderTest to verify the authority guard in the reader. -->
+        <!--
+             android:process="com.isardomains.sameview": forces both providers to run inside the
+             instrumentation process (the app's process). The instrumentation runner loads the
+             test APK's dex into that process, so these Java classes are findable. Running in
+             the app's process also gives the providers access to files the test created in
+             appContext.cacheDir (same UID owns both).
+
+             android:exported="true": required because the caller (app package
+             com.isardomains.sameview) and the provider package (com.isardomains.sameview.test)
+             have different UIDs. exported=false blocks cross-UID access even from within the
+             same physical process.
+
+             These providers are pure Java (no Kotlin stdlib), serve only temporary test JPEGs
+             from cacheDir, and are never present in a production APK.
+        -->
         <provider
             android:name="com.isardomains.sameview.ui.camera.SafMimicContentProvider"
             android:authorities="com.isardomains.sameview.test.safmimic"
-            android:exported="false" />
-        <!-- Test-only ContentProvider that simulates the Photo Picker / MediaStore split-source
-             behaviour: plain openInputStream returns a pre-rotated file, while
-             openFileDescriptor with require_original=1 returns the original file with EXIF
-             rotation. Used by ReferenceImageMetadataReaderTest to verify the double-rotation fix. -->
+            android:exported="true"
+            android:process="com.isardomains.sameview" />
         <provider
             android:name="com.isardomains.sameview.ui.camera.PhotoPickerMimicContentProvider"
             android:authorities="com.isardomains.sameview.test.photopickermimicmedia"
-            android:exported="false" />
+            android:exported="true"
+            android:process="com.isardomains.sameview" />
     </application>
 </manifest>
