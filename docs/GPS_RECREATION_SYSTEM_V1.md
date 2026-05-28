@@ -527,4 +527,4 @@ These directions are all additive to the current architecture.
 | `CAMERA_WORKFLOW_UX_V1.md` | Defines CameraScreen layout and hint zones. GPS chip placement must not conflict with the Top-Left Hint Zone (section 12). |
 | `SETTINGS_UX_V1.md` | Reserves Settings Category 4 for GPS Guidance. The single "Recreation guidance" toggle is defined in this document. |
 | `CLAUDE_PROJECT_INSTRUCTION.md` | Defines the allowed permission set. `ACCESS_FINE_LOCATION` is added when GPS Recreation is implemented. |
-| `IMPLEMENTATION_NOTES.md` | Tracks implementation state. GPS Recreation System is not yet implemented. |
+| `IMPLEMENTATION_NOTES.md` | Tracks implementation state. GPS Recreation Blocks 1–6 (Reference EXIF extraction, Settings, Permission flow, LocationProvider, Guidance computation, Guidance Chip UI, Smart SAF Fallback) are implemented. Block 7 (Capture GPS Freeze + EXIF Writing) is open. |

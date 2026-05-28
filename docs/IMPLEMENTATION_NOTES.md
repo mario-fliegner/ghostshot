@@ -25,10 +25,11 @@ Technical baseline:
 - minSdk 29 / targetSdk 35
 
 Permissions:
-- CAMERA only
+- CAMERA
+- ACCESS_FINE_LOCATION (GPS Recreation System; foreground-only; lazy request in Settings)
+- ACCESS_MEDIA_LOCATION (companion permission; allows Photo Picker to return unredacted GPS EXIF)
 - No INTERNET permission
 - No READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE permission
-- ACCESS_FINE_LOCATION is reserved for the GPS Recreation System (not yet implemented; see GPS_RECREATION_SYSTEM_V1.md)
 
 Current release state:
 - Closed-testing-ready based on the current code and documented verification
@@ -67,6 +68,7 @@ Current release state:
   - Keep screen awake
   - Reset overlay after capture
   - Auto-open compare after capture
+  - Recreation Guidance (GPS; boolean; default OFF; lazy permission request)
 - Grid Type updates CameraScreen grid rendering through `CameraViewModel` state
 - Keep screen awake is applied only while `CameraScreen` is visible and is cleared on dispose
 - Reset overlay after capture removes the reference image entirely after a successful capture:
@@ -85,6 +87,35 @@ Current release state:
 - Camera permission is rechecked on `ON_RESUME` after returning from Android Settings
 - Returning from Settings does not trigger an automatic permission re-request
 - Permanently denied state updates without requiring an app restart
+
+### Location Permission (GPS Recreation)
+- ACCESS_FINE_LOCATION permission flow implemented
+- Lazy request: permission is never requested on app start; request is triggered only when the user first enables "Recreation guidance" in Settings
+- Pre-rationale dialog shown before the system permission dialog
+- On permanent denial: toggle reverts to OFF; inline hint in Settings explains that location access is required
+- ACCESS_MEDIA_LOCATION declared in manifest as companion permission; enables Photo Picker to return unredacted GPS EXIF for HEIC and JPEG reference images
+- `setRequireOriginal()` is called only when the URI authority is `media` (Photo Picker); SAF/DocumentProvider URIs are opened directly to avoid SecurityException
+
+### GPS Recreation Guidance
+
+Full specification: `GPS_RECREATION_SYSTEM_V1.md`
+
+Implemented (Blocks 1–6 including Smart-Fallback):
+
+- **Reference GPS EXIF extraction** — passive read from the reference image EXIF via `ReferenceImageMetadataReader`; no permission required; missing GPS is normal and not an error condition
+- **Recreation Guidance setting** — single boolean DataStore setting (default OFF); controls all GPS behavior; no sub-settings
+- **LocationProvider** — `LocationManager`-based; `GPS_PROVIDER` primary, `NETWORK_PROVIDER` fallback; 8–10 s update interval; foreground-only; no `BACKGROUND_LOCATION`
+- **GPS activation conditions** — GPS updates are requested only when all four conditions are simultaneously true: Recreation Guidance ON, location permission granted, reference image has GPS EXIF, CameraScreen is active and in the foreground
+- **GpsGuidanceState / GuidanceComputer** — sealed interface (`Hidden`, `Neutral`, `Informative`) with proximity color model (Green/Orange/Red/Neutral), Haversine distance, static North-up bearing; bearing suppressed below ~15–20 m; hysteresis prevents color flickering; small distance/bearing changes below threshold are filtered
+- **GpsGuidanceChip** — Composable on CameraScreen; bearing arrow (Canvas), distance label, proximity color accent, "N" label; `AnimatedVisibility` fade transitions; does not overlap Top-Left Hint Zone; `Hidden` state renders no element
+- **Smart SAF Fallback** — one-shot dialog offered only when Recreation Guidance is ON and the selected reference image has no readable GPS EXIF; `SAF/OpenDocument` is the fallback path; `onReferenceImageSelectedViaSaf()` never re-triggers the dialog; dialog is not shown on picker cancellation
+- **metadata.json schema v3** — schema version updated to 3; `captureLocation` and `referenceLocation` are optional top-level fields; v2 sessions remain fully readable; `SessionScanner` accepts versions 2 and 3
+
+**Block 7 (Capture GPS Freeze + EXIF Writing) remains open.** GPS coordinates are not yet written to captured images or `metadata.json`.
+
+GPS is architecturally separate from the Compare rendering pipeline. `GpsSnapshot` is not a rendering input. `ReferenceRenderer.render()` receives no GPS data. See `GPS_RECREATION_SYSTEM_V1.md` sections 2 and 6 for the full constraint set.
+
+---
 
 ### Reference Image
 - Android Photo Picker integration
@@ -260,9 +291,9 @@ Existing tests cover the critical release paths around:
 - Settings persistence and settings-driven workflow behavior
 
 Latest verified test state:
-- `testDebugUnitTest` passing
+- `testDebugUnitTest` passing (all unit tests green after Block 6 Smart-Fallback; exact count from last run in `GPS_RECREATION_IMPLEMENTATION_PLAN.md`)
 - `connectedDebugAndroidTest` passing
-- 329/329 instrumentation tests green on real device
+- Instrumentation test count has grown since GPS blocks were added; exact current count to be re-verified on next full device run
 
 Before Closed Testing, the useful final verification remains:
 - unit tests

@@ -494,7 +494,7 @@ The long-term goal is a professional, calm and highly understandable camera work
 
 # 15. GPS Recreation Guidance
 
-A GPS guidance chip is planned for a future implementation phase.
+The GPS guidance chip is implemented. It is visible on CameraScreen when Recreation Guidance is enabled in Settings, the reference image contains GPS EXIF data, location permission is granted, and CameraScreen is in the foreground.
 
 The full specification — including chip placement, bearing model, proximity color model, GPS states, and lifecycle rules — is defined in `GPS_RECREATION_SYSTEM_V1.md`.
 

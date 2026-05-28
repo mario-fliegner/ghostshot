@@ -106,7 +106,7 @@ The current intended Settings structure is:
 1. Camera
 2. Overlay & Compare
 3. Appearance
-4. Future GPS Guidance (reserved)
+4. GPS Guidance
 
 No additional categories are currently planned.
 
@@ -115,11 +115,11 @@ Current implemented settings:
 - Grid Type
 - Reset Overlay After Capture
 - Auto-Open Compare After Capture
+- Recreation Guidance (GPS; Category 4)
 
 Reserved but not yet implemented settings/features:
 - Hide Reference Peek Hint
 - Theme selection beyond the current dark theme
-- Future GPS Guidance
 
 ---
 
@@ -345,11 +345,9 @@ About should remain lightweight.
 
 ---
 
-# 10. Future GPS Guidance
+# 10. GPS Guidance
 
-GPS Recreation Guidance is an important future feature. Its full specification — including the single "Recreation guidance" setting, permission strategy, data model, lifecycle rules, UI design, and product boundaries — is defined in `GPS_RECREATION_SYSTEM_V1.md`.
-
-The setting for this feature will appear in this category (Category 4) when implemented.
+GPS Recreation Guidance is implemented. The "Recreation guidance" toggle is in Category 4. Its full specification — including permission strategy, data model, lifecycle rules, UI design, and product boundaries — is defined in `GPS_RECREATION_SYSTEM_V1.md`.
 
 GPS functionality must never affect Compare rendering or overlay geometry. See `GPS_RECREATION_SYSTEM_V1.md` for all architectural constraints.
 

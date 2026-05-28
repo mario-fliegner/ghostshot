@@ -165,16 +165,20 @@ Use modern Android best practices appropriate for a new app targeting current An
 
 Allowed:
 - CAMERA
+- ACCESS_FINE_LOCATION (GPS Recreation System; foreground-only; lazy request triggered by Settings toggle)
+- ACCESS_MEDIA_LOCATION (companion permission enabling Photo Picker to return unredacted GPS EXIF; not a dangerous permission)
 
 Required selection mechanism:
-- Android Photo Picker for reference image selection
+- Android Photo Picker is the standard reference image import path
+- SAF / ACTION_OPEN_DOCUMENT is a contextual fallback only: offered when Recreation Guidance is ON and the Photo Picker selection returned an image with no readable GPS EXIF; it is not a general-purpose second import path
 
 Forbidden unless explicitly approved by the user:
 - READ_EXTERNAL_STORAGE
 - WRITE_EXTERNAL_STORAGE
 - READ_MEDIA_IMAGES
 - READ_MEDIA_VIDEO
-- Any additional dangerous permission
+- BACKGROUND_LOCATION
+- Any additional dangerous permission not listed above
 
 Do not introduce unnecessary permissions.
 
