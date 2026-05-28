@@ -30,9 +30,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
-     inkscape:zoom="1.23"
-     inkscape:cx="635.77236"
-     inkscape:cy="455.69106"
+     inkscape:zoom="0.70910507"
+     inkscape:cx="636.01294"
+     inkscape:cy="456.20884"
      inkscape:window-width="1920"
      inkscape:window-height="1111"
      inkscape:window-x="-9"
@@ -128,7 +128,7 @@
          inkscape:label="Kreislinse innen links" /></clipPath></defs><g
      id="g41"
      inkscape:label="Variante 3 - monochrom"
-     style="display:inline"
+     style="display:none"
      transform="matrix(1.0960923,0,0,1.0960923,-12.82655,-18.055602)"><g
        style="display:inline;fill:none"
        id="g1"
@@ -155,7 +155,7 @@
        id="path5"
        style="display:inline;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:2.41388;stroke-dasharray:none;stroke-opacity:1"
        inkscape:label="Berg Links"
-       d="M 118.27621 92.02709 L 97.115642 126.57242 L 93.407605 120.00309 L 66.483434 166.87994 L 66.483434 177.34448 L 133.84431 177.34448 L 133.84431 124.57531 L 118.27621 92.02709 z M 129.77183 133.10734 L 129.3494 153.37448 L 119.42704 143.24091 L 129.77183 133.10734 z " /><path
+       d="m 118.27621,92.02709 -21.160568,34.54533 -3.708037,-6.56933 -26.924171,46.87685 v 10.46454 h 67.360876 v -52.76917 z m 11.49562,41.08025 -0.42243,20.26714 -9.92236,-10.13357 z" /><path
        style="display:inline;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:2.41388;stroke-dasharray:none;stroke-opacity:1"
        d="m 196.31343,177.34465 -37.65206,-56.15057 9.99363,-9.38411 35.43764,54.90535 v 10.62933 z"
        id="path7"
@@ -164,7 +164,7 @@
        id="path8"
        style="display:inline;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:2.41388;stroke-dasharray:none;stroke-opacity:1"
        inkscape:label="Berg Rechts"
-       d="M 149.49303 100.67462 L 136.74096 123.74554 L 136.74096 177.34448 L 196.60137 177.34448 L 149.49303 100.67462 z M 140.81344 133.10734 L 151.15823 143.24091 L 141.2354 153.37448 L 140.81344 133.10734 z " /><g
+       d="m 149.49303,100.67462 -12.75207,23.07092 v 53.59894 h 59.86041 z m -8.67959,32.43272 10.34479,10.13357 -9.92283,10.13357 z" /><g
        id="g29"
        inkscape:label="Ecke Rechts Oben"
        style="display:none;fill:#3b82f6;fill-opacity:1"
@@ -277,7 +277,7 @@
        transform="matrix(0.75352113,0,0,0.75352113,21.722611,30.087245)" /></g><g
      id="g49"
      inkscape:label="Variante 3"
-     style="display:none"
+     style="display:inline"
      transform="matrix(1.0960923,0,0,1.0960923,-12.82655,-18.055602)"><g
        style="display:inline;fill:none"
        id="g46"

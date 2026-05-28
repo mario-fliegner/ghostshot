@@ -186,6 +186,8 @@ internal data class CaptureSessionSnapshot(
     val referenceImageDisplayMode: ReferenceImageDisplayMode,
     val viewportWidth: Int,
     val viewportHeight: Int,
+    val gpsSnapshot: GpsSnapshot? = null,
+    val recreationGuidanceEnabled: Boolean = false,
 )
 
 /**
@@ -716,6 +718,11 @@ class CameraViewModel @Inject constructor(
         }
         cancelCaptureWatchdog(token)
         val currentState = _uiState.value
+        // Freeze GPS at the instant the shutter fires, before any IO work begins.
+        // null when recreation guidance is OFF or no location fix is available.
+        val gpsSnapshot: GpsSnapshot? = if (recreationGuidanceEnabled) {
+            currentLocation?.let { GpsSnapshot.from(it) }
+        } else null
         val snapshot: CaptureSessionSnapshot? = if (
             currentState.referenceImageUri != null &&
             currentState.referenceImageMetadata != null
@@ -729,6 +736,8 @@ class CameraViewModel @Inject constructor(
                 referenceImageDisplayMode = currentState.referenceImageDisplayMode,
                 viewportWidth = currentState.viewportWidth,
                 viewportHeight = currentState.viewportHeight,
+                gpsSnapshot = gpsSnapshot,
+                recreationGuidanceEnabled = recreationGuidanceEnabled,
             )
         } else null
         lastCaptureSnapshot = null
@@ -741,7 +750,7 @@ class CameraViewModel @Inject constructor(
                     bitmap.recycle()
                 }
 
-                val saveResult = MediaStoreWriter.save(context.contentResolver, corrected)
+                val saveResult = MediaStoreWriter.save(context.contentResolver, corrected, gpsSnapshot)
                 val savedUri = saveResult.getOrNull()
                 lastCaptureResult = if (savedUri != null) {
                     CaptureResult(savedUri = savedUri)

@@ -84,7 +84,7 @@ internal object SessionStorage {
             if (!sessionDir.mkdirs()) {
                 throw IOException("Could not create session directory: $sessionDir")
             }
-            writeCapture(capturedBitmap, sessionDir)
+            writeCapture(capturedBitmap, sessionDir, snapshot.gpsSnapshot)
             writeReferenceOriginalAndReference(context, snapshot, sessionDir)
             writeMetadata(sessionDir, sessionTimestampMs, snapshot, captureMediaStoreUri)
             if (BuildConfig.DEBUG) { Log.d(TAG, "Session saved") }
@@ -160,10 +160,14 @@ internal object SessionStorage {
         return candidate
     }
 
-    private fun writeCapture(bitmap: Bitmap, sessionDir: File) {
+    private fun writeCapture(bitmap: Bitmap, sessionDir: File, gpsSnapshot: GpsSnapshot?) {
         val file = File(sessionDir, FILE_CAPTURE)
         writeBitmapAsJpeg(bitmap, file)
         writeSoftwareExif(file)
+        // GPS: fail-soft — a write failure never invalidates the session
+        if (gpsSnapshot != null) {
+            GpsExifWriter.writeGpsToFile(file, gpsSnapshot)
+        }
     }
 
     private fun writeSoftwareExif(file: File) {
@@ -199,6 +203,21 @@ internal object SessionStorage {
                 ?: throw IOException("Could not decode reference bitmap from ${snapshot.referenceImageUri}")
             oriented = applyExifOrientation(raw, snapshot.referenceImageMetadata.exifOrientation)
             writeBitmapAsJpeg(oriented, File(sessionDir, FILE_REFERENCE_ORIGINAL))
+            // GPS preservation: copy reference GPS to reference-original.jpg when guidance is ON.
+            // reference.jpg never gets GPS — no write here.
+            if (snapshot.recreationGuidanceEnabled) {
+                val refLat = snapshot.referenceImageMetadata.gpsLatitude
+                val refLon = snapshot.referenceImageMetadata.gpsLongitude
+                if (refLat != null && refLon != null) {
+                    val refGps = GpsSnapshot(
+                        latitude = refLat,
+                        longitude = refLon,
+                        altitude = snapshot.referenceImageMetadata.gpsAltitude,
+                        accuracyMeters = null
+                    )
+                    GpsExifWriter.writeGpsToFile(File(sessionDir, FILE_REFERENCE_ORIGINAL), refGps)
+                }
+            }
             rendered = ReferenceRenderer.render(
                 sourceBitmap = oriented,
                 viewportWidth = snapshot.viewportWidth,
@@ -241,6 +260,30 @@ internal object SessionStorage {
             put("capture", JSONObject().apply {
                 put("mediaStoreUri", captureMediaStoreUri.toString())
             })
+            val gps = snapshot.gpsSnapshot
+            if (gps != null) {
+                put("captureLocation", JSONObject().apply {
+                    put("latitude", gps.latitude)
+                    put("longitude", gps.longitude)
+                    if (gps.altitude != null) put("altitude", gps.altitude)
+                    if (gps.accuracyMeters != null) put("accuracyMeters", gps.accuracyMeters.toDouble())
+                    if (gps.provider != null) put("provider", gps.provider)
+                    if (gps.fixTimestampMs != null) put("fixTimestampMs", gps.fixTimestampMs)
+                })
+            }
+            if (snapshot.recreationGuidanceEnabled) {
+                val refLat = snapshot.referenceImageMetadata.gpsLatitude
+                val refLon = snapshot.referenceImageMetadata.gpsLongitude
+                if (refLat != null && refLon != null) {
+                    put("referenceLocation", JSONObject().apply {
+                        put("latitude", refLat)
+                        put("longitude", refLon)
+                        val refAlt = snapshot.referenceImageMetadata.gpsAltitude
+                        if (refAlt != null) put("altitude", refAlt)
+                        put("source", "exif")
+                    })
+                }
+            }
             put("reference", JSONObject().apply {
                 put("sourceDisplayName", snapshot.referenceImageUri.toString())
                 put("originalWidth", snapshot.referenceImageMetadata.rawWidth)
