@@ -1359,7 +1359,9 @@ class CameraControlsOverlayTest {
         }
     }
 
-    private fun setLandscapeControlsContent() {
+    private fun setLandscapeControlsContent(
+        gpsGuidanceState: GpsGuidanceState = GpsGuidanceState.Hidden
+    ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario?.onActivity { activity ->
@@ -1384,6 +1386,7 @@ class CameraControlsOverlayTest {
                             onRemoveReferenceImage = {},
                             onCapture = {},
                             isLandscape = true,
+                            gpsGuidanceState = gpsGuidanceState,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -1402,7 +1405,8 @@ class CameraControlsOverlayTest {
         onResetOverlay: () -> Unit = {},
         onRemoveReferenceImage: () -> Unit = {},
         onToggleDisplayMode: () -> Unit = {},
-        displayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW
+        displayMode: ReferenceImageDisplayMode = ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW,
+        gpsGuidanceState: GpsGuidanceState = GpsGuidanceState.Hidden
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -1427,6 +1431,7 @@ class CameraControlsOverlayTest {
                         onToggleDisplayMode = onToggleDisplayMode,
                         onCapture = {},
                         isLandscape = isLandscape,
+                        gpsGuidanceState = gpsGuidanceState,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -1483,6 +1488,97 @@ class CameraControlsOverlayTest {
 
         composeRule.onNodeWithContentDescription(overlayVisibilityWarningDescription()).assertIsDisplayed()
         composeRule.onAllNodesWithContentDescription(mismatchDescription()).assertCountEquals(0)
+    }
+
+    // ── GPS Guidance Chip tests ───────────────────────────────────────────────
+
+    @Test
+    fun gpsChip_isVisible_whenStateIsInformative() {
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Informative(
+                distanceMeters = 47f,
+                bearingDegrees = 90f,
+                proximityColor = ProximityColor.ORANGE
+            )
+        )
+        composeRule.onNodeWithTag("gps_guidance_chip").assertIsDisplayed()
+    }
+
+    @Test
+    fun gpsChip_isNotVisible_whenStateIsHidden() {
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Hidden
+        )
+        composeRule.onAllNodesWithTag("gps_guidance_chip").assertCountEquals(0)
+    }
+
+    @Test
+    fun gpsChip_isVisible_whenStateIsNeutral() {
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Neutral
+        )
+        composeRule.onNodeWithTag("gps_guidance_chip").assertIsDisplayed()
+    }
+
+    @Test
+    fun gpsChip_isVisible_inLandscape_whenStateIsInformative() {
+        setLandscapeControlsContent(
+            gpsGuidanceState = GpsGuidanceState.Informative(
+                distanceMeters = 200f,
+                bearingDegrees = 45f,
+                proximityColor = ProximityColor.RED
+            )
+        )
+        composeRule.onNodeWithTag("gps_guidance_chip").assertIsDisplayed()
+    }
+
+    @Test
+    fun gpsChip_inPortrait_doesNotOverlapTopStartHintZone() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://sameview/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true,
+            gpsGuidanceState = GpsGuidanceState.Informative(
+                distanceMeters = 47f,
+                bearingDegrees = 90f,
+                proximityColor = ProximityColor.ORANGE
+            )
+        )
+        val chipBounds = composeRule
+            .onNodeWithTag("gps_guidance_chip")
+            .getUnclippedBoundsInRoot()
+        val hintBounds = composeRule
+            .onNodeWithContentDescription(mismatchDescription())
+            .getUnclippedBoundsInRoot()
+        assertNoOverlap(chipBounds, hintBounds)
+    }
+
+    @Test
+    fun gpsChip_inPortrait_staysWithinRootBounds() {
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Informative(
+                distanceMeters = 1200f,
+                bearingDegrees = null,
+                proximityColor = ProximityColor.GREEN
+            )
+        )
+        val rootBounds = composeRule
+            .onNodeWithTag("camera_controls_root")
+            .getUnclippedBoundsInRoot()
+        val chipBounds = composeRule
+            .onNodeWithTag("gps_guidance_chip")
+            .getUnclippedBoundsInRoot()
+        assert(chipBounds.left >= rootBounds.left)
+        assert(chipBounds.right <= rootBounds.right)
+        assert(chipBounds.top >= rootBounds.top)
     }
 
     private fun wakeTestDevice() {

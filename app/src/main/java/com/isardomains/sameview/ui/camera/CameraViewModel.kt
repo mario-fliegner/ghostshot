@@ -216,9 +216,7 @@ class CameraViewModel @Inject constructor(
     private var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
     private var referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata? = { uri ->
-        ReferenceImageMetadataReader.read {
-            context.contentResolver.openInputStream(uri)
-        }
+        ReferenceImageMetadataReader.read(uri, context.contentResolver)
     }
 
     private var sessionScanner: (Context) -> List<ScannedSession> =
@@ -257,6 +255,10 @@ class CameraViewModel @Inject constructor(
 
     private var locationProvider: LocationProvider = LocationProvider(context)
 
+    // LocationManager updates require only ACCESS_FINE_LOCATION. ACCESS_MEDIA_LOCATION is
+    // separately required by the Settings permission flow to unredact GPS from MediaStore photos.
+    // If ACCESS_MEDIA_LOCATION is missing, referenceHasGps() will return false (GPS was
+    // redacted during photo selection), so GPS will not start even if this check passes.
     private var locationPermissionChecker: () -> Boolean = {
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
@@ -264,6 +266,10 @@ class CameraViewModel @Inject constructor(
 
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
+            if (BuildConfig.DEBUG) {
+                val ageMs = System.currentTimeMillis() - location.time
+                Log.d("SameView.GPS", "LocationUpdate: lat=${location.latitude} lon=${location.longitude} acc=${location.accuracy} provider=${location.provider} ageMs=$ageMs")
+            }
             currentLocation = location
             recomputeGuidanceState(location)
         }
@@ -862,10 +868,14 @@ class CameraViewModel @Inject constructor(
         _uiState.value.referenceImageMetadata?.gpsLatitude != null
 
     private fun updateGpsActivation() {
-        val shouldBeActive = recreationGuidanceEnabled
-            && locationPermissionChecker()
-            && referenceHasGps()
-            && cameraScreenActive
+        val guidance = recreationGuidanceEnabled
+        val location = locationPermissionChecker()
+        val hasGps = referenceHasGps()
+        val screen = cameraScreenActive
+        val shouldBeActive = guidance && location && hasGps && screen
+        if (BuildConfig.DEBUG) {
+            Log.d("SameView.GPS", "updateGpsActivation: guidance=$guidance location=$location refGps=$hasGps screen=$screen -> shouldBeActive=$shouldBeActive isGpsActive=$isGpsActive")
+        }
         if (shouldBeActive && !isGpsActive) {
             startGps()
         } else if (!shouldBeActive && isGpsActive) {
@@ -879,6 +889,14 @@ class CameraViewModel @Inject constructor(
         hysteresisPendingCount = 0
         _uiState.update { it.copy(gpsGuidanceState = GpsGuidanceState.Neutral) }
         val lastKnown = try { locationProvider.getLastKnown() } catch (_: Exception) { null }
+        if (BuildConfig.DEBUG) {
+            if (lastKnown != null) {
+                val ageMs = System.currentTimeMillis() - lastKnown.time
+                Log.d("SameView.GPS", "LastKnown: lat=${lastKnown.latitude} lon=${lastKnown.longitude} acc=${lastKnown.accuracy} provider=${lastKnown.provider} ageMs=$ageMs")
+            } else {
+                Log.d("SameView.GPS", "LastKnown: null")
+            }
+        }
         if (lastKnown != null) {
             currentLocation = lastKnown
             recomputeGuidanceState(lastKnown)
@@ -899,6 +917,9 @@ class CameraViewModel @Inject constructor(
         val metadata = _uiState.value.referenceImageMetadata ?: return
         val refLat = metadata.gpsLatitude ?: return
         val refLon = metadata.gpsLongitude ?: return
+        if (BuildConfig.DEBUG) {
+            Log.d("SameView.GPS", "Compute input: currentLat=${location.latitude} currentLon=${location.longitude} refLat=$refLat refLon=$refLon acc=${location.accuracy}")
+        }
         val result = GuidanceComputer.computeGuidanceState(
             currentLat = location.latitude,
             currentLon = location.longitude,
@@ -909,6 +930,14 @@ class CameraViewModel @Inject constructor(
             pendingColor = hysteresisPendingColor,
             pendingCount = hysteresisPendingCount
         )
+        if (BuildConfig.DEBUG) {
+            val s = result.state
+            if (s is GpsGuidanceState.Informative) {
+                Log.d("SameView.GPS", "Compute result: Informative distM=${s.distanceMeters} bearing=${s.bearingDegrees} color=${s.proximityColor}")
+            } else {
+                Log.d("SameView.GPS", "Compute result: ${s::class.simpleName}")
+            }
+        }
         hysteresisPendingColor = result.pendingColor
         hysteresisPendingCount = result.pendingCount
         _uiState.update { it.copy(gpsGuidanceState = result.state) }

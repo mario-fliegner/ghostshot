@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Test-only ContentProvider that simulates a SAF document provider rejecting
+             the require_original flag (SecurityException), used by
+             ReferenceImageMetadataReaderTest to verify the authority guard in the reader. -->
+        <provider
+            android:name="com.isardomains.sameview.ui.camera.SafMimicContentProvider"
+            android:authorities="com.isardomains.sameview.test.safmimic"
+            android:exported="false" />
+    </application>
+</manifest>

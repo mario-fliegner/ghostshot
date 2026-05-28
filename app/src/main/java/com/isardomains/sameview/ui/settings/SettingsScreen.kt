@@ -78,8 +78,10 @@ fun SettingsScreen(
     var showPermissionDeniedHint by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val granted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true &&
+            results[Manifest.permission.ACCESS_MEDIA_LOCATION] == true
         viewModel.onLocationPermissionResult(granted)
         if (!granted) {
             val activity = context as? Activity
@@ -114,7 +116,10 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showRationaleDialog = false
-                    permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                    permissionLauncher.launch(arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_MEDIA_LOCATION
+                    ))
                 }) {
                     Text(stringResource(R.string.settings_recreation_guidance_rationale_confirm))
                 }

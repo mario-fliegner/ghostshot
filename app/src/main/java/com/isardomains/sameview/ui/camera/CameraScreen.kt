@@ -670,6 +670,7 @@ fun CameraScreen(
                     isLandscape = isLandscape,
                     frameLeft = frameLeftDp,
                     frameTop = frameTopDp,
+                    gpsGuidanceState = uiState.gpsGuidanceState,
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -1076,6 +1077,7 @@ internal fun CameraControlsOverlay(
     isLandscape: Boolean,
     frameLeft: Dp = 0.dp,
     frameTop: Dp = 0.dp,
+    gpsGuidanceState: GpsGuidanceState = GpsGuidanceState.Hidden,
     modifier: Modifier = Modifier
 ) {
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
@@ -1311,6 +1313,14 @@ internal fun CameraControlsOverlay(
                     .padding(bottom = bottomPadding)
             )
         }
+
+        GpsGuidanceChip(
+            state = gpsGuidanceState,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 8.dp)
+        )
     }
 }
 

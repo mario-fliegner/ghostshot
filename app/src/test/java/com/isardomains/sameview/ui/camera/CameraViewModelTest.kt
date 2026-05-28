@@ -2608,4 +2608,56 @@ class CameraViewModelTest {
 
         assertTrue(vm.uiState.value.gpsGuidanceState is GpsGuidanceState.Informative)
     }
+
+    @Test
+    fun gpsGuidanceState_remainsHidden_whenPermissionNotGranted() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = false, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertFalse(vm.isGpsActive)
+        assertEquals(GpsGuidanceState.Hidden, vm.uiState.value.gpsGuidanceState)
+    }
+
+    @Test
+    fun gpsGuidanceState_remainsHidden_whenReferenceHasNoGps() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = false
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertFalse(vm.isGpsActive)
+        assertEquals(GpsGuidanceState.Hidden, vm.uiState.value.gpsGuidanceState)
+    }
+
+    @Test
+    fun gpsGuidanceState_remainsHidden_whenRecreationGuidanceOff() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = false, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        assertFalse(vm.isGpsActive)
+        assertEquals(GpsGuidanceState.Hidden, vm.uiState.value.gpsGuidanceState)
+    }
+
+    @Test
+    fun gpsGuidanceState_remainsHidden_whenCameraScreenNotActive() = runTest {
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        // camera screen not activated
+
+        assertFalse(vm.isGpsActive)
+        assertEquals(GpsGuidanceState.Hidden, vm.uiState.value.gpsGuidanceState)
+    }
 }

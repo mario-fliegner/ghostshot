@@ -38,6 +38,10 @@ object SettingsModule {
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_MEDIA_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         }
 }

@@ -9,7 +9,24 @@ Block 3 — Settings + Permission-Grundlage                    ✅ DONE (2026-05
   Hinweis: runCurrent() im ViewModel-Test erforderlich (SharedFlow-Collector muss vor emit subscribed sein)
 Block 4 — LocationProvider + Lifecycle                       ✅ DONE (2026-05-27)
 Block 5 — Guidance State Computation                         ✅ DONE (2026-05-27)
-Block 6 — Guidance Chip UI                                   ⬜ offen
+Block 6 — Guidance Chip UI                                   ✅ DONE (2026-05-27)
+  Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL (243 Tests grün)
+  Instrumentation: CameraControlsOverlayTest — kein Device verbunden, Compile erfolgreich
+  Neue Datei: GpsGuidanceChip.kt; 5 neue Chip-Tests in CameraControlsOverlayTest
+Block 6 Zusatzfix/Hardening                                  ✅ DONE (2026-05-28)
+  - HEIC-GPS über SAF verified: EXIF read: hasGps=true lat=45… lon=12…
+  - Photo Picker (media URI) kann GPS redaktieren → ACCESS_MEDIA_LOCATION + setRequireOriginal()
+  - setRequireOriginal() nur für authority=="media" — SAF/DocumentProvider-URIs direkt
+  - SAF-URI darf nicht mit setRequireOriginal geöffnet werden (SecurityException-Schutz)
+  - Debug-SAF-Button aus CameraScreen.kt entfernt
+  - Diagnose-Probes (SameView.GPS.Diag) aus ReferenceImageMetadataReader.kt entfernt
+  - Kompaktes EXIF-Read-Log (SameView.GPS) bewusst behalten
+  - updateGpsActivation-Log (SameView.GPS, nur Booleans) bewusst behalten
+  - CameraViewModelTest: 4 neue gpsGuidanceState_remainsHidden_when*-Tests
+  - Permission-Inkonsistenz dokumentiert: CameraViewModel prüft nur ACCESS_FINE_LOCATION
+    (korrekt: LocationManager braucht nur ACCESS_FINE_LOCATION; ACCESS_MEDIA_LOCATION
+    wird in Settings gesichert, wirkt indirekt über referenceHasGps())
+  - Offene Entscheidung: SAF-Original-Import-UX für spätere Blöcke (kein jetziger Scope)
 Block 7 — Capture GPS Freeze + EXIF Writing                  ⬜ offen
 Block 8 — Test-Hardening + Release-Vorbereitung              ⬜ offen
 
