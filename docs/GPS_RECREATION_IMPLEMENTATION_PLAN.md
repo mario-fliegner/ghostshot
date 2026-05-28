@@ -45,7 +45,11 @@ Block 6 Smart-Fallback (GPS Fallback Dialog)                  ✅ DONE (2026-05-
     - values-de/strings.xml: 4 neue Strings (gps_fallback_dialog_*)
     - CameraViewModelTest.kt: 8 neue Tests (gpsFallbackDialog_* + onReferenceImageSelectedViaSaf_*)
   Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL (251 Tests grün)
-Block 7 — Capture GPS Freeze + EXIF Writing                  ⬜ offen
+Block 7 — Capture GPS Freeze + EXIF Writing                  ✅ DONE (2026-05-28)
+  Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL
+  Instrumentation: MediaStoreWriterGpsTest 3/3 grün auf SM-S911B, SessionStorageGpsTest 24/24 grün auf SM-S911B
+  Hinweis: readExif im Test via MediaStore.Images.Media.DATA-Query (Samsung IS_PENDING Race fix)
+  Real-Device-Validation: ausstehend — manuell vor Akzeptanz zu prüfen (Galerie-GPS, capture.jpg, reference.jpg, metadata.json)
 Block 8 — Test-Hardening + Release-Vorbereitung              ⬜ offen
 
 1. Kurzfazit: Ist die Implementierung startklar?
@@ -489,7 +493,20 @@ Play-Store-/Privacy-Relevanz: Nein (reine UI-Änderung).
 
 Commit-Fähigkeit: GPS Guidance Chip vollständig sichtbar und funktional. End-to-end: Recreation Guidance ON + Reference mit GPS + Location fix → Chip zeigt Bearing + Distanz + Farbe.
 
-Block 7 — Capture GPS Freeze + EXIF Writing
+Block 7 — Capture GPS Freeze + EXIF Writing  ✅ DONE (2026-05-28)
+Status: Implementiert und getestet — 2026-05-28
+Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL
+Instrumentation: MediaStoreWriterGpsTest 3/3 grün auf SM-S911B, SessionStorageGpsTest 24/24 grün auf SM-S911B
+Hinweis: readExif im Instrumentierungstest via MediaStore.Images.Media.DATA-Query statt openInputStream
+  (Samsung/Android 14+: IS_PENDING-Clearing löst MediaScanner aus, der Datei kurz bewegt → ENOENT via ContentProvider)
+Abweichungen vom Plan:
+  - GpsSnapshot.accuracyMeters, provider, fixTimestampMs als nullable implementiert (Float?, String?, Long?) statt
+    non-nullable — erlaubt test-seitige Konstruktion ohne Location-Objekt; Capture-Pfad befüllt alle Felder
+  - reference-original.jpg GPS Preservation: verwendet ReferenceImageMetadata + GpsExifWriter statt
+    copyGpsExifFromSource() raw-string-Ansatz (gleiches Ergebnis, einfacherer Pfad)
+  - MediaStore-Bild GPS: über GpsExifWriter.writeGpsToUri() nach JPEG-Save, nicht via ContentValues beim Insert
+  - GPSDateStamp, GPSTimeStamp, GPSProcessingMethod noch nicht geschrieben — auf Block 8 verschoben
+Real-Device-Validation: ausstehend — Galerie/Fotos-App GPS-Anzeige, EXIF-Tool-Prüfung, metadata.json-Inhalt
 Ziel: GPS-Fix beim Capture-Trigger einfrieren (GpsSnapshot), in CaptureSessionSnapshot einbetten, captureLocation und referenceLocation in metadata.json schreiben, GPS-EXIF in capture.jpg und MediaStore-Bild, GPS-Preservation in reference-original.jpg.
 
 Warum zuletzt unter den Feature-Blöcken: Nutzer sieht bereits die Guidance (Block 6), versteht was GPS bedeutet. Erst dann wird GPS auch in Fotos persistiert. Privacy-seitig der sauberere Ablauf.

@@ -100,7 +100,7 @@ Current release state:
 
 Full specification: `GPS_RECREATION_SYSTEM_V1.md`
 
-Implemented (Blocks 1–6 including Smart-Fallback):
+Implemented (Blocks 1–7 including Smart-Fallback):
 
 - **Reference GPS EXIF extraction** — passive read from the reference image EXIF via `ReferenceImageMetadataReader`; no permission required; missing GPS is normal and not an error condition
 - **Recreation Guidance setting** — single boolean DataStore setting (default OFF); controls all GPS behavior; no sub-settings
@@ -110,8 +110,14 @@ Implemented (Blocks 1–6 including Smart-Fallback):
 - **GpsGuidanceChip** — Composable on CameraScreen; bearing arrow (Canvas), distance label, proximity color accent, "N" label; `AnimatedVisibility` fade transitions; does not overlap Top-Left Hint Zone; `Hidden` state renders no element
 - **Smart SAF Fallback** — one-shot dialog offered only when Recreation Guidance is ON and the selected reference image has no readable GPS EXIF; `SAF/OpenDocument` is the fallback path; `onReferenceImageSelectedViaSaf()` never re-triggers the dialog; dialog is not shown on picker cancellation
 - **metadata.json schema v3** — schema version updated to 3; `captureLocation` and `referenceLocation` are optional top-level fields; v2 sessions remain fully readable; `SessionScanner` accepts versions 2 and 3
-
-**Block 7 (Capture GPS Freeze + EXIF Writing) remains open.** GPS coordinates are not yet written to captured images or `metadata.json`.
+- **GPS capture freeze** — at shutter trigger the current GPS fix is frozen into an immutable `GpsSnapshot`; `gpsSnapshot` is null when Recreation Guidance is OFF or no location fix is available
+- **GPS EXIF in MediaStore/gallery image** — written via `GpsExifWriter.writeGpsToUri()` when `gpsSnapshot != null`; fail-soft, never invalidates the saved image
+- **GPS EXIF in `capture.jpg`** — written via `GpsExifWriter.writeGpsToFile()` when `gpsSnapshot != null`; fail-soft
+- **`reference.jpg` never receives GPS** — by design; it is a rendered geometry product with no location semantics
+- **`reference-original.jpg` GPS preservation** — when Recreation Guidance ON and the reference image has GPS EXIF, those coordinates are re-written from `ReferenceImageMetadata` via `GpsExifWriter`; fail-soft; no GPS is added when guidance is OFF or the source has no GPS
+- **`captureLocation` in `metadata.json`** — top-level optional field; written when `gpsSnapshot != null`; fields: `latitude`, `longitude`, optional `altitude`, optional `accuracyMeters`, optional `provider`, optional `fixTimestampMs`
+- **`referenceLocation` in `metadata.json`** — top-level optional field; written when Recreation Guidance ON and reference has GPS EXIF; fields: `latitude`, `longitude`, optional `altitude`, `source: "exif"`
+- **Recreation Guidance OFF** — `gpsSnapshot` is always null; no GPS EXIF written to any file; no `captureLocation` or `referenceLocation` in `metadata.json`
 
 GPS is architecturally separate from the Compare rendering pipeline. `GpsSnapshot` is not a rendering input. `ReferenceRenderer.render()` receives no GPS data. See `GPS_RECREATION_SYSTEM_V1.md` sections 2 and 6 for the full constraint set.
 
@@ -166,7 +172,7 @@ Active compare session lifecycle — fully implemented:
 ### Session Storage
 - Successful captures with an active reference can create an internal session under `filesDir/sessions/<sessionId>/`
 - Each session stores `capture.jpg`, `reference.jpg`, and `metadata.json`
-- `metadata.json` includes schema version, timestamp, file names, MediaStore URI, picker URI, and optional title
+- `metadata.json` includes schema version, timestamp, file names, MediaStore URI, picker URI, optional title, and optional GPS location fields (`captureLocation`, `referenceLocation`)
 - Missing, corrupt, or incomplete session metadata is ignored during scanning
 - Session writes are best-effort and do not invalidate the main MediaStore save; if `SessionStorage.saveSession` returns null after a successful MediaStore save, the user receives `capture_saved_compare_failed` instead of the generic `capture_saved`
 - Session deletion only removes internal session folders
@@ -291,9 +297,10 @@ Existing tests cover the critical release paths around:
 - Settings persistence and settings-driven workflow behavior
 
 Latest verified test state:
-- `testDebugUnitTest` passing (all unit tests green after Block 6 Smart-Fallback; exact count from last run in `GPS_RECREATION_IMPLEMENTATION_PLAN.md`)
-- `connectedDebugAndroidTest` passing
-- Instrumentation test count has grown since GPS blocks were added; exact current count to be re-verified on next full device run
+- `testDebugUnitTest` — PASSING (per-block counts in `GPS_RECREATION_IMPLEMENTATION_PLAN.md`)
+- `MediaStoreWriterGpsTest` — 3/3 PASSED on SM-S911B (Block 7)
+- `SessionStorageGpsTest` — 24/24 PASSED on SM-S911B (Block 7)
+- `connectedDebugAndroidTest` full suite passing; exact current count to be re-verified on next full device run
 
 Before Closed Testing, the useful final verification remains:
 - unit tests

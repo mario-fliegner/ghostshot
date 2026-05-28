@@ -86,7 +86,7 @@ Each successful capture with an active reference image can create an internal co
 
 - Location: `filesDir/sessions/<sessionId>/`
 - Contents: `capture.jpg`, `reference.jpg`, `metadata.json`
-- `metadata.json` stores schema version, `sessionTimestampMs`, file names, capture MediaStore URI, and reference picker URI
+- `metadata.json` stores schema version, `sessionTimestampMs`, file names, capture MediaStore URI, reference picker URI, and optional GPS location fields (`captureLocation`, `referenceLocation`)
 - Session ID is the directory name, formatted as `YYYY-MM-DD_HH-mm-ss`
 - `SessionStorage` writes sessions
 - `SessionScanner` reads sessions
