@@ -8,5 +8,13 @@
             android:name="com.isardomains.sameview.ui.camera.SafMimicContentProvider"
             android:authorities="com.isardomains.sameview.test.safmimic"
             android:exported="false" />
+        <!-- Test-only ContentProvider that simulates the Photo Picker / MediaStore split-source
+             behaviour: plain openInputStream returns a pre-rotated file, while
+             openFileDescriptor with require_original=1 returns the original file with EXIF
+             rotation. Used by ReferenceImageMetadataReaderTest to verify the double-rotation fix. -->
+        <provider
+            android:name="com.isardomains.sameview.ui.camera.PhotoPickerMimicContentProvider"
+            android:authorities="com.isardomains.sameview.test.photopickermimicmedia"
+            android:exported="false" />
     </application>
 </manifest>

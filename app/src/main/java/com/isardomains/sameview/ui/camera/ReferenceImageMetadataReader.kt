@@ -10,41 +10,42 @@ import com.isardomains.sameview.BuildConfig
 
 object ReferenceImageMetadataReader {
 
-    fun read(uri: Uri, resolver: ContentResolver): ReferenceImageMetadata? {
-        // Bounds — InputStream is sufficient; BitmapFactory only needs sequential read.
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        val boundsRead = try {
-            resolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, opts)
-                true
-            } ?: false
-        } catch (_: Exception) {
-            false
-        }
-        if (!boundsRead || opts.outWidth <= 0 || opts.outHeight <= 0) {
-            return null
-        }
+    /**
+     * Reads image dimensions and EXIF metadata (orientation, GPS) from the given URI.
+     *
+     * Both the bounds read and the EXIF/GPS read use the same resolved source URI so that
+     * rawWidth/rawHeight and exifOrientation always come from the same underlying file.
+     *
+     * For Photo Picker URIs (authority in [requireOriginalAuthorities]) the original
+     * unmodified file is requested via [MediaStore.setRequireOriginal]. Without this,
+     * MediaStore may serve a transcoded pre-rotated JPEG for [ContentResolver.openInputStream]
+     * while [ContentResolver.openFileDescriptor] returns the original HEIC — the raw dims
+     * would be already-portrait but exifOrientation would say ROTATE_90, doubling the rotation
+     * and producing a false format-mismatch hint.
+     *
+     * @param requireOriginalAuthorities URI authorities for which [MediaStore.setRequireOriginal]
+     *   is applied. Defaults to `{"media"}` (the Photo Picker / MediaStore authority). Override
+     *   only in tests that simulate the Photo Picker split-source scenario.
+     */
+    fun read(
+        uri: Uri,
+        resolver: ContentResolver,
+        requireOriginalAuthorities: Set<String> = setOf("media")
+    ): ReferenceImageMetadata? {
+        // Resolve the source URI once. For Photo Picker URIs this requests the original
+        // file so both the bounds read and the EXIF read come from the same bytes.
+        val sourceUri = resolveSourceUri(uri, requireOriginalAuthorities)
 
-        // Apply setRequireOriginal only for genuine MediaStore URIs (authority == "media").
-        // setRequireOriginal() is a pure URI string operation that appends ?require_original=1 —
-        // it never throws for SAF/DocumentProvider URIs such as
-        // com.android.providers.media.documents. However, when the modified URI is then passed to
-        // openFileDescriptor() the document provider throws SecurityException because the
-        // require_original flag requires a MediaStore-granted URI, not a document grant.
-        // That SecurityException is silently swallowed by the outer catch block below, which
-        // leaves GPS null even though the normal FD path would have worked perfectly.
-        // Catch SecurityException as a safety net for any edge case where this guard is insufficient.
-        val exifUri: Uri = if (uri.scheme == "content" && uri.authority == "media") {
-            try {
-                MediaStore.setRequireOriginal(uri)
-            } catch (_: UnsupportedOperationException) {
-                uri
-            } catch (_: SecurityException) {
-                uri
-            }
-        } else {
-            uri
+        // Bounds — use sourceUri. If that fails and sourceUri differs from uri (i.e.
+        // setRequireOriginal was applied but the provider rejected it for openInputStream),
+        // fall back to the plain uri and update effectiveUri so EXIF stays consistent.
+        var effectiveUri = sourceUri
+        var opts = readBounds(resolver, sourceUri)
+        if (opts == null && sourceUri !== uri) {
+            opts = readBounds(resolver, uri)
+            effectiveUri = uri
         }
+        if (opts == null) return null
 
         // Orientation + GPS — FileDescriptor gives ExifInterface random access, which is
         // required for reliable HEIC metadata parsing. The InputStream-based path returns
@@ -55,7 +56,7 @@ object ReferenceImageMetadataReader {
         var gpsLongitude: Double? = null
         var gpsAltitude: Double? = null
         try {
-            resolver.openFileDescriptor(exifUri, "r")?.use { pfd ->
+            resolver.openFileDescriptor(effectiveUri, "r")?.use { pfd ->
                 val exif = ExifInterface(pfd.fileDescriptor)
 
                 exifOrientation = exif.getAttributeInt(
@@ -103,6 +104,40 @@ object ReferenceImageMetadataReader {
             gpsLongitude = gpsLongitude,
             gpsAltitude = gpsAltitude
         )
+    }
+
+    /**
+     * Returns a URI that points to the original unmodified file for authorities in
+     * [requireOriginalAuthorities], or the input [uri] unchanged for all other cases.
+     * Catches all exceptions from [MediaStore.setRequireOriginal] and falls back to [uri].
+     */
+    private fun resolveSourceUri(uri: Uri, requireOriginalAuthorities: Set<String>): Uri {
+        if (uri.scheme != "content" || uri.authority !in requireOriginalAuthorities) return uri
+        return try {
+            MediaStore.setRequireOriginal(uri)
+        } catch (_: UnsupportedOperationException) {
+            uri
+        } catch (_: SecurityException) {
+            uri
+        } catch (_: IllegalArgumentException) {
+            uri
+        }
+    }
+
+    /**
+     * Attempts to read image dimensions from [uri] via BitmapFactory in bounds-only mode.
+     * Returns a populated [BitmapFactory.Options] on success, or null on any failure.
+     */
+    private fun readBounds(resolver: ContentResolver, uri: Uri): BitmapFactory.Options? {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        return try {
+            resolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, opts)
+            }
+            if (opts.outWidth > 0 && opts.outHeight > 0) opts else null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     /**

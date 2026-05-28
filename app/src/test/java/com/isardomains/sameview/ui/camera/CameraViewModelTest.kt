@@ -292,6 +292,27 @@ class CameraViewModelTest {
     }
 
     @Test
+    fun landscapeOrientedReference_againstPortraitViewport_hasMismatch() = runTest {
+        // Simulates the double-rotation bug outcome: landscape-oriented dims + portrait viewport.
+        // Verifies that genuinely mismatched dims still trigger the hint (regression guard).
+        val testViewModel = testViewModelWithMetadata(
+            rawWidth = 1920,
+            rawHeight = 1080,
+            orientedWidth = 1920,
+            orientedHeight = 1080
+        )
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+
+        testViewModel.onReferenceImageSelected(mock())
+
+        assertEquals(true, testViewModel.uiState.value.referenceImageHasViewportMismatch)
+        assertEquals(
+            ReferenceImageDisplayMode.SHOW_FULL_IMAGE,
+            testViewModel.uiState.value.referenceImageDisplayMode
+        )
+    }
+
+    @Test
     fun onReferenceViewportChanged_withoutReference_keepsDefaultReferenceState() {
         viewModel.onReferenceViewportChanged(1080, 1920)
 

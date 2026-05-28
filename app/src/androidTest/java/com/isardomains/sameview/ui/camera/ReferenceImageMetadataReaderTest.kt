@@ -1,5 +1,6 @@
 package com.isardomains.sameview.ui.camera
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -243,6 +244,65 @@ class ReferenceImageMetadataReaderTest {
         assertTrue("lat/lon is 0/0 (Null Island)", lat != 0.0 || lon != 0.0)
     }
 
+    // ── Photo Picker split-source regression test ─────────────────────────────
+
+    /**
+     * Reproduces the double-rotation format-mismatch bug caused by inconsistent source URIs.
+     *
+     * Scenario: a portrait HEIC stored with landscape sensor pixels + EXIF ROTATE_90.
+     * MediaStore.openInputStream(uri) returns a transcoded pre-rotated file (portrait pixels,
+     * no EXIF rotation). MediaStore.openFileDescriptor(setRequireOriginal(uri)) returns the
+     * original (landscape pixels, EXIF ROTATE_90).
+     *
+     * Old behaviour (bug): bounds from pre-rotated (rawW=60, rawH=100) + ROTATE_90 from original
+     * → isRotated=true → orientedW=rawH=100, orientedH=rawW=60 → 100×60 (LANDSCAPE — WRONG).
+     *
+     * Fixed behaviour: bounds and EXIF both from original (rawW=100, rawH=60, ROTATE_90)
+     * → isRotated=true → orientedW=rawH=60, orientedH=rawW=100 → 60×100 (PORTRAIT — correct).
+     *
+     * [PhotoPickerMimicContentProvider] simulates the split: without "require_original" it
+     * serves the pre-rotated file; with "require_original=1" it serves the original file.
+     * The reader is instructed to apply setRequireOriginal for the mimic authority so the
+     * production Photo Picker code path is exercised without touching real MediaStore.
+     */
+    @Test
+    fun read_photoPickerSplit_boundsAndExifFromOriginal_correctPortraitOrientation() {
+        // originalFile: rawW=100, rawH=60, EXIF ROTATE_90 (correctly oriented: 60×100 portrait)
+        val originalFile = File(appContext.cacheDir, "test_picker_original.jpg")
+        // prerotatedFile: rawW=60, rawH=100, no EXIF rotation (transcoded portrait pixels)
+        val prerotatedFile = File(appContext.cacheDir, "test_picker_prerotated.jpg")
+        try {
+            assets.open("exif_90.jpg").use { input ->
+                originalFile.outputStream().use { input.copyTo(it) }
+            }
+            makeBlankJpeg(prerotatedFile, width = 60, height = 100)
+
+            val pickerUri = PhotoPickerMimicContentProvider.uriFor(originalFile, prerotatedFile)
+            val metadata = ReferenceImageMetadataReader.read(
+                pickerUri,
+                appContext.contentResolver,
+                requireOriginalAuthorities = setOf(PhotoPickerMimicContentProvider.AUTHORITY)
+            )
+
+            requireNotNull(metadata) { "read() returned null for photo picker mimic URI" }
+            // Raw dims must come from the original file (landscape pixels as stored by sensor)
+            assertEquals("rawWidth from original", 100, metadata.rawWidth)
+            assertEquals("rawHeight from original", 60, metadata.rawHeight)
+            // Oriented dims must be portrait (60×100), not double-rotated landscape (100×60)
+            assertEquals(
+                "orientedWidth must be 60 (portrait) — not 100 (double-rotated landscape)",
+                60, metadata.orientedWidth
+            )
+            assertEquals(
+                "orientedHeight must be 100 (portrait) — not 60 (double-rotated landscape)",
+                100, metadata.orientedHeight
+            )
+        } finally {
+            originalFile.delete()
+            prerotatedFile.delete()
+        }
+    }
+
     // ── SAF / non-media authority regression tests ────────────────────────────
 
     /**
@@ -311,6 +371,22 @@ class ReferenceImageMetadataReaderTest {
     /** Reads metadata from a temp file via the production FD-based reader. */
     private fun readFromFile(file: File): ReferenceImageMetadata? =
         ReferenceImageMetadataReader.read(Uri.fromFile(file), appContext.contentResolver)
+
+    /**
+     * Creates a minimal blank JPEG at [file] with exactly the specified [width] × [height].
+     * No EXIF orientation tag is set — the pixels are the canonical representation.
+     * Used to simulate a MediaStore-transcoded pre-rotated stream.
+     */
+    private fun makeBlankJpeg(file: File, width: Int, height: Int) {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+        try {
+            file.outputStream().use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 50, out)
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
 
     /**
      * Copies exif_none.jpg to a temp file, applies EXIF writes via [configure], saves,
