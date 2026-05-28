@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.media.ExifInterface
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.sameview.ui.camera.GpsSnapshot
@@ -12,6 +13,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -39,8 +41,25 @@ class MediaStoreWriterGpsTest {
         return uri
     }
 
-    private fun readExif(uri: Uri): ExifInterface =
-        resolver.openInputStream(uri)!!.use { ExifInterface(it) }
+    // openInputStream is unreliable on Samsung (Android 14+) immediately after IS_PENDING is
+    // cleared: the media scanner moves the file, causing a brief ENOENT via the ContentProvider
+    // path.  Reading via the DATA column bypasses that path and goes straight to the file system.
+    @Suppress("DEPRECATION")
+    private fun readExif(uri: Uri): ExifInterface {
+        val path = resolver.query(
+            uri, arrayOf(MediaStore.Images.Media.DATA), null, null, null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0).takeUnless { it.isNullOrEmpty() }
+            else null
+        }
+        return if (path != null) {
+            ExifInterface(path)
+        } else {
+            resolver.openFileDescriptor(uri, "r")!!.use { pfd ->
+                ExifInterface(pfd.fileDescriptor)
+            }
+        }
+    }
 
     // ── Recreation Guidance OFF — Privacy-critical: NO GPS in gallery image ──
 
@@ -73,9 +92,10 @@ class MediaStoreWriterGpsTest {
     fun save_gpsCoordinates_matchSnapshot() {
         val gps = GpsSnapshot(48.137108, 11.575382, null, null)
         val uri = saveBitmap(gps)
-        val latLon = readExif(uri).latLong
-        assertNotNull(latLon)
-        assertEquals(gps.latitude, latLon!![0], 0.0001)
-        assertEquals(gps.longitude, latLon[1], 0.0001)
+        val latLong = FloatArray(2)
+        val hasLatLong = readExif(uri).getLatLong(latLong)
+        assertTrue("LatLong not present in saved image", hasLatLong)
+        assertEquals(gps.latitude, latLong[0].toDouble(), 0.0001)
+        assertEquals(gps.longitude, latLong[1].toDouble(), 0.0001)
     }
 }

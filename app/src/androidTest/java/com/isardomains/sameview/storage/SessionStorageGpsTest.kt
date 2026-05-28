@@ -146,10 +146,11 @@ class SessionStorageGpsTest {
     fun captureJpeg_gpsCoordinates_matchSnapshot() {
         val sessionDir = saveSession(gpsSnapshot = testGps)
         val exif = ExifInterface(File(sessionDir, "capture.jpg").absolutePath)
-        val latLon = exif.latLong
-        assertNotNull(latLon)
-        assertEquals(testGps.latitude, latLon!![0], 0.0001)
-        assertEquals(testGps.longitude, latLon[1], 0.0001)
+        val latLong = FloatArray(2)
+        val hasLatLong = exif.getLatLong(latLong)
+        assertTrue("LatLong not present in capture.jpg", hasLatLong)
+        assertEquals(testGps.latitude, latLong[0].toDouble(), 0.0001)
+        assertEquals(testGps.longitude, latLong[1].toDouble(), 0.0001)
     }
 
     @Test
@@ -218,11 +219,12 @@ class SessionStorageGpsTest {
             refLon = referenceGps.longitude
         )
         val exif = ExifInterface(File(sessionDir, "reference-original.jpg").absolutePath)
-        val latLon = exif.latLong
-        assertNotNull(latLon)
+        val latLong = FloatArray(2)
+        val hasLatLong = exif.getLatLong(latLong)
+        assertTrue("LatLong not present in reference-original.jpg", hasLatLong)
         // Must match reference GPS, not the capture GPS
-        assertEquals(referenceGps.latitude, latLon!![0], 0.0001)
-        assertEquals(referenceGps.longitude, latLon[1], 0.0001)
+        assertEquals(referenceGps.latitude, latLong[0].toDouble(), 0.0001)
+        assertEquals(referenceGps.longitude, latLong[1].toDouble(), 0.0001)
     }
 
     @Test
