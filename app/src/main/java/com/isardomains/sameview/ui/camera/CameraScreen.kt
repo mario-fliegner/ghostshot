@@ -79,6 +79,7 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -96,6 +97,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -322,6 +324,12 @@ fun CameraScreen(
         viewModel.onReferenceImageSelected(uri)
     }
 
+    val safPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        viewModel.onReferenceImageSelectedViaSaf(uri)
+    }
+
     // Trigger the system dialog on the first composition.
     // When permanently denied, Android fires the launcher callback immediately
     // with granted=false without displaying any dialog.
@@ -344,6 +352,7 @@ fun CameraScreen(
             val imageCaptureState = remember { mutableStateOf<ImageCapture?>(null) }
             val snackbarHostState = remember { SnackbarHostState() }
             var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
+            var showGpsFallbackDialog by remember { mutableStateOf(false) }
             val removeSnackbarMessage = stringResource(R.string.reference_removed_snackbar)
             val removeSnackbarUndo = stringResource(R.string.reference_removed_undo)
             val captureSavedMessage = stringResource(R.string.capture_saved)
@@ -379,6 +388,9 @@ fun CameraScreen(
                         }
                         is UiEvent.NavigateToCompare -> {
                             onCompareImages(event.input)
+                        }
+                        is UiEvent.ShowGpsFallbackDialog -> {
+                            showGpsFallbackDialog = true
                         }
                     }
                 }
@@ -486,6 +498,27 @@ fun CameraScreen(
                 } catch (_: OutOfMemoryError) {
                     viewModel.onPhotoCaptureError(captureToken)
                 }
+            }
+
+            if (showGpsFallbackDialog) {
+                AlertDialog(
+                    onDismissRequest = { showGpsFallbackDialog = false },
+                    title = { Text(stringResource(R.string.gps_fallback_dialog_title)) },
+                    text = { Text(stringResource(R.string.gps_fallback_dialog_message)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showGpsFallbackDialog = false
+                            safPickerLauncher.launch(arrayOf("image/*"))
+                        }) {
+                            Text(stringResource(R.string.gps_fallback_dialog_choose_file_manager))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showGpsFallbackDialog = false }) {
+                            Text(stringResource(R.string.gps_fallback_dialog_continue_without_gps))
+                        }
+                    }
+                )
             }
 
             Box(

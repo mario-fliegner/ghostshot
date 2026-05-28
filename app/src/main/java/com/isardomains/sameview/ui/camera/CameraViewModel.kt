@@ -161,6 +161,9 @@ sealed interface UiEvent {
      *  auto-open setting is enabled. Contains a pre-built [CompareInput] from the session that
      *  was just saved, so the receiver does not need to read state after the event is emitted. */
     data class NavigateToCompare(val input: CompareInput) : UiEvent
+    /** Emitted when a photo picker result has no GPS and recreation guidance is active.
+     *  Prompts the user to retry via the system file manager to get unredacted GPS data. */
+    data object ShowGpsFallbackDialog : UiEvent
 }
 
 private data class ReferenceUndoSnapshot(
@@ -387,7 +390,17 @@ class CameraViewModel @Inject constructor(
         _uiState.update { it.copy(canUndoReferenceRemoval = false, undoExpiresAtMillis = 0L) }
     }
 
-    fun onReferenceImageSelected(uri: Uri?) {
+    fun onReferenceImageSelected(uri: Uri?) = loadReferenceImage(uri, emitGpsFallbackDialog = true)
+
+    /**
+     * Called when the user selects a reference image via the system file manager (SAF).
+     *
+     * Identical to [onReferenceImageSelected] but never emits [UiEvent.ShowGpsFallbackDialog],
+     * preventing a dialog loop when the SAF result itself has no GPS data.
+     */
+    fun onReferenceImageSelectedViaSaf(uri: Uri?) = loadReferenceImage(uri, emitGpsFallbackDialog = false)
+
+    private fun loadReferenceImage(uri: Uri?, emitGpsFallbackDialog: Boolean) {
         if (uri == null) return
         undoTimeoutJob?.cancel()
         undoTimeoutJob = null
@@ -434,6 +447,9 @@ class CameraViewModel @Inject constructor(
                 updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
             }
             updateGpsActivation()
+            if (emitGpsFallbackDialog && recreationGuidanceEnabled && !referenceHasGps()) {
+                _uiEvent.emit(UiEvent.ShowGpsFallbackDialog)
+            }
             if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Overlay loaded") }
             if (hadUndo) {
                 _uiEvent.emit(UiEvent.UndoInvalidated)

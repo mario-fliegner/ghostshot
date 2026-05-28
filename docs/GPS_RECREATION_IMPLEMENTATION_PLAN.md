@@ -26,7 +26,25 @@ Block 6 Zusatzfix/Hardening                                  ✅ DONE (2026-05-2
   - Permission-Inkonsistenz dokumentiert: CameraViewModel prüft nur ACCESS_FINE_LOCATION
     (korrekt: LocationManager braucht nur ACCESS_FINE_LOCATION; ACCESS_MEDIA_LOCATION
     wird in Settings gesichert, wirkt indirekt über referenceHasGps())
-  - Offene Entscheidung: SAF-Original-Import-UX für spätere Blöcke (kein jetziger Scope)
+Block 6 Smart-Fallback (GPS Fallback Dialog)                  ✅ DONE (2026-05-28)
+  Strategie: Photo Picker bleibt Standard-Importweg.
+  SAF/OpenDocument ist ausschließlich kontextueller Fallback — nur wenn:
+    - Recreation Guidance aktiv (recreationGuidanceEnabled == true)
+    - UND ausgewähltes Referenzbild hat kein GPS (referenceHasGps() == false)
+  Kein Dialog wenn Recreation Guidance OFF.
+  Kein Dialog wenn Bild GPS enthält.
+  Kein Dialog bei Picker-Abbruch (uri == null).
+  Kein Dialog-Loop: onReferenceImageSelectedViaSaf() emittiert niemals ShowGpsFallbackDialog.
+  Dialog ist one-shot SharedFlow-Event → kein Replay nach Rotation.
+  Geänderte Dateien:
+    - CameraViewModel.kt: UiEvent.ShowGpsFallbackDialog, onReferenceImageSelectedViaSaf(),
+      loadReferenceImage() private (aus onReferenceImageSelected refaktoriert)
+    - CameraScreen.kt: SAF-Launcher (OpenDocument), showGpsFallbackDialog-State,
+      ShowGpsFallbackDialog-Event-Handling, AlertDialog
+    - values/strings.xml: 4 neue Strings (gps_fallback_dialog_*)
+    - values-de/strings.xml: 4 neue Strings (gps_fallback_dialog_*)
+    - CameraViewModelTest.kt: 8 neue Tests (gpsFallbackDialog_* + onReferenceImageSelectedViaSaf_*)
+  Unit Tests: testDebugUnitTest — BUILD SUCCESSFUL (251 Tests grün)
 Block 7 — Capture GPS Freeze + EXIF Writing                  ⬜ offen
 Block 8 — Test-Hardening + Release-Vorbereitung              ⬜ offen
 

@@ -2536,6 +2536,143 @@ class CameraViewModelTest {
         assertTrue(vm.isGpsActive)
     }
 
+    // --- GPS Fallback Dialog ---
+
+    @Test
+    fun gpsFallbackDialog_emitted_whenGuidanceOnAndReferenceHasNoGps() = runTest {
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            settingsRepoWithGps(recreationGuidance = true)
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { vm.uiEvent.collect { events.add(it) } }
+
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+
+        job.cancel()
+        assertTrue(events.any { it is UiEvent.ShowGpsFallbackDialog })
+    }
+
+    @Test
+    fun gpsFallbackDialog_notEmitted_whenRecreationGuidanceOff() = runTest {
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            settingsRepoWithGps(recreationGuidance = false)
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { vm.uiEvent.collect { events.add(it) } }
+
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+
+        job.cancel()
+        assertFalse(events.any { it is UiEvent.ShowGpsFallbackDialog })
+    }
+
+    @Test
+    fun gpsFallbackDialog_notEmitted_whenReferenceHasGps() = runTest {
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0) },
+            settingsRepoWithGps(recreationGuidance = true)
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { vm.uiEvent.collect { events.add(it) } }
+
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+
+        job.cancel()
+        assertFalse(events.any { it is UiEvent.ShowGpsFallbackDialog })
+    }
+
+    @Test
+    fun gpsFallbackDialog_notEmitted_whenPickerDismissed() = runTest {
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            settingsRepoWithGps(recreationGuidance = true)
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { vm.uiEvent.collect { events.add(it) } }
+
+        vm.onReferenceImageSelected(null)
+        advanceUntilIdle()
+
+        job.cancel()
+        assertFalse(events.any { it is UiEvent.ShowGpsFallbackDialog })
+    }
+
+    @Test
+    fun gpsFallbackDialog_notEmitted_afterSafSelection_withNoGps() = runTest {
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            settingsRepoWithGps(recreationGuidance = true)
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { vm.uiEvent.collect { events.add(it) } }
+
+        vm.onReferenceImageSelectedViaSaf(mock())
+        advanceUntilIdle()
+
+        job.cancel()
+        assertFalse(events.any { it is UiEvent.ShowGpsFallbackDialog })
+    }
+
+    @Test
+    fun gpsFallbackDialog_notEmitted_afterSafSelection_withGps() = runTest {
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 45.0, gpsLongitude = 12.0) },
+            settingsRepoWithGps(recreationGuidance = true)
+        )
+        val events = mutableListOf<UiEvent>()
+        val job = launch(Dispatchers.Main) { vm.uiEvent.collect { events.add(it) } }
+
+        vm.onReferenceImageSelectedViaSaf(mock())
+        advanceUntilIdle()
+
+        job.cancel()
+        assertFalse(events.any { it is UiEvent.ShowGpsFallbackDialog })
+    }
+
+    @Test
+    fun onReferenceImageSelectedViaSaf_loadsReferenceNormally() = runTest {
+        val uri = mock<Uri>()
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 45.0, gpsLongitude = 12.0) },
+            settingsRepoWithGps(recreationGuidance = true)
+        )
+
+        vm.onReferenceImageSelectedViaSaf(uri)
+        advanceUntilIdle()
+
+        assertEquals(uri, vm.uiState.value.referenceImageUri)
+        assertNotNull(vm.uiState.value.referenceImageMetadata)
+    }
+
+    @Test
+    fun onReferenceImageSelectedViaSaf_null_preservesExistingUri() = runTest {
+        val uri = mock<Uri>()
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(),
+            { ReferenceImageMetadata(1080, 1920, 1080, 1920, null) },
+            settingsRepoWithGps(recreationGuidance = true)
+        )
+        vm.onReferenceImageSelectedViaSaf(uri)
+        advanceUntilIdle()
+
+        vm.onReferenceImageSelectedViaSaf(null)
+        advanceUntilIdle()
+
+        assertEquals(uri, vm.uiState.value.referenceImageUri)
+    }
+
     // --- GpsGuidanceState lifecycle ---
 
     @Test

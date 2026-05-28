@@ -136,4 +136,10 @@
     <!-- Overlay visibility warning -->
     <string name="overlay_visibility_warning_description">Referenz kaum sichtbar</string>
     <string name="overlay_visibility_warning_bubble">Die Referenz ist kaum sichtbar. Du kannst trotzdem aufnehmen, aber der Vergleich kann ungenau werden.</string>
+
+    <!-- GPS-Fallback-Dialog (erscheint wenn Photo-Picker-Ergebnis kein GPS hat und Standortführung aktiv ist) -->
+    <string name="gps_fallback_dialog_title">Standortdaten nicht verfügbar</string>
+    <string name="gps_fallback_dialog_message">SameView konnte aus dieser Auswahl keine Standortdaten lesen. Versuchen Sie, die Originaldatei auszuwählen, um GPS-Navigation zu nutzen.</string>
+    <string name="gps_fallback_dialog_choose_file_manager">Originaldatei wählen</string>
+    <string name="gps_fallback_dialog_continue_without_gps">Ohne GPS fortfahren</string>
 </resources>

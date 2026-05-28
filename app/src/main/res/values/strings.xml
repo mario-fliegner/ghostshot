@@ -142,4 +142,10 @@
     <!-- Overlay visibility warning -->
     <string name="overlay_visibility_warning_description">Reference barely visible</string>
     <string name="overlay_visibility_warning_bubble">Reference is barely visible. You can still capture, but the comparison may be poor.</string>
+
+    <!-- GPS fallback dialog (shown when photo picker result has no GPS and recreation guidance is active) -->
+    <string name="gps_fallback_dialog_title">Location data unavailable</string>
+    <string name="gps_fallback_dialog_message">SameView couldn\'t read location data from this selection. Try choosing the original file to enable GPS guidance.</string>
+    <string name="gps_fallback_dialog_choose_file_manager">Choose original file</string>
+    <string name="gps_fallback_dialog_continue_without_gps">Continue without GPS</string>
 </resources>
