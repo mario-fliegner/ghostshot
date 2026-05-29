@@ -6,6 +6,8 @@ import android.net.Uri
 import android.util.Log
 import com.isardomains.sameview.BuildConfig
 import java.io.File
+import java.time.Instant
+import java.time.ZoneOffset
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToLong
@@ -37,6 +39,26 @@ internal object GpsExifWriter {
         if (alt != null) {
             exif.setAttribute(ExifInterface.TAG_GPS_ALTITUDE_REF, if (alt >= 0.0) "0" else "1")
             exif.setAttribute(ExifInterface.TAG_GPS_ALTITUDE, "${(abs(alt) * 1000.0).roundToLong()}/1000")
+        }
+        val fixTs = snapshot.fixTimestampMs
+        if (fixTs != null) {
+            val utc = Instant.ofEpochMilli(fixTs).atZone(ZoneOffset.UTC)
+            exif.setAttribute(
+                ExifInterface.TAG_GPS_DATESTAMP,
+                "%04d:%02d:%02d".format(utc.year, utc.monthValue, utc.dayOfMonth)
+            )
+            exif.setAttribute(
+                ExifInterface.TAG_GPS_TIMESTAMP,
+                "${utc.hour}/1,${utc.minute}/1,${utc.second}/1"
+            )
+        }
+        val method = when (snapshot.provider?.lowercase()) {
+            "gps" -> "GPS"
+            "network" -> "NETWORK"
+            else -> null
+        }
+        if (method != null) {
+            exif.setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD, method)
         }
     }
 

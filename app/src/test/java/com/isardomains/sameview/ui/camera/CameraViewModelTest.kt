@@ -2818,4 +2818,131 @@ class CameraViewModelTest {
         assertFalse(vm.isGpsActive)
         assertEquals(GpsGuidanceState.Hidden, vm.uiState.value.gpsGuidanceState)
     }
+
+    // --- GPS Snapshot in CaptureSessionSnapshot ---
+
+    @Test
+    fun onPhotoCaptured_snapshotGpsIsNull_whenRecreationGuidanceOff() = runTest {
+        val testViewModel = testViewModelWithMetadata(1080, 1920)
+        testViewModel.onReferenceViewportChanged(1080, 1920)
+        testViewModel.onReferenceImageSelected(mock())
+        testViewModel.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        testViewModel.onPhotoCaptured(bitmap, 0)
+
+        assertNull(testViewModel.lastCaptureSnapshot?.gpsSnapshot)
+    }
+
+    @Test
+    fun onPhotoCaptured_snapshotGpsIsNull_whenNoLocationAvailable() = runTest {
+        val mockProvider = mock<LocationProvider>()
+        whenever(mockProvider.getLastKnown()).thenReturn(null)
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true,
+            mockProvider = mockProvider
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        vm.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        vm.onPhotoCaptured(bitmap, 0)
+
+        assertNull(vm.lastCaptureSnapshot?.gpsSnapshot)
+    }
+
+    @Test
+    fun onPhotoCaptured_snapshotGpsIsNotNull_whenGuidanceOnAndLocationAvailable() = runTest {
+        val fixLocation = mock<Location>()
+        whenever(fixLocation.latitude).thenReturn(48.0)
+        whenever(fixLocation.longitude).thenReturn(11.5)
+        whenever(fixLocation.hasAltitude()).thenReturn(false)
+        whenever(fixLocation.hasAccuracy()).thenReturn(true)
+        whenever(fixLocation.accuracy).thenReturn(8.0f)
+        whenever(fixLocation.provider).thenReturn("gps")
+        whenever(fixLocation.time).thenReturn(1704114800000L)
+
+        val mockProvider = mock<LocationProvider>()
+        whenever(mockProvider.getLastKnown()).thenReturn(fixLocation)
+
+        val (vm, _) = gpsViewModel(
+            recreationGuidance = true, permissionGranted = true, referenceHasGps = true,
+            mockProvider = mockProvider
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        vm.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        vm.onPhotoCaptured(bitmap, 0)
+
+        val gps = vm.lastCaptureSnapshot?.gpsSnapshot
+        assertNotNull(gps)
+        assertEquals(48.0, gps!!.latitude, 0.0001)
+        assertEquals(11.5, gps.longitude, 0.0001)
+        assertEquals("gps", gps.provider)
+    }
+
+    @Test
+    fun onPhotoCaptured_snapshotGpsFreezesLocationAtCaptureTime() = runTest {
+        val captureTimeLocation = mock<Location>()
+        whenever(captureTimeLocation.latitude).thenReturn(48.0)
+        whenever(captureTimeLocation.longitude).thenReturn(11.5)
+        whenever(captureTimeLocation.hasAltitude()).thenReturn(false)
+        whenever(captureTimeLocation.hasAccuracy()).thenReturn(true)
+        whenever(captureTimeLocation.accuracy).thenReturn(8.0f)
+        whenever(captureTimeLocation.provider).thenReturn("gps")
+        whenever(captureTimeLocation.time).thenReturn(1000L)
+
+        val capturedListeners = mutableListOf<LocationListener>()
+        val fakeProvider = object : LocationProvider(null as LocationManager?) {
+            override fun startUpdates(listener: LocationListener) { capturedListeners.add(listener) }
+            override fun stopUpdates(listener: LocationListener) {}
+            override fun getLastKnown(): Location = captureTimeLocation
+        }
+
+        val metadata = ReferenceImageMetadata(1080, 1920, 1080, 1920, null,
+            gpsLatitude = 48.0, gpsLongitude = 11.0)
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepoWithGps(recreationGuidance = true),
+            locationProvider = fakeProvider,
+            locationPermissionChecker = { true }
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        vm.tryStartCapture()
+
+        val bitmap = mock<Bitmap>()
+        whenever(bitmap.width).thenReturn(1080)
+        whenever(bitmap.height).thenReturn(1920)
+        vm.onPhotoCaptured(bitmap, 0)
+
+        // Snapshot is frozen — inject a different location after capture
+        val newLocation = mock<Location>()
+        whenever(newLocation.latitude).thenReturn(99.9)
+        whenever(newLocation.longitude).thenReturn(99.9)
+        whenever(newLocation.hasAltitude()).thenReturn(false)
+        whenever(newLocation.hasAccuracy()).thenReturn(true)
+        whenever(newLocation.accuracy).thenReturn(5.0f)
+        whenever(newLocation.provider).thenReturn("gps")
+        whenever(newLocation.time).thenReturn(2000L)
+        capturedListeners.single().onLocationChanged(newLocation)
+
+        // Snapshot must still carry capture-time coordinates
+        val gps = vm.lastCaptureSnapshot?.gpsSnapshot
+        assertNotNull(gps)
+        assertEquals(48.0, gps!!.latitude, 0.0001)
+        assertEquals(11.5, gps.longitude, 0.0001)
+    }
 }

@@ -157,4 +157,92 @@ class GpsExifWriterTest {
         GpsExifWriter.writeGps(exif, GpsSnapshot(0.0, 0.0, null, null))
         verify(exif, never()).setAttribute(eq(ExifInterface.TAG_ORIENTATION), any())
     }
+
+    // ── writeGps — GPSDateStamp ──────────────────────────────────────────────
+
+    @Test
+    fun writeGps_setsGpsDateStamp_whenFixTimestampPresent() {
+        val exif = mock<ExifInterface>()
+        // 2024-01-01T13:13:20Z = 1704114800000 ms
+        GpsExifWriter.writeGps(exif, GpsSnapshot(48.0, 11.0, null, null, fixTimestampMs = 1704114800000L))
+        verify(exif).setAttribute(ExifInterface.TAG_GPS_DATESTAMP, "2024:01:01")
+    }
+
+    @Test
+    fun writeGps_setsGpsDateStamp_midnight_utc() {
+        val exif = mock<ExifInterface>()
+        // 2024-01-01T00:00:00Z = 1704067200000 ms
+        GpsExifWriter.writeGps(exif, GpsSnapshot(0.0, 0.0, null, null, fixTimestampMs = 1704067200000L))
+        verify(exif).setAttribute(ExifInterface.TAG_GPS_DATESTAMP, "2024:01:01")
+    }
+
+    @Test
+    fun writeGps_setsGpsDateStamp_yearBoundary() {
+        val exif = mock<ExifInterface>()
+        // 2023-12-31T23:59:59Z = 1704067199000 ms
+        GpsExifWriter.writeGps(exif, GpsSnapshot(0.0, 0.0, null, null, fixTimestampMs = 1704067199000L))
+        verify(exif).setAttribute(ExifInterface.TAG_GPS_DATESTAMP, "2023:12:31")
+    }
+
+    @Test
+    fun writeGps_omitsDateStamp_whenFixTimestampNull() {
+        val exif = mock<ExifInterface>()
+        GpsExifWriter.writeGps(exif, GpsSnapshot(48.0, 11.0, null, null, fixTimestampMs = null))
+        verify(exif, never()).setAttribute(eq(ExifInterface.TAG_GPS_DATESTAMP), any())
+    }
+
+    // ── writeGps — GPSTimeStamp ──────────────────────────────────────────────
+
+    @Test
+    fun writeGps_setsGpsTimeStamp_whenFixTimestampPresent() {
+        val exif = mock<ExifInterface>()
+        // 2024-01-01T13:13:20Z = 1704114800000 ms
+        GpsExifWriter.writeGps(exif, GpsSnapshot(48.0, 11.0, null, null, fixTimestampMs = 1704114800000L))
+        verify(exif).setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, "13/1,13/1,20/1")
+    }
+
+    @Test
+    fun writeGps_setsGpsTimeStamp_midnight_utc() {
+        val exif = mock<ExifInterface>()
+        // 2024-01-01T00:00:00Z = 1704067200000 ms
+        GpsExifWriter.writeGps(exif, GpsSnapshot(0.0, 0.0, null, null, fixTimestampMs = 1704067200000L))
+        verify(exif).setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, "0/1,0/1,0/1")
+    }
+
+    @Test
+    fun writeGps_omitsTimeStamp_whenFixTimestampNull() {
+        val exif = mock<ExifInterface>()
+        GpsExifWriter.writeGps(exif, GpsSnapshot(48.0, 11.0, null, null, fixTimestampMs = null))
+        verify(exif, never()).setAttribute(eq(ExifInterface.TAG_GPS_TIMESTAMP), any())
+    }
+
+    // ── writeGps — GPSProcessingMethod ───────────────────────────────────────
+
+    @Test
+    fun writeGps_setsGpsProcessingMethod_fromGpsProvider() {
+        val exif = mock<ExifInterface>()
+        GpsExifWriter.writeGps(exif, GpsSnapshot(48.0, 11.0, null, null, provider = "gps"))
+        verify(exif).setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD, "GPS")
+    }
+
+    @Test
+    fun writeGps_setsGpsProcessingMethod_fromNetworkProvider() {
+        val exif = mock<ExifInterface>()
+        GpsExifWriter.writeGps(exif, GpsSnapshot(48.0, 11.0, null, null, provider = "network"))
+        verify(exif).setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD, "NETWORK")
+    }
+
+    @Test
+    fun writeGps_omitsProcessingMethod_forPassiveProvider() {
+        val exif = mock<ExifInterface>()
+        GpsExifWriter.writeGps(exif, GpsSnapshot(48.0, 11.0, null, null, provider = "passive"))
+        verify(exif, never()).setAttribute(eq(ExifInterface.TAG_GPS_PROCESSING_METHOD), any())
+    }
+
+    @Test
+    fun writeGps_omitsProcessingMethod_whenProviderNull() {
+        val exif = mock<ExifInterface>()
+        GpsExifWriter.writeGps(exif, GpsSnapshot(48.0, 11.0, null, null, provider = null))
+        verify(exif, never()).setAttribute(eq(ExifInterface.TAG_GPS_PROCESSING_METHOD), any())
+    }
 }

@@ -100,7 +100,7 @@ Current release state:
 
 Full specification: `GPS_RECREATION_SYSTEM_V1.md`
 
-Implemented (Blocks 1–7 including Smart-Fallback):
+Implemented (Blocks 1–8):
 
 - **Reference GPS EXIF extraction** — passive read from the reference image EXIF via `ReferenceImageMetadataReader`; no permission required; missing GPS is normal and not an error condition
 - **Recreation Guidance setting** — single boolean DataStore setting (default OFF); controls all GPS behavior; no sub-settings
@@ -113,6 +113,9 @@ Implemented (Blocks 1–7 including Smart-Fallback):
 - **GPS capture freeze** — at shutter trigger the current GPS fix is frozen into an immutable `GpsSnapshot`; `gpsSnapshot` is null when Recreation Guidance is OFF or no location fix is available
 - **GPS EXIF in MediaStore/gallery image** — written via `GpsExifWriter.writeGpsToUri()` when `gpsSnapshot != null`; fail-soft, never invalidates the saved image
 - **GPS EXIF in `capture.jpg`** — written via `GpsExifWriter.writeGpsToFile()` when `gpsSnapshot != null`; fail-soft
+- **GPSDateStamp EXIF tag** — written when `fixTimestampMs != null`; UTC date in `YYYY:MM:DD` format (Block 8)
+- **GPSTimeStamp EXIF tag** — written when `fixTimestampMs != null`; UTC time as `HH/1,MM/1,SS/1` rational format (Block 8)
+- **GPSProcessingMethod EXIF tag** — written as `GPS` when provider is `"gps"`, as `NETWORK` when provider is `"network"`; omitted otherwise (Block 8)
 - **`reference.jpg` never receives GPS** — by design; it is a rendered geometry product with no location semantics
 - **`reference-original.jpg` GPS preservation** — when Recreation Guidance ON and the reference image has GPS EXIF, those coordinates are re-written from `ReferenceImageMetadata` via `GpsExifWriter`; fail-soft; no GPS is added when guidance is OFF or the source has no GPS
 - **`captureLocation` in `metadata.json`** — top-level optional field; written when `gpsSnapshot != null`; fields: `latitude`, `longitude`, optional `altitude`, optional `accuracyMeters`, optional `provider`, optional `fixTimestampMs`
@@ -297,10 +300,11 @@ Existing tests cover the critical release paths around:
 - Settings persistence and settings-driven workflow behavior
 
 Latest verified test state:
-- `testDebugUnitTest` — PASSING (per-block counts in `GPS_RECREATION_IMPLEMENTATION_PLAN.md`)
-- `MediaStoreWriterGpsTest` — 3/3 PASSED on SM-S911B (Block 7)
-- `SessionStorageGpsTest` — 24/24 PASSED on SM-S911B (Block 7)
-- `connectedDebugAndroidTest` full suite passing; exact current count to be re-verified on next full device run
+- `testDebugUnitTest` — PASSING (Block 8: all new GpsExifWriterTest + CameraViewModelTest GPS snapshot tests green)
+- `MediaStoreWriterGpsTest` — 3/3 PASSED on SM-S911B (Block 7; re-run required on device for Block 8 sign-off)
+- `SessionStorageGpsTest` — 24/24 PASSED on SM-S911B (Block 7; re-run required on device for Block 8 sign-off)
+- `connectedDebugAndroidTest` full suite — requires connected device; no connected device at Block 8 implementation time
+- Release build (`assembleRelease`) — BUILD SUCCESSFUL (Block 8)
 
 Before Closed Testing, the useful final verification remains:
 - unit tests
