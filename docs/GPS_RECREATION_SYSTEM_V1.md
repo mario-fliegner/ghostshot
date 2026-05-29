@@ -144,7 +144,11 @@ Standard EXIF GPS tags written to applicable files:
 - `GPSLongitude` + `GPSLongitudeRef`
 - `GPSAltitude` + `GPSAltitudeRef` (when altitude data is available)
 
-`GPSDateStamp`, `GPSTimeStamp`, and `GPSProcessingMethod` are defined target tags but are not yet written by the current implementation. These are deferred to Block 8 test-hardening.
+`GPSDateStamp`, `GPSTimeStamp`, and `GPSProcessingMethod` are written when the corresponding data is available:
+
+- `GPSDateStamp`: written when `fixTimestampMs != null`; UTC date in `YYYY:MM:DD` format
+- `GPSTimeStamp`: written when `fixTimestampMs != null`; UTC time as `HH/1,MM/1,SS/1` rational format
+- `GPSProcessingMethod`: written as `GPS` when provider is `"gps"`, as `NETWORK` when provider is `"network"`; omitted otherwise
 
 ## GPS per Session File
 

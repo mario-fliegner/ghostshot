@@ -298,15 +298,27 @@ Existing tests cover the critical release paths around:
 - Camera controls, landscape alignment, grid, and capture feedback
 - Overlay coverage computation and live visibility warning state
 - Settings persistence and settings-driven workflow behavior
+- GPS activation lifecycle (all four conditions, start/stop, duplicate-start prevention)
+- GPS guidance state computation (proximity colors, hysteresis, bearing suppression, distance thresholds)
+- GPS snapshot freeze at capture time (null when guidance OFF, null when no fix, correct values when fix present, immutability after later location updates)
+- GPS EXIF writing (DMS rational format, altitude, GPSDateStamp, GPSTimeStamp, GPSProcessingMethod, orientation invariant)
+- GPS EXIF in MediaStore image and capture.jpg (instrumentation: MediaStoreWriterGpsTest, SessionStorageGpsTest)
+- GPS metadata in metadata.json (captureLocation, referenceLocation presence/absence)
+- reference.jpg never receives GPS; reference-original.jpg preserves GPS when present
 
-Latest verified test state:
-- `testDebugUnitTest` — PASSING (Block 8: all new GpsExifWriterTest + CameraViewModelTest GPS snapshot tests green)
-- `MediaStoreWriterGpsTest` — 3/3 PASSED on SM-S911B (Block 7; re-run required on device for Block 8 sign-off)
-- `SessionStorageGpsTest` — 24/24 PASSED on SM-S911B (Block 7; re-run required on device for Block 8 sign-off)
-- `connectedDebugAndroidTest` full suite — requires connected device; no connected device at Block 8 implementation time
-- Release build (`assembleRelease`) — BUILD SUCCESSFUL (Block 8)
+Latest verified test state (GPS Recreation Blocks 1–8 complete):
 
-Before Closed Testing, the useful final verification remains:
+- `testDebugUnitTest` — PASSED
+- `MediaStoreWriterGpsTest` — 3/3 PASSED on SM-S911B
+- `SessionStorageGpsTest` — 24/24 PASSED on SM-S911B
+- `ReferenceImageMetadataReaderTest` — PASSED on SM-S911B
+- `connectedDebugAndroidTest` full suite — PASSED on SM-S911B
+- Release build (`assembleRelease`) — BUILD SUCCESSFUL
+- Real-device validation — completed on SM-S911B: GPS EXIF in gallery image verified, capture.jpg EXIF verified, reference.jpg confirmed GPS-free, metadata.json captureLocation/referenceLocation verified, Recreation Guidance ON/OFF behavior verified
+
+No open GPS implementation tasks remain.
+
+Before the next Closed Testing upload, the useful final verification remains:
 - unit tests
 - connected instrumentation tests
 - release build/sign/install smoke test on a real device
