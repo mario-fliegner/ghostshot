@@ -744,18 +744,60 @@ fun CameraScreen(
         CameraPermissionState.SHOW_RATIONALE -> {
             // Permission denied once; Android still allows a direct re-request.
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(32.dp)
+                Surface(
+                    modifier = Modifier
+                        .widthIn(max = 520.dp)
+                        .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    color = SameViewAppSurface,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp
                 ) {
-                    Text(stringResource(R.string.camera_permission_rationale))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text(stringResource(R.string.grant_permission))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(SameViewAppSurfaceElevated),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PhotoCamera,
+                                contentDescription = null,
+                                tint = SameViewTextPrimary.copy(alpha = 0.88f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text(
+                            text = stringResource(R.string.camera_permission_rationale_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = SameViewTextPrimary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = stringResource(R.string.camera_permission_rationale),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = SameViewTextSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Button(
+                            onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                            colors = ButtonDefaults.buttonColors(
+                                contentColor = SameViewTextPrimary
+                            )
+                        ) {
+                            Text(stringResource(R.string.grant_permission))
+                        }
                     }
                 }
             }

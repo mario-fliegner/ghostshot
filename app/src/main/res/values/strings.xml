@@ -2,6 +2,7 @@
     <string name="app_name">SameView</string>
     <string name="app_launcher_name">SameView</string>
     <!-- Camera permission screens -->
+    <string name="camera_permission_rationale_title">Allow camera access</string>
     <string name="camera_permission_rationale">SameView needs camera access to take photos.</string>
     <string name="grant_permission">Allow camera</string>
     <string name="camera_permission_blocked_title">Camera access needed</string>

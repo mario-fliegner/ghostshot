@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.SameView" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        Base theme: sets a dark window background so no white flash appears before
+        Compose renders its first frame. Both API < 31 and API 31+ inherit from this.
+    -->
+    <style name="Theme.SameView.Base" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/sameview_background</item>
+    </style>
+
+    <!-- Default theme used on API 29–30. On API 31+, values-v31/themes.xml overrides this. -->
+    <style name="Theme.SameView" parent="Theme.SameView.Base" />
+
 </resources>

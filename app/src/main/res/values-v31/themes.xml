@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Android 12+ (API 31+) system splash screen configuration.
+        windowSplashScreenBackground sets the full-screen colour shown by the OS before
+        the first Compose frame is drawn. No icon override: the system uses the adaptive
+        launcher icon automatically. No branding image, no exit animation.
+    -->
+    <style name="Theme.SameView" parent="Theme.SameView.Base">
+        <item name="android:windowSplashScreenBackground">@color/sameview_background</item>
+    </style>
+
+</resources>
