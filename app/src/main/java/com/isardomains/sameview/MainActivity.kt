@@ -125,7 +125,10 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
+                        val pendingMessage = pendingSnackbarEvent?.let { event ->
+                            if (event.count != null) stringResource(event.messageResId, event.count)
+                            else stringResource(event.messageResId)
+                        }
                         LaunchedEffect(pendingSnackbarEvent) {
                             if (pendingMessage != null) {
                                 snackbarHostState.showSnackbar(pendingMessage)
@@ -147,7 +150,10 @@ class MainActivity : ComponentActivity() {
                                     )
                                 },
                                 onBack = { navController.popBackStack() },
-                                onDeleteSessions = viewModel::deleteSessions
+                                onDeleteSessions = viewModel::deleteSessions,
+                                onBackupSessions = { sessionIds, uri -> viewModel.backupSessions(sessionIds, uri) },
+                                isBackupInProgress = uiState.isBackupInProgress,
+                                isDeletionInProgress = uiState.isDeletionInProgress
                             )
                             SnackbarHost(
                                 hostState = snackbarHostState,
@@ -206,7 +212,10 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
+                        val pendingMessage = pendingSnackbarEvent?.let { event ->
+                            if (event.count != null) stringResource(event.messageResId, event.count)
+                            else stringResource(event.messageResId)
+                        }
 
                         LaunchedEffect(pendingSnackbarEvent) {
                             if (pendingMessage != null) {
@@ -238,7 +247,12 @@ class MainActivity : ComponentActivity() {
                                 sessionTitle = sessionTitle,
                                 onSaveTitle = if (sessionId != null) {
                                     { title -> viewModel.updateSessionTitle(sessionId, title) }
-                                } else null
+                                } else null,
+                                sessionId = sessionId,
+                                onBackupSession = if (sessionId != null) {
+                                    { uri -> viewModel.backupSingleSession(sessionId, uri) }
+                                } else null,
+                                isBackupInProgress = uiState.isBackupInProgress
                             )
 
                             SnackbarHost(

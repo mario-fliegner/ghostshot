@@ -14,6 +14,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -1085,6 +1087,65 @@ class CompareScreenTest {
 
         composeRule.onNodeWithTag("compare_screen_delete_button").assertIsDisplayed()
         composeRule.onNodeWithTag("compare_screen_more_menu_button").assertIsDisplayed()
+    }
+
+    // --- Backup session overflow tests ---
+
+    @Test
+    fun backupSessionItem_visibleInOverflowWhenSessionIdProvided() {
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2024-01-15_10-30-00",
+                onBackupSession = {}
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_backup_session_item").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_overflow_backup_session))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun backupSessionItem_notVisibleInOverflowWhenSessionIdIsNull() {
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = null,
+                onSaveTitle = {}
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_backup_session_item").assertDoesNotExist()
+    }
+
+    @Test
+    fun backupSessionItem_disabledWhenIsBackupInProgressTrue() {
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2024-01-15_10-30-00",
+                onBackupSession = {},
+                isBackupInProgress = true
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_backup_session_item").assertIsNotEnabled()
     }
 
     // --- Info badge eligibility tests ---

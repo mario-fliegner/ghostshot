@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
@@ -383,7 +385,10 @@ class CompareLibraryScreenTest {
         onRefresh: () -> Unit = {},
         onSessionClick: (ScannedSession) -> Unit = {},
         onBack: () -> Unit = {},
-        onDeleteSessions: (List<String>) -> Unit = {}
+        onDeleteSessions: (List<String>) -> Unit = {},
+        onBackupSessions: (List<String>, Uri) -> Unit = { _, _ -> },
+        isBackupInProgress: Boolean = false,
+        isDeletionInProgress: Boolean = false
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -400,12 +405,83 @@ class CompareLibraryScreenTest {
                         onRefresh = onRefresh,
                         onSessionClick = onSessionClick,
                         onBack = onBack,
-                        onDeleteSessions = onDeleteSessions
+                        onDeleteSessions = onDeleteSessions,
+                        onBackupSessions = onBackupSessions,
+                        isBackupInProgress = isBackupInProgress,
+                        isDeletionInProgress = isDeletionInProgress
                     )
                 }
             }
         }
         composeRule.waitForIdle()
+    }
+
+    @Test
+    fun backupButton_isVisibleInMultiSelectMode() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_backup_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun backupButton_isEnabledWhenSessionSelectedAndNoProgressFlags() {
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            isBackupInProgress = false,
+            isDeletionInProgress = false
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_backup_button").assertIsEnabled()
+    }
+
+    @Test
+    fun backupButton_isDisabledWhenIsBackupInProgressTrue() {
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            isBackupInProgress = true
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_backup_button").assertIsNotEnabled()
+    }
+
+    @Test
+    fun backupButton_isDisabledWhenIsDeletionInProgressTrue() {
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            isDeletionInProgress = true
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_backup_button").assertIsNotEnabled()
+    }
+
+    @Test
+    fun deleteButton_isDisabledWhenIsBackupInProgressTrue() {
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            isBackupInProgress = true
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_delete_button").assertIsNotEnabled()
     }
 
     @Test

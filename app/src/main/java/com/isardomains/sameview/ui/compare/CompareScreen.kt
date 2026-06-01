@@ -3,6 +3,8 @@ package com.isardomains.sameview.ui.compare
 import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -128,6 +130,9 @@ fun CompareScreen(
     onDelete: (() -> Unit)? = null,
     sessionTitle: String? = null,
     onSaveTitle: ((String?) -> Unit)? = null,
+    sessionId: String? = null,
+    onBackupSession: ((Uri) -> Unit)? = null,
+    isBackupInProgress: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
@@ -139,6 +144,12 @@ fun CompareScreen(
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     val compareContentScale = if (isFullscreen) ContentScale.Crop else ContentScale.Fit
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) onBackupSession?.invoke(uri)
+    }
 
     BackHandler(enabled = isFullscreen) {
         isFullscreen = false
@@ -234,10 +245,10 @@ fun CompareScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(start = 4.dp)
                     )
-                    if (onSaveTitle != null || onDelete != null) {
+                    if (onSaveTitle != null || sessionId != null || onDelete != null) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
-                    if (onSaveTitle != null) {
+                    if (onSaveTitle != null || sessionId != null) {
                         Box {
                             IconButton(
                                 onClick = { showMoreMenu = true },
@@ -252,23 +263,36 @@ fun CompareScreen(
                                 expanded = showMoreMenu,
                                 onDismissRequest = { showMoreMenu = false }
                             ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.compare_screen_edit_title)) },
-                                    onClick = {
-                                        titleInput = currentTitle ?: ""
-                                        showMoreMenu = false
-                                        showTitleDialog = true
-                                    }
-                                )
-                                if (!currentTitle.isNullOrEmpty()) {
+                                if (onSaveTitle != null) {
                                     DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.compare_screen_remove_title)) },
+                                        text = { Text(stringResource(R.string.compare_screen_edit_title)) },
+                                        onClick = {
+                                            titleInput = currentTitle ?: ""
+                                            showMoreMenu = false
+                                            showTitleDialog = true
+                                        }
+                                    )
+                                    if (!currentTitle.isNullOrEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.compare_screen_remove_title)) },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                currentTitle = null
+                                                onSaveTitle.invoke(null)
+                                            },
+                                            modifier = Modifier.testTag("compare_screen_remove_title_item")
+                                        )
+                                    }
+                                }
+                                if (sessionId != null) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.compare_screen_overflow_backup_session)) },
+                                        enabled = !isBackupInProgress,
                                         onClick = {
                                             showMoreMenu = false
-                                            currentTitle = null
-                                            onSaveTitle?.invoke(null)
+                                            createDocumentLauncher.launch("SameView_${sessionId}.zip")
                                         },
-                                        modifier = Modifier.testTag("compare_screen_remove_title_item")
+                                        modifier = Modifier.testTag("compare_screen_backup_session_item")
                                     )
                                 }
                             }

@@ -1,6 +1,7 @@
 # SESSION_BACKUP_EXPORT_IMPLEMENTATION_PLAN.md
 
-**Status:** Plan — noch kein Code geändert  
+**Status:** Implemented  
+**Implementation completed:** 2026-06-01  
 **Grundlage:** SESSION_BACKUP_EXPORT_V1.md (authoritative), CLAUDE_PROJECT_INSTRUCTION.md, COMPARE_FLOW_V1.md, COMPARE_SESSION_RENDERING_V1.md, GPS_RECREATION_SYSTEM_V1.md, RELEASE_HARDENING_AUDIT_V1.md, aktueller Codebestand (Kotlin-Quelldateien, strings.xml)  
 **Planerstellt:** 2026-06-01
 
@@ -726,4 +727,21 @@ Die gewählte Reihenfolge (1→2→3→4→5) entspricht dem Prinzip "Kern zuers
 
 ---
 
-**Plan-Status: Abgeschlossen. Freigabe für Block 1 abwarten.**
+**Implementation Status: All Blocks 1–5 completed. 2026-06-01.**
+
+---
+
+## 19. Implementation Status
+
+All Blocks 1–5 completed.
+
+| Block | Scope | Status |
+|---|---|---|
+| Block 1 | SessionBackupExporter + Unit Tests | Completed |
+| Block 2 | CompareScreen + ViewModel + SAF Flow | Completed |
+| Block 3 | CompareLibrary Multi-Select Backup | Completed |
+| Block 4 | Operation-Lock Hardening + Regression | Completed |
+| Block 5 | Final Verification / Release Smoke | Completed |
+
+Manual device smoke test passed.  
+Completion date: 2026-06-01.

@@ -1,6 +1,9 @@
 package com.isardomains.sameview.ui.compare
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -23,6 +26,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
@@ -53,6 +57,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -68,7 +73,9 @@ import com.isardomains.sameview.ui.theme.SameViewAppSurface
 import com.isardomains.sameview.ui.theme.SameViewSelectionOverlay
 import com.isardomains.sameview.ui.theme.SameViewTextPrimary
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -78,11 +85,21 @@ fun CompareLibraryScreen(
     onSessionClick: (ScannedSession) -> Unit,
     onBack: () -> Unit,
     onDeleteSessions: (List<String>) -> Unit = {},
+    onBackupSessions: (sessionIds: List<String>, destinationUri: Uri) -> Unit = { _, _ -> },
+    isBackupInProgress: Boolean = false,
+    isDeletionInProgress: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var selectionMode by remember { mutableStateOf(false) }
     var selectedSessionIds by remember { mutableStateOf(emptySet<String>()) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) onBackupSessions(selectedSessionIds.toList(), uri)
+    }
 
     LaunchedEffect(Unit) {
         onRefresh()
@@ -174,8 +191,28 @@ fun CompareLibraryScreen(
                             )
                         }
                         IconButton(
+                            onClick = {
+                                val ids = selectedSessionIds.toList()
+                                val suggestedFilename = if (ids.size == 1) {
+                                    context.getString(R.string.session_backup_filename_single, ids[0])
+                                } else {
+                                    val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US)
+                                        .format(Date())
+                                    context.getString(R.string.session_backup_filename_multi, timestamp)
+                                }
+                                createDocumentLauncher.launch(suggestedFilename)
+                            },
+                            enabled = selectedSessionIds.isNotEmpty() && !isBackupInProgress && !isDeletionInProgress,
+                            modifier = Modifier.testTag("compare_library_backup_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Archive,
+                                contentDescription = stringResource(R.string.compare_library_action_backup)
+                            )
+                        }
+                        IconButton(
                             onClick = { showDeleteConfirmDialog = true },
-                            enabled = selectedSessionIds.isNotEmpty(),
+                            enabled = selectedSessionIds.isNotEmpty() && !isBackupInProgress,
                             modifier = Modifier.testTag("compare_library_delete_button")
                         ) {
                             Icon(

@@ -169,8 +169,40 @@ Active compare session lifecycle — fully implemented:
 - `CompareLibraryScreen` is implemented as a focused internal session overview
 - Sessions are shown in a grid
 - Long-press multi-select delete is implemented with confirmation
+- Multi-select mode includes Select All / Deselect All toggle and a Backup icon
+- Backup exports all selected sessions as a single ZIP file via SAF `ACTION_CREATE_DOCUMENT`
+- Multi-select mode remains active after backup; selection is preserved
 - Titles are displayed when present
 - This is not a general gallery or MediaStore browser
+
+### Session Backup Export
+
+Full specification: `SESSION_BACKUP_EXPORT_V1.md`
+
+- User-initiated, local, full-fidelity backup of one or more compare sessions as a ZIP file
+- Written to user-chosen storage via Android Storage Access Framework (`ACTION_CREATE_DOCUMENT`)
+- No additional permissions required; no FileProvider required
+- No network calls; any cloud destination is handled by the OS SAF provider outside the app process
+
+Entry points:
+- `CompareScreen` overflow menu → "Backup Session" (single session; requires `sessionId != null`)
+- `CompareLibraryScreen` multi-select action bar → Backup icon (one or more sessions)
+
+ZIP format:
+- One subdirectory per session, named by session ID
+- Each subdirectory contains all four session files: `capture.jpg`, `reference.jpg`, `reference-original.jpg`, `metadata.json`
+- Files written byte-for-byte without modification (no re-encoding, no EXIF stripping, no GPS stripping)
+
+Operation locks:
+- Backup blocked while deletion in progress; deletion blocked while backup in progress
+- SAF picker returning null URI → no-op, no snackbar, no state change
+- All-or-nothing: any failure aborts the entire backup and attempts best-effort cleanup of the partial file
+
+Feedback:
+- Success: "Session backed up" (1 session) or "N sessions backed up" (N ≥ 2)
+- Failure: "Backup failed" snackbar; never silent
+
+---
 
 ### Session Storage
 - Successful captures with an active reference can create an internal session under `filesDir/sessions/<sessionId>/`
@@ -305,6 +337,10 @@ Existing tests cover the critical release paths around:
 - GPS EXIF in MediaStore image and capture.jpg (instrumentation: MediaStoreWriterGpsTest, SessionStorageGpsTest)
 - GPS metadata in metadata.json (captureLocation, referenceLocation presence/absence)
 - reference.jpg never receives GPS; reference-original.jpg preserves GPS when present
+- session backup export: ZIP structure, byte integrity, operation locks, SAF null-URI no-op handling
+- CompareScreen overflow: Backup Session visibility (sessionId != null), disabled state during backup
+- CompareLibrary backup: icon presence, disabled states (empty selection, isBackupInProgress, isDeletionInProgress)
+- Select All sets selectedSessionIds to the complete session list; Deselect All clears it
 
 Latest verified test state (GPS Recreation Blocks 1–8 complete):
 
@@ -318,7 +354,16 @@ Latest verified test state (GPS Recreation Blocks 1–8 complete):
 
 No open GPS implementation tasks remain.
 
-Before the next Closed Testing upload, the useful final verification remains:
+Latest verified test state (Session Backup Export complete):
+
+- `testDebugUnitTest` (SessionBackupExporterTest, CameraViewModelTest backup extensions) — PASSED
+- `SessionBackupExporterInstrumentedTest` — compilation verified on SM-S911B
+- `CompareScreenTest` and `CompareLibraryScreenTest` backup extensions — compilation verified
+- Manual device smoke test — completed on SM-S911B: single-session backup, multi-session backup, Select All + Backup, SAF cancel no-op, success snackbar, ZIP structure verified
+
+No open Session Backup Export implementation tasks remain.
+
+For the next Closed Testing upload, re-run the following verifications after any code change:
 - unit tests
 - connected instrumentation tests
 - release build/sign/install smoke test on a real device

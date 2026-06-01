@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Looper
 import java.io.File
 import com.isardomains.sameview.R
+import com.isardomains.sameview.storage.SessionBackupExporter
 import com.isardomains.sameview.ui.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
@@ -2944,5 +2945,179 @@ class CameraViewModelTest {
         assertNotNull(gps)
         assertEquals(48.0, gps!!.latitude, 0.0001)
         assertEquals(11.5, gps.longitude, 0.0001)
+    }
+
+    // --- backupSingleSession / backupSessions ---
+
+    @Test
+    fun backupSingleSession_setsIsBackupInProgressTrueDuringAndFalseAfter() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
+        )
+
+        testViewModel.backupSingleSession("session-abc", mock())
+
+        assertTrue(testViewModel.uiState.value.isBackupInProgress)
+
+        advanceUntilIdle()
+
+        assertFalse(testViewModel.uiState.value.isBackupInProgress)
+    }
+
+    @Test
+    fun backupSingleSession_success_emitsSessionBackupSuccessSingle() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
+        )
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.backupSingleSession("session-abc", mock())
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.session_backup_success_single, snackbars[0].messageResId)
+        assertTrue(snackbars[0].isSuccess)
+    }
+
+    @Test
+    fun backupSingleSession_failure_emitsSessionBackupError() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Failure("test failure", null) }
+        )
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.backupSingleSession("session-abc", mock())
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.session_backup_error, snackbars[0].messageResId)
+        assertFalse(snackbars[0].isSuccess)
+    }
+
+    @Test
+    fun backupSingleSession_secondCallDuringActiveBackup_isIgnored() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
+        )
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.backupSingleSession("session-abc", mock())
+        assertTrue(testViewModel.uiState.value.isBackupInProgress)
+
+        testViewModel.backupSingleSession("session-abc", mock())
+
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        val successSnackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+            .filter { it.messageResId == R.string.session_backup_success_single }
+        assertEquals(1, successSnackbars.size)
+    }
+
+    @Test
+    fun backupSessions_multipleSessionsSuccess_emitsSessionBackupSuccessMultiWithCount() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(3) }
+        )
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.backupSessions(listOf("s1", "s2", "s3"), mock())
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.session_backup_success_multi, snackbars[0].messageResId)
+        assertEquals(3, snackbars[0].count)
+        assertTrue(snackbars[0].isSuccess)
+    }
+
+    @Test
+    fun backupSessions_singleSessionViaBackupSessions_emitsSessionBackupSuccessSingle() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
+        )
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.backupSessions(listOf("session-abc"), mock())
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.session_backup_success_single, snackbars[0].messageResId)
+        assertNull(snackbars[0].count)
+        assertTrue(snackbars[0].isSuccess)
+    }
+
+    @Test
+    fun deleteSessions_duringActiveBackup_isIgnored() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
+        )
+
+        testViewModel.backupSingleSession("session-abc", mock())
+        assertTrue(testViewModel.uiState.value.isBackupInProgress)
+
+        testViewModel.deleteSessions(listOf("session-abc"))
+
+        assertFalse(testViewModel.uiState.value.isDeletionInProgress)
+
+        advanceUntilIdle()
+
+        assertFalse(testViewModel.uiState.value.isBackupInProgress)
+        assertFalse(testViewModel.uiState.value.isDeletionInProgress)
+    }
+
+    @Test
+    fun backupSessions_whenDeletionInProgress_isIgnored() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, { _, _ -> true }, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
+        )
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.deleteSessions(listOf("session-abc"))
+        assertTrue(testViewModel.uiState.value.isDeletionInProgress)
+
+        testViewModel.backupSessions(listOf("session-abc"), mock())
+
+        assertFalse(testViewModel.uiState.value.isBackupInProgress)
+
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        assertFalse(testViewModel.uiState.value.isDeletionInProgress)
+        assertFalse(testViewModel.uiState.value.isBackupInProgress)
+
+        val backupSnackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+            .filter { it.messageResId == R.string.session_backup_success_single ||
+                      it.messageResId == R.string.session_backup_error }
+        assertEquals(0, backupSnackbars.size)
     }
 }

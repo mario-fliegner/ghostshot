@@ -2,6 +2,7 @@
 package com.isardomains.sameview.ui.camera
 
 import android.Manifest
+import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -21,6 +22,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.sameview.BuildConfig
 import com.isardomains.sameview.R
+import com.isardomains.sameview.storage.SessionBackupExporter
 import com.isardomains.sameview.ui.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -122,7 +124,9 @@ data class CameraUiState(
     val viewportHeight: Int = 0,
     val savedSessions: List<ScannedSession> = emptyList(),
     val isOverlayNearlyInvisible: Boolean = false,
-    val gpsGuidanceState: GpsGuidanceState = GpsGuidanceState.Hidden
+    val gpsGuidanceState: GpsGuidanceState = GpsGuidanceState.Hidden,
+    val isBackupInProgress: Boolean = false,
+    val isDeletionInProgress: Boolean = false
 )
 
 /**
@@ -149,11 +153,13 @@ data class CompareInput(
 sealed interface UiEvent {
     /** Display a Snackbar with the given message. [isSuccess] controls visual style.
      *  [durationMs] overrides the default duration: null = SnackbarDuration.Short (~4 s),
-     *  non-null = Indefinite display auto-dismissed after [durationMs] milliseconds. */
+     *  non-null = Indefinite display auto-dismissed after [durationMs] milliseconds.
+     *  [count] is an optional integer used to format strings with a %d placeholder (e.g. multi-session backup). */
     data class ShowSnackbar(
         @StringRes val messageResId: Int,
         val isSuccess: Boolean = false,
-        val durationMs: Long? = null
+        val durationMs: Long? = null,
+        val count: Int? = null
     ) : UiEvent
     /** Notifies the UI that the pending undo snapshot has been invalidated by a new reference load. */
     data object UndoInvalidated : UiEvent
@@ -233,6 +239,19 @@ class CameraViewModel @Inject constructor(
     private var sessionDeleter: (File, String) -> Boolean =
         { root, id -> SessionDeleter.delete(root, id) }
 
+    private var sessionBackupExporter: (File, List<String>, Uri, ContentResolver?) -> SessionBackupExporter.BackupResult = { root, ids, uri, cr ->
+        if (cr == null) {
+            SessionBackupExporter.BackupResult.Failure("ContentResolver not available", null)
+        } else {
+            val outputStream = cr.openOutputStream(uri)
+            if (outputStream == null) {
+                SessionBackupExporter.BackupResult.Failure("Cannot open output stream", null)
+            } else {
+                outputStream.use { SessionBackupExporter.exportSessions(root, ids, it) }
+            }
+        }
+    }
+
     private var displayModeChangedByUser = false
     private var undoSnapshot: ReferenceUndoSnapshot? = null
     private var undoTimeoutJob: Job? = null
@@ -309,7 +328,8 @@ class CameraViewModel @Inject constructor(
         sessionTitleUpdater: ((File, String, String?) -> Boolean)? = null,
         sessionDeleter: ((File, String) -> Boolean)? = null,
         locationProvider: LocationProvider? = null,
-        locationPermissionChecker: (() -> Boolean)? = null
+        locationPermissionChecker: (() -> Boolean)? = null,
+        sessionBackupExporter: ((File, List<String>, Uri, ContentResolver?) -> SessionBackupExporter.BackupResult)? = null
     ) : this(context, settingsRepository) {
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
@@ -325,6 +345,9 @@ class CameraViewModel @Inject constructor(
         }
         if (locationPermissionChecker != null) {
             this.locationPermissionChecker = locationPermissionChecker
+        }
+        if (sessionBackupExporter != null) {
+            this.sessionBackupExporter = sessionBackupExporter
         }
     }
 
@@ -1018,48 +1041,94 @@ class CameraViewModel @Inject constructor(
     }
 
     fun deleteSessions(sessionIds: List<String>) {
+        if (_uiState.value.isBackupInProgress) return
+        _uiState.update { it.copy(isDeletionInProgress = true) }
         viewModelScope.launch(ioDispatcher) {
-            val sessionsRoot = File(context.filesDir, "sessions")
-            val failedIds = mutableSetOf<String>()
-            for (sessionId in sessionIds) {
-                if (!sessionDeleter(sessionsRoot, sessionId)) {
-                    failedIds.add(sessionId)
+            try {
+                val sessionsRoot = File(context.filesDir, "sessions")
+                val failedIds = mutableSetOf<String>()
+                for (sessionId in sessionIds) {
+                    if (!sessionDeleter(sessionsRoot, sessionId)) {
+                        failedIds.add(sessionId)
+                    }
                 }
-            }
-            val succeededIds = sessionIds.toSet() - failedIds
-            val sessions = scanSavedSessionsSafely()
-            _uiState.update { current ->
-                val activeSessionDeleted = current.compareInput?.sessionId
-                    ?.let { it in succeededIds } ?: false
-                current.copy(
-                    savedSessions = sessions,
-                    compareInput = if (activeSessionDeleted) null else current.compareInput
-                )
-            }
-            if (failedIds.isNotEmpty()) {
-                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.delete_failed))
+                val succeededIds = sessionIds.toSet() - failedIds
+                val sessions = scanSavedSessionsSafely()
+                _uiState.update { current ->
+                    val activeSessionDeleted = current.compareInput?.sessionId
+                        ?.let { it in succeededIds } ?: false
+                    current.copy(
+                        savedSessions = sessions,
+                        compareInput = if (activeSessionDeleted) null else current.compareInput
+                    )
+                }
+                if (failedIds.isNotEmpty()) {
+                    _uiEvent.emit(UiEvent.ShowSnackbar(R.string.delete_failed))
+                }
+            } finally {
+                _uiState.update { it.copy(isDeletionInProgress = false) }
             }
         }
     }
 
     suspend fun deleteSession(sessionId: String): Boolean {
-        return withContext(ioDispatcher) {
-            val sessionsRoot = File(context.filesDir, "sessions")
-            val succeeded = sessionDeleter(sessionsRoot, sessionId)
-            val sessions = scanSavedSessionsSafely()
-            _uiState.update { current ->
-                val activeSessionDeleted = succeeded && current.compareInput?.sessionId == sessionId
-                current.copy(
-                    savedSessions = sessions,
-                    compareInput = if (activeSessionDeleted) null else current.compareInput
-                )
+        if (_uiState.value.isBackupInProgress) return false
+        _uiState.update { it.copy(isDeletionInProgress = true) }
+        return try {
+            withContext(ioDispatcher) {
+                val sessionsRoot = File(context.filesDir, "sessions")
+                val succeeded = sessionDeleter(sessionsRoot, sessionId)
+                val sessions = scanSavedSessionsSafely()
+                _uiState.update { current ->
+                    val activeSessionDeleted = succeeded && current.compareInput?.sessionId == sessionId
+                    current.copy(
+                        savedSessions = sessions,
+                        compareInput = if (activeSessionDeleted) null else current.compareInput
+                    )
+                }
+                if (!succeeded) {
+                    _uiEvent.emit(UiEvent.ShowSnackbar(R.string.delete_failed))
+                }
+                succeeded
             }
-            if (!succeeded) {
-                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.delete_failed))
-            }
-            succeeded
+        } finally {
+            _uiState.update { it.copy(isDeletionInProgress = false) }
         }
     }
+
+    fun backupSessions(sessionIds: List<String>, destinationUri: Uri) {
+        val current = _uiState.value
+        if (current.isBackupInProgress || current.isDeletionInProgress) return
+        _uiState.update { it.copy(isBackupInProgress = true) }
+        viewModelScope.launch(ioDispatcher) {
+            val sessionsRoot = File(context.filesDir, "sessions")
+            val result = try {
+                sessionBackupExporter(sessionsRoot, sessionIds, destinationUri, context.contentResolver)
+            } catch (e: Exception) {
+                SessionBackupExporter.BackupResult.Failure("Unexpected error during backup", e)
+            }
+            if (result is SessionBackupExporter.BackupResult.Failure) {
+                try { context.contentResolver.delete(destinationUri, null, null) } catch (_: Exception) {}
+            }
+            _uiState.update { it.copy(isBackupInProgress = false) }
+            when (result) {
+                is SessionBackupExporter.BackupResult.Success -> {
+                    val msgRes = if (sessionIds.size == 1) R.string.session_backup_success_single
+                                 else R.string.session_backup_success_multi
+                    _uiEvent.emit(UiEvent.ShowSnackbar(
+                        messageResId = msgRes,
+                        isSuccess = true,
+                        count = if (sessionIds.size > 1) sessionIds.size else null
+                    ))
+                }
+                is SessionBackupExporter.BackupResult.Failure ->
+                    _uiEvent.emit(UiEvent.ShowSnackbar(R.string.session_backup_error, isSuccess = false))
+            }
+        }
+    }
+
+    fun backupSingleSession(sessionId: String, destinationUri: Uri) =
+        backupSessions(listOf(sessionId), destinationUri)
 
     private fun scanSavedSessionsSafely(): List<ScannedSession> {
         return try {
