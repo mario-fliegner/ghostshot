@@ -1191,3 +1191,61 @@ Implementation contract:
 - do not introduce a generic event system
 
 This setting does not create a second compare mode. It only changes whether the existing CompareScreen opens automatically after a successful capture.
+
+---
+
+## 40. SESSION BACKUP EXPORT ENTRY POINTS (2026-06-01)
+
+The session backup export feature adds two entry points to the compare flow. Full specification: `SESSION_BACKUP_EXPORT_V1.md`.
+
+### CompareScreen — Overflow Menu
+
+"Backup Session" is added to the existing overflow menu.
+
+**Complete overflow menu (updated):**
+
+- Edit Title
+- Remove Title (only when a title is present)
+- Backup Session
+
+Delete Session remains a dedicated top app bar icon, unchanged. Backup Session in the overflow menu requires a valid session context (`sessionId`). If CompareScreen is opened without session context, "Backup Session" is not shown.
+
+Tapping "Backup Session" launches the SAF file picker with the suggested filename `SameView_<sessionId>.zip`. No confirmation dialog is shown before the picker opens.
+
+### Compare Library — Multi-Select Action Bar
+
+The multi-select action bar gains two additions: a Select All / Deselect All toggle and a Backup icon.
+
+**Complete multi-select action bar (updated):**
+
+- Select All / Deselect All (toggles between all selected and none selected)
+- Backup icon (exports selected sessions as a single ZIP; no confirmation required)
+- Delete icon (existing; requires confirmation dialog; behavior unchanged)
+
+**Select All** selects all sessions in the complete scanned session list, not only the visible tiles in the scroll viewport.
+
+After a successful or failed backup, multi-select mode remains active and the selection is not automatically cleared.
+
+### No Impact on Compare Mechanics
+
+This feature does not change:
+
+- Compare rendering, slider behavior, or image display
+- Session storage, session scanning, or session deletion logic
+- Navigation contracts from CameraScreen to CompareScreen or from Library to CompareScreen
+- `compareInput` lifecycle or `savedSessions` state
+- Delete confirmation dialog behavior
+
+### Planned Future CompareScreen Top App Bar
+
+The product-intended future top app bar structure (implemented as part of the Create Video scope, not this spec):
+
+```
+← Back  |  [Create Video icon]  |  [Delete Session icon]  |  ⋮
+```
+
+Current structure (unchanged by this spec):
+
+```
+← Back  |  [Delete Session icon]  |  ⋮
+```

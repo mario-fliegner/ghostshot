@@ -389,6 +389,8 @@ May later contain:
 - compare management
 - session-related actions
 
+Note (2026-06-01): Session backup export is implemented as a session-related action in the CompareScreen overflow menu. See `SESSION_BACKUP_EXPORT_V1.md`.
+
 But Compare itself remains the primary workflow action from CameraScreen.
 
 ---

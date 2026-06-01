@@ -579,6 +579,8 @@ This architecture intentionally preserves compatibility for:
 
 without changing the core compare pipeline later.
 
+The V1 session backup export (`SESSION_BACKUP_EXPORT_V1.md`) is the first implementation of the "export features" compatibility target listed above. All four session files — including `reference-original.jpg`, which was explicitly designed for export and re-editing workflows — are included unchanged in every session backup.
+
 ---
 
 # Final Architectural Goal

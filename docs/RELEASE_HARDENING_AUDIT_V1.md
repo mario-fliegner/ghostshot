@@ -251,6 +251,9 @@ Die folgenden Blöcke sind so dimensioniert, dass sie einzeln und unabhängig um
 
 **Abhängigkeiten:** Breaking change an der internen URI-Struktur; erfordert sorgfältige Test-Absicherung; sollte vor jeder Share-Feature-Implementierung abgeschlossen sein
 
+**Hinweis Session Backup Export (2026-06-01):**
+Block D ist kein Prerequisite für das Session-Backup-Export-Feature. Das Backup-Feature liest Session-Dateien aus dem internen App-Speicher und streamt sie über `ACTION_CREATE_DOCUMENT` direkt in den SAF-bereitgestellten `OutputStream`. Keine `file://`-URIs werden an externe Apps weitergegeben, da keine `Uri.fromFile()` o.ä. nach außen exponiert wird. Finding S-02 bleibt offen; Block D wird erst Prerequisite, wenn ein zukünftiges "ZIP per Android Share Sheet teilen"-Feature implementiert wird.
+
 ---
 
 ### Block E — Privacy-Kommunikation

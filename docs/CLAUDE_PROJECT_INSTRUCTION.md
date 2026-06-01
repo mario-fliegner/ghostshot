@@ -583,3 +583,59 @@ Session Storage:
 - metadata.json may include optional field: "title"
 - Title is stored as plain string
 - Missing title field is valid and must not break parsing
+
+
+### Addendum (2026-06-01 – Session Backup Export)
+
+#### Scope Clarification: Storage and Capture Behavior Constraints
+
+The STORAGE section ("Use: MediaStore ONLY", "Save exactly one file per capture") and the CAPTURE BEHAVIOR section ("No comparison export", "No second output file") apply exclusively to the camera capture pipeline — the path from shutter press to the saved photo in `Pictures/SameView/`. They do not apply to user-initiated session backup export.
+
+Session backup export uses `Intent.ACTION_CREATE_DOCUMENT` (Android Storage Access Framework) to write a ZIP file to user-chosen device storage. This is a session management operation, not a camera capture operation, and does not conflict with the MediaStore-only capture rule.
+
+"Share flow" in the OUT OF SCOPE section refers to social sharing via the Android Share Sheet. User-initiated local backup to device storage via SAF is not a share flow and is in scope.
+
+#### Session Backup Export
+
+A user-initiated session backup feature is implemented. Full specification: `SESSION_BACKUP_EXPORT_V1.md`.
+
+- Export is triggered from CompareScreen overflow menu (single session) or Compare Library multi-select action bar (one or more sessions)
+- Output is a ZIP file written to user-chosen location via SAF `ACTION_CREATE_DOCUMENT`
+- ZIP contains all four session files unchanged (`capture.jpg`, `reference.jpg`, `reference-original.jpg`, `metadata.json`)
+- No confirmation dialog before the SAF picker; SAF picker is the implicit confirmation step
+- No GPS stripping; backup is always a complete, full-fidelity copy
+- Streaming directly to SAF OutputStream; no intermediate temp file
+- No new permissions required
+- No FileProvider required for this feature
+
+#### Compare Screen (Addendum Update)
+
+The overflow menu now contains three entries:
+
+- Edit Title
+- Remove Title (only when a title is present)
+- Backup Session
+
+Delete Session remains a dedicated icon in the top app bar, unchanged.
+
+**Planned future top app bar structure (not yet implemented; implemented as part of the Create Video scope):**
+
+```
+← Back  |  [Create Video icon]  |  [Delete Session icon]  |  ⋮
+```
+
+Product intent for the future structure: Delete Session is the primary action when the compare result is unsatisfactory; Create Video is the primary action when the result is successful. This restructuring must not be pre-implemented with placeholders or disabled icons.
+
+#### Compare Library (Addendum Update)
+
+Multi-select mode action bar now contains three elements:
+
+- Select All / Deselect All toggle
+- Backup icon (exports selected sessions as ZIP; no confirmation dialog)
+- Delete icon (existing behavior, unchanged; requires confirmation dialog)
+
+**Select All** selects all sessions in the complete scanned session list, not just visible tiles.
+**Deselect All** clears the selection (same toggle as Select All, state-dependent label).
+After a successful backup, multi-select mode remains active and the selection is preserved.
+
+Backup is not a Share action. It writes to local device storage via SAF.

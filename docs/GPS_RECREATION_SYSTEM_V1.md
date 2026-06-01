@@ -515,7 +515,7 @@ The current architecture preserves compatibility for future work without requiri
 
 - A device-oriented rotating bearing arrow (TYPE_ROTATION_VECTOR + exponential smoothing) as a UX enhancement, requiring explicit product decision and device validation
 - Re-alignment workflows using `referenceLocation` from `metadata.json` to locate the original shooting position
-- Export workflows that embed `captureLocation` GPS data
+- Export workflows that embed `captureLocation` GPS data — the V1 session backup export is the first implementation of this. `captureLocation`, `referenceLocation`, and all GPS EXIF tags in `capture.jpg` and `reference-original.jpg` are included unchanged in every session backup. See `SESSION_BACKUP_EXPORT_V1.md` for the complete specification.
 - Optional local-only grouping of sessions by approximate capture location within the Compare Library
 - Optional per-session accuracy display showing the distance between capture location and reference location, using locally stored metadata only
 
