@@ -175,6 +175,26 @@ Active compare session lifecycle — fully implemented:
 - Titles are displayed when present
 - This is not a general gallery or MediaStore browser
 
+### Video Export
+
+Full specification: `VIDEO_EXPORT_V1.md`
+Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
+
+MP4 export infrastructure implemented (Blocks 1–2):
+
+- **Renderer Core (Block 1)** — `VideoRenderConfig`, `VideoMode`, `VideoExportFormat`, `VideoQuality` enums; `VideoFrameRenderer` interface; `CompareSliderRenderEngine` (cubic ease-in-out, two-stroke divider, fill semantics); `BeforeAfterRenderEngine` (linear crossfade, fit semantics); canvas setup and bitmap lifecycle; `computeCanvasDimensions` with even-dimension enforcement
+- **Encoding Pipeline (Block 2)** — `VideoEncoder` (MediaCodec H.264/AVC, ByteBuffer input, ARGB→YUV420 conversion, NV12/I420 auto-detect via `MediaCodecList`); `MediaStoreVideoWriter` (IS_PENDING lifecycle, `Movies/SameView`, cleanup on failure); `VideoExportPipeline` (orchestrates decode → render → encode → commit; coroutine-cancellation-safe cleanup via `NonCancellable`)
+- Output: MP4, H.264, 30 FPS, 7 Mbps, `Movies/SameView`, no audio track
+- `brandingEnabled` field exists but is ignored until Block 6
+- No UI, no ViewModel, no navigation — feature not yet reachable from the app
+
+Pending before Block 2 is fully closed:
+
+- T-I-01 (`VideoExportPipelineTest`) must run on a connected API 29+ device
+- Manual MP4 playback verification on a real device
+
+---
+
 ### Session Backup Export
 
 Full specification: `SESSION_BACKUP_EXPORT_V1.md`
