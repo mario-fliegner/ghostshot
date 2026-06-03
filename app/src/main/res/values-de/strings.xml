@@ -145,12 +145,13 @@
 
     <!-- Video erstellen — Konfiguration -->
     <string name="create_video_screen_title">Video erstellen</string>
+    <string name="create_video_mode_label">Videotyp</string>
     <string name="create_video_mode_compare_slider">Vergleichs-Slider</string>
     <string name="create_video_mode_before_after">Vorher &amp; Nachher</string>
     <string name="create_video_format_label">Format</string>
     <string name="create_video_format_original">Original</string>
-    <string name="create_video_format_portrait">Hochformat 9:16</string>
-    <string name="create_video_format_landscape">Querformat 16:9</string>
+    <string name="create_video_format_portrait">Hochformat</string>
+    <string name="create_video_format_landscape">Querformat</string>
     <string name="create_video_duration_label">Dauer</string>
     <string name="create_video_duration_short">4 s</string>
     <string name="create_video_duration_medium">6 s</string>

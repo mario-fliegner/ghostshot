@@ -39,7 +39,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -260,7 +260,7 @@ fun CompareScreen(
                             modifier = Modifier.testTag("compare_screen_create_video_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Videocam,
+                                imageVector = Icons.Default.Slideshow,
                                 contentDescription = createVideoDescription
                             )
                         }
