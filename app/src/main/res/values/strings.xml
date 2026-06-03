@@ -181,7 +181,7 @@
     <string name="create_video_preview_title">Video Created</string>
     <string name="create_video_action_done">Done</string>
     <string name="create_video_action_share">Share</string>
-    <string name="create_video_action_delete">Delete</string>
+    <string name="create_video_action_delete">Delete Video</string>
 
     <!-- Create Video — Entry point (CompareScreen top app bar) -->
     <string name="create_video_entry_content_description">Create video</string>
@@ -190,6 +190,12 @@
     <string name="create_video_cancel_export_dialog_title">Cancel video export?</string>
     <string name="create_video_cancel_export_continue">Continue</string>
     <string name="create_video_cancel_export_stop">Stop export</string>
+
+    <!-- Create Video — Delete video confirmation dialog -->
+    <string name="create_video_delete_dialog_title">Delete video?</string>
+    <string name="create_video_delete_dialog_message">This removes the exported video from your device. Your compare session stays unchanged.</string>
+    <string name="create_video_delete_dialog_confirm">Delete Video</string>
+    <string name="create_video_delete_dialog_cancel">Cancel</string>
 
     <!-- Create Video — error / info snackbars -->
     <string name="create_video_error_render_failed">Could not create video</string>

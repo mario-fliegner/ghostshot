@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -151,7 +150,15 @@ fun CreateVideoScreen(
                     }
                 )
                 is CreateVideoState.Rendering -> TopAppBar(
-                    title = { Text(stringResource(R.string.create_video_rendering_title)) }
+                    title = { Text(stringResource(R.string.create_video_rendering_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = { showCancelDialog = true }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = null
+                            )
+                        }
+                    }
                 )
                 is CreateVideoState.Preview -> TopAppBar(
                     title = { Text(stringResource(R.string.create_video_preview_title)) },
@@ -365,6 +372,28 @@ private fun PreviewContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.create_video_delete_dialog_title)) },
+            text = { Text(stringResource(R.string.create_video_delete_dialog_message)) },
+            confirmButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.create_video_delete_dialog_cancel))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete()
+                }) {
+                    Text(stringResource(R.string.create_video_delete_dialog_confirm))
+                }
+            }
+        )
+    }
 
     val player = remember {
         ExoPlayer.Builder(context).build()
@@ -406,6 +435,7 @@ private fun PreviewContent(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Primary action — same visual style as Create Video button
             Button(
                 onClick = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -415,25 +445,26 @@ private fun PreviewContent(
                     }
                     runCatching { context.startActivity(Intent.createChooser(shareIntent, null)) }
                 },
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(contentColor = Color.White),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.create_video_action_share))
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // Secondary action — full-width outlined, clearly below Share in hierarchy
+            OutlinedButton(
+                onClick = onDone,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(
-                    onClick = onDelete,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Text(stringResource(R.string.create_video_action_done))
+            }
+            // Destructive / tertiary — text-only, right-aligned; tap opens confirmation dialog
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                TextButton(onClick = { showDeleteDialog = true }) {
                     Text(stringResource(R.string.create_video_action_delete))
-                }
-                OutlinedButton(
-                    onClick = onDone,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(stringResource(R.string.create_video_action_done))
                 }
             }
         }

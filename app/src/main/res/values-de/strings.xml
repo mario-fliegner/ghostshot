@@ -171,7 +171,7 @@
     <string name="create_video_preview_title">Video erstellt</string>
     <string name="create_video_action_done">Fertig</string>
     <string name="create_video_action_share">Teilen</string>
-    <string name="create_video_action_delete">Löschen</string>
+    <string name="create_video_action_delete">Video löschen</string>
 
     <!-- Video erstellen — Einstiegspunkt (CompareScreen Titelleiste) -->
     <string name="create_video_entry_content_description">Video erstellen</string>
@@ -180,6 +180,12 @@
     <string name="create_video_cancel_export_dialog_title">Videoexport abbrechen?</string>
     <string name="create_video_cancel_export_continue">Weiter</string>
     <string name="create_video_cancel_export_stop">Export stoppen</string>
+
+    <!-- Video erstellen — Lösch-Bestätigungsdialog -->
+    <string name="create_video_delete_dialog_title">Video löschen?</string>
+    <string name="create_video_delete_dialog_message">Das exportierte Video wird von deinem Gerät entfernt. Deine Vergleichs-Session bleibt unverändert.</string>
+    <string name="create_video_delete_dialog_confirm">Video löschen</string>
+    <string name="create_video_delete_dialog_cancel">Abbrechen</string>
 
     <!-- Video erstellen — Fehler / Info -->
     <string name="create_video_error_render_failed">Video konnte nicht erstellt werden</string>
