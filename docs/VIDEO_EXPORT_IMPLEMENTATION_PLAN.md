@@ -1,9 +1,9 @@
 # VIDEO_EXPORT_IMPLEMENTATION_PLAN.md
 
-**Status:** In Progress — Block 1 Completed / Block 2 Implemented (Verification Pending)
+**Status:** In Progress — Block 1 Completed / Block 2 Completed / Blocks 3–7 Planned
 **Grundlage:** VIDEO_EXPORT_V1.md (authoritative), CLAUDE_PROJECT_INSTRUCTION.md, COMPARE_FLOW_V1.md, COMPARE_SESSION_RENDERING_V1.md, SESSION_BACKUP_EXPORT_IMPLEMENTATION_PLAN.md, IMPLEMENTATION_NOTES.md, aktueller Codebestand
 **Planerstellt:** 2026-06-02
-**Zuletzt aktualisiert:** 2026-06-02
+**Zuletzt aktualisiert:** 2026-06-03
 
 ---
 
@@ -15,7 +15,7 @@
 | Autoritative Quelle | `VIDEO_EXPORT_V1.md` |
 | Dieses Dokument | Technischer Implementierungsplan — verbindliche Arbeitsgrundlage |
 | Block 1 | Completed (2026-06-02) |
-| Block 2 | Implemented — Verification Pending |
+| Block 2 | Completed (2026-06-02) |
 | Blöcke 3–7 | Planned |
 
 **Konfliktauflösung:** Bei Widerspruch zwischen diesem Dokument und `VIDEO_EXPORT_V1.md` gilt immer `VIDEO_EXPORT_V1.md`.
@@ -203,8 +203,8 @@ Die vollständige Encoding-Pipeline implementieren: von Bitmap-Frames zu einem v
 
 - `VideoEncoder` — MediaCodec-Wrapper; nimmt Bitmap-Frames bei 30 FPS; schreibt H.264-encoded Video via `MediaMuxer`; Dateiname nach §18.1 (`SameView_<sessionId>_<mode>.mp4`)
 - `MediaStoreVideoWriter` — MediaStore-Insertion mit `IS_PENDING=1`; öffnet `FileDescriptor`; setzt `IS_PENDING=0` nach Erfolg; `contentResolver.delete()` bei Fehler (best-effort)
-- `VideoExportPipeline` — orchestriert Renderer + `BrandingEndcardRenderer` + Encoder + Writer; exponiert `StateFlow<Float>` (0.0..1.0) als Progress; `Job?` für Cancellation; exponiert Fallback-Signal für Qualitäts-Downgrade
-- `BrandingEndcardRenderer` — rendert 30 statische Endcard-Frames wenn `brandingEnabled = true` (§17.6); Background `#17202F`, "SameView" + "#MadeWithSameView" Text (finale Typographie-Details in Block 6 abschließbar)
+- `VideoExportPipeline` — orchestriert Renderer + Encoder + Writer; exponiert `StateFlow<Float>` (0.0..1.0) als Progress; `Job?` für Cancellation; exponiert Fallback-Signal für Qualitäts-Downgrade; `brandingEnabled` Parameter wird akzeptiert, hat aber bis Block 6 keine Endcard-Ausgabe-Wirkung
+- `BrandingEndcardRenderer` — **bewusst auf Block 6 verschoben;** Datei wird nicht in Block 2 erstellt; Pipeline ignoriert `brandingEnabled` ohne Endcard-Frames bis zum Branding-Block
 - Instrumentation-Test T-I-01
 
 #### Expected File Changes
@@ -215,8 +215,9 @@ Die vollständige Encoding-Pipeline implementieren: von Bitmap-Frames zu einem v
 |---|---|
 | `app/src/main/java/com/isardomains/sameview/video/VideoEncoder.kt` | MediaCodec + MediaMuxer Wrapper, Bitmap-Frame-Input, H.264 Standard |
 | `app/src/main/java/com/isardomains/sameview/video/MediaStoreVideoWriter.kt` | MediaStore-Insertion, IS_PENDING-Lifecycle, Deletion on failure |
-| `app/src/main/java/com/isardomains/sameview/video/VideoExportPipeline.kt` | Pipeline-Orchestrierung, Progress StateFlow, Cancellation |
-| `app/src/main/java/com/isardomains/sameview/video/BrandingEndcardRenderer.kt` | Statische Endcard-Frame-Erzeugung |
+| `app/src/main/java/com/isardomains/sameview/video/VideoExportPipeline.kt` | Pipeline-Orchestrierung, Progress StateFlow, Cancellation; `brandingEnabled` ohne Endcard-Ausgabe |
+
+> **Hinweis:** `BrandingEndcardRenderer.kt` wurde entgegen dem ursprünglichen Plan **nicht** in Block 2 erstellt. Die Endcard-Implementierung ist bewusst auf Block 6 verschoben. `brandingEnabled` existiert als Parameter in `VideoRenderConfig`, Endcard-Frames werden jedoch noch nicht gerendert.
 
 **Neue Testdateien:**
 
@@ -250,19 +251,41 @@ Zusätzlich: Manuell verifizieren, dass die erzeugte Datei mit Android Gallery u
 - Kein bestehender Test ist gebrochen
 - Keine UI-Änderungen
 
+#### Real-Device Verifikation (2026-06-02)
+
+Erfolgreich verifiziert auf:
+
+| Eigenschaft | Wert |
+|---|---|
+| Gerät | Samsung Galaxy S23 SM-S911B |
+| Android | 16 |
+| T-I-01 (`VideoExportPipelineTest`) | PASSED |
+| Instrumentation-Suite gesamt | 329/329 grün |
+| MP4-Wiedergabe auf Gerät | verifiziert |
+| Bekannte Regressionen | keine |
+
 #### Out of Scope
 
-HEVC / High Quality (Block 5), ViewModel, UI-Screens, Navigation, CompareScreen-Änderungen
+HEVC / High Quality (Block 5), ViewModel, UI-Screens, Navigation, CompareScreen-Änderungen, `BrandingEndcardRenderer` (bewusst auf Block 6 verschoben; `brandingEnabled` aktuell ohne Endcard-Ausgabe)
 
 ---
 
 ### Block 3 — CreateVideoScreen + ViewModel (Configuring → Rendering) + CompareScreen Entry Point
 
+#### Implementierungskopplung mit Block 4
+
+> **Block 3 und Block 4 sind eine untrennbare Implementierungseinheit und müssen gemeinsam committed werden.**
+>
+> - Der `Create Video`-Icon im CompareScreen darf **nicht** committed werden, bevor Block 4 vollständig abgeschlossen ist (Section 26 Compliance).
+> - Kein erreichbarer Entry Point ohne vollständigen Preview-State (ExoPlayer, Share, Delete).
+> - Ein halbfertiger Entry Point — Tap auf `Create Video` führt zu einem Screen ohne Preview — ist ein Spec-Verstoß und erzeugt einen dauerhaft sichtbaren, nicht nutzbaren Zustand für Tester.
+> - Commits dürfen erst erfolgen, wenn Block 3 **und** Block 4 vollständig implementiert sind und alle zugehörigen Tests grün sind.
+>
+> Dieses Risiko ist als R-04 im Risk Register dokumentiert.
+
 #### Purpose
 
-Vollständigen Wizard-Screen mit Configuring- und Rendering-Zustand implementieren. CompareScreen TopAppBar umstrukturieren und `Create Video`-Icon hinzufügen.
-
-**Section 26 Compliance:** Der `Create Video`-Icon im CompareScreen darf erst committed werden, wenn sowohl Block 3 als auch Block 4 abgeschlossen sind. Kein Entry Point ohne vollständigen Preview-State.
+Vollständigen Wizard-Screen mit Configuring- und Rendering-Zustand implementieren. CompareScreen TopAppBar umstrukturieren und `Create Video`-Icon hinzufügen — erst commitable gemeinsam mit Block 4 (siehe Kopplung oben).
 
 #### Scope
 
@@ -465,7 +488,7 @@ Branding-Tests (Block 6)
 
 Branding-Toggle vollständig testen und finalisieren: Endcard-Rendering, korrektes Timing-Modell (Animation = Total − 1.0s), DataStore-Persistenz.
 
-**Hinweis:** `BrandingEndcardRenderer` wurde in Block 2 erstellt. Block 6 fokussiert auf vollständiges Testing, finale Typographie-Entscheidungen (§13.4) und Verifikation des Timing-Modells über die gesamte Pipeline.
+**Hinweis:** `BrandingEndcardRenderer.kt` existiert noch nicht — die Datei wird in Block 6 neu erstellt. `brandingEnabled` ist bereits als Parameter in `VideoRenderConfig` und `VideoExportPipeline` vorhanden, hat aber bis Block 6 keine Endcard-Ausgabe-Wirkung. Block 6 umfasst Erstellung, vollständiges Testing, finale Typographie-Entscheidungen (§13.4) und Verifikation des Timing-Modells über die gesamte Pipeline.
 
 #### Scope
 
@@ -478,12 +501,17 @@ Branding-Toggle vollständig testen und finalisieren: Endcard-Rendering, korrekt
 
 #### Expected File Changes
 
+**Neue Produktionsdateien:**
+
+| Datei | Inhalt |
+|---|---|
+| `app/src/main/java/com/isardomains/sameview/video/BrandingEndcardRenderer.kt` | Statische Endcard-Frame-Erzeugung (30 Frames); Background `#17202F`; "SameView" + "#MadeWithSameView"; finale Typographie gemäß §13.4 |
+
 **Geänderte Dateien:**
 
 | Datei | Art der Änderung |
 |---|---|
-| `app/src/main/java/com/isardomains/sameview/video/BrandingEndcardRenderer.kt` | Finale Typographie-Details und Endcard-Layout gemäß §13.4 |
-| `app/src/main/java/com/isardomains/sameview/video/VideoExportPipeline.kt` | Branding-Timing-Korrektheit verifizieren/korrigieren falls nötig |
+| `app/src/main/java/com/isardomains/sameview/video/VideoExportPipeline.kt` | `BrandingEndcardRenderer` einbinden; Branding-Timing-Korrektheit verifizieren/korrigieren falls nötig |
 | `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoScreen.kt` | Branding-Toggle-Wiring zum ViewModel verifizieren/korrigieren falls nötig |
 | `app/src/test/java/com/isardomains/sameview/video/VideoRenderConfigTest.kt` | T-U-09, T-U-10 bestätigen (ggf. bereits in Block 1 vorhanden) |
 
@@ -708,7 +736,7 @@ Release-APK auf realem Gerät installieren: Video-Export vollständig funktional
 | Block | Name | Status | Completion Date | Notes |
 | --- | --- | --- | --- | --- |
 | Block 1 | Renderer Core | **Completed** | 2026-06-02 | T-U-01–T-U-14 grün; `testDebugUnitTest` PASSED |
-| Block 2 | VideoEncoder + MediaStoreVideoWriter + Pipeline | **Implemented — Verification Pending** | — | Code fertig; kompiliert clean; T-I-01 nicht ausgeführt (kein Gerät); manuelle MP4-Wiedergabe ausstehend |
+| Block 2 | VideoEncoder + MediaStoreVideoWriter + Pipeline | **Completed** | 2026-06-02 | T-I-01 PASSED; 329/329 Instrumentation-Tests grün; MP4-Wiedergabe auf SM-S911B (Android 16) verifiziert; `BrandingEndcardRenderer.kt` bewusst auf Block 6 verschoben |
 | Block 3 | CreateVideoScreen + ViewModel + Entry Point | Planned | — | CompareScreen.kt, MainActivity.kt, strings.xml, SettingsRepository.kt geändert |
 | Block 4 | Preview State + Share + Delete | Planned | — | ExoPlayer; T-U-18–T-U-19, T-I-02, T-I-04; Entry Point commiten |
 | Block 5 | High Quality + Device Limit Fallback | Planned | — | HEVC-Check; T-U-20, T-I-03 |
@@ -750,7 +778,7 @@ Folgende Features sind dokumentiert, aber explizit **nicht** Bestandteil von V1:
 | `app/src/main/java/com/isardomains/sameview/video/VideoEncoder.kt` | 2 |
 | `app/src/main/java/com/isardomains/sameview/video/MediaStoreVideoWriter.kt` | 2 |
 | `app/src/main/java/com/isardomains/sameview/video/VideoExportPipeline.kt` | 2 |
-| `app/src/main/java/com/isardomains/sameview/video/BrandingEndcardRenderer.kt` | 2 |
+| `app/src/main/java/com/isardomains/sameview/video/BrandingEndcardRenderer.kt` | 6 |
 | `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoViewModel.kt` | 3 |
 | `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoScreen.kt` | 3+4 |
 

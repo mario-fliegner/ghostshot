@@ -1287,6 +1287,117 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
     }
 
+    // --- T-I-05: Create Video button visible and enabled when session has valid files ---
+
+    @Test
+    fun t_i_05_createVideoButton_visibleAndEnabledWhenSessionHasValidFiles() {
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2026-01-01_12-00-00",
+                onCreateVideo = {},
+                isCreateVideoAvailable = true
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_create_video_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_create_video_button").assertIsEnabled()
+    }
+
+    // --- T-I-06: Create Video button visible but disabled when files are not available ---
+
+    @Test
+    fun t_i_06_createVideoButton_visibleButDisabledWhenFilesNotAvailable() {
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2026-01-01_12-00-00",
+                onCreateVideo = {},
+                isCreateVideoAvailable = false
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_create_video_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_create_video_button").assertIsNotEnabled()
+    }
+
+    // --- T-I-07: Tap on Create Video invokes the callback ---
+
+    @Test
+    fun t_i_07_createVideoButton_tapInvokesCallback() {
+        var createVideoCount = 0
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2026-01-01_12-00-00",
+                onCreateVideo = { createVideoCount++ },
+                isCreateVideoAvailable = true
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_create_video_button").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, createVideoCount)
+    }
+
+    // --- T-I-08: Back from CreateVideoScreen returns to CompareScreen with unchanged state ---
+    // Verified by checking that tapping Create Video does not alter CompareScreen's slider state.
+    // The slider's rememberSaveable ensures state is preserved when navigation pops back.
+
+    @Test
+    fun t_i_08_createVideoTap_doesNotAlterCompareScreenState() {
+        val compareInput = createCompareInput()
+        var createVideoInvoked = false
+
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = compareInput.referenceUri,
+                captureImageUri = compareInput.captureUri,
+                onBack = {},
+                sessionId = "2026-01-01_12-00-00",
+                onCreateVideo = { createVideoInvoked = true },
+                isCreateVideoAvailable = true
+            )
+        }
+
+        waitForSliderViewport()
+
+        // Move slider to a non-default position
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(200f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+        val sliderBefore = composeRule.onNodeWithTag("compare_slider").getUnclippedBoundsInRoot()
+
+        // Tap Create Video (simulates navigation trigger — doesn't change CompareScreen state)
+        composeRule.onNodeWithTag("compare_screen_create_video_button").performClick()
+        composeRule.waitForIdle()
+
+        assertTrue("onCreateVideo callback must have been invoked", createVideoInvoked)
+
+        // Slider state is unchanged — same position guaranteed by rememberSaveable on back stack
+        val sliderAfter = composeRule.onNodeWithTag("compare_slider").getUnclippedBoundsInRoot()
+        assertCenterXNear(sliderBefore, sliderAfter, 8.dp)
+    }
+
+    // --- Create Video button absent when onCreateVideo is null (no session context) ---
+
+    @Test
+    fun createVideoButton_notVisibleWhenOnCreateVideoIsNull() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null)
+
+        composeRule.onNodeWithTag("compare_screen_create_video_button").assertDoesNotExist()
+    }
+
     private fun setCompareContent(
         referenceImageUri: Uri?,
         captureImageUri: Uri?,

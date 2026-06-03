@@ -39,6 +39,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -133,6 +134,8 @@ fun CompareScreen(
     sessionId: String? = null,
     onBackupSession: ((Uri) -> Unit)? = null,
     isBackupInProgress: Boolean = false,
+    onCreateVideo: (() -> Unit)? = null,
+    isCreateVideoAvailable: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
@@ -245,9 +248,37 @@ fun CompareScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(start = 4.dp)
                     )
-                    if (onSaveTitle != null || sessionId != null || onDelete != null) {
+                    if (onCreateVideo != null || onSaveTitle != null || sessionId != null || onDelete != null) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
+                    // Create Video button — only when sessionId context is present (onCreateVideo != null)
+                    if (onCreateVideo != null) {
+                        val createVideoDescription = stringResource(R.string.create_video_entry_content_description)
+                        IconButton(
+                            onClick = { if (isCreateVideoAvailable) onCreateVideo() },
+                            enabled = isCreateVideoAvailable,
+                            modifier = Modifier.testTag("compare_screen_create_video_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Videocam,
+                                contentDescription = createVideoDescription
+                            )
+                        }
+                    }
+                    // Delete button — dedicated icon, not in overflow
+                    if (onDelete != null) {
+                        val deleteDescription = stringResource(R.string.compare_screen_delete)
+                        IconButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.testTag("compare_screen_delete_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = deleteDescription
+                            )
+                        }
+                    }
+                    // Overflow menu (⋮) — Edit Title, Remove Title, Backup Session
                     if (onSaveTitle != null || sessionId != null) {
                         Box {
                             IconButton(
@@ -296,18 +327,6 @@ fun CompareScreen(
                                     )
                                 }
                             }
-                        }
-                    }
-                    if (onDelete != null) {
-                        val deleteDescription = stringResource(R.string.compare_screen_delete)
-                        IconButton(
-                            onClick = { showDeleteDialog = true },
-                            modifier = Modifier.testTag("compare_screen_delete_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = deleteDescription
-                            )
                         }
                     }
                 }

@@ -23,6 +23,7 @@ class SettingsRepository @Inject constructor(
         val RESET_OVERLAY_AFTER_CAPTURE = booleanPreferencesKey("reset_overlay_after_capture")
         val AUTO_OPEN_COMPARE_AFTER_CAPTURE = booleanPreferencesKey("auto_open_compare_after_capture")
         val RECREATION_GUIDANCE = booleanPreferencesKey("recreation_guidance")
+        val BRANDING_ENABLED = booleanPreferencesKey("branding_enabled")
     }
 
     private val preferences: Flow<Preferences> = dataStore.data
@@ -81,6 +82,17 @@ class SettingsRepository @Inject constructor(
     suspend fun setRecreationGuidance(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.RECREATION_GUIDANCE] = enabled
+        }
+    }
+
+    /** Branding endcard toggle; default ON per VIDEO_EXPORT_V1 §13.3. */
+    val brandingEnabled: Flow<Boolean> = preferences.map { prefs ->
+        prefs[Keys.BRANDING_ENABLED] ?: true
+    }
+
+    suspend fun setBrandingEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BRANDING_ENABLED] = enabled
         }
     }
 }

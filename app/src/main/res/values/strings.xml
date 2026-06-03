@@ -153,6 +153,48 @@
     <string name="session_backup_filename_single" translatable="false">SameView_%s.zip</string>
     <string name="session_backup_filename_multi" translatable="false">SameView_Backup_%s.zip</string>
 
+    <!-- Create Video — Configuring state -->
+    <string name="create_video_screen_title">Create Video</string>
+    <string name="create_video_mode_compare_slider">Compare Slider</string>
+    <string name="create_video_mode_before_after">Before &amp; After</string>
+    <string name="create_video_format_label">Format</string>
+    <string name="create_video_format_original">Original</string>
+    <string name="create_video_format_portrait">Portrait 9:16</string>
+    <string name="create_video_format_landscape">Landscape 16:9</string>
+    <string name="create_video_duration_label">Duration</string>
+    <string name="create_video_duration_short">4s</string>
+    <string name="create_video_duration_medium">6s</string>
+    <string name="create_video_duration_long">8s</string>
+    <string name="create_video_quality_label">Quality</string>
+    <string name="create_video_quality_standard">Standard</string>
+    <string name="create_video_quality_high">High Quality</string>
+    <string name="create_video_quality_high_note">Creates larger files and takes longer</string>
+    <string name="create_video_branding_label">Add #MadeWithSameView card</string>
+    <string name="create_video_action_create">Create Video</string>
+
+    <!-- Create Video — Rendering state -->
+    <string name="create_video_rendering_title">Creating video…</string>
+    <string name="create_video_rendering_progress">Rendering frame %1$d of %2$d</string>
+
+    <!-- Create Video — Preview state -->
+    <string name="create_video_preview_title">Video Created</string>
+    <string name="create_video_action_done">Done</string>
+    <string name="create_video_action_share">Share</string>
+    <string name="create_video_action_delete">Delete</string>
+
+    <!-- Create Video — Entry point (CompareScreen top app bar) -->
+    <string name="create_video_entry_content_description">Create video</string>
+
+    <!-- Create Video — Cancel export dialog (Back during Rendering) -->
+    <string name="create_video_cancel_export_dialog_title">Cancel video export?</string>
+    <string name="create_video_cancel_export_continue">Continue</string>
+    <string name="create_video_cancel_export_stop">Stop export</string>
+
+    <!-- Create Video — error / info snackbars -->
+    <string name="create_video_error_render_failed">Could not create video</string>
+    <string name="create_video_quality_fallback_notice">High quality not supported on this device</string>
+    <string name="create_video_delete_failed">Could not delete video</string>
+
     <!-- GPS fallback dialog (shown when photo picker result has no GPS and recreation guidance is active) -->
     <string name="gps_fallback_dialog_title">Location data unavailable</string>
     <string name="gps_fallback_dialog_message">SameView couldn\'t read location data from this selection. Try choosing the original file to enable GPS guidance.</string>

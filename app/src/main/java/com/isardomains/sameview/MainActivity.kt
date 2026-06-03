@@ -35,6 +35,7 @@ import com.isardomains.sameview.ui.compare.CompareLibraryScreen
 import com.isardomains.sameview.ui.compare.CompareScreen
 import com.isardomains.sameview.ui.settings.SettingsScreen
 import com.isardomains.sameview.ui.theme.SameViewTheme
+import com.isardomains.sameview.ui.video.CreateVideoScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -43,6 +44,9 @@ private const val ROUTE_COMPARE = "compare"
 private const val ROUTE_COMPARE_LIBRARY = "compare_library"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_ABOUT = "about"
+private const val ROUTE_CREATE_VIDEO = "create_video"
+private const val ARG_CREATE_VIDEO_SESSION_ID = "sessionId"
+private const val ROUTE_CREATE_VIDEO_WITH_ARGS = "$ROUTE_CREATE_VIDEO/{$ARG_CREATE_VIDEO_SESSION_ID}"
 private const val ARG_REFERENCE_URI = "referenceUri"
 private const val ARG_CAPTURE_URI = "captureUri"
 private const val ARG_SESSION_ID = "sessionId"
@@ -200,6 +204,17 @@ class MainActivity : ComponentActivity() {
                             .find { it.sessionId == sessionId }
                             ?.title
 
+                        // Availability check for Create Video: session must have both images.
+                        val filesDir = applicationContext.filesDir
+                        val isCreateVideoAvailable = remember(sessionId) {
+                            if (sessionId == null) false
+                            else {
+                                val sessionDir = java.io.File(filesDir, "sessions/$sessionId")
+                                java.io.File(sessionDir, "reference.jpg").exists() &&
+                                    java.io.File(sessionDir, "capture.jpg").exists()
+                            }
+                        }
+
                         val snackbarHostState = remember { SnackbarHostState() }
                         val coroutineScope = rememberCoroutineScope()
                         var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
@@ -252,7 +267,11 @@ class MainActivity : ComponentActivity() {
                                 onBackupSession = if (sessionId != null) {
                                     { uri -> viewModel.backupSingleSession(sessionId, uri) }
                                 } else null,
-                                isBackupInProgress = uiState.isBackupInProgress
+                                isBackupInProgress = uiState.isBackupInProgress,
+                                onCreateVideo = if (sessionId != null) {
+                                    { navController.navigate(createVideoRoute(sessionId)) }
+                                } else null,
+                                isCreateVideoAvailable = isCreateVideoAvailable
                             )
 
                             SnackbarHost(
@@ -262,6 +281,16 @@ class MainActivity : ComponentActivity() {
                                     .navigationBarsPadding()
                             )
                         }
+                    }
+                    composable(
+                        route = ROUTE_CREATE_VIDEO_WITH_ARGS,
+                        arguments = listOf(
+                            navArgument(ARG_CREATE_VIDEO_SESSION_ID) {
+                                type = NavType.StringType
+                            }
+                        )
+                    ) {
+                        CreateVideoScreen(onBack = { navController.popBackStack() })
                     }
                 }
             }
@@ -283,3 +312,6 @@ private fun compareRoute(
         "&$ARG_CAPTURE_URI=${Uri.encode(captureImageUri.toString())}" +
         "&$ARG_SESSION_ID=${Uri.encode(sessionId)}" +
         "&$ARG_TIMESTAMP=$timestamp"
+
+private fun createVideoRoute(sessionId: String): String =
+    "$ROUTE_CREATE_VIDEO/${Uri.encode(sessionId)}"

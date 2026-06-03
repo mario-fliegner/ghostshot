@@ -180,18 +180,14 @@ Active compare session lifecycle — fully implemented:
 Full specification: `VIDEO_EXPORT_V1.md`
 Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
 
-MP4 export infrastructure implemented (Blocks 1–2):
+MP4 export infrastructure implemented and verified (Blocks 1–2 Completed):
 
 - **Renderer Core (Block 1)** — `VideoRenderConfig`, `VideoMode`, `VideoExportFormat`, `VideoQuality` enums; `VideoFrameRenderer` interface; `CompareSliderRenderEngine` (cubic ease-in-out, two-stroke divider, fill semantics); `BeforeAfterRenderEngine` (linear crossfade, fit semantics); canvas setup and bitmap lifecycle; `computeCanvasDimensions` with even-dimension enforcement
 - **Encoding Pipeline (Block 2)** — `VideoEncoder` (MediaCodec H.264/AVC, ByteBuffer input, ARGB→YUV420 conversion, NV12/I420 auto-detect via `MediaCodecList`); `MediaStoreVideoWriter` (IS_PENDING lifecycle, `Movies/SameView`, cleanup on failure); `VideoExportPipeline` (orchestrates decode → render → encode → commit; coroutine-cancellation-safe cleanup via `NonCancellable`)
 - Output: MP4, H.264, 30 FPS, 7 Mbps, `Movies/SameView`, no audio track
-- `brandingEnabled` field exists but is ignored until Block 6
+- `brandingEnabled` field exists in `VideoRenderConfig` and `VideoExportPipeline` but has no endcard output effect until Block 6; `BrandingEndcardRenderer.kt` does not yet exist — deferred to Block 6
 - No UI, no ViewModel, no navigation — feature not yet reachable from the app
-
-Pending before Block 2 is fully closed:
-
-- T-I-01 (`VideoExportPipelineTest`) must run on a connected API 29+ device
-- Manual MP4 playback verification on a real device
+- No `Create Video` entry point in CompareScreen — UI implementation is Blocks 3+4 (coupled unit)
 
 ---
 
@@ -382,6 +378,16 @@ Latest verified test state (Session Backup Export complete):
 - Manual device smoke test — completed on SM-S911B: single-session backup, multi-session backup, Select All + Backup, SAF cancel no-op, success snackbar, ZIP structure verified
 
 No open Session Backup Export implementation tasks remain.
+
+Latest verified test state (Video Export Blocks 1–2 complete):
+
+- `testDebugUnitTest` — PASSED (T-U-01–T-U-14 grün)
+- `VideoExportPipelineTest` (T-I-01) — PASSED on SM-S911B (Android 16)
+- `connectedDebugAndroidTest` full suite — 329/329 PASSED on SM-S911B (Android 16)
+- MP4 playback on SM-S911B: verified
+- No known regressions
+
+No open Video Export Blocks 1–2 implementation tasks remain.
 
 For the next Closed Testing upload, re-run the following verifications after any code change:
 - unit tests

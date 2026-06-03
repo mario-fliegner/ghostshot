@@ -110,6 +110,71 @@ class VideoExportPipelineTest {
         }
     }
 
+    /**
+     * T-I-02: Before & After, 2 s, Standard, Portrait 9:16, branding ON →
+     * valid MP4 in Movies/SameView with IS_PENDING = 0.
+     *
+     * Duration is intentionally shortened to 2 s (30 animation frames with branding ON,
+     * since animationFrameCount = (2000 - 1000) * 30 / 1000 = 30) for test speed.
+     * Branding endcard rendering is deferred to Block 6; this test validates the pipeline
+     * accepts brandingEnabled = true without error.
+     * Full 6 s / branding endcard verification is covered in Block 6 T-I-02 re-run.
+     */
+    @Test
+    fun t_i_02_beforeAfter_standard_portrait_brandingOn_producesValidMp4() {
+        val config = VideoRenderConfig(
+            videoMode = VideoMode.BEFORE_AFTER,
+            format = VideoExportFormat.PORTRAIT_9_16,
+            quality = VideoQuality.STANDARD_1080P,
+            durationMs = 2_000,   // 30 animation frames — fast; endcard adds 0 frames until Block 6
+            brandingEnabled = true
+        )
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val pipeline = VideoExportPipeline(context.contentResolver)
+
+        val result = runBlocking { pipeline.run(config, sessionDir) }
+
+        assertTrue("Pipeline must succeed: ${result.exceptionOrNull()?.message}", result.isSuccess)
+
+        val uri = result.getOrThrow()
+        // Track for tearDown cleanup
+        val secondUri = uri
+        if (createdVideoUri == null) createdVideoUri = uri
+
+        val cursor = context.contentResolver.query(
+            uri,
+            arrayOf(
+                MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.MIME_TYPE,
+                MediaStore.Video.Media.IS_PENDING
+            ),
+            null, null, null
+        )
+        assertNotNull("MediaStore cursor must not be null", cursor)
+        cursor!!.use { c ->
+            assertTrue("MediaStore entry must exist", c.moveToFirst())
+
+            val displayName = c.getString(c.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME))
+            val mimeType = c.getString(c.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE))
+            val isPending = c.getInt(c.getColumnIndexOrThrow(MediaStore.Video.Media.IS_PENDING))
+
+            assertEquals("IS_PENDING must be 0 after successful export", 0, isPending)
+            assertEquals("MIME type must be video/mp4", "video/mp4", mimeType)
+            assertTrue(
+                "Display name must start with 'SameView_', was: $displayName",
+                displayName.startsWith("SameView_")
+            )
+            assertTrue(
+                "Display name must end with '.mp4', was: $displayName",
+                displayName.endsWith(".mp4")
+            )
+        }
+
+        // Clean up the second video created in this test
+        runCatching { context.contentResolver.delete(secondUri, null, null) }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────────────
 
     /**
