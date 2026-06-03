@@ -180,14 +180,21 @@ Active compare session lifecycle — fully implemented:
 Full specification: `VIDEO_EXPORT_V1.md`
 Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
 
-MP4 export infrastructure implemented and verified (Blocks 1–2 Completed):
+MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented (Block 3+4 Implemented — Manual Verification Pending):
 
 - **Renderer Core (Block 1)** — `VideoRenderConfig`, `VideoMode`, `VideoExportFormat`, `VideoQuality` enums; `VideoFrameRenderer` interface; `CompareSliderRenderEngine` (cubic ease-in-out, two-stroke divider, fill semantics); `BeforeAfterRenderEngine` (linear crossfade, fit semantics); canvas setup and bitmap lifecycle; `computeCanvasDimensions` with even-dimension enforcement
 - **Encoding Pipeline (Block 2)** — `VideoEncoder` (MediaCodec H.264/AVC, ByteBuffer input, ARGB→YUV420 conversion, NV12/I420 auto-detect via `MediaCodecList`); `MediaStoreVideoWriter` (IS_PENDING lifecycle, `Movies/SameView`, cleanup on failure); `VideoExportPipeline` (orchestrates decode → render → encode → commit; coroutine-cancellation-safe cleanup via `NonCancellable`)
 - Output: MP4, H.264, 30 FPS, 7 Mbps, `Movies/SameView`, no audio track
-- `brandingEnabled` field exists in `VideoRenderConfig` and `VideoExportPipeline` but has no endcard output effect until Block 6; `BrandingEndcardRenderer.kt` does not yet exist — deferred to Block 6
-- No UI, no ViewModel, no navigation — feature not yet reachable from the app
-- No `Create Video` entry point in CompareScreen — UI implementation is Blocks 3+4 (coupled unit)
+- **Create Video Flow (Block 3+4)** — feature is now fully reachable from the app via CompareScreen
+- CompareScreen TopAppBar contains Create Video action with Slideshow icon; TopAppBar structure: Back | Create Video | Delete Session | Overflow
+- `CreateVideoScreen` contains three states: Configuring, Rendering, Preview
+- Configuring-State: mode selection (Compare Slider / Before & After), format (Original / Portrait / Landscape), duration, quality, branding toggle, Create Video CTA; UI aligned to Settings language using SettingsCard / SettingsSwitchRow / SameViewSegmentControl from `SettingsComponents.kt`
+- Rendering-State: CircularProgressIndicator, LinearProgressIndicator, frame progress text; Back opens Cancel Export Dialog
+- Preview-State: ExoPlayer/Media3 auto-play, loop, muted; Share as primary action; Done as secondary action; Delete Video as destructive text action with Confirmation Dialog
+- Share uses Android Share Sheet via `Intent.ACTION_SEND` with MediaStore-URI; opens only on explicit tap
+- Delete Video deletes the MP4 from MediaStore after explicit confirmation; returns to Configuring on success
+- Done / Back from Preview closes the screen; video remains saved; returns to CompareScreen
+- `brandingEnabled` persists via DataStore `sameview_settings`; Default = true; `BrandingEndcardRenderer.kt` does not yet exist — deferred to Block 6; branding toggle has no endcard output effect until Block 6
 
 ---
 
@@ -388,6 +395,28 @@ Latest verified test state (Video Export Blocks 1–2 complete):
 - No known regressions
 
 No open Video Export Blocks 1–2 implementation tasks remain.
+
+Latest verified test state (Video Export Block 3+4 — Manual Verification Pending):
+
+- `testDebugUnitTest` — PASSED
+- `CompareScreenTest` — 82/82 PASSED
+- `VideoExportPipelineTest` — 2/2 PASSED
+- `assembleRelease` — BUILD SUCCESSFUL
+- `ReferenceImageMetadataReaderTest` — 2 Failures; pre-existing, not caused by Block 3+4
+- Manual device flow — **Pending**
+
+Pending manual device verification (required before Block 3+4 is Completed):
+
+- Configuring-State fully operable
+- Rendering-State and progress display
+- Cancel Export Dialog (Back from Rendering)
+- Preview Playback (auto-play, loop, muted)
+- Share Sheet (opens on tap; cancel is not an error)
+- Delete Video Confirmation + Delete
+- Done / Back from Preview
+- Portrait rendering and preview
+- Landscape rendering and preview
+- Gallery / Movies / SameView visibility check after export
 
 For the next Closed Testing upload, re-run the following verifications after any code change:
 - unit tests

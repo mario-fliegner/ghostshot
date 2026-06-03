@@ -191,19 +191,18 @@ No other user interaction during rendering except optional cancel.
 ### 7.5 Preview State Layout
 
 ```
-TopAppBar:  ← Done   "Video Created"
+TopAppBar:  ← Back   "Video Created"
 
 [ Video player — auto-play, loop, muted ]
 
 [ Share ]                  ← primary action
-[ Delete ]   [ Done ]      ← secondary actions
+[ Done ]                   ← secondary action
+[ Delete Video ]           ← destructive text action (confirmation dialog required)
 ```
 
 `[Share]`: opens Android Share Sheet with MediaStore-URI.
-`[Delete]`: deletes video from MediaStore, returns to `Configuring` state.
-`[Done]` / Back: video remains saved, `CreateVideoScreen` closes.
-
-No confirmation dialog before `[Delete]`. The action is immediate and clearly labeled.
+`[Delete Video]`: shows a confirmation dialog before deleting. On confirmation: deletes video from MediaStore, returns to `Configuring` state.
+`[Done]` / Back: video remains saved, `CreateVideoScreen` closes. Back behaves identically to Done.
 
 ### 7.6 Wizard State Persistence
 
@@ -713,7 +712,7 @@ The Share Sheet opens only on explicit `[Share]` tap. Canceling the Share Sheet 
 
 ### 19.3 Delete from Preview
 
-`[Delete]` deletes the video from MediaStore immediately (no confirmation dialog). On success: transitions to `Configuring` state. On failure: shows error Snackbar (`create_video_delete_failed`); video state and Preview state remain unchanged.
+`[Delete Video]` shows a confirmation dialog before deleting. On confirmation: deletes the video from MediaStore. On success: transitions to `Configuring` state. On failure: shows error Snackbar (`create_video_delete_failed`); video state and Preview state remain unchanged.
 
 ### 19.4 Done / Back from Preview
 

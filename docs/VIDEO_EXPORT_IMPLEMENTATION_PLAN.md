@@ -1,6 +1,6 @@
 # VIDEO_EXPORT_IMPLEMENTATION_PLAN.md
 
-**Status:** In Progress — Block 1 Completed / Block 2 Completed / Blocks 3–7 Planned
+**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Blocks 5–7 Planned
 **Grundlage:** VIDEO_EXPORT_V1.md (authoritative), CLAUDE_PROJECT_INSTRUCTION.md, COMPARE_FLOW_V1.md, COMPARE_SESSION_RENDERING_V1.md, SESSION_BACKUP_EXPORT_IMPLEMENTATION_PLAN.md, IMPLEMENTATION_NOTES.md, aktueller Codebestand
 **Planerstellt:** 2026-06-02
 **Zuletzt aktualisiert:** 2026-06-03
@@ -16,7 +16,8 @@
 | Dieses Dokument | Technischer Implementierungsplan — verbindliche Arbeitsgrundlage |
 | Block 1 | Completed (2026-06-02) |
 | Block 2 | Completed (2026-06-02) |
-| Blöcke 3–7 | Planned |
+| Block 3+4 | Implemented — Manual Verification Pending (2026-06-03) |
+| Blöcke 5–7 | Planned |
 
 **Konfliktauflösung:** Bei Widerspruch zwischen diesem Dokument und `VIDEO_EXPORT_V1.md` gilt immer `VIDEO_EXPORT_V1.md`.
 
@@ -423,6 +424,73 @@ Vollständige Post-Render-UX implementieren: Video-Preview mit ExoPlayer, Share 
 
 HEVC/High Quality (Block 5), Branding-Tests (Block 6)
 
+#### Implementierungsnotizen Block 3+4 (2026-06-03)
+
+##### Section 26 Compliance
+
+Block 3 und Block 4 wurden als untrennbare Einheit implementiert und gemeinsam committed. Der `Create Video`-Einstieg in CompareScreen wurde erst aktiviert, als der vollständige Preview-State (ExoPlayer, Share, Delete, Done) fertig war. Kein halbfertiger Entry Point, kein Dummy-State, kein "coming soon".
+
+##### Implementierte Komponenten
+
+| Komponente | Beschreibung |
+|---|---|
+| `CreateVideoViewModel` | Vollständige State Machine (Configuring → Rendering → Preview); Progress StateFlow; Error Events; Job für Cancellation; brandingEnabled DataStore-Persistenz |
+| `CreateVideoScreen` | Configuring-, Rendering- und Preview-State vollständig implementiert |
+| Configuring-State | Mode-, Format-, Duration-, Quality-Auswahl; Branding-Toggle; Create Video CTA |
+| Rendering-State | CircularProgressIndicator, LinearProgressIndicator, Fortschrittstext; Back öffnet Cancel Export Dialog |
+| Preview-State | ExoPlayer/Media3 Auto-Play, Loop, Muted; Share / Done / Delete Video Aktionen |
+| ExoPlayer/Media3 | Video-Preview mit korrektem DisposableEffect-Lifecycle |
+| Share via Android Share Sheet | Intent.ACTION_SEND mit MediaStore-URI; nur bei explizitem Tap |
+| Delete Video aus Preview | Löscht MP4 aus MediaStore; Confirmation Dialog vor Ausführung; Rückkehr zu Configuring bei Erfolg |
+| Delete Confirmation Dialog | Explizite Bestätigung vor dem Löschen |
+| Done / Back aus Preview | Screen schließt; Video bleibt gespeichert |
+| Rendering Cancel Dialog | Back aus Rendering-State zeigt Bestätigungs-Dialog vor Abbruch des Exports |
+| CompareScreen Entry Point | TopAppBar umstrukturiert: Back \| Create Video (Slideshow-Icon) \| Delete Session \| Overflow |
+| Slideshow Icon | Create Video Icon im CompareScreen ist das Slideshow-Icon |
+| `createVideoRoute` | Navigation Compose Route in MainActivity registriert |
+| `isCreateVideoAvailable` | File-Existenz-Check (reference.jpg + capture.jpg) in MainActivity/Route-Schicht |
+| brandingEnabled DataStore-Persistenz | Persistiert über `sameview_settings`; Default = true |
+| SettingsComponents-Integration | CreateVideoScreen nutzt SettingsCard, SettingsSwitchRow, SameViewSegmentControl aus SettingsComponents.kt |
+
+##### UX-Polish-Entscheidungen
+
+| Entscheidung | Beschreibung |
+|---|---|
+| CreateVideoScreen Layout | An Settings-UX angeglichen; verwendet SettingsCard / SettingsSwitchRow / SameViewSegmentControl |
+| Create Video Button | In normalen Content verschoben (nicht floating) |
+| Format-Labels | Verkürzt auf: Original / Portrait / Landscape |
+| Duration-Abschnitt | Label: "Duration" |
+| Preview Button-Hierarchie | Share primär; Done sekundär; Delete Video als zurückgenommene destruktive Text-Aktion mit Confirmation Dialog |
+| Preview TopBar | Verwendet Back-Pfeil; Back-Verhalten entspricht Done |
+| Rendering Back | Zeigt Cancel Export Confirmation Dialog |
+| Create Video Icon | Slideshow-Icon im CompareScreen |
+
+##### Teststatus (2026-06-03)
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` | PASSED |
+| `CompareScreenTest` | 82/82 PASSED |
+| `VideoExportPipelineTest` | 2/2 PASSED |
+| `assembleRelease` | BUILD SUCCESSFUL |
+| `ReferenceImageMetadataReaderTest` | 2 Failures — pre-existing, nicht Block 3+4 zugehörig |
+| Manueller Device-Flow | Pending — vollständige Verifikation auf realem Gerät ausstehend |
+
+##### Offene manuelle Verifikation
+
+Folgende Flows müssen auf einem realen Gerät verifiziert werden, bevor Block 3+4 als Completed gilt:
+
+- [ ] Configuring-State vollständig bedienbar
+- [ ] Rendering-State + Fortschrittsanzeige
+- [ ] Cancel Export Dialog (Back aus Rendering)
+- [ ] Preview Playback (Auto-Play, Loop, Muted)
+- [ ] Share Sheet (öffnet sich; Abbrechen ist kein Fehlerfall)
+- [ ] Delete Video Confirmation + Delete
+- [ ] Done / Back aus Preview
+- [ ] Portrait-Rendering korrekt
+- [ ] Landscape-Rendering korrekt
+- [ ] Gallery/Movies/SameView Sichtprüfung nach Export
+
 ---
 
 ### Block 5 — High Quality + Device Codec Limit Fallback
@@ -737,8 +805,8 @@ Release-APK auf realem Gerät installieren: Video-Export vollständig funktional
 | --- | --- | --- | --- | --- |
 | Block 1 | Renderer Core | **Completed** | 2026-06-02 | T-U-01–T-U-14 grün; `testDebugUnitTest` PASSED |
 | Block 2 | VideoEncoder + MediaStoreVideoWriter + Pipeline | **Completed** | 2026-06-02 | T-I-01 PASSED; 329/329 Instrumentation-Tests grün; MP4-Wiedergabe auf SM-S911B (Android 16) verifiziert; `BrandingEndcardRenderer.kt` bewusst auf Block 6 verschoben |
-| Block 3 | CreateVideoScreen + ViewModel + Entry Point | Planned | — | CompareScreen.kt, MainActivity.kt, strings.xml, SettingsRepository.kt geändert |
-| Block 4 | Preview State + Share + Delete | Planned | — | ExoPlayer; T-U-18–T-U-19, T-I-02, T-I-04; Entry Point commiten |
+| Block 3 | CreateVideoScreen + ViewModel + Entry Point | **Implemented — Manual Verification Pending** | 2026-06-03 | Gemeinsam mit Block 4 als gekoppelte Einheit implementiert; Section 26 Compliance erfüllt; UX-Polish abgeschlossen |
+| Block 4 | Preview State + Share + Delete | **Implemented — Manual Verification Pending** | 2026-06-03 | ExoPlayer/Media3; Share Sheet; Delete mit Confirmation Dialog; Done/Back; vollständige manuelle Device-Verifikation ausstehend |
 | Block 5 | High Quality + Device Limit Fallback | Planned | — | HEVC-Check; T-U-20, T-I-03 |
 | Block 6 | Branding Endcard | Planned | — | Finale Typographie; T-U-09–T-U-10, T-I-02 |
 | Block 7 | Final Verification | Planned | — | Full suite + Manual Smoke + Release Build |
