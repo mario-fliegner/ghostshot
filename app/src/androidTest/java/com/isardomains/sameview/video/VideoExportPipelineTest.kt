@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -173,6 +174,83 @@ class VideoExportPipelineTest {
 
         // Clean up the second video created in this test
         runCatching { context.contentResolver.delete(secondUri, null, null) }
+    }
+
+    /**
+     * T-I-03: High Quality export produces a valid MP4 whose resolution is within the
+     * codec-reported capability of this device.
+     *
+     * On devices with a ByteBuffer-capable HEVC encoder that supports 4K the output will be
+     * 3840 × 2160. On devices where the encoder caps out below 4K (or HEVC is unavailable),
+     * [VideoExportPipeline] silently falls back to Standard 1080p (1920 × 1080). Both
+     * outcomes are valid — the test accepts either resolution and verifies the MP4 is
+     * a fully committed, playable entry in MediaStore.
+     */
+    @Test
+    fun t_i_03_highQuality_landscape_producesValidMp4WithSupportedResolution() {
+        val config = VideoRenderConfig(
+            videoMode = VideoMode.COMPARE_SLIDER,
+            format = VideoExportFormat.LANDSCAPE_16_9,
+            quality = VideoQuality.HIGH_QUALITY,
+            durationMs = 1_000,   // 30 frames — keeps the test fast even at 4K
+            brandingEnabled = false
+        )
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val pipeline = VideoExportPipeline(context.contentResolver)
+
+        val result = runBlocking { pipeline.run(config, sessionDir) }
+
+        assertTrue(
+            "High Quality pipeline must succeed: ${result.exceptionOrNull()?.message}",
+            result.isSuccess
+        )
+
+        val uri = result.getOrThrow()
+        createdVideoUri = uri
+
+        // Verify the MediaStore entry is committed (IS_PENDING = 0).
+        val cursor = resolver.query(
+            uri,
+            arrayOf(
+                MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.MIME_TYPE,
+                MediaStore.Video.Media.IS_PENDING
+            ),
+            null, null, null
+        )
+        assertNotNull("MediaStore cursor must not be null", cursor)
+        cursor!!.use { c ->
+            assertTrue("MediaStore entry must exist", c.moveToFirst())
+            assertEquals(
+                "IS_PENDING must be 0 after successful export",
+                0,
+                c.getInt(c.getColumnIndexOrThrow(MediaStore.Video.Media.IS_PENDING))
+            )
+            assertEquals(
+                "MIME type must be video/mp4",
+                "video/mp4",
+                c.getString(c.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE))
+            )
+        }
+
+        // Verify resolution via MediaMetadataRetriever.
+        // Landscape 16:9 HIGH_QUALITY: either 4K (3840 × 2160) or Standard fallback (1920 × 1080).
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            assertTrue("Video width must be > 0", width > 0)
+            assertTrue("Video height must be > 0", height > 0)
+            val validDims = setOf(3840 to 2160, 1920 to 1080)
+            assertTrue(
+                "Resolution must be 4K (3840×2160) or Standard fallback (1920×1080), was: ${width}×${height}",
+                (width to height) in validDims
+            )
+        } finally {
+            retriever.release()
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────────

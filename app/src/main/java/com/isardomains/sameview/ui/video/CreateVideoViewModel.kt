@@ -99,10 +99,12 @@ class CreateVideoViewModel @Inject constructor(
     /**
      * Replaceable pipeline runner for unit tests.
      * Production code delegates to [VideoExportPipeline.run].
+     * The fourth parameter [onQualityFallback] is invoked when the export silently falls back
+     * to Standard 1080p because the device cannot encode the requested High Quality resolution.
      */
-    internal var pipelineRunner: suspend (VideoRenderConfig, File, (Float) -> Unit) -> Result<Uri> =
-        { config, sessionDir, onProgress ->
-            VideoExportPipeline(context.contentResolver).run(config, sessionDir, onProgress)
+    internal var pipelineRunner: suspend (VideoRenderConfig, File, (Float) -> Unit, suspend () -> Unit) -> Result<Uri> =
+        { config, sessionDir, onProgress, onQualityFallback ->
+            VideoExportPipeline(context.contentResolver).run(config, sessionDir, onProgress, onQualityFallback)
         }
 
     init {
@@ -183,14 +185,21 @@ class CreateVideoViewModel @Inject constructor(
         _progress.value = 0f
 
         exportJob = viewModelScope.launch {
-            val result = pipelineRunner(config, sessionDir) { p ->
-                _progress.value = p
-                val currentFrame = (p * totalFrames).toInt().coerceIn(0, totalFrames)
-                val rendering = _state.value as? CreateVideoState.Rendering
-                if (rendering != null) {
-                    _state.value = rendering.copy(currentFrame = currentFrame)
+            val result = pipelineRunner(
+                config,
+                sessionDir,
+                { p ->
+                    _progress.value = p
+                    val currentFrame = (p * totalFrames).toInt().coerceIn(0, totalFrames)
+                    val rendering = _state.value as? CreateVideoState.Rendering
+                    if (rendering != null) {
+                        _state.value = rendering.copy(currentFrame = currentFrame)
+                    }
+                },
+                {
+                    _events.send(CreateVideoEvent.ShowSnackbar(R.string.create_video_quality_fallback_notice))
                 }
-            }
+            )
 
             // If the job was cancelled, do not treat it as a render failure.
             if (!isActive) return@launch

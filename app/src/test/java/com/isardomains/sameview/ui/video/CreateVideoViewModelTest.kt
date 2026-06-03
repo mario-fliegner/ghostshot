@@ -63,7 +63,7 @@ class CreateVideoViewModelTest {
     fun startExport_transitionsToRendering() = runTest {
         // Gate suspends the pipeline so state stays in Rendering during the assertion.
         val gate = CompletableDeferred<Unit>()
-        viewModel.pipelineRunner = { _, _, _ ->
+        viewModel.pipelineRunner = { _, _, _, _ ->
             gate.await()
             Result.success(fakeUri)
         }
@@ -85,7 +85,7 @@ class CreateVideoViewModelTest {
 
     @Test
     fun startExport_pipelineSuccess_transitionsToPreview() = runTest {
-        viewModel.pipelineRunner = { _, _, _ -> Result.success(fakeUri) }
+        viewModel.pipelineRunner = { _, _, _, _ -> Result.success(fakeUri) }
 
         viewModel.startExport()
         advanceUntilIdle()
@@ -99,7 +99,7 @@ class CreateVideoViewModelTest {
 
     @Test
     fun startExport_pipelineFailure_returnsToConfiguringWithErrorEvent() = runTest {
-        viewModel.pipelineRunner = { _, _, _ ->
+        viewModel.pipelineRunner = { _, _, _, _ ->
             Result.failure(RuntimeException("encode failed"))
         }
 
@@ -161,7 +161,7 @@ class CreateVideoViewModelTest {
     fun startExport_pipelineReceivedCorrectSessionDir() = runTest {
         var capturedDir: File? = null
         val gate = CompletableDeferred<Unit>()
-        viewModel.pipelineRunner = { _: VideoRenderConfig, dir: File, _: (Float) -> Unit ->
+        viewModel.pipelineRunner = { _: VideoRenderConfig, dir: File, _: (Float) -> Unit, _ ->
             capturedDir = dir
             gate.await()
             Result.success(fakeUri)
@@ -183,7 +183,7 @@ class CreateVideoViewModelTest {
     @Test
     fun deleteVideo_success_transitionsToConfiguring() = runTest {
         // Arrange: put ViewModel in Preview state
-        viewModel.pipelineRunner = { _, _, _ -> Result.success(fakeUri) }
+        viewModel.pipelineRunner = { _, _, _, _ -> Result.success(fakeUri) }
         viewModel.startExport()
         advanceUntilIdle()
         assertTrue("Expected Preview state before delete", viewModel.state.value is CreateVideoState.Preview)
@@ -207,7 +207,7 @@ class CreateVideoViewModelTest {
     @Test
     fun deleteVideo_failure_staysInPreviewAndEmitsSnackbar() = runTest {
         // Arrange: put ViewModel in Preview state
-        viewModel.pipelineRunner = { _, _, _ -> Result.success(fakeUri) }
+        viewModel.pipelineRunner = { _, _, _, _ -> Result.success(fakeUri) }
         viewModel.startExport()
         advanceUntilIdle()
         assertTrue("Expected Preview state before delete", viewModel.state.value is CreateVideoState.Preview)
@@ -248,7 +248,7 @@ class CreateVideoViewModelTest {
     @Test
     fun cancelExport_fromRendering_returnsToConfiguring() = runTest {
         val gate = CompletableDeferred<Unit>()
-        viewModel.pipelineRunner = { _, _, _ ->
+        viewModel.pipelineRunner = { _, _, _, _ ->
             gate.await()
             Result.success(fakeUri)
         }
@@ -270,7 +270,7 @@ class CreateVideoViewModelTest {
     @Test
     fun cancellation_doesNotEmitRenderFailedSnackbar() = runTest {
         val gate = CompletableDeferred<Unit>()
-        viewModel.pipelineRunner = { _, _, _ ->
+        viewModel.pipelineRunner = { _, _, _, _ ->
             gate.await()
             Result.success(fakeUri)
         }
@@ -288,6 +288,33 @@ class CreateVideoViewModelTest {
         assertTrue(
             "No snackbar events should be emitted on cancel, got: $collectedEvents",
             collectedEvents.isEmpty()
+        )
+
+        collectJob.cancel()
+    }
+
+    // T-U-20: quality fallback emits create_video_quality_fallback_notice Snackbar
+
+    @Test
+    fun startExport_qualityFallback_emitsFallbackNoticeSnackbar() = runTest {
+        viewModel.pipelineRunner = { _, _, _, onQualityFallback ->
+            onQualityFallback()
+            Result.success(fakeUri)
+        }
+
+        val collectedEvents = mutableListOf<CreateVideoEvent>()
+        val collectJob = launch(UnconfinedTestDispatcher()) {
+            viewModel.events.collect { collectedEvents.add(it) }
+        }
+        runCurrent()
+
+        viewModel.startExport()
+        advanceUntilIdle()
+
+        val snackbarEvents = collectedEvents.filterIsInstance<CreateVideoEvent.ShowSnackbar>()
+        assertTrue(
+            "Expected create_video_quality_fallback_notice snackbar, got: $collectedEvents",
+            snackbarEvents.any { it.messageResId == R.string.create_video_quality_fallback_notice }
         )
 
         collectJob.cancel()

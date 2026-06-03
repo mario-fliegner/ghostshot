@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.media.MediaFormat
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +32,8 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
     suspend fun run(
         config: VideoRenderConfig,
         sessionDir: File,
-        onProgress: (Float) -> Unit = {}
+        onProgress: (Float) -> Unit = {},
+        onQualityFallback: suspend () -> Unit = {}
     ): Result<Uri> {
         // Check encoder availability before touching MediaStore.
         if (VideoEncoder.findAvcEncoder() == null) {
@@ -61,9 +63,9 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
 
             // ── Phase 2: Canvas dimensions ───────────────────────────────────────────
             val (vw, vh) = readViewport(sessionDir, capBitmap!!)
-            val (canvasW, canvasH) = computeCanvasDimensions(
-                config.format, config.quality, vw, vh
-            )
+            val encoderParams = resolveEncoderParams(config.quality, config.format, vw, vh)
+            val canvasW = encoderParams.width
+            val canvasH = encoderParams.height
 
             // ── Phase 3: Frame bitmap + renderer ────────────────────────────────────
             frameBitmap = Bitmap.createBitmap(canvasW, canvasH, Bitmap.Config.ARGB_8888)
@@ -81,7 +83,10 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
             // ── Phase 5: Encoding loop (Default / CPU-bound) ─────────────────────────
             withContext(Dispatchers.Default) {
                 val totalFrames = config.animationFrameCount  // branding ignored in Block 2
-                val encoder = VideoEncoder(entry.pfd, canvasW, canvasH, config.frameRate)
+                val encoder = VideoEncoder(
+                    entry.pfd, canvasW, canvasH, config.frameRate,
+                    encoderParams.bitRate, encoderParams.mimeType
+                )
                 try {
                     encoder.start()
                     for (i in 0 until totalFrames) {
@@ -103,6 +108,7 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
                 writer.commit(pendingUri!!)
             }
             committed = true
+            if (encoderParams.qualityFallbackApplied) onQualityFallback()
             onProgress(1.0f)
             Result.success(pendingUri!!)
 
@@ -166,5 +172,56 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
             VideoMode.BEFORE_AFTER -> "before_after"
         }
         return "SameView_${sessionId}_${modeSuffix}.mp4"
+    }
+
+    /**
+     * Selects the codec MIME type, final canvas dimensions, and bitrate for the export.
+     *
+     * HIGH_QUALITY prefers HEVC; falls back silently to AVC if no ByteBuffer-capable HEVC
+     * encoder is found. If the chosen encoder cannot handle the requested resolution
+     * (typically 4K), dimensions are reduced to Standard 1080p and
+     * [EncoderParams.qualityFallbackApplied] is set to true so the caller can notify the user.
+     * STANDARD_1080P always uses AVC at standard dimensions.
+     */
+    private fun resolveEncoderParams(
+        quality: VideoQuality,
+        format: VideoExportFormat,
+        vpW: Int,
+        vpH: Int
+    ): EncoderParams {
+        val (requestedW, requestedH) = computeCanvasDimensions(format, quality, vpW, vpH)
+
+        if (quality == VideoQuality.STANDARD_1080P) {
+            return EncoderParams(requestedW, requestedH, MediaFormat.MIMETYPE_VIDEO_AVC, BITRATE_STANDARD_BPS, false)
+        }
+
+        // HIGH_QUALITY: prefer HEVC; silently use AVC if no ByteBuffer-capable HEVC encoder found.
+        val mimeType = if (VideoEncoder.findHevcEncoder() != null) {
+            MediaFormat.MIMETYPE_VIDEO_HEVC
+        } else {
+            MediaFormat.MIMETYPE_VIDEO_AVC
+        }
+
+        // If the chosen encoder supports the requested resolution, proceed at HIGH_QUALITY bitrate.
+        if (VideoEncoder.isResolutionSupported(mimeType, requestedW, requestedH)) {
+            return EncoderParams(requestedW, requestedH, mimeType, BITRATE_HIGH_QUALITY_BPS, false)
+        }
+
+        // Resolution not supported: fall back to Standard 1080p dimensions and notify the caller.
+        val (fallbackW, fallbackH) = computeCanvasDimensions(format, VideoQuality.STANDARD_1080P, vpW, vpH)
+        return EncoderParams(fallbackW, fallbackH, mimeType, BITRATE_STANDARD_BPS, qualityFallbackApplied = true)
+    }
+
+    private data class EncoderParams(
+        val width: Int,
+        val height: Int,
+        val mimeType: String,
+        val bitRate: Int,
+        val qualityFallbackApplied: Boolean
+    )
+
+    companion object {
+        private const val BITRATE_STANDARD_BPS = 7_000_000
+        private const val BITRATE_HIGH_QUALITY_BPS = 20_000_000
     }
 }

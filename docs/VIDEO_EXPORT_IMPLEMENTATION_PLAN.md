@@ -1,6 +1,6 @@
 # VIDEO_EXPORT_IMPLEMENTATION_PLAN.md
 
-**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Blocks 5–7 Planned
+**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Block 5 Implemented — T-I-03 Pending Device Run / Blocks 6–7 Planned
 **Grundlage:** VIDEO_EXPORT_V1.md (authoritative), CLAUDE_PROJECT_INSTRUCTION.md, COMPARE_FLOW_V1.md, COMPARE_SESSION_RENDERING_V1.md, SESSION_BACKUP_EXPORT_IMPLEMENTATION_PLAN.md, IMPLEMENTATION_NOTES.md, aktueller Codebestand
 **Planerstellt:** 2026-06-02
 **Zuletzt aktualisiert:** 2026-06-03
@@ -548,6 +548,51 @@ High-Quality-Option vollständig durchverdrahten: HEVC-Verfügbarkeitsprüfung, 
 
 Branding-Tests (Block 6)
 
+#### Implementierungsnotizen Block 5 (2026-06-03)
+
+##### Architekturentscheidung: Callback (Variante A)
+
+`VideoExportPipeline.run()` erhält `onQualityFallback: suspend () -> Unit = {}` als 4. Parameter (Default-Wert). `VideoExportPipelineTest` T-I-01 und T-I-02 bleiben unverändert (Default deckt sie ab). `pipelineRunner` in `CreateVideoViewModel` erweitert auf 4 Parameter. Bestehende Test-Lambdas syntaktisch um `_, _` ergänzt.
+
+##### Implementierte Komponenten
+
+| Komponente | Beschreibung |
+|---|---|
+| `VideoEncoder.findHevcEncoder()` | Scannt HEVC-Encoder mit YUV420-ByteBuffer-Support (NV12 bevorzugt, I420 Fallback) |
+| `VideoEncoder.isResolutionSupported()` | Prüft via `VideoCapabilities.isSizeSupported()` ob Ziel-Resolution unterstützt wird |
+| `VideoEncoder.codecMimeType` | Neuer Parameter; `init`-Block nutzt `findHevcEncoder()` / `findAvcEncoder()` je nach MIME-Type |
+| `VideoEncoder.start()` | Nutzt `codecMimeType` statt hartcodiertem AVC |
+| `VideoExportPipeline.resolveEncoderParams()` | Entscheidet Codec (HEVC bevorzugt), Bitrate, Canvas-Dimensionen und Fallback-Flag vor MediaStore-Insert |
+| `VideoExportPipeline.EncoderParams` | Privates Data-Class; kapselt width/height/mimeType/bitRate/qualityFallbackApplied |
+| `VideoExportPipeline` Bitraten | `BITRATE_STANDARD_BPS = 7_000_000`; `BITRATE_HIGH_QUALITY_BPS = 20_000_000` |
+| Quality-Fallback-Snackbar | `onQualityFallback()` wird nach Phase-6-Commit aufgerufen wenn Resolution gecappt; ViewModel emittiert `create_video_quality_fallback_notice` |
+
+##### Codec-Logik (HIGH_QUALITY)
+
+1. `findHevcEncoder()` != null → MIME = HEVC; sonst MIME = AVC (stille Fallback, kein Snackbar)
+2. `isResolutionSupported(MIME, 4K)` = true → 4K-Canvas, 20 Mbps, kein Snackbar
+3. `isResolutionSupported(MIME, 4K)` = false → Standard-1080p-Canvas, 7 Mbps, `onQualityFallback()` → Snackbar
+
+STANDARD_1080P: unverändert AVC, 7 Mbps.
+
+##### Teststatus (2026-06-03)
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` | 387/0 PASSED |
+| T-U-20 (`startExport_qualityFallback_emitsFallbackNoticeSnackbar`) | PASSED |
+| `CreateVideoViewModelTest` gesamt | 12/12 PASSED |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `assembleRelease` | BUILD SUCCESSFUL |
+| T-I-03 (`VideoExportPipelineTest`) | Ausstehend — SM-S911B Device Run erforderlich |
+
+##### Offene manuelle Verifikation (T-I-03)
+
+- [ ] T-I-03 `VideoExportPipelineTest.t_i_03_highQuality_landscape_producesValidMp4WithSupportedResolution` auf SM-S911B ausführen
+- [ ] Prüfen: HEVC oder AVC Encoder verwendet (Logcat `VideoEncoder`)
+- [ ] Prüfen: Resolution 3840×2160 (HEVC/4K) oder 1920×1080 (Fallback) korrekt im Output
+- [ ] Prüfen: Bei 4K-Output kein Snackbar; bei Fallback: Snackbar `create_video_quality_fallback_notice` sichtbar
+
 ---
 
 ### Block 6 — Branding Endcard
@@ -807,7 +852,7 @@ Release-APK auf realem Gerät installieren: Video-Export vollständig funktional
 | Block 2 | VideoEncoder + MediaStoreVideoWriter + Pipeline | **Completed** | 2026-06-02 | T-I-01 PASSED; 329/329 Instrumentation-Tests grün; MP4-Wiedergabe auf SM-S911B (Android 16) verifiziert; `BrandingEndcardRenderer.kt` bewusst auf Block 6 verschoben |
 | Block 3 | CreateVideoScreen + ViewModel + Entry Point | **Implemented — Manual Verification Pending** | 2026-06-03 | Gemeinsam mit Block 4 als gekoppelte Einheit implementiert; Section 26 Compliance erfüllt; UX-Polish abgeschlossen |
 | Block 4 | Preview State + Share + Delete | **Implemented — Manual Verification Pending** | 2026-06-03 | ExoPlayer/Media3; Share Sheet; Delete mit Confirmation Dialog; Done/Back; vollständige manuelle Device-Verifikation ausstehend |
-| Block 5 | High Quality + Device Limit Fallback | Planned | — | HEVC-Check; T-U-20, T-I-03 |
+| Block 5 | High Quality + Device Limit Fallback | **Implemented — T-I-03 Pending Device Run** | 2026-06-03 | T-U-20 grün (387/0 Unit-Tests); T-I-03 Instrumentation ausstehend (SM-S911B); Debug + Release BUILD SUCCESSFUL |
 | Block 6 | Branding Endcard | Planned | — | Finale Typographie; T-U-09–T-U-10, T-I-02 |
 | Block 7 | Final Verification | Planned | — | Full suite + Manual Smoke + Release Build |
 

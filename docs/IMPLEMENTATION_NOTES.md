@@ -195,6 +195,12 @@ MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Cre
 - Delete Video deletes the MP4 from MediaStore after explicit confirmation; returns to Configuring on success
 - Done / Back from Preview closes the screen; video remains saved; returns to CompareScreen
 - `brandingEnabled` persists via DataStore `sameview_settings`; Default = true; `BrandingEndcardRenderer.kt` does not yet exist — deferred to Block 6; branding toggle has no endcard output effect until Block 6
+- **High Quality + Device Limit Fallback (Block 5)** — High Quality export path is fully wired
+- `VideoEncoder` supports H.265/HEVC via new `codecMimeType` parameter; `findHevcEncoder()` and `isResolutionSupported()` added as static helpers
+- `VideoExportPipeline.resolveEncoderParams()` selects codec and canvas dimensions before MediaStore insert: HEVC preferred for HIGH_QUALITY (silent AVC fallback if no ByteBuffer-capable HEVC encoder found); resolution checked via `VideoCapabilities.isSizeSupported()`; falls back to Standard 1080p if device cannot handle 4K
+- Bitrate: STANDARD_1080P = 7 Mbps (unchanged); HIGH_QUALITY = 20 Mbps
+- User-visible Snackbar `create_video_quality_fallback_notice` emitted only when resolution is capped (not on HEVC→AVC codec switch)
+- T-U-20 grün; T-I-03 Instrumentation Test ausstehend (SM-S911B Device Run)
 
 ---
 

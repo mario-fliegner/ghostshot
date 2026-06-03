@@ -10,11 +10,11 @@ import android.os.ParcelFileDescriptor
 import java.io.IOException
 
 /**
- * Encodes Bitmap frames to H.264/AVC using MediaCodec in ByteBuffer input mode.
+ * Encodes Bitmap frames to H.264/AVC or H.265/HEVC using MediaCodec in ByteBuffer input mode.
  *
- * Before constructing, call [findAvcEncoder] to verify a suitable encoder exists on the
- * current device. If it returns null, construction will throw [IOException] — abort the
- * pipeline before inserting a MediaStore entry.
+ * Before constructing, call [findAvcEncoder] (or [findHevcEncoder] for HEVC) to verify a
+ * suitable encoder exists. Use [isResolutionSupported] to confirm the target resolution is
+ * within the encoder's capability before inserting a MediaStore entry.
  *
  * Lifecycle: start() → encodeFrame() × N → finish() → (always) release()
  * The caller must guarantee release() runs even on exception (use try/finally).
@@ -24,7 +24,8 @@ internal class VideoEncoder(
     private val width: Int,
     private val height: Int,
     private val frameRateFps: Int = 30,
-    private val bitRateBps: Int = 7_000_000
+    private val bitRateBps: Int = 7_000_000,
+    private val codecMimeType: String = MediaFormat.MIMETYPE_VIDEO_AVC
 ) {
     private val muxer = MediaMuxer(pfd.fileDescriptor, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
     private val encoderName: String
@@ -42,10 +43,12 @@ internal class VideoEncoder(
     private var yuvBytes = ByteArray(0)
 
     init {
-        val info = findAvcEncoder()
-            ?: throw IOException(
-                "No H.264 encoder with YUV420 ByteBuffer support found on this device"
-            )
+        val info = when (codecMimeType) {
+            MediaFormat.MIMETYPE_VIDEO_HEVC -> findHevcEncoder()
+            else -> findAvcEncoder()
+        } ?: throw IOException(
+            "No encoder with YUV420 ByteBuffer support found for $codecMimeType"
+        )
         encoderName = info.first
         colorFormat = info.second
     }
@@ -55,7 +58,7 @@ internal class VideoEncoder(
         argbPixels = IntArray(pixelCount)
         yuvBytes = ByteArray(pixelCount * 3 / 2)
 
-        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+        val format = MediaFormat.createVideoFormat(codecMimeType, width, height).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, colorFormat)
             setInteger(MediaFormat.KEY_BIT_RATE, bitRateBps)
             setInteger(MediaFormat.KEY_FRAME_RATE, frameRateFps)
@@ -212,6 +215,52 @@ internal class VideoEncoder(
                 }
             }
             return null
+        }
+
+        /**
+         * Scans all registered HEVC encoders for one that supports a YUV420 ByteBuffer
+         * color format. NV12 is preferred; I420 is the fallback.
+         *
+         * Returns (encoderName, colorFormat), or null if no HEVC encoder with ByteBuffer
+         * YUV420 support is found on this device.
+         */
+        internal fun findHevcEncoder(): Pair<String, Int>? {
+            val list = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+            for (preferredFormat in PREFERRED_COLOR_FORMATS) {
+                for (info in list.codecInfos) {
+                    if (!info.isEncoder) continue
+                    if (MediaFormat.MIMETYPE_VIDEO_HEVC !in info.supportedTypes) continue
+                    val caps = try {
+                        info.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_HEVC)
+                    } catch (_: IllegalArgumentException) {
+                        continue
+                    }
+                    if (preferredFormat in caps.colorFormats) {
+                        return Pair(info.name, preferredFormat)
+                    }
+                }
+            }
+            return null
+        }
+
+        /**
+         * Returns true if any registered encoder for [mimeType] reports that it supports
+         * [width] × [height] via [MediaCodecInfo.VideoCapabilities.isSizeSupported].
+         */
+        internal fun isResolutionSupported(mimeType: String, width: Int, height: Int): Boolean {
+            val list = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+            for (info in list.codecInfos) {
+                if (!info.isEncoder) continue
+                if (mimeType !in info.supportedTypes) continue
+                val caps = try {
+                    info.getCapabilitiesForType(mimeType)
+                } catch (_: IllegalArgumentException) {
+                    continue
+                }
+                val videoCaps = caps.videoCapabilities ?: continue
+                if (videoCaps.isSizeSupported(width, height)) return true
+            }
+            return false
         }
 
         // ARGB → NV12 (YUV420SemiPlanar): Y plane, then interleaved UV plane (U first).
