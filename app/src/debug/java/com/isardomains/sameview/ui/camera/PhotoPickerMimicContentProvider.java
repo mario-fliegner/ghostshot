@@ -79,12 +79,17 @@ public class PhotoPickerMimicContentProvider extends ContentProvider {
             String[] selectionArgs) { return 0; }
 
     public static Uri uriFor(File originalFile, File prerotatedFile) {
+        // require_original=1 is pre-embedded so the provider always serves the original file.
+        // MediaStore.setRequireOriginal() on Android 16+ rejects non-MediaStore authorities
+        // and throws IllegalArgumentException; resolveSourceUri() catches that and returns the
+        // URI unchanged — so the flag must already be present for openFile() to see it.
         return new Uri.Builder()
                 .scheme("content")
                 .authority(AUTHORITY)
                 .path("/image")
                 .appendQueryParameter(PARAM_ORIGINAL_PATH, originalFile.getAbsolutePath())
                 .appendQueryParameter(PARAM_PREROTATED_PATH, prerotatedFile.getAbsolutePath())
+                .appendQueryParameter("require_original", "1")
                 .build();
     }
 }

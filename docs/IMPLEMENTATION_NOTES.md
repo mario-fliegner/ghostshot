@@ -180,7 +180,7 @@ Active compare session lifecycle — fully implemented:
 Full specification: `VIDEO_EXPORT_V1.md`
 Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
 
-MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented (Block 3+4 Implemented — Manual Verification Pending). High Quality export implemented and verified (Block 5 Completed). Branding endcard implemented (Block 6 Implemented — Manual Verification Pending):
+MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented and verified (Blocks 3+4 Completed). High Quality export implemented and verified (Block 5 Completed). Branding endcard implemented and verified (Block 6 Completed). Block 7 targeted Video Export verification completed; manual device smoke test pending:
 
 - **Renderer Core (Block 1)** — `VideoRenderConfig`, `VideoMode`, `VideoExportFormat`, `VideoQuality` enums; `VideoFrameRenderer` interface; `CompareSliderRenderEngine` (cubic ease-in-out, two-stroke divider, fill semantics); `BeforeAfterRenderEngine` (linear crossfade, fit semantics); canvas setup and bitmap lifecycle; `computeCanvasDimensions` with even-dimension enforcement
 - **Encoding Pipeline (Block 2)** — `VideoEncoder` (MediaCodec H.264/AVC, ByteBuffer input, ARGB→YUV420 conversion, NV12/I420 auto-detect via `MediaCodecList`); `MediaStoreVideoWriter` (IS_PENDING lifecycle, `Movies/SameView`, cleanup on failure); `VideoExportPipeline` (orchestrates decode → render → encode → commit; coroutine-cancellation-safe cleanup via `NonCancellable`)
@@ -438,26 +438,55 @@ Test class structure note: T-I-01 and T-I-02 were moved from `VideoExportPipelin
 
 No open Video Export Block 5 implementation tasks remain.
 
-Latest verified test state (Video Export Block 6 — Implemented 2026-06-04):
+Latest verified test state (Video Export Block 6 — Completed 2026-06-04):
 
 - `testDebugUnitTest` — PASSED (387 tests)
 - T-U-09 (branding ON: totalFrameCount = animationFrameCount + 45) — PASSED (3 presets)
 - T-U-10 (branding OFF: totalFrameCount = animationFrameCount) — PASSED (3 presets)
 - `assembleDebug` — BUILD SUCCESSFUL
 - `assembleRelease` — BUILD SUCCESSFUL
-- T-I-02 (branding ON end-to-end + duration check) — Pending device run
+- T-I-02 (branding ON + duration check) — PASSED on SM-S911B (Android 16)
 
-Pending manual device verification (required before Block 6 is Completed):
+Manual device verification — Completed:
 
-- [ ] Video with brandingEnabled = true: endcard appears after main animation
-- [ ] Video with brandingEnabled = false: no endcard
-- [ ] Fade-in (200 ms) and fade-out (200 ms) visible
-- [ ] Logo visible and correctly scaled (Portrait + Landscape + Original)
-- [ ] "#MadeWithSameView" dominant; "Made with ❤️" smaller; heart = red
-- [ ] Background color #0D1424 correct
-- [ ] Total video duration correct (animation + 1.5 s endcard)
+- [x] Video with brandingEnabled = true: endcard appears after main animation
+- [x] Video with brandingEnabled = false: no endcard
+- [x] Fade-in (200 ms) and fade-out (200 ms) visible
+- [x] Logo visible and correctly scaled (Portrait + Landscape + Original)
+- [x] "#MadeWithSameView" dominant; "Made with ❤️" smaller; heart = red
+- [x] Background color #0D1424 correct
+- [x] Total video duration correct (animation + 1.5 s endcard)
+
+No open Block 6 tasks remain.
+
+Latest verified test state (Video Export Block 7 — Targeted Verification Completed 2026-06-04):
+
+- `testDebugUnitTest` — PASSED
+- `assembleDebug` — BUILD SUCCESSFUL
+- `assembleRelease` — BUILD SUCCESSFUL
+- T-I-01 (`VideoExportPipelineStandardTest`) — PASSED on SM-S911B (Android 16)
+- T-I-02 (`VideoExportPipelineStandardTest`) — PASSED on SM-S911B (Android 16)
+- T-I-03 (`VideoExportPipelineTest`) — PASSED on SM-S911B (Android 16)
+- T-I-04 (`VideoExportPipelineTest`) — PASSED on SM-S911B (Android 16)
+- `ReferenceImageMetadataReaderTest` — 19/19 PASSED on SM-S911B (Android 16) — after test infrastructure fix
+- `connectedDebugAndroidTest` full suite (407 tests) — run twice on SM-S911B (Android 16); no Video Export failures; no `ReferenceImageMetadataReaderTest` failures
+- Manual smoke test — **Pending**
+
+No remaining Video Export blocker.
+
+T-I-04 (`t_i_04_deleteVideo_removesEntryFromMediaStore`) added to `VideoExportPipelineTest.kt` in Block 7. No production code changes.
+
+Test infrastructure fix (Block 7): `PhotoPickerMimicContentProvider` and `SafMimicContentProvider` moved from `app/src/androidTest/` to `app/src/debug/` so their classes live in the app APK's classloader. Root cause: the classes landed in DEX shard 11 of the test APK; `Application.getClassLoader()` in the app process cannot reach secondary DEX shards at ContentProvider instantiation time. Moving to `src/debug/` places them in the app APK's own primary DEX. Additionally, `require_original=1` is now pre-embedded in `PhotoPickerMimicContentProvider.uriFor()` because `MediaStore.setRequireOriginal()` on Android 16 rejects non-MediaStore authorities (throws `IllegalArgumentException`), which was silently caught by `resolveSourceUri()` and prevented the original file from being served. No changes to production code or test logic.
+
+Full suite status: the full `connectedDebugAndroidTest` (407 tests) ran twice on SM-S911B (Android 16). Each run produced one different flaky failure:
+
+- Run 1: `AboutScreenTest.aboutContent_showsCoreV2Information` — Compose Activity timing race ("No compose hierarchies found")
+- Run 2: `MediaStoreWriterGpsTest.save_hasGpsTags_whenGpsSnapshotPresent` — transient MediaStore `.pending` ENOENT
+
+Both tests pass cleanly in isolation (3/3 each). These are pre-existing device-state flaky failures unrelated to Video Export. The full suite is **not claimed as fully green**. This flakiness is tracked outside Video Export scope.
 
 For the next Closed Testing upload, re-run the following verifications after any code change:
+
 - unit tests
 - connected instrumentation tests
 - release build/sign/install smoke test on a real device

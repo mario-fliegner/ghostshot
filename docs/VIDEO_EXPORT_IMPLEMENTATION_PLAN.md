@@ -1,6 +1,6 @@
 # VIDEO_EXPORT_IMPLEMENTATION_PLAN.md
 
-**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Block 5 Completed / Block 6 Implemented — Manual Verification Pending / Block 7 Planned
+**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Block 5 Completed / Block 6 Completed / Block 7 Video Export Targeted Verification Completed — Manual Smoke Test Pending
 **Grundlage:** VIDEO_EXPORT_V1.md (authoritative), CLAUDE_PROJECT_INSTRUCTION.md, COMPARE_FLOW_V1.md, COMPARE_SESSION_RENDERING_V1.md, SESSION_BACKUP_EXPORT_IMPLEMENTATION_PLAN.md, IMPLEMENTATION_NOTES.md, aktueller Codebestand
 **Planerstellt:** 2026-06-02
 **Zuletzt aktualisiert:** 2026-06-04
@@ -18,7 +18,8 @@
 | Block 2 | Completed (2026-06-02) |
 | Block 3+4 | Completed (2026-06-03) |
 | Block 5 | Completed (2026-06-04) |
-| Blöcke 6–7 | Planned |
+| Block 6 | Completed (2026-06-04) |
+| Block 7 | Video Export Targeted Verification Completed (2026-06-04) — Manual Smoke Test Pending |
 
 **Konfliktauflösung:** Bei Widerspruch zwischen diesem Dokument und `VIDEO_EXPORT_V1.md` gilt immer `VIDEO_EXPORT_V1.md`.
 
@@ -714,15 +715,15 @@ Alle Elemente vertikal und horizontal zentriert. Keine formatspezifischen Varian
 | `assembleRelease` | BUILD SUCCESSFUL |
 | T-I-02 (branding ON + Dauer-Check) | Ausstehend — Geräteverifikation erforderlich |
 
-##### Offene manuelle Verifikation (Block 6)
+##### Manuelle Verifikation (Block 6) — Abgeschlossen
 
-- [ ] Video mit brandingEnabled = true: Endcard erscheint nach dem Inhalt
-- [ ] Video mit brandingEnabled = false: kein Endcard
-- [ ] Fade-in (200 ms) und Fade-out (200 ms) sichtbar
-- [ ] Logo sichtbar und korrekt skaliert (Portrait + Landscape + Original)
-- [ ] "#MadeWithSameView" dominant; "Made with ❤️" kleiner; ❤️ = rot
-- [ ] Hintergrundfarbe #0D1424 korrekt
-- [ ] Gesamtdauer des Videos korrekt (Animation + 1.5 s Endcard)
+- [x] Video mit brandingEnabled = true: Endcard erscheint nach dem Inhalt
+- [x] Video mit brandingEnabled = false: kein Endcard
+- [x] Fade-in (200 ms) und Fade-out (200 ms) sichtbar
+- [x] Logo sichtbar und korrekt skaliert (Portrait + Landscape + Original)
+- [x] "#MadeWithSameView" dominant; "Made with ❤️" kleiner; ❤️ = rot
+- [x] Hintergrundfarbe #0D1424 korrekt
+- [x] Gesamtdauer des Videos korrekt (Animation + 1.5 s Endcard)
 
 ---
 
@@ -758,6 +759,61 @@ Vollständige Feature-Verifikation, Regression-Überprüfung, Release-Smoke-Test
 - Release Build erfolgreich
 - Keine bekannten Regressionen
 
+#### Implementierungsnotizen Block 7 (Video Export Targeted Verification Completed — 2026-06-04)
+
+##### T-I-04 Implementiert (2026-06-04)
+
+| Komponente | Beschreibung |
+|---|---|
+| `VideoExportPipelineTest.kt` | T-I-04 `t_i_04_deleteVideo_removesEntryFromMediaStore` hinzugefügt |
+| Test-Logik | Pipeline erstellt MP4 → `contentResolver.delete()` → Query bestätigt 0 Rows |
+| Produktionscode | Keine Änderungen — delete-Pfad war bereits korrekt implementiert |
+
+##### Test-Infrastruktur-Fix (2026-06-04)
+
+`PhotoPickerMimicContentProvider` und `SafMimicContentProvider` wurden von `app/src/androidTest/` nach `app/src/debug/` verschoben, damit ihre Klassen im Classloader des App-APK landen. Ursache: die Klassen lagen in DEX-Shard 11 des Test-APK; `Application.getClassLoader()` im App-Prozess erreicht beim ContentProvider-Start keine sekundären Test-DEX-Shards. Zusätzlich wurde `require_original=1` fest in `PhotoPickerMimicContentProvider.uriFor()` eingebettet, da `MediaStore.setRequireOriginal()` auf Android 16 Nicht-MediaStore-Authorities ablehnt. Keine Änderungen an Produktionscode oder Testlogik.
+
+| Geänderte Datei | Art der Änderung |
+|---|---|
+| `app/src/debug/java/.../PhotoPickerMimicContentProvider.java` | Neu (aus `androidTest` verschoben); `uriFor()` bettet `require_original=1` ein |
+| `app/src/debug/java/.../SafMimicContentProvider.java` | Neu (aus `androidTest` verschoben) |
+| `app/src/debug/AndroidManifest.xml` | Neu; Provider-Deklarationen ohne `android:process` |
+| `app/src/androidTest/AndroidManifest.xml` | Provider-Deklarationen entfernt |
+
+##### Teststatus Block 7 (2026-06-04)
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` | PASSED |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `assembleRelease` | BUILD SUCCESSFUL |
+| T-I-01 (`VideoExportPipelineStandardTest`) | PASSED on SM-S911B (Android 16) |
+| T-I-02 (`VideoExportPipelineStandardTest`) | PASSED on SM-S911B (Android 16) |
+| T-I-03 (`VideoExportPipelineTest`) | PASSED on SM-S911B (Android 16) |
+| T-I-04 (`VideoExportPipelineTest`) | PASSED on SM-S911B (Android 16) |
+| `ReferenceImageMetadataReaderTest` | 19/19 PASSED on SM-S911B (Android 16) — nach Test-Infrastruktur-Fix |
+| `connectedDebugAndroidTest` full suite (407 Tests) | Zweimal ausgeführt — keine Video-Export-Fehler; keine `ReferenceImageMetadataReaderTest`-Fehler |
+| Manueller Smoke-Test | **Ausstehend** |
+
+**Kein verbleibender Video-Export-Blocker.**
+
+Full-Suite-Status: beide Läufe zeigten je einen unzusammenhängenden Flaky-Fehler (verschiedene Tests, verschiedene Läufe: `AboutScreenTest` Compose-Timing-Race; `MediaStoreWriterGpsTest` transientes MediaStore-ENOENT). Beide bestehen isoliert. Die vollständige Suite wird **nicht** als grün dokumentiert. Flakiness wird außerhalb des Video-Export-Scopes nachverfolgt.
+
+##### Testklassen-Übersicht (aktuell)
+
+| Datei | Tests |
+|---|---|
+| `VideoExportPipelineStandardTest.kt` | T-I-01, T-I-02 |
+| `VideoExportPipelineTest.kt` | T-I-03, T-I-04 |
+
+##### Dokumentation
+
+| Datei | Änderung |
+|---|---|
+| `VIDEO_EXPORT_V1.md` | Endcard-Spec auf genehmigte Implementierung aktualisiert (1.5 s / 45 Frames / #0D1424 / Logo / Fade) |
+| `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Block 6 → Completed; Block 7 → Video Export Targeted Verification Completed |
+| `IMPLEMENTATION_NOTES.md` | Block 6 abgeschlossen; Block 7 Teststatus und Test-Infrastruktur-Fix dokumentiert |
+
 ---
 
 ## 6. Testing Strategy
@@ -781,7 +837,7 @@ Alle unter `app/src/androidTest/...`:
 |---|---|---|
 | T-I-01, T-I-02 | `video/VideoExportPipelineStandardTest.kt` | End-to-End MP4: Standard-Qualität (Compare Slider, Before & After) |
 | T-I-03 | `video/VideoExportPipelineTest.kt` | End-to-End MP4: High Quality + Fallback-Resolution-Verifikation |
-| T-I-04 | `video/VideoExportPipelineTest.kt` _(geplant)_ | Delete aus Preview: Eintrag nicht mehr in MediaStore |
+| T-I-04 | `video/VideoExportPipelineTest.kt` | Delete: Eintrag nicht mehr in MediaStore nach `contentResolver.delete()` |
 | T-I-05–T-I-08 | `ui/compare/CompareScreenTest.kt` (Erweiterung) | Create Video Icon Sichtbarkeit, Navigation |
 
 ### Manual Device Tests (Block 7)
@@ -925,8 +981,8 @@ Release-APK auf realem Gerät installieren: Video-Export vollständig funktional
 | Block 3 | CreateVideoScreen + ViewModel + Entry Point | **Implemented — Manual Verification Pending** | 2026-06-03 | Gemeinsam mit Block 4 als gekoppelte Einheit implementiert; Section 26 Compliance erfüllt; UX-Polish abgeschlossen |
 | Block 4 | Preview State + Share + Delete | **Implemented — Manual Verification Pending** | 2026-06-03 | ExoPlayer/Media3; Share Sheet; Delete mit Confirmation Dialog; Done/Back; vollständige manuelle Device-Verifikation ausstehend |
 | Block 5 | High Quality + Device Limit Fallback | **Completed** | 2026-06-04 | T-U-20 grün; T-I-01/T-I-02/T-I-03 PASSED on SM-S911B (Android 16); Debug + Release BUILD SUCCESSFUL; T-I-01/T-I-02 in VideoExportPipelineStandardTest.kt nach DEX-Shard-Isolationsfix |
-| Block 6 | Branding Endcard | **Implemented — Manual Verification Pending** | 2026-06-04 | Endcard 1.5 s / 45 frames; fade-in/out; logo + "Made with ❤️" + "#MadeWithSameView"; T-U-09–T-U-10 grün; T-I-02 enhanced with duration check |
-| Block 7 | Final Verification | Planned | — | Full suite + Manual Smoke + Release Build |
+| Block 6 | Branding Endcard | **Completed** | 2026-06-04 | Endcard 1.5 s / 45 frames; fade-in/out; logo + "Made with ❤️" + "#MadeWithSameView"; T-U-09–T-U-10 grün; T-I-02 PASSED on SM-S911B; manuelle Verifikation abgeschlossen |
+| Block 7 | Final Verification | **Video Export Targeted Verification Completed** | 2026-06-04 | T-I-01–T-I-04 PASSED on SM-S911B (Android 16); `ReferenceImageMetadataReaderTest` 19/19 PASSED nach Test-Infrastruktur-Fix; full suite zweimal ausgeführt — keine Video-Export-Fehler; zwei unzusammenhängende Flaky-Failures (`AboutScreenTest`, `MediaStoreWriterGpsTest`) werden außerhalb Video-Export nachverfolgt; Manueller Smoke-Test ausstehend |
 
 ---
 

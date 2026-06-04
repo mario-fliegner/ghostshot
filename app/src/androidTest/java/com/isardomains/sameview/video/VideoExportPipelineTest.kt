@@ -12,6 +12,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -108,6 +109,40 @@ class VideoExportPipelineTest {
         } finally {
             retriever.release()
         }
+    }
+
+    @Test
+    fun t_i_04_deleteVideo_removesEntryFromMediaStore() {
+        val config = VideoRenderConfig(
+            videoMode = VideoMode.COMPARE_SLIDER,
+            format = VideoExportFormat.LANDSCAPE_16_9,
+            quality = VideoQuality.STANDARD_1080P,
+            durationMs = 1_000,
+            brandingEnabled = false
+        )
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val pipeline = VideoExportPipeline(context)
+
+        val result = runBlocking { pipeline.run(config, sessionDir) }
+        assertTrue(
+            "Pipeline must succeed before delete test: ${result.exceptionOrNull()?.message}",
+            result.isSuccess
+        )
+
+        val uri = result.getOrThrow()
+        createdVideoUri = uri
+
+        val deletedRows = resolver.delete(uri, null, null)
+        assertTrue("Delete must affect at least one MediaStore row", deletedRows > 0)
+
+        // After deletion the URI must no longer be queryable.
+        val cursor = resolver.query(uri, arrayOf(MediaStore.Video.Media._ID), null, null, null)
+        val entryExists = cursor?.use { it.moveToFirst() } ?: false
+        assertFalse("MediaStore entry must not exist after delete", entryExists)
+
+        // URI is already deleted; prevent tearDown from logging a redundant failure.
+        createdVideoUri = null
     }
 
     private fun writeSyntheticImages(dir: File) {

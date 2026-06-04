@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+         Test-only ContentProviders for ReferenceImageMetadataReaderTest.
+         Declared here (debug source set) so they compile into the app APK's classloader,
+         making them findable when the Android system instantiates them in the app process.
+         Declaring them in the test APK's manifest (androidTest) caused ClassNotFoundException
+         because the test APK's secondary DEX shards are not loaded by the app process's
+         Application.getClassLoader() at ContentProvider instantiation time.
+         These providers are excluded from release builds by virtue of being in src/debug/.
+    -->
+    <application>
+        <provider
+            android:name="com.isardomains.sameview.ui.camera.SafMimicContentProvider"
+            android:authorities="com.isardomains.sameview.test.safmimic"
+            android:exported="true" />
+        <provider
+            android:name="com.isardomains.sameview.ui.camera.PhotoPickerMimicContentProvider"
+            android:authorities="com.isardomains.sameview.test.photopickermimicmedia"
+            android:exported="true" />
+    </application>
+</manifest>

@@ -325,7 +325,7 @@ At 30 FPS:
 - 4s = 120 frames
 - 6s = 180 frames
 - 8s = 240 frames
-- Endcard at 1.0s = 30 frames (if branding enabled)
+- Endcard at 1.5s = 45 frames (if branding enabled)
 
 ---
 
@@ -346,27 +346,30 @@ This is intentional. Users who want background music add it in TikTok, Instagram
 
 ### 13.1 Endcard Format
 
-When branding is enabled, a 1.0-second endcard (30 frames at 30 FPS) is appended after the main animation:
+When branding is enabled, a 1.5-second endcard (45 frames at 30 FPS) is appended after the main animation:
 
 ```
-Background: #17202F (app surface color, full canvas)
+Background: #0D1424
 
-         SameView
+        [SameView Logo]
 
-   #MadeWithSameView
+        Made with ❤️
+
+    #MadeWithSameView
 ```
 
-- `SameView`: white, centered, Material 3 typography, headline style
-- `#MadeWithSameView`: white at 70% opacity, centered, below SameView, body style
-- No logo/icon in V1
+- Background: `#0D1424` (deep dark, distinct from the `#17202F` app surface used for animation frames)
+- **Logo**: SameView app icon (`ic_launcher_foreground`), centered horizontally, approximately 22 % of `min(canvasWidth, canvasHeight)`
+- **"Made with ❤️"**: smaller supporting line, white, centered below the logo; ❤️ renders red via the system emoji font
+- **"#MadeWithSameView"**: visually dominant, white, bold, centered below "Made with ❤️"; the primary focal point
 - No "Created with SameView" wording
-- The endcard is a simple static frame repeated for 30 frames (no fade-in or fade-out animation in V1)
+- Animation: 200 ms fade-in (6 frames) → 1.1 s static (33 frames) → 200 ms fade-out (6 frames)
 
 ### 13.2 Wizard Toggle
 
 The Wizard offers a toggle: **"Add #MadeWithSameView card"**
 
-When enabled: 1.0s endcard is appended. Animation duration = total duration − 1.0s.
+When enabled: 1.5s endcard is appended. Animation duration = total duration − 1.5s.
 When disabled: no endcard frames. Animation duration = total duration.
 
 ### 13.3 Branding Default
@@ -382,25 +385,22 @@ Rationale:
 
 ### 13.4 Endcard Visual Design
 
-The endcard contains at minimum:
+The finalized endcard design (approved in Block 6):
 
 ```text
-SameView
+        [SameView Logo]
 
-#MadeWithSameView
+        Made with ❤️
+
+    #MadeWithSameView
 ```
 
-Background: `#17202F` (app surface color). Text: white / white at reduced opacity. No audio.
-
-The following visual details are intentionally **not finalized** in this spec and may be decided before Block 6 implementation:
-
-- Use of the app icon (yes/no)
-- Exact typographic scale and spacing
-- Text positioning (centered vs. bottom-anchored)
-- Whether the endcard fades in from the final animation frame
-- Exact typography tokens (Material 3 roles)
-
-These decisions do not affect the renderer architecture or timing model. The endcard is always exactly 1.0 s (30 frames at 30 FPS) regardless of visual treatment.
+- **Background**: `#0D1424`
+- **Logo**: `ic_launcher_foreground`, pre-scaled to approximately 22 % of `min(canvasWidth, canvasHeight)`, centered
+- **"Made with ❤️"**: text size approximately 3.3 % of `min(canvasWidth, canvasHeight)`; white; ❤️ red via system emoji font; centered below logo with a gap of approximately 5 % of the base dimension
+- **"#MadeWithSameView"**: text size approximately 6.5 % of `min(canvasWidth, canvasHeight)`, bold; white; centered below "Made with ❤️" with a gap of approximately 3 % of the base dimension; visually dominant
+- **Vertical layout**: all elements centered as a group within the canvas
+- **Fade**: alpha applied uniformly to all elements per frame (logo, both text lines rendered with the same alpha)
 
 ### 13.5 Branding Persistence
 
@@ -426,7 +426,7 @@ No branding element is ever rendered onto individual video frames during the ani
 
 Let `T` = animation duration in seconds (= total video duration − endcard duration).
 
-Endcard duration = 1.0s if branding enabled, 0s if disabled.
+Endcard duration = 1.5s if branding enabled, 0s if disabled.
 
 | Phase | Start (% of T) | Duration (% of T) | Slider position |
 |---|---|---|---|
@@ -448,16 +448,16 @@ T = 6.0s
 | Hold at 0% | 5.28s | 0.72s | 6.00s |
 
 **Worked example — 6s, branding ON:**
-T = 5.0s (animation) + 1.0s (endcard) = 6.0s
+T = 4.5s (animation) + 1.5s (endcard) = 6.0s
 
 | Phase | Start | Duration | End |
 |---|---|---|---|
-| Hold at 0% | 0.00s | 0.60s | 0.60s |
-| Slide forward | 0.60s | 1.60s | 2.20s |
-| Hold at 100% | 2.20s | 0.60s | 2.80s |
-| Slide back | 2.80s | 1.60s | 4.40s |
-| Hold at 0% | 4.40s | 0.60s | 5.00s |
-| Endcard | 5.00s | 1.00s | 6.00s |
+| Hold at 0% | 0.00s | 0.54s | 0.54s |
+| Slide forward | 0.54s | 1.44s | 1.98s |
+| Hold at 100% | 1.98s | 0.54s | 2.52s |
+| Slide back | 2.52s | 1.44s | 3.96s |
+| Hold at 0% | 3.96s | 0.54s | 4.50s |
+| Endcard | 4.50s | 1.50s | 6.00s |
 
 ### 14.2 Easing Function
 
@@ -509,25 +509,25 @@ T = 6.0s, Hold = (6.0 − 0.5) / 2 = 2.75s
 | Hold After | 3.25s | 2.75s | 6.00s |
 
 **Worked example — 6s, branding ON:**
-T = 5.0s, Hold = (5.0 − 0.5) / 2 = 2.25s
+T = 4.5s, Hold = (4.5 − 0.5) / 2 = 2.00s
 
 | Phase | Start | Duration | End |
 |---|---|---|---|
-| Hold Before | 0.00s | 2.25s | 2.25s |
-| Crossfade | 2.25s | 0.50s | 2.75s |
-| Hold After | 2.75s | 2.25s | 5.00s |
-| Endcard | 5.00s | 1.00s | 6.00s |
+| Hold Before | 0.00s | 2.00s | 2.00s |
+| Crossfade | 2.00s | 0.50s | 2.50s |
+| Hold After | 2.50s | 2.00s | 4.50s |
+| Endcard | 4.50s | 1.50s | 6.00s |
 
 **All preset timings with branding ON/OFF:**
 
 | Preset | T_anim | Hold | Crossfade | Hold | Endcard |
 |---|---|---|---|---|---|
 | 4s, branding OFF | 4.0s | 1.75s | 0.5s | 1.75s | — |
-| 4s, branding ON | 3.0s | 1.25s | 0.5s | 1.25s | 1.0s |
+| 4s, branding ON | 2.5s | 1.00s | 0.5s | 1.00s | 1.5s |
 | 6s, branding OFF | 6.0s | 2.75s | 0.5s | 2.75s | — |
-| 6s, branding ON | 5.0s | 2.25s | 0.5s | 2.25s | 1.0s |
+| 6s, branding ON | 4.5s | 2.00s | 0.5s | 2.00s | 1.5s |
 | 8s, branding OFF | 8.0s | 3.75s | 0.5s | 3.75s | — |
-| 8s, branding ON | 7.0s | 3.25s | 0.5s | 3.25s | 1.0s |
+| 8s, branding ON | 6.5s | 3.00s | 0.5s | 3.00s | 1.5s |
 
 ### 15.2 Crossfade Computation
 
@@ -598,10 +598,11 @@ For Before & After, each image is fit within the canvas (ContentScale.Fit), cent
 
 ### 17.3 Background Color
 
-Every frame begins with a full-canvas fill of `#17202F`. This establishes:
+Every animation frame begins with a full-canvas fill of `#17202F`. This establishes:
 - Free area color for format padding (Section 8.2)
 - Background behind Fit-scaled Before & After images
-- Endcard background
+
+Endcard frames use `#0D1424` instead (see Section 17.6).
 
 ### 17.4 Compare Slider Frame Rendering
 
@@ -622,10 +623,20 @@ For alphas `alpha_reference` and `alpha_capture`:
 
 ### 17.6 Endcard Frame Rendering (if branding enabled)
 
-1. Fill canvas with `#17202F`
-2. Draw "SameView" text centered, white, Material 3 headline typography
-3. Draw "#MadeWithSameView" text centered below, white at 70% opacity, Material 3 body typography
-4. Repeat this frame for all 30 endcard frames (static; no animation)
+Total: 45 frames (1.5 s at 30 FPS).
+
+Per-frame alpha based on endcard frame index `e` (0-based):
+
+- Frames 0–5 (200 ms fade-in): `alpha = e / 5`
+- Frames 6–38 (1.1 s static): `alpha = 1.0`
+- Frames 39–44 (200 ms fade-out): `alpha = 1.0 − (e − 38) / 6`
+
+For each endcard frame:
+
+1. Fill canvas with `#0D1424`
+2. Draw SameView logo (`ic_launcher_foreground`) centered, pre-scaled, at computed alpha
+3. Draw "Made with ❤️" centered below logo at computed alpha (❤️ renders red via system emoji font)
+4. Draw "#MadeWithSameView" centered below "Made with ❤️", bold, at computed alpha
 
 ### 17.7 Memory Management
 
@@ -1045,7 +1056,6 @@ The following are explicitly excluded from V1 and must not be pre-implemented:
 - Blurred background padding (V2 candidate)
 - Ken-Burns / pan / zoom effects
 - Auto-crop to social media format
-- Animated endcard (fade-in/fade-out on branding card)
 - Export history or session-video linking
 - Re-share or re-delete of previously created videos from within the app
 - GIF export
