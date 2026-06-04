@@ -212,16 +212,17 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
         return EncoderParams(fallbackW, fallbackH, mimeType, BITRATE_STANDARD_BPS, qualityFallbackApplied = true)
     }
 
-    private data class EncoderParams(
-        val width: Int,
-        val height: Int,
-        val mimeType: String,
-        val bitRate: Int,
-        val qualityFallbackApplied: Boolean
-    )
-
     companion object {
         private const val BITRATE_STANDARD_BPS = 7_000_000
         private const val BITRATE_HIGH_QUALITY_BPS = 20_000_000
     }
 }
+
+// File-level private: avoids nested-class DEX fragmentation in the androidTest APK build.
+private data class EncoderParams(
+    val width: Int,
+    val height: Int,
+    val mimeType: String,
+    val bitRate: Int,
+    val qualityFallbackApplied: Boolean
+)

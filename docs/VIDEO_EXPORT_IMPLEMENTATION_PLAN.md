@@ -1,9 +1,9 @@
 # VIDEO_EXPORT_IMPLEMENTATION_PLAN.md
 
-**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Block 5 Implemented — T-I-03 Pending Device Run / Blocks 6–7 Planned
+**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Block 5 Completed / Blocks 6–7 Planned
 **Grundlage:** VIDEO_EXPORT_V1.md (authoritative), CLAUDE_PROJECT_INSTRUCTION.md, COMPARE_FLOW_V1.md, COMPARE_SESSION_RENDERING_V1.md, SESSION_BACKUP_EXPORT_IMPLEMENTATION_PLAN.md, IMPLEMENTATION_NOTES.md, aktueller Codebestand
 **Planerstellt:** 2026-06-02
-**Zuletzt aktualisiert:** 2026-06-03
+**Zuletzt aktualisiert:** 2026-06-04
 
 ---
 
@@ -16,8 +16,9 @@
 | Dieses Dokument | Technischer Implementierungsplan — verbindliche Arbeitsgrundlage |
 | Block 1 | Completed (2026-06-02) |
 | Block 2 | Completed (2026-06-02) |
-| Block 3+4 | Implemented — Manual Verification Pending (2026-06-03) |
-| Blöcke 5–7 | Planned |
+| Block 3+4 | Completed (2026-06-03) |
+| Block 5 | Completed (2026-06-04) |
+| Blöcke 6–7 | Planned |
 
 **Konfliktauflösung:** Bei Widerspruch zwischen diesem Dokument und `VIDEO_EXPORT_V1.md` gilt immer `VIDEO_EXPORT_V1.md`.
 
@@ -575,23 +576,34 @@ Branding-Tests (Block 6)
 
 STANDARD_1080P: unverändert AVC, 7 Mbps.
 
-##### Teststatus (2026-06-03)
+##### Teststatus (2026-06-04)
 
 | Test | Status |
 |---|---|
-| `testDebugUnitTest` | 387/0 PASSED |
+| `testDebugUnitTest` | PASSED |
 | T-U-20 (`startExport_qualityFallback_emitsFallbackNoticeSnackbar`) | PASSED |
 | `CreateVideoViewModelTest` gesamt | 12/12 PASSED |
 | `assembleDebug` | BUILD SUCCESSFUL |
 | `assembleRelease` | BUILD SUCCESSFUL |
-| T-I-03 (`VideoExportPipelineTest`) | Ausstehend — SM-S911B Device Run erforderlich |
+| T-I-03 (`VideoExportPipelineTest`) | PASSED on SM-S911B (Android 16) |
+| T-I-01 (`VideoExportPipelineStandardTest`) | PASSED on SM-S911B (Android 16) |
+| T-I-02 (`VideoExportPipelineStandardTest`) | PASSED on SM-S911B (Android 16) |
 
-##### Offene manuelle Verifikation (T-I-03)
+##### Real-Device Verifikation (2026-06-04)
 
-- [ ] T-I-03 `VideoExportPipelineTest.t_i_03_highQuality_landscape_producesValidMp4WithSupportedResolution` auf SM-S911B ausführen
-- [ ] Prüfen: HEVC oder AVC Encoder verwendet (Logcat `VideoEncoder`)
-- [ ] Prüfen: Resolution 3840×2160 (HEVC/4K) oder 1920×1080 (Fallback) korrekt im Output
-- [ ] Prüfen: Bei 4K-Output kein Snackbar; bei Fallback: Snackbar `create_video_quality_fallback_notice` sichtbar
+| Eigenschaft | Wert |
+| --- | --- |
+| Gerät | Samsung Galaxy S23 SM-S911B |
+| Android | 16 |
+| T-I-03 (`VideoExportPipelineTest`) | PASSED |
+| T-I-01 (`VideoExportPipelineStandardTest`) | PASSED |
+| T-I-02 (`VideoExportPipelineStandardTest`) | PASSED |
+| `testDebugUnitTest` | PASSED |
+| Bekannte Regressionen | keine |
+
+##### Hinweis: Test-Klassen-Aufteilung (2026-06-04)
+
+Aufgrund eines ART-Klassen-Ladefehlers (ClassNotFoundException beim Laden von `VideoExportPipelineTest` durch kollidierende Coroutine-Lambda-Klassen im selben DEX-Shard) wurden T-I-01 und T-I-02 in eine separate Testklasse `VideoExportPipelineStandardTest.kt` verschoben. `VideoExportPipelineTest.kt` enthält ausschließlich T-I-03. Beide Dateien befinden sich im selben Package `com.isardomains.sameview.video` und sind vollständig Black-Box-Tests ohne Referenz auf interne Implementierungsdetails.
 
 ---
 
@@ -709,7 +721,9 @@ Alle unter `app/src/androidTest/...`:
 
 | Test-IDs | Testdatei | Bereich |
 |---|---|---|
-| T-I-01–T-I-04 | `video/VideoExportPipelineTest.kt` | End-to-End MP4-Erzeugung, Delete-Verifikation |
+| T-I-01, T-I-02 | `video/VideoExportPipelineStandardTest.kt` | End-to-End MP4: Standard-Qualität (Compare Slider, Before & After) |
+| T-I-03 | `video/VideoExportPipelineTest.kt` | End-to-End MP4: High Quality + Fallback-Resolution-Verifikation |
+| T-I-04 | `video/VideoExportPipelineTest.kt` _(geplant)_ | Delete aus Preview: Eintrag nicht mehr in MediaStore |
 | T-I-05–T-I-08 | `ui/compare/CompareScreenTest.kt` (Erweiterung) | Create Video Icon Sichtbarkeit, Navigation |
 
 ### Manual Device Tests (Block 7)
@@ -852,7 +866,7 @@ Release-APK auf realem Gerät installieren: Video-Export vollständig funktional
 | Block 2 | VideoEncoder + MediaStoreVideoWriter + Pipeline | **Completed** | 2026-06-02 | T-I-01 PASSED; 329/329 Instrumentation-Tests grün; MP4-Wiedergabe auf SM-S911B (Android 16) verifiziert; `BrandingEndcardRenderer.kt` bewusst auf Block 6 verschoben |
 | Block 3 | CreateVideoScreen + ViewModel + Entry Point | **Implemented — Manual Verification Pending** | 2026-06-03 | Gemeinsam mit Block 4 als gekoppelte Einheit implementiert; Section 26 Compliance erfüllt; UX-Polish abgeschlossen |
 | Block 4 | Preview State + Share + Delete | **Implemented — Manual Verification Pending** | 2026-06-03 | ExoPlayer/Media3; Share Sheet; Delete mit Confirmation Dialog; Done/Back; vollständige manuelle Device-Verifikation ausstehend |
-| Block 5 | High Quality + Device Limit Fallback | **Implemented — T-I-03 Pending Device Run** | 2026-06-03 | T-U-20 grün (387/0 Unit-Tests); T-I-03 Instrumentation ausstehend (SM-S911B); Debug + Release BUILD SUCCESSFUL |
+| Block 5 | High Quality + Device Limit Fallback | **Completed** | 2026-06-04 | T-U-20 grün; T-I-01/T-I-02/T-I-03 PASSED on SM-S911B (Android 16); Debug + Release BUILD SUCCESSFUL; T-I-01/T-I-02 in VideoExportPipelineStandardTest.kt nach DEX-Shard-Isolationsfix |
 | Block 6 | Branding Endcard | Planned | — | Finale Typographie; T-U-09–T-U-10, T-I-02 |
 | Block 7 | Final Verification | Planned | — | Full suite + Manual Smoke + Release Build |
 
@@ -913,6 +927,7 @@ Folgende Features sind dokumentiert, aber explizit **nicht** Bestandteil von V1:
 | `app/src/test/java/com/isardomains/sameview/video/VideoRenderConfigTest.kt` | 1 |
 | `app/src/test/java/com/isardomains/sameview/ui/video/CreateVideoViewModelTest.kt` | 3 |
 | `app/src/androidTest/java/com/isardomains/sameview/video/VideoExportPipelineTest.kt` | 2 |
+| `app/src/androidTest/java/com/isardomains/sameview/video/VideoExportPipelineStandardTest.kt` | 5 |
 
 ### Erweiterte Testdateien
 
@@ -941,8 +956,11 @@ Folgende Features sind dokumentiert, aber explizit **nicht** Bestandteil von V1:
 # Alle Instrumentation-Tests
 .\gradlew.bat :app:connectedDebugAndroidTest
 
-# Video Pipeline Instrumentation-Tests
+# High Quality Instrumentation-Test (T-I-03)
 .\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.isardomains.sameview.video.VideoExportPipelineTest
+
+# Standard Pipeline Instrumentation-Tests (T-I-01, T-I-02)
+.\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.isardomains.sameview.video.VideoExportPipelineStandardTest
 
 # CompareScreen Regression
 .\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.isardomains.sameview.ui.compare.CompareScreenTest

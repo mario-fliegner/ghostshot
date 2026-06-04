@@ -180,7 +180,7 @@ Active compare session lifecycle — fully implemented:
 Full specification: `VIDEO_EXPORT_V1.md`
 Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
 
-MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented (Block 3+4 Implemented — Manual Verification Pending):
+MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented (Block 3+4 Implemented — Manual Verification Pending). High Quality export implemented and verified (Block 5 Completed):
 
 - **Renderer Core (Block 1)** — `VideoRenderConfig`, `VideoMode`, `VideoExportFormat`, `VideoQuality` enums; `VideoFrameRenderer` interface; `CompareSliderRenderEngine` (cubic ease-in-out, two-stroke divider, fill semantics); `BeforeAfterRenderEngine` (linear crossfade, fit semantics); canvas setup and bitmap lifecycle; `computeCanvasDimensions` with even-dimension enforcement
 - **Encoding Pipeline (Block 2)** — `VideoEncoder` (MediaCodec H.264/AVC, ByteBuffer input, ARGB→YUV420 conversion, NV12/I420 auto-detect via `MediaCodecList`); `MediaStoreVideoWriter` (IS_PENDING lifecycle, `Movies/SameView`, cleanup on failure); `VideoExportPipeline` (orchestrates decode → render → encode → commit; coroutine-cancellation-safe cleanup via `NonCancellable`)
@@ -200,7 +200,7 @@ MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Cre
 - `VideoExportPipeline.resolveEncoderParams()` selects codec and canvas dimensions before MediaStore insert: HEVC preferred for HIGH_QUALITY (silent AVC fallback if no ByteBuffer-capable HEVC encoder found); resolution checked via `VideoCapabilities.isSizeSupported()`; falls back to Standard 1080p if device cannot handle 4K
 - Bitrate: STANDARD_1080P = 7 Mbps (unchanged); HIGH_QUALITY = 20 Mbps
 - User-visible Snackbar `create_video_quality_fallback_notice` emitted only when resolution is capped (not on HEVC→AVC codec switch)
-- T-U-20 grün; T-I-03 Instrumentation Test ausstehend (SM-S911B Device Run)
+- T-U-20 grün; T-I-01/T-I-02 PASSED (`VideoExportPipelineStandardTest`); T-I-03 PASSED (`VideoExportPipelineTest`) on SM-S911B (Android 16)
 
 ---
 
@@ -423,6 +423,20 @@ Pending manual device verification (required before Block 3+4 is Completed):
 - Portrait rendering and preview
 - Landscape rendering and preview
 - Gallery / Movies / SameView visibility check after export
+
+Latest verified test state (Video Export Block 5 — Completed 2026-06-04):
+
+- `testDebugUnitTest` — PASSED
+- `VideoExportPipelineStandardTest` (T-I-01, T-I-02) — PASSED on SM-S911B (Android 16)
+- `VideoExportPipelineTest` (T-I-03) — PASSED on SM-S911B (Android 16)
+- `assembleDebug` — BUILD SUCCESSFUL
+- `assembleRelease` — BUILD SUCCESSFUL
+- High Quality export (HEVC preferred / AVC fallback): verified on SM-S911B
+- Resolution 3840×2160 or 1920×1080 fallback: accepted by test; confirmed valid MP4 committed to MediaStore
+
+Test class structure note: T-I-01 and T-I-02 were moved from `VideoExportPipelineTest.kt` to `VideoExportPipelineStandardTest.kt` to resolve an ART class-loading issue (ClassNotFoundException caused by coroutine lambda classes from multiple test methods sharing a DEX shard). Both files are in `com.isardomains.sameview.video`; both are black-box instrumentation tests with no reference to production internals.
+
+No open Video Export Block 5 implementation tasks remain.
 
 For the next Closed Testing upload, re-run the following verifications after any code change:
 - unit tests
