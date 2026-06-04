@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -54,7 +55,7 @@ class VideoExportPipelineStandardTest {
         )
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val pipeline = VideoExportPipeline(context.contentResolver)
+        val pipeline = VideoExportPipeline(context)
 
         val result = runBlocking { pipeline.run(config, sessionDir) }
 
@@ -93,18 +94,25 @@ class VideoExportPipelineStandardTest {
         }
     }
 
+    /**
+     * T-I-02: Before & After, 2 s total, Standard, Portrait 9:16, branding ON.
+     *
+     * With 1.5 s endcard: animation = 15 frames (500 ms), endcard = 45 frames (1500 ms), total = 60 frames (2 s).
+     * Verifies valid MP4 in MediaStore and that the duration reflects the full 2 s including the branding endcard.
+     */
     @Test
-    fun t_i_02_beforeAfter_standard_portrait_brandingOn_producesValidMp4() {
+    fun t_i_02_beforeAfter_standard_portrait_brandingOn_producesValidMp4WithCorrectDuration() {
+        val durationMs = 2_000
         val config = VideoRenderConfig(
             videoMode = VideoMode.BEFORE_AFTER,
             format = VideoExportFormat.PORTRAIT_9_16,
             quality = VideoQuality.STANDARD_1080P,
-            durationMs = 2_000,
+            durationMs = durationMs,
             brandingEnabled = true
         )
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val pipeline = VideoExportPipeline(context.contentResolver)
+        val pipeline = VideoExportPipeline(context)
 
         val result = runBlocking { pipeline.run(config, sessionDir) }
 
@@ -140,6 +148,21 @@ class VideoExportPipelineStandardTest {
                 "Display name must end with '.mp4', was: $displayName",
                 displayName.endsWith(".mp4")
             )
+        }
+
+        // Verify duration includes the branding endcard (total = animation + 1.5 s endcard ≈ 2 s).
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            val actualDurationMs = retriever
+                .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull() ?: 0L
+            assertTrue(
+                "Duration must be approximately ${durationMs}ms (±500ms), was ${actualDurationMs}ms",
+                actualDurationMs in (durationMs - 500).toLong()..(durationMs + 500).toLong()
+            )
+        } finally {
+            retriever.release()
         }
     }
 

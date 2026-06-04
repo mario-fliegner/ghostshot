@@ -1,6 +1,6 @@
 package com.isardomains.sameview.video
 
-import android.content.ContentResolver
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -16,17 +16,19 @@ import java.io.File
 import java.io.IOException
 
 /**
- * Orchestrates the full video export: session images → rendered frames → H.264 → MP4 in MediaStore.
+ * Orchestrates the full video export: session images → rendered frames → encoded video → MP4 in MediaStore.
+ *
+ * The pipeline renders [VideoRenderConfig.animationFrameCount] animation frames followed by
+ * [VideoRenderConfig.BRANDING_FRAME_COUNT] endcard frames when [VideoRenderConfig.brandingEnabled]
+ * is true. When branding is disabled, only animation frames are rendered.
  *
  * Usage:
- *   val pipeline = VideoExportPipeline(context.contentResolver)
+ *   val pipeline = VideoExportPipeline(context)
  *   val result = pipeline.run(config, sessionDir) { progress -> ... }
- *
- * Branding (config.brandingEnabled) is intentionally ignored in this block.
- * Only config.animationFrameCount frames are rendered. Branding is added in a later block.
  */
-class VideoExportPipeline(private val contentResolver: ContentResolver) {
+class VideoExportPipeline(private val context: Context) {
 
+    private val contentResolver = context.contentResolver
     private val writer = MediaStoreVideoWriter(contentResolver)
 
     suspend fun run(
@@ -47,6 +49,7 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
         var refBitmap: Bitmap? = null
         var capBitmap: Bitmap? = null
         var frameBitmap: Bitmap? = null
+        var brandingRenderer: BrandingEndcardRenderer? = null
         var committed = false
 
         return try {
@@ -67,10 +70,14 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
             val canvasW = encoderParams.width
             val canvasH = encoderParams.height
 
-            // ── Phase 3: Frame bitmap + renderer ────────────────────────────────────
+            // ── Phase 3: Frame bitmap + renderers ────────────────────────────────────
             frameBitmap = Bitmap.createBitmap(canvasW, canvasH, Bitmap.Config.ARGB_8888)
             val frameCanvas = Canvas(frameBitmap!!)
             val renderer = createRenderer(config, refBitmap!!, capBitmap!!)
+
+            if (config.brandingEnabled) {
+                brandingRenderer = BrandingEndcardRenderer(context, canvasW, canvasH)
+            }
 
             // ── Phase 4: MediaStore insert (IO) ──────────────────────────────────────
             val displayName = buildDisplayName(config, sessionDir)
@@ -82,19 +89,36 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
 
             // ── Phase 5: Encoding loop (Default / CPU-bound) ─────────────────────────
             withContext(Dispatchers.Default) {
-                val totalFrames = config.animationFrameCount  // branding ignored in Block 2
+                val animationFrames = config.animationFrameCount
+                val endcardFrames = if (config.brandingEnabled) VideoRenderConfig.BRANDING_FRAME_COUNT else 0
+                val totalFrames = config.totalFrameCount
+
                 val encoder = VideoEncoder(
                     entry.pfd, canvasW, canvasH, config.frameRate,
                     encoderParams.bitRate, encoderParams.mimeType
                 )
                 try {
                     encoder.start()
-                    for (i in 0 until totalFrames) {
+
+                    // Animation frames
+                    for (i in 0 until animationFrames) {
                         ensureActive()
                         renderer.renderFrame(i, frameCanvas)
                         encoder.encodeFrame(frameBitmap!!)
                         onProgress(i.toFloat() / totalFrames)
                     }
+
+                    // Branding endcard frames
+                    val br = brandingRenderer
+                    if (br != null) {
+                        for (i in 0 until endcardFrames) {
+                            ensureActive()
+                            br.renderFrame(i, frameCanvas)
+                            encoder.encodeFrame(frameBitmap!!)
+                            onProgress((animationFrames + i).toFloat() / totalFrames)
+                        }
+                    }
+
                     encoder.finish()
                 } finally {
                     encoder.release()
@@ -125,6 +149,7 @@ class VideoExportPipeline(private val contentResolver: ContentResolver) {
                         withContext(Dispatchers.IO) { writer.abort(uri) }
                     }
                 }
+                brandingRenderer?.release()
                 refBitmap?.recycle()
                 capBitmap?.recycle()
                 frameBitmap?.recycle()

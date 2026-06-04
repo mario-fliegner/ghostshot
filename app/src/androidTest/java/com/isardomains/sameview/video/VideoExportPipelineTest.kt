@@ -55,7 +55,7 @@ class VideoExportPipelineTest {
         )
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val pipeline = VideoExportPipeline(context.contentResolver)
+        val pipeline = VideoExportPipeline(context)
 
         val result = runBlocking { pipeline.run(config, sessionDir) }
 

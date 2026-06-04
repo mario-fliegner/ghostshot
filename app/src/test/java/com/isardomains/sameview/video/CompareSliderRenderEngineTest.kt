@@ -25,14 +25,14 @@ class CompareSliderRenderEngineTest {
     @Test fun animationFrameCount_8s_brandingOff_is240() =
         assertEquals(240, CompareSliderRenderEngine.animationFrameCount(cfg(8000, false)))
 
-    @Test fun animationFrameCount_4s_brandingOn_is90() =
-        assertEquals(90, CompareSliderRenderEngine.animationFrameCount(cfg(4000, true)))
+    @Test fun animationFrameCount_4s_brandingOn_is75() =
+        assertEquals(75, CompareSliderRenderEngine.animationFrameCount(cfg(4000, true)))
 
-    @Test fun animationFrameCount_6s_brandingOn_is150() =
-        assertEquals(150, CompareSliderRenderEngine.animationFrameCount(cfg(6000, true)))
+    @Test fun animationFrameCount_6s_brandingOn_is135() =
+        assertEquals(135, CompareSliderRenderEngine.animationFrameCount(cfg(6000, true)))
 
-    @Test fun animationFrameCount_8s_brandingOn_is210() =
-        assertEquals(210, CompareSliderRenderEngine.animationFrameCount(cfg(8000, true)))
+    @Test fun animationFrameCount_8s_brandingOn_is195() =
+        assertEquals(195, CompareSliderRenderEngine.animationFrameCount(cfg(8000, true)))
 
     // T-U-02 — slider starts at 0
 
@@ -58,7 +58,7 @@ class CompareSliderRenderEngineTest {
 
     @Test fun sliderPosition_atHoldMidStart_6s_brandingOn_isOne() {
         val config = cfg(6000, true)
-        val n = config.animationFrameCount // 150
+        val n = config.animationFrameCount // 135
         val holdMidStartFrame = ceil(0.44 * n).toInt()
         assertEquals(1.0f, CompareSliderRenderEngine.sliderPositionAt(holdMidStartFrame, config), 0.001f)
     }
@@ -81,7 +81,7 @@ class CompareSliderRenderEngineTest {
 
     @Test fun sliderPosition_lastFrame_brandingOn_isZero() {
         val config = cfg(8000, true)
-        val n = config.animationFrameCount // 210
+        val n = config.animationFrameCount // 195
         assertEquals(0.0f, CompareSliderRenderEngine.sliderPositionAt(n - 1, config), 0.001f)
     }
 }

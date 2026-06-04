@@ -180,7 +180,7 @@ Active compare session lifecycle — fully implemented:
 Full specification: `VIDEO_EXPORT_V1.md`
 Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
 
-MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented (Block 3+4 Implemented — Manual Verification Pending). High Quality export implemented and verified (Block 5 Completed):
+MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented (Block 3+4 Implemented — Manual Verification Pending). High Quality export implemented and verified (Block 5 Completed). Branding endcard implemented (Block 6 Implemented — Manual Verification Pending):
 
 - **Renderer Core (Block 1)** — `VideoRenderConfig`, `VideoMode`, `VideoExportFormat`, `VideoQuality` enums; `VideoFrameRenderer` interface; `CompareSliderRenderEngine` (cubic ease-in-out, two-stroke divider, fill semantics); `BeforeAfterRenderEngine` (linear crossfade, fit semantics); canvas setup and bitmap lifecycle; `computeCanvasDimensions` with even-dimension enforcement
 - **Encoding Pipeline (Block 2)** — `VideoEncoder` (MediaCodec H.264/AVC, ByteBuffer input, ARGB→YUV420 conversion, NV12/I420 auto-detect via `MediaCodecList`); `MediaStoreVideoWriter` (IS_PENDING lifecycle, `Movies/SameView`, cleanup on failure); `VideoExportPipeline` (orchestrates decode → render → encode → commit; coroutine-cancellation-safe cleanup via `NonCancellable`)
@@ -194,7 +194,7 @@ MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Cre
 - Share uses Android Share Sheet via `Intent.ACTION_SEND` with MediaStore-URI; opens only on explicit tap
 - Delete Video deletes the MP4 from MediaStore after explicit confirmation; returns to Configuring on success
 - Done / Back from Preview closes the screen; video remains saved; returns to CompareScreen
-- `brandingEnabled` persists via DataStore `sameview_settings`; Default = true; `BrandingEndcardRenderer.kt` does not yet exist — deferred to Block 6; branding toggle has no endcard output effect until Block 6
+- `brandingEnabled` persists via DataStore `sameview_settings`; Default = true; `BrandingEndcardRenderer` renders a 1.5 s endcard (45 frames: 6 fade-in + 33 static + 6 fade-out) when enabled
 - **High Quality + Device Limit Fallback (Block 5)** — High Quality export path is fully wired
 - `VideoEncoder` supports H.265/HEVC via new `codecMimeType` parameter; `findHevcEncoder()` and `isResolutionSupported()` added as static helpers
 - `VideoExportPipeline.resolveEncoderParams()` selects codec and canvas dimensions before MediaStore insert: HEVC preferred for HIGH_QUALITY (silent AVC fallback if no ByteBuffer-capable HEVC encoder found); resolution checked via `VideoCapabilities.isSizeSupported()`; falls back to Standard 1080p if device cannot handle 4K
@@ -437,6 +437,25 @@ Latest verified test state (Video Export Block 5 — Completed 2026-06-04):
 Test class structure note: T-I-01 and T-I-02 were moved from `VideoExportPipelineTest.kt` to `VideoExportPipelineStandardTest.kt` to resolve an ART class-loading issue (ClassNotFoundException caused by coroutine lambda classes from multiple test methods sharing a DEX shard). Both files are in `com.isardomains.sameview.video`; both are black-box instrumentation tests with no reference to production internals.
 
 No open Video Export Block 5 implementation tasks remain.
+
+Latest verified test state (Video Export Block 6 — Implemented 2026-06-04):
+
+- `testDebugUnitTest` — PASSED (387 tests)
+- T-U-09 (branding ON: totalFrameCount = animationFrameCount + 45) — PASSED (3 presets)
+- T-U-10 (branding OFF: totalFrameCount = animationFrameCount) — PASSED (3 presets)
+- `assembleDebug` — BUILD SUCCESSFUL
+- `assembleRelease` — BUILD SUCCESSFUL
+- T-I-02 (branding ON end-to-end + duration check) — Pending device run
+
+Pending manual device verification (required before Block 6 is Completed):
+
+- [ ] Video with brandingEnabled = true: endcard appears after main animation
+- [ ] Video with brandingEnabled = false: no endcard
+- [ ] Fade-in (200 ms) and fade-out (200 ms) visible
+- [ ] Logo visible and correctly scaled (Portrait + Landscape + Original)
+- [ ] "#MadeWithSameView" dominant; "Made with ❤️" smaller; heart = red
+- [ ] Background color #0D1424 correct
+- [ ] Total video duration correct (animation + 1.5 s endcard)
 
 For the next Closed Testing upload, re-run the following verifications after any code change:
 - unit tests

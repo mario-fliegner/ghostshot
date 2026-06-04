@@ -24,15 +24,27 @@ data class VideoRenderConfig(
     val brandingEnabled: Boolean,
     val frameRate: Int = 30
 ) {
+    /** Frames for the main animation; endcard frames are excluded. */
     val animationFrameCount: Int
         get() = if (brandingEnabled) {
-            (durationMs - 1000) * frameRate / 1000
+            (durationMs - BRANDING_DURATION_MS) * frameRate / 1000
         } else {
             durationMs * frameRate / 1000
         }
 
+    /** Total frames including the branding endcard when enabled. */
     val totalFrameCount: Int
-        get() = animationFrameCount + if (brandingEnabled) 30 else 0
+        get() = animationFrameCount + if (brandingEnabled) BRANDING_FRAME_COUNT else 0
+
+    companion object {
+        /** Endcard duration: 1.5 s = 200 ms fade-in + 1100 ms static + 200 ms fade-out. */
+        const val BRANDING_DURATION_MS = 1500
+        /** Total endcard frames at 30 FPS: 6 fade-in + 33 static + 6 fade-out = 45. */
+        const val BRANDING_FRAME_COUNT = 45
+        const val BRANDING_FADE_IN_FRAMES = 6
+        const val BRANDING_STATIC_FRAMES = 33
+        const val BRANDING_FADE_OUT_FRAMES = 6
+    }
 }
 
 fun computeCanvasDimensions(

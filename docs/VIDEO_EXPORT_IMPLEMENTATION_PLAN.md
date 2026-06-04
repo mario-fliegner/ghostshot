@@ -1,6 +1,6 @@
 # VIDEO_EXPORT_IMPLEMENTATION_PLAN.md
 
-**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Block 5 Completed / Blocks 6–7 Planned
+**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Block 5 Completed / Block 6 Implemented — Manual Verification Pending / Block 7 Planned
 **Grundlage:** VIDEO_EXPORT_V1.md (authoritative), CLAUDE_PROJECT_INSTRUCTION.md, COMPARE_FLOW_V1.md, COMPARE_SESSION_RENDERING_V1.md, SESSION_BACKUP_EXPORT_IMPLEMENTATION_PLAN.md, IMPLEMENTATION_NOTES.md, aktueller Codebestand
 **Planerstellt:** 2026-06-02
 **Zuletzt aktualisiert:** 2026-06-04
@@ -668,6 +668,64 @@ Analytics, Tracking, Animierte Endcard (§28 explizit ausgeschlossen)
 
 ---
 
+#### Implementierungsnotizen Block 6 (2026-06-04)
+
+##### Endcard-Timing-Entscheidung
+
+Die Endcard-Dauer wurde auf **1.5 Sekunden** (45 Frames) festgelegt, abweichend von der ursprünglichen Spec (1.0 s / 30 Frames):
+
+| Phase | Dauer | Frames |
+|---|---|---|
+| Fade-in | 200 ms | 6 |
+| Static | 1100 ms | 33 |
+| Fade-out | 200 ms | 6 |
+| **Gesamt** | **1500 ms** | **45** |
+
+##### Implementierte Komponenten
+
+| Komponente | Beschreibung |
+|---|---|
+| `BrandingEndcardRenderer` | Neue Klasse; rendert 45 statische/fade-animierte Endcard-Frames in Canvas; Logo aus `R.mipmap.ic_launcher_foreground`; Background `#0D1424`; "Made with ❤️" (kleinere Schrift) + "#MadeWithSameView" (dominante Schrift); pre-skaliertes Logo; `release()` für Bitmap-Cleanup |
+| `VideoRenderConfig.BRANDING_DURATION_MS` | 1500 (geändert von implizit 1000) |
+| `VideoRenderConfig.BRANDING_FRAME_COUNT` | 45 (geändert von implizit 30) |
+| `VideoRenderConfig.BRANDING_FADE_IN/STATIC/FADE_OUT_FRAMES` | Neue Konstanten (6/33/6) |
+| `VideoExportPipeline` | Konstruktor geändert von `ContentResolver` auf `Context`; Render-Loop getrennt in Animation-Frames + Endcard-Frames; `BrandingEndcardRenderer` in `finally`-Block recycliert |
+| `CreateVideoViewModel` | `pipelineRunner` nutzt `VideoExportPipeline(context)` statt `.contentResolver`; `totalFrames = config.totalFrameCount` (inkl. Endcard-Frames für korrekten Fortschrittsbalken) |
+
+##### Visuelle Hierarchie
+
+```
+[SameView Logo]        ← ic_launcher_foreground, 20% von min(canvasW, canvasH)
+Made with ❤️           ← kleiner (3.3% baseFontSize), ❤️ systemeigene Emoji-Farbe = Rot
+#MadeWithSameView      ← dominant (6.5% baseFontSize, Bold)
+```
+
+Alle Elemente vertikal und horizontal zentriert. Keine formatspezifischen Varianten.
+
+##### Teststatus (2026-06-04)
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` (387 Tests gesamt) | PASSED |
+| T-U-09 (`totalFrameCount_brandingOn_*_animationPlusFortyFive`) | PASSED (3 Tests) |
+| T-U-10 (`totalFrameCount_brandingOff_*_equalsAnimationFrames`) | PASSED (3 Tests) |
+| T-U-01 / T-U-05 (animationFrameCount branding ON aktualisiert) | PASSED |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `assembleRelease` | BUILD SUCCESSFUL |
+| T-I-02 (branding ON + Dauer-Check) | Ausstehend — Geräteverifikation erforderlich |
+
+##### Offene manuelle Verifikation (Block 6)
+
+- [ ] Video mit brandingEnabled = true: Endcard erscheint nach dem Inhalt
+- [ ] Video mit brandingEnabled = false: kein Endcard
+- [ ] Fade-in (200 ms) und Fade-out (200 ms) sichtbar
+- [ ] Logo sichtbar und korrekt skaliert (Portrait + Landscape + Original)
+- [ ] "#MadeWithSameView" dominant; "Made with ❤️" kleiner; ❤️ = rot
+- [ ] Hintergrundfarbe #0D1424 korrekt
+- [ ] Gesamtdauer des Videos korrekt (Animation + 1.5 s Endcard)
+
+---
+
 ### Block 7 — Final Verification
 
 #### Purpose
@@ -867,7 +925,7 @@ Release-APK auf realem Gerät installieren: Video-Export vollständig funktional
 | Block 3 | CreateVideoScreen + ViewModel + Entry Point | **Implemented — Manual Verification Pending** | 2026-06-03 | Gemeinsam mit Block 4 als gekoppelte Einheit implementiert; Section 26 Compliance erfüllt; UX-Polish abgeschlossen |
 | Block 4 | Preview State + Share + Delete | **Implemented — Manual Verification Pending** | 2026-06-03 | ExoPlayer/Media3; Share Sheet; Delete mit Confirmation Dialog; Done/Back; vollständige manuelle Device-Verifikation ausstehend |
 | Block 5 | High Quality + Device Limit Fallback | **Completed** | 2026-06-04 | T-U-20 grün; T-I-01/T-I-02/T-I-03 PASSED on SM-S911B (Android 16); Debug + Release BUILD SUCCESSFUL; T-I-01/T-I-02 in VideoExportPipelineStandardTest.kt nach DEX-Shard-Isolationsfix |
-| Block 6 | Branding Endcard | Planned | — | Finale Typographie; T-U-09–T-U-10, T-I-02 |
+| Block 6 | Branding Endcard | **Implemented — Manual Verification Pending** | 2026-06-04 | Endcard 1.5 s / 45 frames; fade-in/out; logo + "Made with ❤️" + "#MadeWithSameView"; T-U-09–T-U-10 grün; T-I-02 enhanced with duration check |
 | Block 7 | Final Verification | Planned | — | Full suite + Manual Smoke + Release Build |
 
 ---

@@ -6,9 +6,9 @@ import org.junit.Test
 
 class VideoRenderConfigTest {
 
-    // T-U-09 — branding ON: totalFrameCount = animationFrameCount + 30
+    // T-U-09 — branding ON: totalFrameCount = animationFrameCount + 45 (1.5 s endcard at 30 FPS)
 
-    @Test fun totalFrameCount_brandingOn_4s_animationPlusThirty() {
+    @Test fun totalFrameCount_brandingOn_4s_animationPlusFortyFive() {
         val config = VideoRenderConfig(
             videoMode = VideoMode.COMPARE_SLIDER,
             format = VideoExportFormat.ORIGINAL,
@@ -16,11 +16,12 @@ class VideoRenderConfigTest {
             durationMs = 4000,
             brandingEnabled = true
         )
-        assertEquals(config.animationFrameCount + 30, config.totalFrameCount)
-        assertEquals(90 + 30, config.totalFrameCount)
+        // Animation: (4000 - 1500) * 30 / 1000 = 75 frames; endcard: 45 frames; total: 120.
+        assertEquals(config.animationFrameCount + VideoRenderConfig.BRANDING_FRAME_COUNT, config.totalFrameCount)
+        assertEquals(75 + 45, config.totalFrameCount)
     }
 
-    @Test fun totalFrameCount_brandingOn_6s_animationPlusThirty() {
+    @Test fun totalFrameCount_brandingOn_6s_animationPlusFortyFive() {
         val config = VideoRenderConfig(
             videoMode = VideoMode.BEFORE_AFTER,
             format = VideoExportFormat.PORTRAIT_9_16,
@@ -28,11 +29,12 @@ class VideoRenderConfigTest {
             durationMs = 6000,
             brandingEnabled = true
         )
-        assertEquals(config.animationFrameCount + 30, config.totalFrameCount)
-        assertEquals(150 + 30, config.totalFrameCount)
+        // Animation: (6000 - 1500) * 30 / 1000 = 135 frames; endcard: 45 frames; total: 180.
+        assertEquals(config.animationFrameCount + VideoRenderConfig.BRANDING_FRAME_COUNT, config.totalFrameCount)
+        assertEquals(135 + 45, config.totalFrameCount)
     }
 
-    @Test fun totalFrameCount_brandingOn_8s_animationPlusThirty() {
+    @Test fun totalFrameCount_brandingOn_8s_animationPlusFortyFive() {
         val config = VideoRenderConfig(
             videoMode = VideoMode.COMPARE_SLIDER,
             format = VideoExportFormat.LANDSCAPE_16_9,
@@ -40,8 +42,9 @@ class VideoRenderConfigTest {
             durationMs = 8000,
             brandingEnabled = true
         )
-        assertEquals(config.animationFrameCount + 30, config.totalFrameCount)
-        assertEquals(210 + 30, config.totalFrameCount)
+        // Animation: (8000 - 1500) * 30 / 1000 = 195 frames; endcard: 45 frames; total: 240.
+        assertEquals(config.animationFrameCount + VideoRenderConfig.BRANDING_FRAME_COUNT, config.totalFrameCount)
+        assertEquals(195 + 45, config.totalFrameCount)
     }
 
     // T-U-10 — branding OFF: totalFrameCount = animationFrameCount

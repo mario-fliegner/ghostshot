@@ -104,7 +104,7 @@ class CreateVideoViewModel @Inject constructor(
      */
     internal var pipelineRunner: suspend (VideoRenderConfig, File, (Float) -> Unit, suspend () -> Unit) -> Result<Uri> =
         { config, sessionDir, onProgress, onQualityFallback ->
-            VideoExportPipeline(context.contentResolver).run(config, sessionDir, onProgress, onQualityFallback)
+            VideoExportPipeline(context).run(config, sessionDir, onProgress, onQualityFallback)
         }
 
     init {
@@ -179,7 +179,7 @@ class CreateVideoViewModel @Inject constructor(
             brandingEnabled = configState.brandingEnabled
         )
         val sessionDir = File(context.filesDir, "sessions/$sessionId")
-        val totalFrames = config.animationFrameCount
+        val totalFrames = config.totalFrameCount
 
         _state.value = CreateVideoState.Rendering(totalFrames = totalFrames)
         _progress.value = 0f
