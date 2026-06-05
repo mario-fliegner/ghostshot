@@ -32,7 +32,7 @@ Implementierung eines benutzerinitierten, vollständig lokalen MP4-Video-Exports
 | Bestandteil | Beschreibung |
 |---|---|
 | MP4-Export | Vollständiges Video ohne Audio, geschrieben via MediaStore in `Movies/SameView` |
-| Compare Slider Modus | Animierter Vergleich mit Divider-Bewegung (links ↔ rechts) |
+| Compare Slider Modus | Animierter Vergleich mit Divider-Bewegung (links → rechts, Single-Pass) |
 | Before & After Modus | Sequentielle Darstellung beider Bilder mit Crossfade-Übergang |
 | Wizard-Screen | `CreateVideoScreen` mit drei Zuständen: Configuring → Rendering → Preview |
 | MediaStore-Integration | IS_PENDING-Lifecycle; IS_PENDING=0 erst nach erfolgreichem Encoding |
@@ -162,7 +162,7 @@ Alle mathematischen und Bitmap-Rendering-Kernkomponenten implementieren. Keine U
 - **Timing-Präzision (Mittel):** Prozentsatz-basierte Timing-Tabelle aus §14 muss exakt in Frame-Indices übersetzt werden. Rundungsfehler bei Frame-zu-Zeit-Berechnungen können subtile Timing-Abweichungen verursachen. Mitigierung: Unit-Tests für exakte Frame-Positionen.
 - **ContentScale-Unterschied (Mittel):** CompareSlider verwendet Fill (beide Bilder decken volle Canvas ab, unabhängig), Before & After verwendet Fit (beide Bilder vollständig sichtbar mit Padding). Diese Skalierungslogik muss klar getrennt und darf nicht gemischt werden.
 - **Bitmap-Memory (Mittel):** Session-Bitmaps werden vor der Frame-Loop decoded und für die gesamte Render-Dauer gehalten. Bei 4K-Sessions kann das mehrere hundert MB sein. `try/finally`-Block für Recycle ist Pflicht.
-- **Divider-Line Paint Setup (Niedrig):** `Paint.setShadowLayer()` ist verboten (§16.2). Two-Stroke-Ansatz ist Pflicht. Falsches Paint-Setup führt zu Performance-Regression.
+- **Divider-Line Paint Setup (Niedrig):** `Paint.setShadowLayer()` ist verboten (§16.2). Rendering via `canvas.saveLayer()` + DST_IN-`LinearGradient`-Mask (Soft-Transition) + 1 px weißer Core Line gemäß §16.2. Falsches Paint-Setup führt zu Performance-Regression.
 
 #### Required Tests
 
@@ -170,8 +170,8 @@ Alle mathematischen und Bitmap-Rendering-Kernkomponenten implementieren. Keine U
 |---|---|
 | T-U-01 | `CompareSliderRenderEngine.animationFrameCount` korrekt für alle 3 Presets × branding ON/OFF |
 | T-U-02 | Frame 0 (Compare Slider): slider position = 0.0 |
-| T-U-03 | Frame am Hold-mid-Start (Compare Slider): slider position = 1.0 |
-| T-U-04 | Ende der Slide-back-Phase (Compare Slider): slider position = 0.0 |
+| T-U-03 | Erster Frame der Hold-Capture-Phase (Compare Slider, t = 0.60): slider position = 1.0 |
+| T-U-04 | Letzter Animations-Frame (Compare Slider, Hold Capture): slider position = 1.0 |
 | T-U-05 | `BeforeAfterRenderEngine.animationFrameCount` korrekt für alle 3 Presets × branding ON/OFF |
 | T-U-06 | Frame 0 (Before & After): alpha_reference = 1.0, alpha_capture = 0.0 |
 | T-U-07 | Crossfade-Midpoint (Before & After): alpha_reference ≈ 0.5, alpha_capture ≈ 0.5 |
