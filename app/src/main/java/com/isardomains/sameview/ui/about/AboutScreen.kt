@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,15 +73,21 @@ fun AboutScreenContent(
     versionName: String,
     versionCode: Int,
     onBack: () -> Unit,
-    feedbackIntentLauncher: ((Intent) -> Boolean)? = null
+    feedbackIntentLauncher: ((Intent) -> Boolean)? = null,
+    websiteIntentLauncher: ((Intent) -> Boolean)? = null
 ) {
     val context = LocalContext.current
     val feedbackEmail = stringResource(R.string.about_feedback_email)
     val feedbackSubject = stringResource(R.string.about_feedback_subject)
     val noEmailAppMessage = stringResource(R.string.about_feedback_no_email_app)
+    val websiteUrl = stringResource(R.string.about_website_url)
+    val noWebsiteAppMessage = stringResource(R.string.about_no_browser_app)
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val openFeedbackIntent = feedbackIntentLauncher ?: { intent: Intent ->
+        startFeedbackIntent(context, intent)
+    }
+    val openWebsiteIntent = websiteIntentLauncher ?: { intent: Intent ->
         startFeedbackIntent(context, intent)
     }
 
@@ -119,6 +126,14 @@ fun AboutScreenContent(
                 AboutFooter(
                     versionName = versionName,
                     versionCode = versionCode,
+                    onWebsiteClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(websiteUrl))
+                        if (!openWebsiteIntent(intent)) {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(noWebsiteAppMessage)
+                            }
+                        }
+                    },
                     onFeedbackClick = {
                         val intent = Intent(Intent.ACTION_SENDTO).apply {
                             data = Uri.parse("mailto:$feedbackEmail")
@@ -202,13 +217,6 @@ private fun AboutHeroCard() {
                 color = SameViewAboutBodyText,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = stringResource(R.string.about_no_account_required),
-                style = MaterialTheme.typography.bodyMedium,
-                color = SameViewAboutBodyText,
-                textAlign = TextAlign.Center
-            )
         }
     }
 }
@@ -217,6 +225,7 @@ private fun AboutHeroCard() {
 private fun AboutFooter(
     versionName: String,
     versionCode: Int,
+    onWebsiteClick: () -> Unit,
     onFeedbackClick: () -> Unit
 ) {
     Surface(
@@ -232,30 +241,54 @@ private fun AboutFooter(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(SameViewAboutIconSurface)
+                        .defaultMinSize(minHeight = 48.dp)
+                        .clickable(onClick = onWebsiteClick)
+                        .testTag("about_visit_website")
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.about_visit_website),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = SameViewAboutActionText,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(SameViewAboutIconSurface)
+                        .defaultMinSize(minHeight = 48.dp)
+                        .clickable(onClick = onFeedbackClick)
+                        .testTag("about_send_feedback")
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.about_send_feedback),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = SameViewAboutActionText,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = stringResource(R.string.about_version, versionName, versionCode),
                 style = MaterialTheme.typography.bodySmall,
                 color = SameViewAboutFooterText,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(10.dp))
-            Box(
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.small)
-                    .background(SameViewAboutIconSurface)
-                    .defaultMinSize(minHeight = 48.dp)
-                    .clickable(onClick = onFeedbackClick)
-                    .testTag("about_send_feedback")
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.about_send_feedback),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = SameViewAboutActionText,
-                    textAlign = TextAlign.Center
-                )
-            }
         }
     }
 }

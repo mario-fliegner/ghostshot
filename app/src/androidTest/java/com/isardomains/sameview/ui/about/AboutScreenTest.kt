@@ -41,8 +41,10 @@ class AboutScreenTest {
         composeRule.onNodeWithText(context.getString(R.string.about_app_name)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.about_description)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.about_local_device)).assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.about_no_account_required)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.about_version, "9.9", 99)).assertIsDisplayed()
+        composeRule.onNodeWithTag("about_visit_website")
+            .assertIsDisplayed()
+            .assertHasClickAction()
         composeRule.onNodeWithTag("about_send_feedback")
             .assertIsDisplayed()
             .assertHasClickAction()
@@ -74,8 +76,35 @@ class AboutScreenTest {
             .assertIsDisplayed()
     }
 
+    @Test
+    fun websiteClick_invokesWebsiteAction() {
+        var launchCount = 0
+        setAboutContent(
+            websiteIntentLauncher = {
+                launchCount++
+                true
+            }
+        )
+
+        composeRule.onNodeWithTag("about_visit_website").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, launchCount)
+    }
+
+    @Test
+    fun websiteClick_whenNoBrowser_showsFallbackMessage() {
+        setAboutContent(websiteIntentLauncher = { false })
+
+        composeRule.onNodeWithTag("about_visit_website").performClick()
+
+        composeRule.onNodeWithText(context.getString(R.string.about_no_browser_app))
+            .assertIsDisplayed()
+    }
+
     private fun setAboutContent(
-        feedbackIntentLauncher: ((android.content.Intent) -> Boolean)? = null
+        feedbackIntentLauncher: ((android.content.Intent) -> Boolean)? = null,
+        websiteIntentLauncher: ((android.content.Intent) -> Boolean)? = null
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -91,7 +120,8 @@ class AboutScreenTest {
                         versionName = "9.9",
                         versionCode = 99,
                         onBack = {},
-                        feedbackIntentLauncher = feedbackIntentLauncher
+                        feedbackIntentLauncher = feedbackIntentLauncher,
+                        websiteIntentLauncher = websiteIntentLauncher
                     )
                 }
             }
