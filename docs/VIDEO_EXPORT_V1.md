@@ -428,53 +428,51 @@ Let `T` = animation duration in seconds (= total video duration − endcard dura
 
 Endcard duration = 1.5s if branding enabled, 0s if disabled.
 
+Single-pass reveal: the video tells "Before → After" and ends on the result.
+
 | Phase | Start (% of T) | Duration (% of T) | Slider position |
 |---|---|---|---|
-| Hold at 0% | 0% | 12% | 0.0 (fully reference) |
-| Slide forward | 12% | 32% | ease-in-out: 0.0 → 1.0 |
-| Hold at 100% | 44% | 12% | 1.0 (fully capture) |
-| Slide back | 56% | 32% | ease-in-out: 1.0 → 0.0 |
-| Hold at 0% | 88% | 12% | 0.0 (fully reference) |
+| Hold Reference | 0% | 15% | 0.0 (fully reference) |
+| Sweep | 15% | 45% | cubic smoothstep: 0.0 → 1.0 |
+| Hold Capture | 60% | 40% | 1.0 (fully capture) |
 
 **Worked example — 6s, branding OFF:**
 T = 6.0s
 
 | Phase | Start | Duration | End |
 |---|---|---|---|
-| Hold at 0% | 0.00s | 0.72s | 0.72s |
-| Slide forward | 0.72s | 1.92s | 2.64s |
-| Hold at 100% | 2.64s | 0.72s | 3.36s |
-| Slide back | 3.36s | 1.92s | 5.28s |
-| Hold at 0% | 5.28s | 0.72s | 6.00s |
+| Hold Reference | 0.00s | 0.90s | 0.90s |
+| Sweep | 0.90s | 2.70s | 3.60s |
+| Hold Capture | 3.60s | 2.40s | 6.00s |
 
 **Worked example — 6s, branding ON:**
 T = 4.5s (animation) + 1.5s (endcard) = 6.0s
 
 | Phase | Start | Duration | End |
 |---|---|---|---|
-| Hold at 0% | 0.00s | 0.54s | 0.54s |
-| Slide forward | 0.54s | 1.44s | 1.98s |
-| Hold at 100% | 1.98s | 0.54s | 2.52s |
-| Slide back | 2.52s | 1.44s | 3.96s |
-| Hold at 0% | 3.96s | 0.54s | 4.50s |
-| Endcard | 4.50s | 1.50s | 6.00s |
+| Hold Reference | 0.00s | 0.675s | 0.675s |
+| Sweep | 0.675s | 2.025s | 2.700s |
+| Hold Capture | 2.700s | 1.800s | 4.500s |
+| Endcard | 4.500s | 1.500s | 6.000s |
 
 ### 14.2 Easing Function
 
-The ease-in-out function for slider movement is a standard cubic ease-in-out:
+The ease-in-out function for slider movement is cubic smoothstep (Hermite interpolation):
 
 ```
-f(t) = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+f(t) = 3t² − 2t³
 ```
 
-where `t` is the normalized progress within the slide phase (0.0..1.0) and `f(t)` is the normalized slider position (0.0..1.0).
+where `t` is the normalized progress within the sweep phase (0.0..1.0) and `f(t)` is the normalized slider position (0.0..1.0).
+
+Properties: f(0) = 0, f(1) = 1, f′(0) = 0, f′(1) = 0. First and second derivatives are zero at both endpoints, producing a smooth and symmetric ease-in/ease-out acceleration profile.
 
 ### 14.3 Frame Computation
 
 For frame index `i` (0-based, total frames = total duration in seconds × 30):
-1. Compute absolute time: `t_abs = i / 30.0`
-2. Determine phase from timing model
-3. Compute slider position `p ∈ [0.0, 1.0]`
+1. Compute normalized position within animation: `t = i / animationFrameCount`
+2. Determine phase: Hold Reference (t < 0.15), Sweep (0.15 ≤ t < 0.60), Hold Capture (t ≥ 0.60)
+3. Compute slider position `p ∈ [0.0, 1.0]` using §14.2
 4. Render frame at slider position `p` (see Section 17)
 
 ### 14.4 Slider Position Semantics
@@ -556,24 +554,41 @@ The divider line has **no handle element** (no circle, no grip, no UI widget). T
 
 Rationale: The handle communicates "you can drag" to an interactive user. In a video, this affordance is false and visually distracting.
 
-### 16.2 Line Composition
+### 16.2 Divider Rendering
 
-The divider line is rendered as two overlaid strokes drawn directly on the canvas (Canvas API, not Compose):
+The divider is rendered as a gradient soft-transition zone with a 1 px white core line.
 
-| Layer | Width | Color | Purpose |
-|---|---|---|---|
-| Outer (drawn first) | 3 px at 1080p | `rgba(0, 0, 0, 0.55)` | Dark outline for contrast on light content |
-| Inner (drawn on top) | 1 px at 1080p | `#FFFFFF` | White core line, visible on dark content |
+**Gradient soft-transition zone**
 
-Both strokes span the full canvas height.
+A `LinearGradient` alpha mask is applied to the capture layer via `PorterDuff.Mode.DST_IN`, creating a soft-feathered right edge on the capture image centered on the divider position. The reference image is visible beneath wherever the capture alpha fades.
 
-At resolutions other than 1080p, scale proportionally:
-- At 1920px (standard 1080p landscape): outer = 3px, inner = 1px
-- At 2160px height (4K portrait): outer = 6px, inner = 2px (scale by canvas height / 1080)
+| Parameter | Value |
+|---|---|
+| Half-width base | 12 px at 1080p canvas height |
+| Half-width formula | `(12 × canvasHeight / 1080).coerceAtLeast(4)` |
+| Gradient direction | left (capture opaque) → right (capture transparent) |
+| Gradient extent | `[sliderX − halfWidth, sliderX + halfWidth]`, clamped to canvas bounds |
 
-Round all line widths to the nearest integer pixel. Minimum outer width: 2px. Minimum inner width: 1px.
+The gradient zone scales proportionally with canvas height, producing consistent visual weight at all export resolutions (1080p, 4K Portrait, 4K Landscape).
 
-The implementation must not use `Paint.setShadowLayer()` — this requires `LAYER_TYPE_SOFTWARE` and causes performance degradation during frame-by-frame Bitmap rendering. Explicit two-stroke drawing is required.
+**Core line**
+
+A 1 px white stroke is drawn at the exact divider position (`sliderX`) for the full canvas height. This line serves as an orientation anchor in subtle comparisons where image differences are small. It is intentionally thin and fixed at 1 px regardless of resolution — its purpose is perceptual anchoring, not visual weight.
+
+**Implementation**
+
+Rendering sequence per sweep frame:
+1. Fill canvas with `#17202F`
+2. Draw reference bitmap full canvas (fill semantics, base layer)
+3. `canvas.saveLayer(RectF(0, 0, sliderX + halfWidth, canvasHeight), null)`
+4. Draw capture bitmap full canvas (fill semantics, within layer)
+5. Apply `DST_IN` mask: `LinearGradient` from `Color.BLACK` to `Color.TRANSPARENT` over `[gradientLeft, gradientRight]`
+6. `canvas.restore()` (composites masked capture over reference)
+7. Draw 1 px white line at `sliderX`
+
+During Hold Reference (sliderPos = 0.0) and Hold Capture (sliderPos = 1.0), no layer compositing occurs — only the respective bitmap is drawn.
+
+The implementation must not use `Paint.setShadowLayer()` — this requires `LAYER_TYPE_SOFTWARE` and degrades per-frame Bitmap rendering performance.
 
 ---
 
@@ -609,9 +624,9 @@ Endcard frames use `#0D1424` instead (see Section 17.6).
 For slider position `p ∈ [0.0, 1.0]`:
 
 1. Fill canvas with `#17202F`
-2. Draw reference bitmap clipped to left of `p × canvasWidth`
-3. Draw capture bitmap clipped to right of `p × canvasWidth`
-4. Draw divider line at x = `p × canvasWidth` (see Section 16)
+2. Draw reference bitmap full canvas (fill semantics, base layer)
+3. Composite capture over reference using gradient soft-transition (see Section 16.2 for full rendering sequence)
+4. Draw 1 px white core line at `p × canvasWidth` when `0 < p < 1`
 
 ### 17.5 Before & After Frame Rendering
 
@@ -972,8 +987,8 @@ Key names follow the project's existing naming convention. No second naming syst
 |---|---|
 | T-U-01 | `CompareSliderRenderEngine.animationFrameCount` returns correct count for all 3 presets × branding ON/OFF |
 | T-U-02 | Frame 0 (Compare Slider): slider position is 0.0 (fully reference-side) |
-| T-U-03 | Frame at hold-mid start (Compare Slider): slider position is 1.0 (fully capture-side) |
-| T-U-04 | Frame at end of slide-back (Compare Slider): slider position is 0.0 |
+| T-U-03 | First frame of Hold Capture phase (Compare Slider, t = 0.60): slider position is 1.0 |
+| T-U-04 | Last animation frame (Compare Slider): slider position is 1.0 (Hold Capture; no reversal) |
 | T-U-05 | `BeforeAfterRenderEngine.animationFrameCount` returns correct count for all 3 presets × branding ON/OFF |
 | T-U-06 | Frame 0 (Before & After): alpha_reference = 1.0, alpha_capture = 0.0 |
 | T-U-07 | Frame in crossfade midpoint (Before & After): alpha_reference ≈ 0.5, alpha_capture ≈ 0.5 |

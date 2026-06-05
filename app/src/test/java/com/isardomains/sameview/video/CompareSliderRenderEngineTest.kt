@@ -46,42 +46,42 @@ class CompareSliderRenderEngineTest {
         assertEquals(0.0f, CompareSliderRenderEngine.sliderPositionAt(0, config), 0.001f)
     }
 
-    // T-U-03 — slider reaches 1.0 at hold-mid-start (t = 0.44)
+    // T-U-03 — slider reaches 1.0 at hold-capture start (t = 0.60)
 
-    @Test fun sliderPosition_atHoldMidStart_isOne() {
+    @Test fun sliderPosition_atHoldCaptureStart_isOne() {
         val config = cfg(4000, false)
         val n = config.animationFrameCount // 120
-        // First frame where t >= 0.44: ceil(0.44 * 120) = ceil(52.8) = 53
-        val holdMidStartFrame = ceil(0.44 * n).toInt()
-        assertEquals(1.0f, CompareSliderRenderEngine.sliderPositionAt(holdMidStartFrame, config), 0.001f)
+        // First frame where t >= 0.60: ceil(0.60 * 120) = 72
+        val holdCaptureStartFrame = ceil(0.60 * n).toInt()
+        assertEquals(1.0f, CompareSliderRenderEngine.sliderPositionAt(holdCaptureStartFrame, config), 0.001f)
     }
 
-    @Test fun sliderPosition_atHoldMidStart_6s_brandingOn_isOne() {
+    @Test fun sliderPosition_atHoldCaptureStart_6s_brandingOn_isOne() {
         val config = cfg(6000, true)
         val n = config.animationFrameCount // 135
-        val holdMidStartFrame = ceil(0.44 * n).toInt()
-        assertEquals(1.0f, CompareSliderRenderEngine.sliderPositionAt(holdMidStartFrame, config), 0.001f)
+        val holdCaptureStartFrame = ceil(0.60 * n).toInt()
+        assertEquals(1.0f, CompareSliderRenderEngine.sliderPositionAt(holdCaptureStartFrame, config), 0.001f)
     }
 
-    // T-U-04 — slider returns to 0 after slide-back phase (t >= 0.88)
+    // T-U-04 — single-pass ends on hold capture; last animation frame is 1.0, no reversal
 
-    @Test fun sliderPosition_afterSlideBack_isZero() {
+    @Test fun sliderPosition_duringHoldCapture_isOne() {
         val config = cfg(4000, false)
         val n = config.animationFrameCount // 120
-        // First frame where t >= 0.88: ceil(0.88 * 120) = ceil(105.6) = 106
-        val slideBackEndFrame = ceil(0.88 * n).toInt()
-        assertEquals(0.0f, CompareSliderRenderEngine.sliderPositionAt(slideBackEndFrame, config), 0.001f)
+        // Frame at 80 % of animation: well within hold-capture zone (60 %–100 %)
+        val holdCaptureFrame = (0.80 * n).toInt()
+        assertEquals(1.0f, CompareSliderRenderEngine.sliderPositionAt(holdCaptureFrame, config), 0.001f)
     }
 
-    @Test fun sliderPosition_lastAnimationFrame_isZero() {
+    @Test fun sliderPosition_lastAnimationFrame_isOne() {
         val config = cfg(8000, false)
         val n = config.animationFrameCount // 240
-        assertEquals(0.0f, CompareSliderRenderEngine.sliderPositionAt(n - 1, config), 0.001f)
+        assertEquals(1.0f, CompareSliderRenderEngine.sliderPositionAt(n - 1, config), 0.001f)
     }
 
-    @Test fun sliderPosition_lastFrame_brandingOn_isZero() {
+    @Test fun sliderPosition_lastFrame_brandingOn_isOne() {
         val config = cfg(8000, true)
         val n = config.animationFrameCount // 195
-        assertEquals(0.0f, CompareSliderRenderEngine.sliderPositionAt(n - 1, config), 0.001f)
+        assertEquals(1.0f, CompareSliderRenderEngine.sliderPositionAt(n - 1, config), 0.001f)
     }
 }

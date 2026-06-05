@@ -2,24 +2,25 @@ package com.isardomains.sameview.video
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
+import android.graphics.Shader
 
 /**
- * Renders Compare Slider frames onto a canvas.
+ * Renders Compare Slider frames onto a canvas (single-pass reveal).
  *
- * Fill semantics: both bitmaps are scaled to cover the full canvas (center-crop fill),
- * independently of each other. The canvas is split at the slider position — capture fills
- * the left portion [0, sliderX), reference fills the right portion [sliderX, width].
- * A two-stroke divider (3 px dark + 1 px white core) is drawn when the slider is between
- * 0 and 1. No handle is rendered.
+ * Fill semantics: both bitmaps are independently scaled to cover the full canvas.
+ * Reference is drawn as the base layer; capture is composited on top with a gradient
+ * soft-transition zone centered on the divider position, plus a 1 px white core line.
  *
  * Animation timing (% of animationFrameCount):
- *   0–12 %   hold at 0 (left edge)
- *   12–44 %  move right 0 → 100 % (cubic ease-in-out)
- *   44–56 %  hold at 100 % (right edge)
- *   56–88 %  move left 100 → 0 % (cubic ease-in-out)
- *   88–100 % hold at 0 (left edge)
+ *   0–15 %    hold reference (slider at 0.0, reference fully visible)
+ *   15–60 %   sweep: 0.0 → 1.0 (cubic smoothstep)
+ *   60–100 %  hold capture (slider at 1.0, capture fully visible)
  */
 class CompareSliderRenderEngine(
     private val config: VideoRenderConfig,
@@ -28,6 +29,17 @@ class CompareSliderRenderEngine(
 ) : VideoFrameRenderer {
 
     val animationFrameCount: Int = config.animationFrameCount
+
+    private val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+    }
+
+    private val corePaint = Paint().apply {
+        color = Color.WHITE
+        strokeWidth = 1f
+        style = Paint.Style.STROKE
+        isAntiAlias = false
+    }
 
     override fun renderFrame(frameIndex: Int, canvas: Canvas) {
         val w = canvas.width.toFloat()
@@ -38,18 +50,38 @@ class CompareSliderRenderEngine(
         val sliderPos = sliderPositionAt(frameIndex, config)
         val sliderX = sliderPos * w
 
-        canvas.save()
-        canvas.clipRect(sliderX, 0f, w, h)
+        // Reference is always the base layer (full canvas, fill semantics)
         drawBitmapFill(canvas, referenceBitmap, w, h)
-        canvas.restore()
 
-        canvas.save()
-        canvas.clipRect(0f, 0f, sliderX, h)
-        drawBitmapFill(canvas, captureBitmap, w, h)
-        canvas.restore()
+        when {
+            sliderPos <= 0f -> {
+                // Hold Reference: reference only, nothing more to draw
+            }
+            sliderPos >= 1f -> {
+                // Hold Capture: capture covers full canvas, no gradient needed
+                drawBitmapFill(canvas, captureBitmap, w, h)
+            }
+            else -> {
+                // Sweep: capture composited over reference with gradient soft edge
+                val gradientHalfWidth = (GRADIENT_HALF_WIDTH_BASE_PX * (h / 1080f))
+                    .coerceAtLeast(GRADIENT_MIN_PX)
+                val gradientLeft = (sliderX - gradientHalfWidth).coerceAtLeast(0f)
+                val gradientRight = (sliderX + gradientHalfWidth).coerceAtMost(w)
 
-        if (sliderPos > 0f && sliderPos < 1f) {
-            drawDivider(canvas, sliderX, h)
+                // Save layer bounded to the capture region; DST_IN fades the right edge
+                canvas.saveLayer(RectF(0f, 0f, gradientRight, h), null)
+                drawBitmapFill(canvas, captureBitmap, w, h)
+                maskPaint.shader = LinearGradient(
+                    gradientLeft, 0f, gradientRight, 0f,
+                    Color.BLACK, Color.TRANSPARENT,
+                    Shader.TileMode.CLAMP
+                )
+                canvas.drawRect(gradientLeft, 0f, gradientRight, h, maskPaint)
+                canvas.restore()
+
+                // 1 px core line at exact divider position for orientation
+                canvas.drawLine(sliderX, 0f, sliderX, h, corePaint)
+            }
         }
     }
 
@@ -57,6 +89,13 @@ class CompareSliderRenderEngine(
         Companion.sliderPositionAt(frameIndex, config)
 
     companion object {
+        // Single-pass timing fractions (proportion of animationFrameCount)
+        private const val HOLD_REFERENCE_FRACTION = 0.15f   // 0 %–15 %: reference visible
+        private const val SWEEP_END_FRACTION = 0.60f         // 15 %–60 %: sweep; 60 %+: capture hold
+        // Gradient half-width in px at 1080 p base height; scales linearly with canvas height
+        private const val GRADIENT_HALF_WIDTH_BASE_PX = 12f
+        private const val GRADIENT_MIN_PX = 4f
+
         fun animationFrameCount(config: VideoRenderConfig): Int = config.animationFrameCount
 
         internal fun sliderPositionAt(frameIndex: Int, config: VideoRenderConfig): Float {
@@ -64,11 +103,12 @@ class CompareSliderRenderEngine(
             if (n <= 0) return 0f
             val t = frameIndex.toFloat() / n
             return when {
-                t < 0.12f -> 0f
-                t < 0.44f -> cubicEaseInOut((t - 0.12f) / 0.32f)
-                t < 0.56f -> 1f
-                t < 0.88f -> 1f - cubicEaseInOut((t - 0.56f) / 0.32f)
-                else -> 0f
+                t < HOLD_REFERENCE_FRACTION -> 0f
+                t < SWEEP_END_FRACTION ->
+                    cubicEaseInOut(
+                        (t - HOLD_REFERENCE_FRACTION) / (SWEEP_END_FRACTION - HOLD_REFERENCE_FRACTION)
+                    )
+                else -> 1f
             }
         }
 
@@ -88,24 +128,5 @@ class CompareSliderRenderEngine(
         val left = (canvasW - sw) / 2f
         val top = (canvasH - sh) / 2f
         canvas.drawBitmap(bitmap, null, RectF(left, top, left + sw, top + sh), null)
-    }
-
-    private fun drawDivider(canvas: Canvas, x: Float, h: Float) {
-        // Two-stroke approach: shadow layer is forbidden (§16.2).
-        val darkPaint = Paint().apply {
-            color = 0x8C000000.toInt() // rgba(0,0,0,0.55)
-            strokeWidth = 3f
-            style = Paint.Style.STROKE
-            isAntiAlias = false
-        }
-        canvas.drawLine(x, 0f, x, h, darkPaint)
-
-        val whitePaint = Paint().apply {
-            color = 0xFFFFFFFF.toInt()
-            strokeWidth = 1f
-            style = Paint.Style.STROKE
-            isAntiAlias = false
-        }
-        canvas.drawLine(x, 0f, x, h, whitePaint)
     }
 }
