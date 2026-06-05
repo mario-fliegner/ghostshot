@@ -542,9 +542,24 @@ class CameraViewModelTest {
 
     @Test
     fun onOverlayScaled_clampsAtMax() {
-        // 1.0 * 4.0 = 4.0, clamped to 3.0
-        viewModel.onOverlayScaled(4.0f)
-        assertEquals(3.0f, viewModel.uiState.value.overlayScale)
+        // 1.0 * 5.0 = 5.0, clamped to MAX_SCALE (4.0)
+        viewModel.onOverlayScaled(5.0f)
+        assertEquals(4.0f, viewModel.uiState.value.overlayScale)
+    }
+
+    @Test
+    fun maxScale_sufficientForCrossOrientationShowFullImageMode() {
+        // In SHOW_FULL_IMAGE mode, ContentScale.Fit renders a 9:16 portrait reference inside a
+        // 16:9 landscape composable at rendered_width = imageWidth * (vpH / imageH).
+        // For 9:16 in 16:9: rendered_width = 9 * (9/16) = 81/16 of viewport units.
+        // To fill the full landscape viewport width the user needs:
+        //   overlayScale = vpW / rendered_width = 16 / (81/16) = 256/81 ≈ 3.160
+        // MAX_SCALE must be strictly greater than this required value.
+        val requiredScale = (16f / 9f) * (16f / 9f) // 256/81 ≈ 3.160
+        assertTrue(
+            "MAX_SCALE (${CameraViewModel.MAX_SCALE}) must be >= required cross-orientation scale ($requiredScale)",
+            CameraViewModel.MAX_SCALE >= requiredScale
+        )
     }
 
     @Test

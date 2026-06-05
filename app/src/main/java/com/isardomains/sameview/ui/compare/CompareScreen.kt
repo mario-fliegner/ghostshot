@@ -66,7 +66,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -508,7 +507,6 @@ private fun CompareSliderViewport(
         imageLoader = imageLoader
     )
     var sliderFraction by rememberSaveable { mutableFloatStateOf(InitialSliderFraction) }
-    var viewportWidthPx by remember { mutableFloatStateOf(1f) }
     var isOriginalPeekActive by remember { mutableStateOf(false) }
 
     val loadFailed =
@@ -529,7 +527,13 @@ private fun CompareSliderViewport(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            val viewportAspect = if (maxWidth >= maxHeight) {
+            val refIntrinsicSize = referencePainter.intrinsicSize
+            val viewportAspect = if (
+                refIntrinsicSize.width > 0f && refIntrinsicSize.height > 0f &&
+                refIntrinsicSize.width.isFinite() && refIntrinsicSize.height.isFinite()
+            ) {
+                refIntrinsicSize.width / refIntrinsicSize.height
+            } else if (maxWidth >= maxHeight) {
                 16f / 9f
             } else {
                 9f / 16f
@@ -546,6 +550,20 @@ private fun CompareSliderViewport(
                 targetHeightFromWidth
             }
 
+            val density = LocalDensity.current
+            val targetWPx = with(density) { targetWidth.toPx() }
+            val targetHPx = with(density) { targetHeight.toPx() }
+            val imageBounds = computeFitBounds(
+                containerWidthPx = targetWPx,
+                containerHeightPx = targetHPx,
+                imageWidthPx = refIntrinsicSize.width,
+                imageHeightPx = refIntrinsicSize.height,
+                contentScale = contentScale
+            )
+            val clipFraction = if (targetWPx > 0f) {
+                (imageBounds.offsetXPx + imageBounds.widthPx * sliderFraction) / targetWPx
+            } else sliderFraction
+
             val intrinsicSize = originalReferencePainter.intrinsicSize
             val peekContentScale = resolveOriginalReferencePeekContentScale(
                 viewportWidth = maxWidth.value,
@@ -560,13 +578,10 @@ private fun CompareSliderViewport(
                     .size(width = targetWidth, height = targetHeight)
                     .clip(RoundedCornerShape(CompareViewportCornerRadius))
                     .background(SameViewAppSurface)
-                    .onSizeChanged { size ->
-                        viewportWidthPx = size.width.coerceAtLeast(1).toFloat()
-                    }
-                    .pointerInput(viewportWidthPx) {
+                    .pointerInput(imageBounds) {
                         detectDragGestures { change, dragAmount ->
                             change.consume()
-                            sliderFraction = (sliderFraction + (dragAmount.x / viewportWidthPx))
+                            sliderFraction = (sliderFraction + (dragAmount.x / imageBounds.widthPx))
                                 .coerceIn(0f, 1f)
                         }
                     }
@@ -581,7 +596,7 @@ private fun CompareSliderViewport(
                     imageTestTag = "compare_reference_image",
                     renderSurfaceTestTag = "compare_reference_surface",
                     contentScale = contentScale,
-                    revealLeftFraction = sliderFraction,
+                    revealLeftFraction = clipFraction,
                     modifier = Modifier.matchParentSize()
                 )
                 CompareViewportImage(
@@ -590,7 +605,7 @@ private fun CompareSliderViewport(
                     imageTestTag = "compare_capture_image",
                     renderSurfaceTestTag = "compare_capture_surface",
                     contentScale = contentScale,
-                    revealRightFraction = sliderFraction,
+                    revealRightFraction = clipFraction,
                     modifier = Modifier.matchParentSize()
                 )
 
@@ -627,10 +642,11 @@ private fun CompareSliderViewport(
                 if (!isOriginalPeekActive) {
                     CompareDivider(
                         sliderFraction = sliderFraction,
-                        viewportWidthPx = viewportWidthPx,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .fillMaxHeight()
+                        imageOffsetXPx = imageBounds.offsetXPx,
+                        imageRenderedWPx = imageBounds.widthPx,
+                        imageOffsetYPx = imageBounds.offsetYPx,
+                        imageRenderedHPx = imageBounds.heightPx,
+                        modifier = Modifier.align(Alignment.TopStart)
                     )
                 }
             }
@@ -858,19 +874,25 @@ private fun CompareLabelBadge(
 @Composable
 private fun CompareDivider(
     sliderFraction: Float,
-    viewportWidthPx: Float,
+    imageOffsetXPx: Float,
+    imageRenderedWPx: Float,
+    imageOffsetYPx: Float,
+    imageRenderedHPx: Float,
     modifier: Modifier = Modifier
 ) {
-    val dividerOffsetPx = (viewportWidthPx * sliderFraction).roundToInt()
+    val density = LocalDensity.current
+    val dividerXPx = (imageOffsetXPx + imageRenderedWPx * sliderFraction).roundToInt()
+    val imageHeightDp = with(density) { imageRenderedHPx.toDp() }
     val sliderDescription = stringResource(R.string.compare_slider_content_description)
 
     Box(
         modifier = modifier
             .width(CompareSliderTouchWidth)
+            .height(imageHeightDp)
             .offset {
                 IntOffset(
-                    x = dividerOffsetPx - (CompareSliderTouchWidth.roundToPx() / 2),
-                    y = 0
+                    x = dividerXPx - (CompareSliderTouchWidth.roundToPx() / 2),
+                    y = imageOffsetYPx.roundToInt()
                 )
             }
             .testTag("compare_slider")
@@ -973,6 +995,36 @@ private fun CompareMessageFallback(
             }
         }
     }
+}
+
+private data class FitBounds(
+    val offsetXPx: Float,
+    val offsetYPx: Float,
+    val widthPx: Float,
+    val heightPx: Float
+)
+
+private fun computeFitBounds(
+    containerWidthPx: Float,
+    containerHeightPx: Float,
+    imageWidthPx: Float,
+    imageHeightPx: Float,
+    contentScale: ContentScale
+): FitBounds {
+    if (contentScale == ContentScale.Crop ||
+        imageWidthPx <= 0f || imageHeightPx <= 0f ||
+        !imageWidthPx.isFinite() || !imageHeightPx.isFinite()) {
+        return FitBounds(0f, 0f, containerWidthPx, containerHeightPx)
+    }
+    val scale = minOf(containerWidthPx / imageWidthPx, containerHeightPx / imageHeightPx)
+    val renderedW = imageWidthPx * scale
+    val renderedH = imageHeightPx * scale
+    return FitBounds(
+        offsetXPx = (containerWidthPx - renderedW) / 2f,
+        offsetYPx = (containerHeightPx - renderedH) / 2f,
+        widthPx = renderedW,
+        heightPx = renderedH
+    )
 }
 
 internal fun resolveOriginalReferencePeekContentScale(

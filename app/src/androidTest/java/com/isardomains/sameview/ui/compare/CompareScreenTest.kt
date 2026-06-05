@@ -1398,6 +1398,52 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_screen_create_video_button").assertDoesNotExist()
     }
 
+    // --- FitBounds tests ---
+
+    @Test
+    fun viewport_landscapeImage_inPortraitDevice_viewportIsLandscapeShaped() {
+        val refFile = File.createTempFile("vp_ls_ref", ".png", context.cacheDir)
+        val capFile = File.createTempFile("vp_ls_cap", ".png", context.cacheDir)
+        createImageFileWithSize(refFile, Color.rgb(200, 100, 100), 800, 450)
+        createImageFileWithSize(capFile, Color.rgb(100, 100, 200), 800, 450)
+
+        setCompareContent(Uri.fromFile(refFile), Uri.fromFile(capFile))
+        waitForSliderViewport()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runCatching {
+                val b = composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot()
+                (b.right - b.left) > (b.bottom - b.top)
+            }.getOrDefault(false)
+        }
+
+        val vpBounds = composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot()
+        val vpW = vpBounds.right - vpBounds.left
+        val vpH = vpBounds.bottom - vpBounds.top
+        assertTrue("Landscape image in portrait device: viewport width ($vpW) must exceed height ($vpH)", vpW > vpH)
+    }
+
+    @Test
+    fun viewport_portraitImage_inPortraitDevice_viewportIsPortraitShaped() {
+        // Landscape-device cross-orientation case not automated: requestedOrientation triggers
+        // activity recreation, making reliable content re-injection non-trivial with createEmptyComposeRule.
+        // Manual verification covers spec cases 3 & 4. This test exercises the same viewportAspect
+        // derivation path for the symmetrical (portrait-in-portrait) case as a regression guard.
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+        waitForSliderViewport()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runCatching {
+                val b = composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot()
+                (b.bottom - b.top) > (b.right - b.left)
+            }.getOrDefault(false)
+        }
+
+        val vpBounds = composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot()
+        val vpW = vpBounds.right - vpBounds.left
+        val vpH = vpBounds.bottom - vpBounds.top
+        assertTrue("Portrait image in portrait device: viewport height ($vpH) must exceed width ($vpW)", vpH > vpW)
+    }
+
     private fun setCompareContent(
         referenceImageUri: Uri?,
         captureImageUri: Uri?,
@@ -1499,6 +1545,16 @@ class CompareScreenTest {
     private fun createImageFile(file: File, color: Int) {
         tempFiles += file
         val bitmap = Bitmap.createBitmap(120, 200, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(color)
+        file.outputStream().use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        }
+        bitmap.recycle()
+    }
+
+    private fun createImageFileWithSize(file: File, color: Int, width: Int, height: Int) {
+        tempFiles += file
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         bitmap.eraseColor(color)
         file.outputStream().use { stream ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)

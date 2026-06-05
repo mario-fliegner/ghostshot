@@ -393,8 +393,10 @@ class CameraViewModel @Inject constructor(
     companion object {
         /** Minimum allowed scale for the reference image overlay. */
         const val MIN_SCALE = 0.5f
-        /** Maximum allowed scale for the reference image overlay. */
-        const val MAX_SCALE = 3.0f
+        /** Maximum allowed scale for the reference image overlay.
+         *  Must be ≥ (16/9)² ≈ 3.16, the scale required to fill a 16:9 landscape viewport
+         *  with a 9:16 portrait reference (or vice versa) in SHOW_FULL_IMAGE mode. */
+        const val MAX_SCALE = 4.0f
 
         private const val LOG_TAG = "SameView"
         private const val NO_CAPTURE_TOKEN_ID = 0L
