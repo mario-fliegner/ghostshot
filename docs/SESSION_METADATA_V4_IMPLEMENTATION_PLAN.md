@@ -479,7 +479,7 @@ Write `additional: {isFavorite: false, visibility: "private", source: "sameview"
 
 ### Block C — content Block Cleanup (Fix §12.1 Violation)
 
-**Status:** Not Started
+**Status:** Completed (2026-06-09)
 
 **Goal:**
 Remove `"description": null` and `"tags": []` from the `content` block at session creation. The `content` block must be absent at creation unless a title is already present. This fixes the active `SESSION_METADATA_V1.md §12.1` violation.
@@ -512,6 +512,12 @@ Remove `"description": null` and `"tags": []` from the `content` block at sessio
 - Full test suite green
 
 **Real-Device Validation Required:** No.
+
+**Test Results (2026-06-09):**
+- `writtenJson_contentBlock_isAbsent_atCreationWithoutTitle` — PASSED on SM-S911B (Android 16)
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `SessionStorageMetadataTest` (33/33) — PASSED on SM-S911B (Android 16)
+- `SessionScannerTest` (30/30) — PASSED on SM-S911B (Android 16)
 
 ---
 

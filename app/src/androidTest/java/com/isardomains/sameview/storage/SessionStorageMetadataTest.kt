@@ -260,6 +260,12 @@ class SessionStorageMetadataTest {
     }
 
     @Test
+    fun writtenJson_contentBlock_isAbsent_atCreationWithoutTitle() {
+        val json = readMetadata(saveTestSession())
+        assertFalse(json.has("content"))
+    }
+
+    @Test
     fun metadataFile_additional_isFavorite_isFalse() {
         val json = readMetadata(saveTestSession())
         assertFalse(json.getJSONObject("additional").getBoolean("isFavorite"))

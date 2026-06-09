@@ -10,7 +10,6 @@ import android.net.Uri
 import android.util.Log
 import com.isardomains.sameview.AppConstants
 import com.isardomains.sameview.BuildConfig
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -252,10 +251,6 @@ internal object SessionStorage {
                 put("capture", FILE_CAPTURE)
                 put("reference", FILE_REFERENCE)
                 put("referenceOriginal", FILE_REFERENCE_ORIGINAL)
-            })
-            put("content", JSONObject().apply {
-                put("description", JSONObject.NULL)
-                put("tags", JSONArray())
             })
             put("capture", JSONObject().apply {
                 put("timestampMs", sessionTimestampMs)
