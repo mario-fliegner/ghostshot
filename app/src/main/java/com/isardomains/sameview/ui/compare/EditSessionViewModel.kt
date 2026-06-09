@@ -29,33 +29,39 @@ sealed interface EditSessionEvent {
 }
 
 /**
- * Carries the five user-editable metadata fields read from metadata.json at editor open time.
+ * Carries the user-editable metadata fields read from metadata.json at editor open time.
  *
- * All fields default to an empty string when the corresponding JSON block or field is absent.
+ * All fields default to an empty string / zero when the corresponding JSON block or field is
+ * absent. New fields use default values so existing test call sites using positional constructor
+ * syntax continue to compile.
  */
 internal data class InitialSessionFields(
     val title: String,
     val referenceDate: String,
     val locationDisplayName: String,
     val locationCity: String,
-    val locationCountry: String
+    val locationCountry: String,
+    val description: String = "",
+    val captureTimestampMs: Long = 0L,
+    val referenceSourceDisplayName: String = ""
 )
 
 /**
  * ViewModel for [EditSessionScreen].
  *
- * On init, reads the five user-editable metadata fields (title, reference date, and the three
- * location fields) from the session's metadata.json on the IO dispatcher and exposes them as
- * [StateFlow]s. The read is best-effort: any IO or parse error leaves all fields at their empty
- * initial values without crashing.
+ * On init, reads the editable metadata fields (title, description, reference date, location, and
+ * read-only reference metadata) from the session's metadata.json on the IO dispatcher. The read
+ * is best-effort: any IO or parse error leaves all fields at their empty initial values.
  *
- * [isDirty] is true when any current field value differs from the loaded initial value (after
- * blank normalization). The Save button is enabled when [isDirty] is true and [isSaving] is false.
+ * [isDirty] is true when any current editable field value differs from the loaded initial value
+ * (after blank normalization). The Save button is enabled when [isDirty] is true and [isSaving]
+ * is false.
  *
  * [onSave] validates the reference date field first. On validation failure, sets [referenceDateError]
  * and returns without writing. On validation success, writes changed field groups in order:
- * title → referenceDate → location. Emits [EditSessionEvent.SaveComplete] when all writes succeed
- * (or no writes were needed); emits [EditSessionEvent.SaveFailed] if any storage write returns false.
+ * content (title+description) → referenceDate → location. Emits [EditSessionEvent.SaveComplete]
+ * when all writes succeed (or no writes were needed); emits [EditSessionEvent.SaveFailed] if any
+ * storage write returns false.
  *
  * [sessionId] is provided by Navigation Compose via [SavedStateHandle].
  */
@@ -73,6 +79,7 @@ class EditSessionViewModel @Inject constructor(
     // ── Initial field values (set before corresponding StateFlows to keep isDirty stable) ──
 
     private var initialTitle = ""
+    private var initialDescription = ""
     private var initialReferenceDate = ""
     private var initialLocationDisplayName = ""
     private var initialLocationCity = ""
@@ -84,7 +91,7 @@ class EditSessionViewModel @Inject constructor(
     /** True while the initial metadata.json read is in progress, false once complete. */
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // ── Field StateFlows ────────────────────────────────────────────────────────
+    // ── Editable field StateFlows ───────────────────────────────────────────────
 
     private val _titleField = MutableStateFlow("")
     /** Current value of content.title; empty string when absent. */
@@ -93,6 +100,16 @@ class EditSessionViewModel @Inject constructor(
     /** Updates the title field as the user types. */
     fun onTitleChanged(value: String) {
         _titleField.value = value
+        updateIsDirty()
+    }
+
+    private val _descriptionField = MutableStateFlow("")
+    /** Current value of content.description; empty string when absent. */
+    val descriptionField: StateFlow<String> = _descriptionField.asStateFlow()
+
+    /** Updates the description field as the user types. */
+    fun onDescriptionChanged(value: String) {
+        _descriptionField.value = value
         updateIsDirty()
     }
 
@@ -152,12 +169,22 @@ class EditSessionViewModel @Inject constructor(
         updateIsDirty()
     }
 
+    // ── Read-only reference metadata StateFlows ─────────────────────────────────
+
+    private val _captureTimestampMs = MutableStateFlow(0L)
+    /** Epoch-millisecond capture timestamp from capture.timestampMs; 0 when absent. */
+    val captureTimestampMs: StateFlow<Long> = _captureTimestampMs.asStateFlow()
+
+    private val _referenceSourceDisplayName = MutableStateFlow("")
+    /** Raw reference.sourceDisplayName value from metadata.json; empty when absent. */
+    val referenceSourceDisplayName: StateFlow<String> = _referenceSourceDisplayName.asStateFlow()
+
     // ── Dirty and saving state ──────────────────────────────────────────────────
 
     private val _isDirty = MutableStateFlow(false)
     /**
-     * True when any current field value differs from its loaded initial value (blank-normalized).
-     * The Save button is enabled when this is true and [isSaving] is false.
+     * True when any current editable field value differs from its loaded initial value
+     * (blank-normalized). The Save button is enabled when this is true and [isSaving] is false.
      */
     val isDirty: StateFlow<Boolean> = _isDirty.asStateFlow()
 
@@ -172,6 +199,7 @@ class EditSessionViewModel @Inject constructor(
     private fun updateIsDirty() {
         _isDirty.value =
             normalizeField(_titleField.value) != normalizeField(initialTitle) ||
+            normalizeField(_descriptionField.value) != normalizeField(initialDescription) ||
             normalizeField(_referenceDateField.value) != normalizeField(initialReferenceDate) ||
             normalizeField(_locationDisplayNameField.value) != normalizeField(initialLocationDisplayName) ||
             normalizeField(_locationCityField.value) != normalizeField(initialLocationCity) ||
@@ -186,9 +214,9 @@ class EditSessionViewModel @Inject constructor(
 
     // ── Storage lambdas (replaceable for unit tests) ─────────────────────────
 
-    /** Replaceable for unit tests. Defaults to [SessionStorage.updateTitle]. */
-    internal var sessionTitleUpdater: (File, String, String?) -> Boolean =
-        { root, id, title -> SessionStorage.updateTitle(root, id, title) }
+    /** Replaceable for unit tests. Defaults to [SessionStorage.updateContent]. */
+    internal var sessionContentUpdater: (File, String, String?, String?) -> Boolean =
+        { root, id, title, description -> SessionStorage.updateContent(root, id, title, description) }
 
     /** Replaceable for unit tests. Defaults to [SessionStorage.updateReferenceDate]. */
     internal var sessionReferenceDateUpdater: (File, String, String?) -> Boolean =
@@ -201,7 +229,7 @@ class EditSessionViewModel @Inject constructor(
     // ── Metadata reader ─────────────────────────────────────────────────────
 
     /**
-     * Reads the five editor fields from metadata.json.
+     * Reads all editor fields from metadata.json.
      *
      * Replaceable for unit tests. The default implementation reads the file synchronously;
      * call sites always dispatch to [ioDispatcher].
@@ -212,13 +240,17 @@ class EditSessionViewModel @Inject constructor(
             val json = JSONObject(metadataFile.readText())
             val contentObj = json.optJSONObject("content")
             val referenceObj = json.optJSONObject("reference")
+            val captureObj = json.optJSONObject("capture")
             val locationObj = json.optJSONObject("location")
             InitialSessionFields(
                 title = contentObj?.optString("title", "") ?: "",
+                description = contentObj?.optString("description", "") ?: "",
                 referenceDate = referenceObj?.optString("date", "") ?: "",
                 locationDisplayName = locationObj?.optString("displayName", "") ?: "",
                 locationCity = locationObj?.optString("city", "") ?: "",
-                locationCountry = locationObj?.optString("country", "") ?: ""
+                locationCountry = locationObj?.optString("country", "") ?: "",
+                captureTimestampMs = captureObj?.optLong("timestampMs", 0L) ?: 0L,
+                referenceSourceDisplayName = referenceObj?.optString("sourceDisplayName", "") ?: ""
             )
         }
 
@@ -231,17 +263,21 @@ class EditSessionViewModel @Inject constructor(
                 }
                 // Set initial values BEFORE field StateFlows so isDirty stays false after load.
                 initialTitle = fields.title
+                initialDescription = fields.description
                 initialReferenceDate = fields.referenceDate
                 initialLocationDisplayName = fields.locationDisplayName
                 initialLocationCity = fields.locationCity
                 initialLocationCountry = fields.locationCountry
                 _titleField.value = fields.title
+                _descriptionField.value = fields.description
                 _referenceDateField.value = fields.referenceDate
                 _locationDisplayNameField.value = fields.locationDisplayName
                 _locationCityField.value = fields.locationCity
                 _locationCountryField.value = fields.locationCountry
+                _captureTimestampMs.value = fields.captureTimestampMs
+                _referenceSourceDisplayName.value = fields.referenceSourceDisplayName
             } catch (e: Exception) {
-                // All fields remain at their initial empty-string values.
+                // All fields remain at their initial empty-string / zero values.
             } finally {
                 _isLoading.value = false
             }
@@ -250,8 +286,9 @@ class EditSessionViewModel @Inject constructor(
 
     /**
      * Validates the reference date field, then writes all changed fields to storage in order:
-     * title → referenceDate → location. Emits [EditSessionEvent.SaveComplete] on success or when
-     * no fields changed; emits [EditSessionEvent.SaveFailed] if any storage write returns false.
+     * content (title+description) → referenceDate → location. Emits [EditSessionEvent.SaveComplete]
+     * on success or when no fields changed; emits [EditSessionEvent.SaveFailed] if any storage
+     * write returns false.
      *
      * If reference date validation fails, sets [referenceDateError] and returns without writing.
      * Blank normalization (trim + empty → null) is applied at save time only; field display values
@@ -271,15 +308,19 @@ class EditSessionViewModel @Inject constructor(
                 val sessionsRoot = File(context.filesDir, "sessions")
 
                 val normalizedTitle = normalizeField(_titleField.value)
+                val normalizedDescription = normalizeField(_descriptionField.value)
                 val normalizedRefDate = normalizeField(_referenceDateField.value)
                 val normalizedDisplayName = normalizeField(_locationDisplayNameField.value)
                 val normalizedCity = normalizeField(_locationCityField.value)
                 val normalizedCountry = normalizeField(_locationCountryField.value)
 
-                // 1. Write title if changed.
-                if (normalizedTitle != normalizeField(initialTitle)) {
+                // 1. Write content (title + description) if either changed.
+                val contentChanged =
+                    normalizedTitle != normalizeField(initialTitle) ||
+                    normalizedDescription != normalizeField(initialDescription)
+                if (contentChanged) {
                     val ok = withContext(ioDispatcher) {
-                        sessionTitleUpdater(sessionsRoot, sessionId, normalizedTitle)
+                        sessionContentUpdater(sessionsRoot, sessionId, normalizedTitle, normalizedDescription)
                     }
                     if (!ok) { _events.emit(EditSessionEvent.SaveFailed); return@launch }
                 }
@@ -310,6 +351,7 @@ class EditSessionViewModel @Inject constructor(
                 // All writes succeeded (or no writes were needed).
                 // Update initial fields so isDirty resets to false.
                 initialTitle = normalizedTitle ?: ""
+                initialDescription = normalizedDescription ?: ""
                 initialReferenceDate = normalizedRefDate ?: ""
                 initialLocationDisplayName = normalizedDisplayName ?: ""
                 initialLocationCity = normalizedCity ?: ""

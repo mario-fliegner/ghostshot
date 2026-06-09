@@ -807,7 +807,113 @@ The following must remain unaffected and pass:
 | Block E | Location fields | Completed |
 | Block F | Save workflow | Completed |
 | Block G | Dirty state + discard dialog | Completed |
+| Block UX | Session Metadata Editor UX Correction (Pre-Block-H) | Completed |
 | Block H | Full test coverage + regression verification | Not started |
+
+---
+
+## Block UX — Session Metadata Editor UX Correction (Pre-Block-H)
+
+**Status:** Completed (2026-06-09)
+
+### Goal
+
+Rebuild `EditSessionScreen` to product-ready UX quality. Add `description` field. Add `SessionStorage.updateContent()` as the atomic content-block write function. Extend `EditSessionViewModel` with description, captureTimestampMs, and referenceSourceDisplayName. Migrate the editor's write path from `updateTitle` to `updateContent` (title + description as an atomic pair). Add reference photo thumbnail and session date display. Add DatePicker for reference date. Reorganize into 3 `SettingsCard` groups with a sticky Save button in `Scaffold.bottomBar`.
+
+### Binding Product Decisions
+
+- Label for capture date in Reference Photo card: **"Session Date"** (not "Captured")
+- `updateContent()` is the **sole** write path for title + description in the editor; `updateTitle()` is preserved but no longer called by the editor
+- `content` block is **never removed** even when both title and description are null → `"content": {}`
+- Description field: `minLines = 3`, no `maxLines`
+- Thumbnail source: `reference.jpg` exclusively
+- `referenceImageUri` is a UI-level derivation (not a ViewModel StateFlow)
+- Capture date format: `DateFormat.MEDIUM` + `LocalConfiguration.current.locales[0]`
+- Save button: `enabled = isDirty && !isSaving` — verbindlich
+
+### What Changes
+
+**`SessionStorage.kt`:**
+- Added `fun updateContent(sessionsRoot, sessionId, title, description): Boolean`
+  - Trims both fields; blank → null
+  - Reads or creates content JSONObject
+  - Sets/removes title and description
+  - Always writes `json.put("content", content)` — never removes the block
+  - Returns false on invalid sessionId, path traversal, missing metadata.json, IO/security errors
+
+**`EditSessionViewModel.kt`:**
+- `InitialSessionFields` extended with `description: String = ""`, `captureTimestampMs: Long = 0L`, `referenceSourceDisplayName: String = ""` (all with defaults for backward compat with existing test call sites)
+- Added `_descriptionField`, `descriptionField`, `onDescriptionChanged()`
+- Added `_captureTimestampMs`, `captureTimestampMs` (read-only, loaded from `capture.timestampMs`)
+- Added `_referenceSourceDisplayName`, `referenceSourceDisplayName` (read-only, loaded from `reference.sourceDisplayName`)
+- Removed `sessionTitleUpdater` lambda; added `sessionContentUpdater: (File, String, String?, String?) -> Boolean`
+- `metadataReader` updated to read description, captureTimestampMs, referenceSourceDisplayName
+- `updateIsDirty()` extended to include description
+- `onSave()` uses `sessionContentUpdater` for content group (title+description atomically)
+- `initialDescription` reset after successful save
+
+**`EditSessionScreen.kt`:**
+- Full rebuild:
+  - TopAppBar: subtitle column (`SameViewSettingsSecondaryText`), no Save in actions slot
+  - `Scaffold.bottomBar`: `Button` with `imePadding()` + `navigationBarsPadding()`; `enabled = isDirty && !isSaving`
+  - 3 `SettingsCard` groups: **Session** (title + description), **Reference Photo** (thumbnail row + reference date field), **Location** (place name + city + country)
+  - `Column(Arrangement.spacedBy(14.dp))` in content area (mirrors SettingsScreen layout)
+  - Thumbnail: `rememberAsyncImagePainter` + `androidx.compose.foundation.Image`, `size(64.dp)`, `clip(MaterialTheme.shapes.small)`, `ContentScale.Crop`
+  - Reference metadata: "Filename" and "Session Date" labels with `SameViewSettingsSecondaryText` / `SameViewSettingsLabelText`
+  - DatePicker: `DatePickerDialog` triggered by calendar `IconButton` trailing icon on reference date field
+  - `referenceImageUri`: `remember(viewModel.sessionId) { Uri.fromFile(...) }`
+  - `referenceFilename`: `remember(referenceSourceDisplayName) { Uri.parse(...).lastPathSegment }`
+  - `captureDate`: `remember(captureTimestampMs, locale)` using `DateFormat.MEDIUM`
+  - Location fields use `edit_session_field_place_name` label (was `edit_session_field_location_display_name`)
+  - All dialogs (discard, saving-in-progress) preserved from Block G
+
+**`strings.xml`:**
+- Updated `edit_session_screen_title` value: "Edit Session" (capital S)
+- Added: `edit_session_subtitle`, `edit_session_save_changes`, `edit_session_card_session`, `edit_session_card_reference_photo`, `edit_session_card_location`, `edit_session_field_description`, `edit_session_placeholder_title`, `edit_session_placeholder_description`, `edit_session_placeholder_reference_date`, `edit_session_reference_date_help`, `edit_session_label_filename`, `edit_session_label_session_date`, `edit_session_pick_date_content_description`, `edit_session_field_place_name`, `edit_session_placeholder_place_name`, `edit_session_placeholder_city`, `edit_session_placeholder_country`
+
+**`EditSessionViewModelTest.kt`:**
+- `createViewModel()` helper: `titleUpdater` param → `contentUpdater: (File, String, String?, String?) -> Boolean`
+- 7 existing tests migrated from `titleUpdater` to `contentUpdater`:
+  - `onSave_withValidTitle_callsTitleUpdater` → `onSave_withChangedTitle_callsContentUpdater`
+  - `onSave_withUnchangedTitle_doesNotCallTitleUpdater` → `onSave_withUnchangedTitle_doesNotCallContentUpdater`
+  - `onSave_withBlankTitle_callsTitleUpdaterWithNull` → `onSave_withBlankTitle_callsContentUpdaterWithNullTitle`
+  - `onSave_titleUpdaterFails_emitsSaveFailed` → `onSave_contentUpdaterFails_emitsSaveFailed`
+  - `onSave_titleUpdaterFails_doesNotEmitSaveComplete` → `onSave_contentUpdaterFails_doesNotEmitSaveComplete`
+  - `onSave_storageOrderIsTitleThenReferenceDateThenLocation` → `onSave_storageOrderIsContentThenReferenceDateThenLocation`
+  - `onSave_noFieldChanged_emitsSaveComplete_withoutCallingAnyUpdater` (updated to use `contentUpdater`)
+- 4 new description tests added:
+  - `initialState_descriptionLoaded_fromMetadata`
+  - `onDescriptionChanged_updatesState`
+  - `isDirty_trueAfterDescriptionChanged`
+  - `onSave_withChangedDescription_callsContentUpdater`
+
+**`SessionStorageMetadataTest.kt`:**
+- Added `createSessionWithContentFields()` helper
+- Added 6 `updateContent` tests:
+  - `updateContent_writesTitleAndDescription`
+  - `updateContent_removesTitleWhenNull`
+  - `updateContent_removesDescriptionWhenNull`
+  - `updateContent_keepsContentBlockWhenBothNull`
+  - `updateContent_rejectsPathTraversal`
+  - `updateContent_returnsFalseWhenMetadataMissing`
+
+### Affected Files
+
+| File | Change Type |
+|---|---|
+| `app/src/main/java/com/isardomains/sameview/ui/camera/SessionStorage.kt` | Modified |
+| `app/src/main/java/com/isardomains/sameview/ui/compare/EditSessionViewModel.kt` | Modified |
+| `app/src/main/java/com/isardomains/sameview/ui/compare/EditSessionScreen.kt` | Rebuilt |
+| `app/src/main/res/values/strings.xml` | Modified |
+| `app/src/test/java/com/isardomains/sameview/ui/compare/EditSessionViewModelTest.kt` | Modified |
+| `app/src/androidTest/java/com/isardomains/sameview/storage/SessionStorageMetadataTest.kt` | Modified |
+
+### Block UX Test Results (2026-06-09)
+
+- All 50 `EditSessionViewModelTest` — PASSED (46 existing migrated + 4 new)
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+- `SessionStorageMetadataTest.updateContent_*` — 6 tests added (require instrumented device run)
 
 ---
 

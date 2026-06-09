@@ -951,4 +951,102 @@ class SessionStorageMetadataTest {
         val sessionDir = createSessionWithLocationFields()
         assertTrue(SessionStorage.updateLocation(testRoot, sessionDir.name, "Place", "City", "Country"))
     }
+
+    // ── Block UX: updateContent ─────────────────────────────────────────────────
+
+    /**
+     * Creates a minimal session with optional content fields in metadata.json.
+     * No image files are written — only metadata.json is needed for updateContent tests.
+     */
+    private fun createSessionWithContentFields(
+        sessionId: String = "test-session-content",
+        title: String? = null,
+        description: String? = null
+    ): File {
+        val sessionDir = File(testRoot, sessionId)
+        sessionDir.mkdirs()
+        val json = JSONObject().apply {
+            put("version", 4)
+            put("session", JSONObject().apply { put("createdAtMs", 1_000_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("overlay", JSONObject().apply {
+                put("scale", 1.0)
+                put("offsetX", 0.0)
+                put("offsetY", 0.0)
+                put("displayMode", "COMPARE_WITH_PREVIEW")
+            })
+            put("capture", JSONObject().apply { put("timestampMs", 1_000_000L) })
+            put("reference", JSONObject().apply { put("sourceDisplayName", "content://test/ref/1") })
+            val hasAny = title != null || description != null
+            if (hasAny) {
+                put("content", JSONObject().apply {
+                    if (title != null) put("title", title)
+                    if (description != null) put("description", description)
+                })
+            }
+        }
+        File(sessionDir, "metadata.json").writeText(json.toString())
+        return sessionDir
+    }
+
+    @Test
+    fun updateContent_writesTitleAndDescription() {
+        val sessionDir = createSessionWithContentFields()
+
+        val result = SessionStorage.updateContent(testRoot, sessionDir.name, "Zugspitze 2026", "A scenic alpine view")
+
+        assertTrue(result)
+        val content = readMetadata(sessionDir).getJSONObject("content")
+        assertEquals("Zugspitze 2026", content.getString("title"))
+        assertEquals("A scenic alpine view", content.getString("description"))
+    }
+
+    @Test
+    fun updateContent_removesTitleWhenNull() {
+        val sessionDir = createSessionWithContentFields(title = "Old Title", description = "Old Description")
+
+        SessionStorage.updateContent(testRoot, sessionDir.name, null, "Old Description")
+
+        val content = readMetadata(sessionDir).getJSONObject("content")
+        assertFalse(content.has("title"))
+        assertEquals("Old Description", content.getString("description"))
+    }
+
+    @Test
+    fun updateContent_removesDescriptionWhenNull() {
+        val sessionDir = createSessionWithContentFields(title = "Old Title", description = "Old Description")
+
+        SessionStorage.updateContent(testRoot, sessionDir.name, "Old Title", null)
+
+        val content = readMetadata(sessionDir).getJSONObject("content")
+        assertEquals("Old Title", content.getString("title"))
+        assertFalse(content.has("description"))
+    }
+
+    @Test
+    fun updateContent_keepsContentBlockWhenBothNull() {
+        val sessionDir = createSessionWithContentFields(title = "Old Title", description = "Old Description")
+
+        val result = SessionStorage.updateContent(testRoot, sessionDir.name, null, null)
+
+        assertTrue(result)
+        val json = readMetadata(sessionDir)
+        assertTrue(json.has("content"))
+        val content = json.getJSONObject("content")
+        assertFalse(content.has("title"))
+        assertFalse(content.has("description"))
+    }
+
+    @Test
+    fun updateContent_rejectsPathTraversal() {
+        assertFalse(SessionStorage.updateContent(testRoot, "../some-other-dir", "Title", null))
+    }
+
+    @Test
+    fun updateContent_returnsFalseWhenMetadataMissing() {
+        assertFalse(SessionStorage.updateContent(testRoot, "does-not-exist", "Title", null))
+    }
 }

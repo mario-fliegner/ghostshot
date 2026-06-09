@@ -1,44 +1,77 @@
 package com.isardomains.sameview.ui.compare
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.rememberAsyncImagePainter
+import coil.imageLoader
 import com.isardomains.sameview.R
+import com.isardomains.sameview.ui.settings.SettingsCard
+import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
+import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
+import java.io.File
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 
 /**
  * Fullscreen editor screen for session metadata.
  *
- * Save button is enabled when [EditSessionViewModel.isDirty] is true and
+ * Save button (sticky bottom bar) is enabled when [EditSessionViewModel.isDirty] is true and
  * [EditSessionViewModel.isSaving] is false. Clicking Save calls [EditSessionViewModel.onSave].
  * Save events ([EditSessionEvent]) are observed by the host (MainActivity), which handles
  * navigation and snackbar display. The ViewModel is created by the host and passed as a
@@ -61,7 +94,9 @@ fun EditSessionScreen(
     viewModel: EditSessionViewModel,
     modifier: Modifier = Modifier,
 ) {
+    // ── Collect state ──────────────────────────────────────────────────────────
     val title by viewModel.titleField.collectAsStateWithLifecycle()
+    val description by viewModel.descriptionField.collectAsStateWithLifecycle()
     val referenceDate by viewModel.referenceDateField.collectAsStateWithLifecycle()
     val referenceError by viewModel.referenceDateError.collectAsStateWithLifecycle()
     val locationDisplayName by viewModel.locationDisplayNameField.collectAsStateWithLifecycle()
@@ -69,16 +104,43 @@ fun EditSessionScreen(
     val locationCountry by viewModel.locationCountryField.collectAsStateWithLifecycle()
     val isDirty by viewModel.isDirty.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
+    val captureTimestampMs by viewModel.captureTimestampMs.collectAsStateWithLifecycle()
+    val referenceSourceDisplayName by viewModel.referenceSourceDisplayName.collectAsStateWithLifecycle()
+
+    // ── UI derivations ─────────────────────────────────────────────────────────
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
+    val referenceImageUri = remember(viewModel.sessionId) {
+        Uri.fromFile(File(context.filesDir, "sessions/${viewModel.sessionId}/reference.jpg"))
+    }
+
+    val referenceFilename = remember(referenceSourceDisplayName) {
+        if (referenceSourceDisplayName.isBlank()) "reference.jpg"
+        else Uri.parse(referenceSourceDisplayName).lastPathSegment?.takeIf { it.isNotBlank() }
+            ?: "reference.jpg"
+    }
+
+    val locale = LocalConfiguration.current.locales[0]
+    val captureDate = remember(captureTimestampMs, locale) {
+        if (captureTimestampMs > 0L)
+            java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, locale)
+                .format(java.util.Date(captureTimestampMs))
+        else ""
+    }
+
+    // ── Dialog state ───────────────────────────────────────────────────────────
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showSavingDialog by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
+    // ── Back handling ──────────────────────────────────────────────────────────
     BackHandler(enabled = isSaving || isDirty) {
         if (isSaving) showSavingDialog = true
         else showDiscardDialog = true
     }
 
+    // ── Discard dialog ─────────────────────────────────────────────────────────
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
@@ -97,6 +159,7 @@ fun EditSessionScreen(
         )
     }
 
+    // ── Saving-in-progress dialog ──────────────────────────────────────────────
     if (showSavingDialog) {
         AlertDialog(
             onDismissRequest = { showSavingDialog = false },
@@ -110,12 +173,53 @@ fun EditSessionScreen(
         )
     }
 
+    // ── Date picker dialog ─────────────────────────────────────────────────────
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDatePicker = false
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                        cal.timeInMillis = millis
+                        val formatted = String.format(
+                            Locale.US, "%04d-%02d-%02d",
+                            cal.get(Calendar.YEAR),
+                            cal.get(Calendar.MONTH) + 1,
+                            cal.get(Calendar.DAY_OF_MONTH)
+                        )
+                        viewModel.onReferenceDateChanged(formatted)
+                    }
+                }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    // ── Screen scaffold ────────────────────────────────────────────────────────
     Scaffold(
         modifier = modifier.testTag("edit_session_screen_root"),
         topBar = {
             TopAppBar(
                 title = {
-                    Text(stringResource(R.string.edit_session_screen_title))
+                    Column {
+                        Text(stringResource(R.string.edit_session_screen_title))
+                        Text(
+                            text = stringResource(R.string.edit_session_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SameViewSettingsSecondaryText
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(
@@ -131,17 +235,29 @@ fun EditSessionScreen(
                             contentDescription = stringResource(R.string.edit_session_back_content_description)
                         )
                     }
-                },
-                actions = {
-                    TextButton(
-                        onClick = viewModel::onSave,
-                        enabled = isDirty && !isSaving,
-                        modifier = Modifier.testTag("edit_session_save_button")
-                    ) {
-                        Text(stringResource(R.string.edit_session_save))
-                    }
                 }
             )
+        },
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Button(
+                    onClick = viewModel::onSave,
+                    enabled = isDirty && !isSaving,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(contentColor = Color.White),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_session_save_button")
+                ) {
+                    Text(stringResource(R.string.edit_session_save_changes))
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -149,67 +265,147 @@ fun EditSessionScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            OutlinedTextField(
-                value = title,
-                onValueChange = viewModel::onTitleChanged,
-                label = { Text(stringResource(R.string.edit_session_field_title)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            OutlinedTextField(
-                value = referenceDate,
-                onValueChange = viewModel::onReferenceDateChanged,
-                label = { Text(stringResource(R.string.edit_session_field_reference_date)) },
-                placeholder = { Text(stringResource(R.string.edit_session_reference_date_hint)) },
-                singleLine = true,
-                isError = referenceError != null,
-                supportingText = if (referenceError != null) {
-                    { Text(stringResource(R.string.edit_session_reference_date_error)) }
-                } else null,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            OutlinedTextField(
-                value = locationDisplayName,
-                onValueChange = viewModel::onLocationDisplayNameChanged,
-                label = { Text(stringResource(R.string.edit_session_field_location_display_name)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            OutlinedTextField(
-                value = locationCity,
-                onValueChange = viewModel::onLocationCityChanged,
-                label = { Text(stringResource(R.string.edit_session_field_city)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            OutlinedTextField(
-                value = locationCountry,
-                onValueChange = viewModel::onLocationCountryChanged,
-                label = { Text(stringResource(R.string.edit_session_field_country)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
+            // ── Session card ──────────────────────────────────────────────────
+            SettingsCard(title = stringResource(R.string.edit_session_card_session)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = viewModel::onTitleChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_title)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_title)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = viewModel::onDescriptionChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_description)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_description)) },
+                    singleLine = false,
+                    minLines = 3,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // ── Reference Photo card ──────────────────────────────────────────
+            SettingsCard(title = stringResource(R.string.edit_session_card_reference_photo)) {
+                Row(verticalAlignment = Alignment.Top) {
+                    val painter = rememberAsyncImagePainter(
+                        model = referenceImageUri,
+                        imageLoader = context.imageLoader
+                    )
+                    androidx.compose.foundation.Image(
+                        painter = painter,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(MaterialTheme.shapes.small)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = stringResource(R.string.edit_session_label_filename),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = SameViewSettingsSecondaryText
+                        )
+                        Text(
+                            text = referenceFilename,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = SameViewSettingsLabelText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (captureDate.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.edit_session_label_session_date),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = SameViewSettingsSecondaryText
+                            )
+                            Text(
+                                text = captureDate,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = SameViewSettingsLabelText
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = referenceDate,
+                    onValueChange = viewModel::onReferenceDateChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_reference_date)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_reference_date)) },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = stringResource(R.string.edit_session_pick_date_content_description)
+                            )
+                        }
+                    },
+                    singleLine = true,
+                    isError = referenceError != null,
+                    supportingText = if (referenceError != null) {
+                        { Text(stringResource(R.string.edit_session_reference_date_error)) }
+                    } else {
+                        {
+                            Text(
+                                text = stringResource(R.string.edit_session_reference_date_help),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = SameViewSettingsSecondaryText
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // ── Location card ─────────────────────────────────────────────────
+            SettingsCard(title = stringResource(R.string.edit_session_card_location)) {
+                OutlinedTextField(
+                    value = locationDisplayName,
+                    onValueChange = viewModel::onLocationDisplayNameChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_place_name)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_place_name)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = locationCity,
+                    onValueChange = viewModel::onLocationCityChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_city)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_city)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = locationCountry,
+                    onValueChange = viewModel::onLocationCountryChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_country)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_country)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

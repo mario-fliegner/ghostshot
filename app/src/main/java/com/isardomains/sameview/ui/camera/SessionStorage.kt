@@ -137,6 +137,47 @@ internal object SessionStorage {
     }
 
     /**
+     * Atomically writes [title] and [description] into the content block of the session's
+     * metadata.json.
+     *
+     * Both fields are trimmed; an empty or blank value is treated as absent (null).
+     * When a field is non-null after normalisation it is written; when null it is removed.
+     * The content block is **always** written back (never removed), even when both fields
+     * are null — this preserves the block for future fields.
+     *
+     * Returns false on invalid [sessionId], path traversal, missing metadata.json, IO or security
+     * errors.
+     */
+    fun updateContent(sessionsRoot: File, sessionId: String, title: String?, description: String?): Boolean {
+        return try {
+            val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
+            val normalizedTitle = title?.trim()?.ifEmpty { null }
+            val normalizedDescription = description?.trim()?.ifEmpty { null }
+
+            val metadataFile = File(sessionDir, "metadata.json")
+            if (!metadataFile.exists()) return false
+
+            val json = try {
+                JSONObject(metadataFile.readText())
+            } catch (e: Exception) {
+                return false
+            }
+
+            val content = json.optJSONObject("content") ?: JSONObject()
+            if (normalizedTitle != null) content.put("title", normalizedTitle) else content.remove("title")
+            if (normalizedDescription != null) content.put("description", normalizedDescription) else content.remove("description")
+            json.put("content", content)
+
+            metadataFile.writeText(json.toString())
+            true
+        } catch (e: SecurityException) {
+            false
+        } catch (e: IOException) {
+            return false
+        }
+    }
+
+    /**
      * Updates [reference.date], [reference.dateSource], and [reference.userEdited] in the session's
      * metadata.json.
      *

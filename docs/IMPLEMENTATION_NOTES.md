@@ -435,7 +435,26 @@ Latest verified test state (Session Metadata Editor Block G — Completed 2026-0
 - `testDebugUnitTest` — BUILD SUCCESSFUL, all 46 `EditSessionViewModelTest` PASSED
 - `assembleDebug` — BUILD SUCCESSFUL
 
-No open Session Metadata Editor Block G tasks remain. Next block: Block H (instrumentation tests for `EditSessionScreen`).
+No open Session Metadata Editor Block G tasks remain.
+
+Block UX completed (2026-06-09) — Session Metadata Editor UX Correction (Pre-Block-H):
+
+- **`SessionStorage.updateContent()`** — new atomic write function `(sessionsRoot, sessionId, title: String?, description: String?): Boolean`; trims both fields, blank → null; reads or creates `content` JSONObject; sets/removes title and description individually; **always writes back** `json.put("content", content)` — never removes the block even when both fields are null; path traversal protection identical to `updateTitle()`; returns false on missing metadata.json, invalid sessionId, IO or security errors; `updateTitle()` is preserved and unchanged
+- **`InitialSessionFields`** extended — `description: String = ""`, `captureTimestampMs: Long = 0L`, `referenceSourceDisplayName: String = ""` added with **default values** so all existing positional test call sites compile without changes
+- **`EditSessionViewModel`** extended — `descriptionField: StateFlow<String>` + `onDescriptionChanged()`; `captureTimestampMs: StateFlow<Long>` (read-only, from `capture.timestampMs`); `referenceSourceDisplayName: StateFlow<String>` (read-only, from `reference.sourceDisplayName`); `sessionTitleUpdater` lambda **replaced** by `sessionContentUpdater: (File, String, String?, String?) -> Boolean` (defaults to `SessionStorage.updateContent`); `updateIsDirty()` extended to include description; `onSave()` uses `sessionContentUpdater` atomically for title + description; `initialDescription` reset after successful save; `metadataReader` reads all new fields
+- **`EditSessionScreen`** — fully rebuilt: `TopAppBar` subtitle column ("Update information about this comparison") in `SameViewSettingsSecondaryText`; Save button moved to `Scaffold.bottomBar` as `Button` with `imePadding()` + `navigationBarsPadding()`, `enabled = isDirty && !isSaving`; 3 `SettingsCard` groups: **Session** (title + description minLines=3), **Reference Photo** (thumbnail 64dp + filename/session date labels + reference date field with DatePicker), **Location** (place name + city + country); `Column(Arrangement.spacedBy(14.dp))` layout; `referenceImageUri` via `remember(viewModel.sessionId)`, `referenceFilename` via `remember(referenceSourceDisplayName)`, `captureDate` via `remember(captureTimestampMs, locale)` using `DateFormat.MEDIUM`; `DatePickerDialog` triggered by calendar `IconButton` trailing on reference date field; all Block G dialogs (discard, saving-in-progress) preserved; location display-name field now uses `edit_session_field_place_name` label
+- **`strings.xml`** — `edit_session_screen_title` value updated to "Edit Session" (capital S); 17 new strings added: `edit_session_subtitle`, `edit_session_save_changes`, `edit_session_card_session`, `edit_session_card_reference_photo`, `edit_session_card_location`, `edit_session_field_description`, `edit_session_placeholder_title`, `edit_session_placeholder_description`, `edit_session_placeholder_reference_date`, `edit_session_reference_date_help`, `edit_session_label_filename`, `edit_session_label_session_date`, `edit_session_pick_date_content_description`, `edit_session_field_place_name`, `edit_session_placeholder_place_name`, `edit_session_placeholder_city`, `edit_session_placeholder_country`
+- **`EditSessionViewModelTest`** — `createViewModel()` helper: `titleUpdater` param replaced by `contentUpdater: (File, String, String?, String?) -> Boolean`; 7 tests migrated (`onSave_withValidTitle_callsTitleUpdater` → `onSave_withChangedTitle_callsContentUpdater`, etc.); 4 new description tests added; 50/50 pass
+- **`SessionStorageMetadataTest`** — `createSessionWithContentFields()` helper added; 6 new `updateContent_*` tests added (require instrumented device run)
+- **Stable contracts unchanged** — `updateTitle()`, `updateReferenceDate()`, `updateLocation()` in `SessionStorage`; `EditSessionEvent` sealed interface; `ROUTE_EDIT_SESSION_WITH_ARGS` in `MainActivity`; `BackHandler` / discard / saving-in-progress dialog logic in `EditSessionScreen`
+
+Latest verified test state (Session Metadata Editor Block UX — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 50/50 `EditSessionViewModelTest` PASSED (46 migrated + 4 new description tests)
+- `assembleDebug` — BUILD SUCCESSFUL
+- `SessionStorageMetadataTest.updateContent_*` — 6 tests added; require instrumented device run (not yet executed on device)
+
+No open Session Metadata Editor Block UX tasks remain. Next block: Block H (instrumentation tests for `EditSessionScreen`).
 
 ---
 

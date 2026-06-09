@@ -63,7 +63,7 @@ class EditSessionViewModelTest {
      */
     private fun createViewModel(
         sessionId: String = TEST_SESSION_ID,
-        titleUpdater: (File, String, String?) -> Boolean = { _, _, _ -> true },
+        contentUpdater: (File, String, String?, String?) -> Boolean = { _, _, _, _ -> true },
         referenceDateUpdater: (File, String, String?) -> Boolean = { _, _, _ -> true },
         locationUpdater: (File, String, String?, String?, String?) -> Boolean = { _, _, _, _, _ -> true },
         reader: (File, String) -> InitialSessionFields = { _, _ ->
@@ -75,7 +75,7 @@ class EditSessionViewModelTest {
         val vm = EditSessionViewModel(savedStateHandle, context)
         vm.ioDispatcher = testDispatcher
         vm.metadataReader = reader
-        vm.sessionTitleUpdater = titleUpdater
+        vm.sessionContentUpdater = contentUpdater
         vm.sessionReferenceDateUpdater = referenceDateUpdater
         vm.sessionLocationUpdater = locationUpdater
         return vm
@@ -363,14 +363,14 @@ class EditSessionViewModelTest {
         assertFalse(vm.isDirty.value)
     }
 
-    // ── Block F: onSave — title ───────────────────────────────────────────────
+    // ── Block F: onSave — content (title + description) ──────────────────────
 
     @Test
-    fun onSave_withValidTitle_callsTitleUpdater() = runTest(testDispatcher) {
+    fun onSave_withChangedTitle_callsContentUpdater() = runTest(testDispatcher) {
         var capturedTitle: String? = "SENTINEL"
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("old title", "", "", "", "") },
-            titleUpdater = { _, _, title -> capturedTitle = title; true }
+            contentUpdater = { _, _, title, _ -> capturedTitle = title; true }
         )
         advanceUntilIdle()
         vm.onTitleChanged("new title")
@@ -380,25 +380,25 @@ class EditSessionViewModelTest {
     }
 
     @Test
-    fun onSave_withUnchangedTitle_doesNotCallTitleUpdater() = runTest(testDispatcher) {
-        var titleUpdaterCalled = false
+    fun onSave_withUnchangedTitle_doesNotCallContentUpdater() = runTest(testDispatcher) {
+        var contentUpdaterCalled = false
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("same title", "", "", "", "") },
-            titleUpdater = { _, _, _ -> titleUpdaterCalled = true; true }
+            contentUpdater = { _, _, _, _ -> contentUpdaterCalled = true; true }
         )
         advanceUntilIdle()
-        // Title unchanged — onSave should not call titleUpdater.
+        // Title unchanged — onSave should not call contentUpdater.
         vm.onSave()
         advanceUntilIdle()
-        assertFalse(titleUpdaterCalled)
+        assertFalse(contentUpdaterCalled)
     }
 
     @Test
-    fun onSave_withBlankTitle_callsTitleUpdaterWithNull() = runTest(testDispatcher) {
+    fun onSave_withBlankTitle_callsContentUpdaterWithNullTitle() = runTest(testDispatcher) {
         var capturedTitle: String? = "SENTINEL"
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("existing title", "", "", "", "") },
-            titleUpdater = { _, _, title -> capturedTitle = title; true }
+            contentUpdater = { _, _, title, _ -> capturedTitle = title; true }
         )
         advanceUntilIdle()
         vm.onTitleChanged("   ")  // blank → normalized null
@@ -526,7 +526,7 @@ class EditSessionViewModelTest {
         var anyUpdaterCalled = false
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("same", "2008", "Place", "City", "Country") },
-            titleUpdater = { _, _, _ -> anyUpdaterCalled = true; true },
+            contentUpdater = { _, _, _, _ -> anyUpdaterCalled = true; true },
             referenceDateUpdater = { _, _, _ -> anyUpdaterCalled = true; true },
             locationUpdater = { _, _, _, _, _ -> anyUpdaterCalled = true; true }
         )
@@ -542,10 +542,10 @@ class EditSessionViewModelTest {
     }
 
     @Test
-    fun onSave_titleUpdaterFails_emitsSaveFailed() = runTest(testDispatcher) {
+    fun onSave_contentUpdaterFails_emitsSaveFailed() = runTest(testDispatcher) {
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("old", "", "", "", "") },
-            titleUpdater = { _, _, _ -> false }
+            contentUpdater = { _, _, _, _ -> false }
         )
         advanceUntilIdle()
         vm.onTitleChanged("new")
@@ -612,11 +612,11 @@ class EditSessionViewModelTest {
     // ── Block F: storage order ────────────────────────────────────────────────
 
     @Test
-    fun onSave_storageOrderIsTitleThenReferenceDateThenLocation() = runTest(testDispatcher) {
+    fun onSave_storageOrderIsContentThenReferenceDateThenLocation() = runTest(testDispatcher) {
         val callOrder = mutableListOf<String>()
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
-            titleUpdater = { _, _, _ -> callOrder.add("title"); true },
+            contentUpdater = { _, _, _, _ -> callOrder.add("content"); true },
             referenceDateUpdater = { _, _, _ -> callOrder.add("referenceDate"); true },
             locationUpdater = { _, _, _, _, _ -> callOrder.add("location"); true }
         )
@@ -628,7 +628,7 @@ class EditSessionViewModelTest {
         vm.onSave()
         advanceUntilIdle()
         job.cancel()
-        assertEquals(listOf("title", "referenceDate", "location"), callOrder)
+        assertEquals(listOf("content", "referenceDate", "location"), callOrder)
     }
 
     // ── Block F: isSaving state ───────────────────────────────────────────────
@@ -654,10 +654,10 @@ class EditSessionViewModelTest {
     // so the caller knows not to refresh.)
 
     @Test
-    fun onSave_titleUpdaterFails_doesNotEmitSaveComplete() = runTest(testDispatcher) {
+    fun onSave_contentUpdaterFails_doesNotEmitSaveComplete() = runTest(testDispatcher) {
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("old", "", "", "", "") },
-            titleUpdater = { _, _, _ -> false }
+            contentUpdater = { _, _, _, _ -> false }
         )
         advanceUntilIdle()
         vm.onTitleChanged("new")
@@ -667,5 +667,57 @@ class EditSessionViewModelTest {
         advanceUntilIdle()
         job.cancel()
         assertFalse(events.any { it is EditSessionEvent.SaveComplete })
+    }
+
+    // ── Block UX: description field ────────────────────────────────────────────
+
+    @Test
+    fun initialState_descriptionLoaded_fromMetadata() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields(
+                title = "",
+                referenceDate = "",
+                locationDisplayName = "",
+                locationCity = "",
+                locationCountry = "",
+                description = "A beautiful mountain view"
+            )
+        }
+        advanceUntilIdle()
+        assertEquals("A beautiful mountain view", vm.descriptionField.value)
+    }
+
+    @Test
+    fun onDescriptionChanged_updatesState() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onDescriptionChanged("New description")
+        assertEquals("New description", vm.descriptionField.value)
+    }
+
+    @Test
+    fun isDirty_trueAfterDescriptionChanged() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onDescriptionChanged("Some description")
+        assertTrue(vm.isDirty.value)
+    }
+
+    @Test
+    fun onSave_withChangedDescription_callsContentUpdater() = runTest(testDispatcher) {
+        var capturedDescription: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "", description = "") },
+            contentUpdater = { _, _, _, desc -> capturedDescription = desc; true }
+        )
+        advanceUntilIdle()
+        vm.onDescriptionChanged("A scenic alpine view")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals("A scenic alpine view", capturedDescription)
     }
 }
