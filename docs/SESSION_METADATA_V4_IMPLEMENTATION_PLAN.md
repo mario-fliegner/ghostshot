@@ -655,14 +655,15 @@ Implement `SessionStorage.updateReferenceDate()` to allow users to manually set,
 
 ### Block F — location Block via updateLocation()
 
-**Status:** Not Started
+**Status:** Completed (2026-06-09)
 
 **Goal:**
 Implement `SessionStorage.updateLocation()` to set, update, or remove `location.displayName`, `location.city`, `location.country`, and `location.userEdited`. Location block is absent at creation (§12.1). When all location fields are cleared, the entire `location` block is removed from `metadata.json`.
 
 **Scope:**
-- `SessionStorage.kt` — add `updateLocation(sessionsRoot, sessionId, displayName: String?, city: String?, country: String?)` method; path traversal validation; `location.userEdited = true` when any field is set; remove entire `location` block when all fields are cleared
-- `SessionStorageMetadataTest.kt` — tests analogous to updateTitle
+
+- `SessionStorage.kt` — added `updateLocation(sessionsRoot, sessionId, displayName: String?, city: String?, country: String?)` method; path traversal validation identical to `updateTitle()`/`updateReferenceDate()`; all three strings normalized via `trim().ifEmpty{null}`; `location.userEdited = true` when any field is set; entire `location` block removed when all fields null after normalization; blank strings treated as null (never stored); `captureLocation` and `referenceLocation` never touched
+- `SessionStorageMetadataTest.kt` — new private `createSessionWithLocationFields()` helper; 13 new test methods
 
 **Affected Files:**
 - `app/src/main/java/com/isardomains/sameview/ui/camera/SessionStorage.kt`
@@ -677,20 +678,38 @@ Implement `SessionStorage.updateLocation()` to set, update, or remove `location.
 **Risks:**
 - Very low — purely additive.
 
-**Required Tests:**
-- `updateLocation_writesFields_andSetsUserEdited`
-- `updateLocation_removesBlock_whenAllFieldsCleared`
-- `updateLocation_preservesAllOtherFields`
-- `updateLocation_pathTraversal_returnsFalse`
+**Required Tests — all implemented and PASSED:**
+
+- `updateLocation_writesAllThreeFields_andSetsUserEdited` ✓
+- `updateLocation_writesPartialFields_onlyCitySet` ✓
+- `updateLocation_setsUserEdited_true_whenAnyFieldSet` ✓
+- `updateLocation_normalizesBlankToAbsent_doesNotWriteBlankField` ✓
+- `updateLocation_removesIndividualField_whenSetToNull` ✓
+- `updateLocation_removesBlock_whenAllFieldsNull` ✓
+- `updateLocation_removesBlock_whenAllFieldsBlank` ✓
+- `updateLocation_preservesAllOtherFields` ✓
+- `updateLocation_updatesExistingFields` ✓
+- `updateLocation_pathTraversal_returnsFalse` ✓
+- `updateLocation_absolutePath_returnsFalse` ✓
+- `updateLocation_missingSession_returnsFalse` ✓
+- `updateLocation_returnsTrue_onSuccess` ✓
 
 **Definition of Done:**
-- `updateLocation()` correctly writes and removes location fields
-- Entire block removed when all fields absent
-- Path traversal protection in place
-- All listed tests pass
-- Full test suite green
+
+- `updateLocation()` correctly writes and removes location fields ✓
+- Entire block removed when all fields absent ✓
+- Blank/empty strings never stored ✓
+- Path traversal protection in place ✓
+- All listed tests pass ✓
+- Full test suite green ✓
 
 **Real-Device Validation Required:** No.
+
+**Test Results (2026-06-09):**
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `SessionStorageMetadataTest` (68/68) — PASSED on SM-S911B (Android 16) — 13 new tests added
+- `assembleRelease` — pending
 
 ---
 
@@ -699,11 +718,11 @@ Implement `SessionStorage.updateLocation()` to set, update, or remove `location.
 | Block | Description | Status |
 |---|---|---|
 | Block A | capture.timestampMs + METADATA_VERSION 4 + SUPPORTED_VERSIONS | Completed (2026-06-09) |
-| Block B | additional block at session creation | Not Started |
-| Block C | content block cleanup (fix §12.1 violation) | Not Started |
+| Block B | additional block at session creation | Completed (2026-06-09) |
+| Block C | content block cleanup (fix §12.1 violation) | Completed (2026-06-09) |
 | Block D | reference.date EXIF auto-population | Completed (2026-06-09) |
 | Block E | reference.date manual edit via updateReferenceDate() | Completed (2026-06-09) |
-| Block F | location block via updateLocation() | Not Started |
+| Block F | location block via updateLocation() | Completed (2026-06-09) |
 
 ---
 

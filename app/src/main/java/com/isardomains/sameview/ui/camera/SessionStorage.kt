@@ -189,6 +189,64 @@ internal object SessionStorage {
         }
     }
 
+    /**
+     * Updates [location.displayName], [location.city], [location.country], and [location.userEdited]
+     * in the session's metadata.json.
+     *
+     * Each string parameter is trimmed; blank strings are treated as null (field absent).
+     * When at least one field is non-null after normalization: sets the respective fields and
+     * sets [location.userEdited] to true. Fields that are null after normalization are removed.
+     * When all three fields are null after normalization: removes the entire [location] block.
+     *
+     * [captureLocation] and [referenceLocation] are never modified.
+     * All other metadata.json fields are preserved unchanged.
+     *
+     * Returns false on invalid [sessionId], path traversal, missing metadata.json, IO or security errors.
+     */
+    fun updateLocation(
+        sessionsRoot: File,
+        sessionId: String,
+        displayName: String?,
+        city: String?,
+        country: String?
+    ): Boolean {
+        return try {
+            val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
+
+            val normalizedDisplayName = displayName?.trim()?.ifEmpty { null }
+            val normalizedCity = city?.trim()?.ifEmpty { null }
+            val normalizedCountry = country?.trim()?.ifEmpty { null }
+
+            val metadataFile = File(sessionDir, "metadata.json")
+            if (!metadataFile.exists()) return false
+
+            val json = try {
+                JSONObject(metadataFile.readText())
+            } catch (e: Exception) {
+                return false
+            }
+
+            val hasAnyField = normalizedDisplayName != null || normalizedCity != null || normalizedCountry != null
+            if (hasAnyField) {
+                val location = json.optJSONObject("location") ?: JSONObject()
+                if (normalizedDisplayName != null) location.put("displayName", normalizedDisplayName) else location.remove("displayName")
+                if (normalizedCity != null) location.put("city", normalizedCity) else location.remove("city")
+                if (normalizedCountry != null) location.put("country", normalizedCountry) else location.remove("country")
+                location.put("userEdited", true)
+                json.put("location", location)
+            } else {
+                json.remove("location")
+            }
+
+            metadataFile.writeText(json.toString())
+            true
+        } catch (e: SecurityException) {
+            false
+        } catch (e: IOException) {
+            false
+        }
+    }
+
     private fun resolveDirectSessionDir(sessionsRoot: File, sessionId: String): File? {
         if (sessionId.isEmpty()) return null
         if (sessionId == "." || sessionId == "..") return null

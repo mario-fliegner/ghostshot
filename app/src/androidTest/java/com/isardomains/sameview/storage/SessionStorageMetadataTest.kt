@@ -745,4 +745,210 @@ class SessionStorageMetadataTest {
     fun updateReferenceDate_missingSession_returnsFalse() {
         assertFalse(SessionStorage.updateReferenceDate(testRoot, "does-not-exist", "2020"))
     }
+
+    // ── Block F: updateLocation ───────────────────────────────────────────────
+
+    /**
+     * Creates a minimal session with optional location fields in metadata.json.
+     * No image files are written — only metadata.json is needed for updateLocation tests.
+     */
+    private fun createSessionWithLocationFields(
+        sessionId: String = "test-session-location",
+        displayName: String? = null,
+        city: String? = null,
+        country: String? = null
+    ): File {
+        val sessionDir = File(testRoot, sessionId)
+        sessionDir.mkdirs()
+        val json = JSONObject().apply {
+            put("version", 4)
+            put("session", JSONObject().apply { put("createdAtMs", 1_000_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("overlay", JSONObject().apply {
+                put("scale", 1.0)
+                put("offsetX", 0.0)
+                put("offsetY", 0.0)
+                put("displayMode", "COMPARE_WITH_PREVIEW")
+            })
+            put("reference", JSONObject().apply {
+                put("sourceDisplayName", "content://test/reference/1")
+                put("originalWidth", 100)
+                put("originalHeight", 60)
+            })
+            val hasAny = displayName != null || city != null || country != null
+            if (hasAny) {
+                put("location", JSONObject().apply {
+                    if (displayName != null) put("displayName", displayName)
+                    if (city != null) put("city", city)
+                    if (country != null) put("country", country)
+                    put("userEdited", true)
+                })
+            }
+        }
+        File(sessionDir, "metadata.json").writeText(json.toString())
+        return sessionDir
+    }
+
+    @Test
+    fun updateLocation_writesAllThreeFields_andSetsUserEdited() {
+        val sessionDir = createSessionWithLocationFields()
+
+        val result = SessionStorage.updateLocation(testRoot, sessionDir.name, "Zugspitze Summit", "Garmisch-Partenkirchen", "Deutschland")
+
+        assertTrue(result)
+        val location = readMetadata(sessionDir).getJSONObject("location")
+        assertEquals("Zugspitze Summit", location.getString("displayName"))
+        assertEquals("Garmisch-Partenkirchen", location.getString("city"))
+        assertEquals("Deutschland", location.getString("country"))
+        assertTrue(location.getBoolean("userEdited"))
+    }
+
+    @Test
+    fun updateLocation_writesPartialFields_onlyCitySet() {
+        val sessionDir = createSessionWithLocationFields()
+
+        val result = SessionStorage.updateLocation(testRoot, sessionDir.name, null, "München", null)
+
+        assertTrue(result)
+        val location = readMetadata(sessionDir).getJSONObject("location")
+        assertFalse(location.has("displayName"))
+        assertEquals("München", location.getString("city"))
+        assertFalse(location.has("country"))
+        assertTrue(location.getBoolean("userEdited"))
+    }
+
+    @Test
+    fun updateLocation_setsUserEdited_true_whenAnyFieldSet() {
+        val sessionDir = createSessionWithLocationFields()
+
+        SessionStorage.updateLocation(testRoot, sessionDir.name, null, null, "France")
+
+        assertTrue(readMetadata(sessionDir).getJSONObject("location").getBoolean("userEdited"))
+    }
+
+    @Test
+    fun updateLocation_normalizesBlankToAbsent_doesNotWriteBlankField() {
+        val sessionDir = createSessionWithLocationFields()
+
+        val result = SessionStorage.updateLocation(testRoot, sessionDir.name, "   ", "Paris", null)
+
+        assertTrue(result)
+        val location = readMetadata(sessionDir).getJSONObject("location")
+        assertFalse(location.has("displayName"))
+        assertEquals("Paris", location.getString("city"))
+    }
+
+    @Test
+    fun updateLocation_removesIndividualField_whenSetToNull() {
+        val sessionDir = createSessionWithLocationFields(
+            displayName = "Old Name",
+            city = "Old City",
+            country = "Old Country"
+        )
+
+        SessionStorage.updateLocation(testRoot, sessionDir.name, null, "New City", "Old Country")
+
+        val location = readMetadata(sessionDir).getJSONObject("location")
+        assertFalse(location.has("displayName"))
+        assertEquals("New City", location.getString("city"))
+        assertEquals("Old Country", location.getString("country"))
+    }
+
+    @Test
+    fun updateLocation_removesBlock_whenAllFieldsNull() {
+        val sessionDir = createSessionWithLocationFields(
+            displayName = "Some Place",
+            city = "Some City",
+            country = "Some Country"
+        )
+
+        val result = SessionStorage.updateLocation(testRoot, sessionDir.name, null, null, null)
+
+        assertTrue(result)
+        assertFalse(readMetadata(sessionDir).has("location"))
+    }
+
+    @Test
+    fun updateLocation_removesBlock_whenAllFieldsBlank() {
+        val sessionDir = createSessionWithLocationFields(
+            displayName = "Some Place",
+            city = "Some City",
+            country = "Some Country"
+        )
+
+        val result = SessionStorage.updateLocation(testRoot, sessionDir.name, "", "  ", "")
+
+        assertTrue(result)
+        assertFalse(readMetadata(sessionDir).has("location"))
+    }
+
+    @Test
+    fun updateLocation_preservesAllOtherFields() {
+        val sessionDir = createSessionWithLocationFields()
+        val jsonBefore = readMetadata(sessionDir)
+
+        SessionStorage.updateLocation(testRoot, sessionDir.name, "Marienplatz", "München", "Deutschland")
+
+        val jsonAfter = readMetadata(sessionDir)
+        assertEquals(jsonBefore.getInt("version"), jsonAfter.getInt("version"))
+        assertEquals(
+            jsonBefore.getJSONObject("session").getLong("createdAtMs"),
+            jsonAfter.getJSONObject("session").getLong("createdAtMs")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("files").getString("capture"),
+            jsonAfter.getJSONObject("files").getString("capture")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("overlay").getDouble("scale"),
+            jsonAfter.getJSONObject("overlay").getDouble("scale"),
+            0.0
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("reference").getString("sourceDisplayName"),
+            jsonAfter.getJSONObject("reference").getString("sourceDisplayName")
+        )
+    }
+
+    @Test
+    fun updateLocation_updatesExistingFields() {
+        val sessionDir = createSessionWithLocationFields(
+            displayName = "Old Name",
+            city = "Old City",
+            country = "Old Country"
+        )
+
+        SessionStorage.updateLocation(testRoot, sessionDir.name, "New Name", "New City", "New Country")
+
+        val location = readMetadata(sessionDir).getJSONObject("location")
+        assertEquals("New Name", location.getString("displayName"))
+        assertEquals("New City", location.getString("city"))
+        assertEquals("New Country", location.getString("country"))
+        assertTrue(location.getBoolean("userEdited"))
+    }
+
+    @Test
+    fun updateLocation_pathTraversal_returnsFalse() {
+        assertFalse(SessionStorage.updateLocation(testRoot, "../some-other-dir", "Place", null, null))
+    }
+
+    @Test
+    fun updateLocation_absolutePath_returnsFalse() {
+        val absoluteSessionId = File(testRoot, "absolute-session").absolutePath
+        assertFalse(SessionStorage.updateLocation(testRoot, absoluteSessionId, "Place", null, null))
+    }
+
+    @Test
+    fun updateLocation_missingSession_returnsFalse() {
+        assertFalse(SessionStorage.updateLocation(testRoot, "does-not-exist", "Place", "City", "Country"))
+    }
+
+    @Test
+    fun updateLocation_returnsTrue_onSuccess() {
+        val sessionDir = createSessionWithLocationFields()
+        assertTrue(SessionStorage.updateLocation(testRoot, sessionDir.name, "Place", "City", "Country"))
+    }
 }
