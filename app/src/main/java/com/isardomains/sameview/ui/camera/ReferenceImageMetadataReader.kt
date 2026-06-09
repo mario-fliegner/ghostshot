@@ -55,6 +55,7 @@ object ReferenceImageMetadataReader {
         var gpsLatitude: Double? = null
         var gpsLongitude: Double? = null
         var gpsAltitude: Double? = null
+        var exifDateTimeOriginal: String? = null
         try {
             resolver.openFileDescriptor(effectiveUri, "r")?.use { pfd ->
                 val exif = ExifInterface(pfd.fileDescriptor)
@@ -80,9 +81,13 @@ object ReferenceImageMetadataReader {
 
                 gpsAltitude = exif.getAltitude(Double.NaN).takeIf { !it.isNaN() }
                     ?: parseRawAltitude(exif)
+
+                exifDateTimeOriginal = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+                    ?.let { parseExifDateToIsoDate(it) }
             }
         } catch (_: Exception) {
-            // exifOrientation stays UNDEFINED, GPS stays null — image is still usable.
+            // exifOrientation stays UNDEFINED, GPS stays null, exifDateTimeOriginal stays null —
+            // image is still usable.
         }
 
         if (BuildConfig.DEBUG) {
@@ -102,7 +107,8 @@ object ReferenceImageMetadataReader {
             exifOrientation = exifOrientation,
             gpsLatitude = gpsLatitude,
             gpsLongitude = gpsLongitude,
-            gpsAltitude = gpsAltitude
+            gpsAltitude = gpsAltitude,
+            exifDateTimeOriginal = exifDateTimeOriginal
         )
     }
 
@@ -198,6 +204,38 @@ object ReferenceImageMetadataReader {
         } catch (_: Exception) {
             null
         }
+    }
+
+    /**
+     * Parses an EXIF DateTimeOriginal string ("YYYY:MM:DD HH:MM:SS") to an ISO 8601 date string
+     * ("YYYY-MM-DD"). Returns null if the value is absent, malformed, contains an invalid calendar
+     * date, or fails the plausibility filter (year < 1826 or year > current device year).
+     *
+     * Only the date portion is extracted; time and timezone are discarded.
+     */
+    private fun parseExifDateToIsoDate(raw: String): String? {
+        return try {
+            val trimmed = raw.trim()
+            if (trimmed.length < 10) return null
+            val datePart = trimmed.substring(0, 10)  // "YYYY:MM:DD"
+            if (datePart[4] != ':' || datePart[7] != ':') return null
+            val year = datePart.substring(0, 4).toIntOrNull() ?: return null
+            val month = datePart.substring(5, 7).toIntOrNull() ?: return null
+            val day = datePart.substring(8, 10).toIntOrNull() ?: return null
+            if (!isExifYearPlausible(year)) return null
+            // Non-lenient Calendar rejects invalid dates like month=99 or day=31 in February.
+            val cal = java.util.Calendar.getInstance().apply { isLenient = false }
+            cal.set(year, month - 1, day)
+            cal.time  // Throws IllegalArgumentException if date is out of range.
+            String.format("%04d-%02d-%02d", year, month, day)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun isExifYearPlausible(year: Int): Boolean {
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        return year >= 1826 && year <= currentYear
     }
 
 }

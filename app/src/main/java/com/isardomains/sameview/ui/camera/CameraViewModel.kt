@@ -74,7 +74,8 @@ data class ReferenceImageMetadata(
     val exifOrientation: Int?,
     val gpsLatitude: Double? = null,
     val gpsLongitude: Double? = null,
-    val gpsAltitude: Double? = null
+    val gpsAltitude: Double? = null,
+    val exifDateTimeOriginal: String? = null
 )
 
 /**

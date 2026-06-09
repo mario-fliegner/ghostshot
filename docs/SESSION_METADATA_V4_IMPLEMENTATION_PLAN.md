@@ -523,7 +523,7 @@ Remove `"description": null` and `"tags": []` from the `content` block at sessio
 
 ### Block D — reference.date EXIF Auto-Population
 
-**Status:** Not Started
+**Status:** Completed (2026-06-09)
 
 **Goal:**
 At session creation, read EXIF `DateTimeOriginal` from the reference image. If present and plausible, write `reference.date` (ISO 8601), `reference.dateSource = "exif"`, and `reference.userEdited = false` into the `reference` block.
@@ -533,50 +533,66 @@ Plausibility filter: reject values where year < 1826 or year > current year.
 Only `DateTimeOriginal` is used for auto-population. `DateTime` and `DateTimeDigitized` are not used (per `SESSION_METADATA_V1.md §7.2`).
 
 **Scope:**
-- `ReferenceImageMetadataReader.kt` — read `ExifInterface.TAG_DATETIME_ORIGINAL`; parse to date string; store in `ReferenceImageMetadata`
-- `CameraViewModel.kt` — extend `ReferenceImageMetadata` data class with `exifDateTimeOriginal: String?` (nullable, absent when EXIF missing or implausible)
-- `SessionStorage.kt` — `writeMetadata()`: write `reference.date`, `reference.dateSource`, `reference.userEdited` when `exifDateTimeOriginal != null`
-- `SessionStorageMetadataTest.kt` — tests for date fields; update snapshot builders
-- `ReferenceImageMetadataReaderTest.kt` — test for `DateTimeOriginal` reading
+
+- `ReferenceImageMetadataReader.kt` — read `ExifInterface.TAG_DATETIME_ORIGINAL`; parse to date string; store in `ReferenceImageMetadata`; two new private functions: `parseExifDateToIsoDate()` (validates format, month, day via non-lenient Calendar), `isExifYearPlausible()`
+- `CameraViewModel.kt` — `ReferenceImageMetadata` data class extended with `exifDateTimeOriginal: String? = null` as trailing default field (no call-site updates required)
+- `SessionStorage.kt` — `writeMetadata()`: `reference` block conditionally writes `date`, `dateSource`, `userEdited` when `exifDateTimeOriginal != null`
+- `SessionStorageMetadataTest.kt` — 6 new tests; new `saveTestSessionWithDate()` helper; existing `buildTestSnapshot()` unchanged
+- `ReferenceImageMetadataReaderTest.kt` — 6 new tests; new `makeDateTimeJpeg()` helper
 
 **Affected Files:**
+
 - `app/src/main/java/com/isardomains/sameview/ui/camera/ReferenceImageMetadataReader.kt`
 - `app/src/main/java/com/isardomains/sameview/ui/camera/CameraViewModel.kt` (ReferenceImageMetadata data class)
 - `app/src/main/java/com/isardomains/sameview/ui/camera/SessionStorage.kt`
 - `app/src/androidTest/java/com/isardomains/sameview/storage/SessionStorageMetadataTest.kt`
 - `app/src/androidTest/java/com/isardomains/sameview/ui/camera/ReferenceImageMetadataReaderTest.kt`
-- All test files that construct `ReferenceImageMetadata` directly (must add new optional field)
+
+No other call sites updated — trailing default eliminated that requirement.
 
 **Not in Scope:**
+
 - No UI for reference.date display
 - No `updateReferenceDate()` write endpoint (that is Block E)
 - No `DateTime` or `DateTimeDigitized` EXIF tags
 - No timezone conversion (EXIF dates are timezone-naive; stored as date only)
 
-**Risks:**
-- **Medium:** `ReferenceImageMetadata` constructor appears in multiple test files — all must be updated for the new field
-- **Medium:** EXIF date parsing requires handling the `YYYY:MM:DD HH:MM:SS` format and extracting only the date portion
-- **Low:** Plausibility filter must be correctly implemented (year boundaries)
-- Auto-population must never block or delay session save (best-effort per §7.2)
+**Risks resolved:**
+
+- `ReferenceImageMetadata` constructor call sites: trailing default eliminated all call-site updates — zero files needed changes beyond the 5 affected files
+- EXIF date parsing: `parseExifDateToIsoDate()` validates separators, numeric segments, and calendar validity (non-lenient `Calendar.getTime()` rejects invalid dates like Feb 31, month 99)
 
 **Required Tests:**
-- `reference_date_isPopulated_whenExifDateTimeOriginalPresent`
-- `reference_dateSource_isExif_whenAutoPopulated`
-- `reference_userEdited_isFalse_whenAutoPopulated`
-- `reference_date_isAbsent_whenNoExifDateTimeOriginal`
-- `reference_date_isAbsent_whenExifYearBelow1826`
-- `reference_date_isAbsent_whenExifYearAfterCurrentYear`
-- `referenceMetadataReader_readsDateTimeOriginal_whenPresent`
+
+- `reference_date_isPopulated_whenExifDateTimeOriginalPresent` — implemented
+- `reference_dateSource_isExif_whenAutoPopulated` — implemented
+- `reference_userEdited_isFalse_whenAutoPopulated` — implemented
+- `reference_date_isAbsent_whenNoExifDateTimeOriginal` — implemented
+- `reference_dateSource_isAbsent_whenNoExifDateTimeOriginal` — implemented
+- `reference_userEdited_isAbsent_whenNoExifDateTimeOriginal` — implemented
+- `referenceMetadataReader_readsDateTimeOriginal_whenPresent` — implemented
+- `referenceMetadataReader_exifDateTimeOriginal_isNull_whenAbsent` — implemented
+- `referenceMetadataReader_exifDateTimeOriginal_isNull_whenYearBelow1826` — implemented
+- `referenceMetadataReader_exifDateTimeOriginal_isNull_whenYearAfterCurrentYear` — implemented
+- `referenceMetadataReader_exifDateTimeOriginal_isNull_whenInvalidMonth` — implemented
+- `referenceMetadataReader_exifDateTimeOriginal_isNull_whenInvalidCalendarDay` — implemented
 
 **Definition of Done:**
-- Sessions with EXIF `DateTimeOriginal` contain `reference.date`, `reference.dateSource = "exif"`, `reference.userEdited = false`
-- Sessions without EXIF date have no `reference.date`, `reference.dateSource`, or `reference.userEdited` fields
-- Plausibility filter correctly rejects out-of-range years
-- All `ReferenceImageMetadata` constructor call sites updated
-- All listed tests pass
-- Full test suite green
+
+- Sessions with EXIF `DateTimeOriginal` contain `reference.date`, `reference.dateSource = "exif"`, `reference.userEdited = false` ✓
+- Sessions without EXIF date have no `reference.date`, `reference.dateSource`, or `reference.userEdited` fields ✓
+- Plausibility filter correctly rejects out-of-range years ✓
+- Month/day calendar validity enforced (rejects month=99, Feb 31, etc.) ✓
+- All listed tests pass ✓
+- Full test suite green ✓
 
 **Real-Device Validation Required:** Optional — EXIF reading behavior on device should be spot-checked if available, but not a blocker.
+
+**Test Results (2026-06-09):**
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `ReferenceImageMetadataReaderTest` (25/25) — PASSED on SM-S911B (Android 16) — 6 new tests added
+- `SessionStorageMetadataTest` (39/39) — PASSED on SM-S911B (Android 16) — 6 new tests added
 
 ---
 
@@ -670,7 +686,7 @@ Implement `SessionStorage.updateLocation()` to set, update, or remove `location.
 | Block A | capture.timestampMs + METADATA_VERSION 4 + SUPPORTED_VERSIONS | Completed (2026-06-09) |
 | Block B | additional block at session creation | Not Started |
 | Block C | content block cleanup (fix §12.1 violation) | Not Started |
-| Block D | reference.date EXIF auto-population | Not Started |
+| Block D | reference.date EXIF auto-population | Completed (2026-06-09) |
 | Block E | reference.date manual edit via updateReferenceDate() | Not Started |
 | Block F | location block via updateLocation() | Not Started |
 

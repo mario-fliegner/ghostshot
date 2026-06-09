@@ -303,6 +303,77 @@ class ReferenceImageMetadataReaderTest {
         }
     }
 
+    // ── DateTimeOriginal EXIF tests ───────────────────────────────────────────
+
+    @Test
+    fun referenceMetadataReader_readsDateTimeOriginal_whenPresent() {
+        val file = makeDateTimeJpeg("test_datetime_present.jpg", "2008:06:15 14:30:00")
+        try {
+            val metadata = readFromFile(file)
+            requireNotNull(metadata)
+            assertEquals("2008-06-15", metadata.exifDateTimeOriginal)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun referenceMetadataReader_exifDateTimeOriginal_isNull_whenAbsent() {
+        // exif_90.jpg has no DateTimeOriginal tag
+        val metadata = readFromAsset("exif_90.jpg")
+        requireNotNull(metadata)
+        assertNull(metadata.exifDateTimeOriginal)
+    }
+
+    @Test
+    fun referenceMetadataReader_exifDateTimeOriginal_isNull_whenYearBelow1826() {
+        val file = makeDateTimeJpeg("test_datetime_year1825.jpg", "1825:01:01 00:00:00")
+        try {
+            val metadata = readFromFile(file)
+            requireNotNull(metadata)
+            assertNull(metadata.exifDateTimeOriginal)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun referenceMetadataReader_exifDateTimeOriginal_isNull_whenYearAfterCurrentYear() {
+        val file = makeDateTimeJpeg("test_datetime_year2999.jpg", "2999:01:01 00:00:00")
+        try {
+            val metadata = readFromFile(file)
+            requireNotNull(metadata)
+            assertNull(metadata.exifDateTimeOriginal)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun referenceMetadataReader_exifDateTimeOriginal_isNull_whenInvalidMonth() {
+        val file = makeDateTimeJpeg("test_datetime_month99.jpg", "2008:99:15 00:00:00")
+        try {
+            val metadata = readFromFile(file)
+            requireNotNull(metadata)
+            assertNull(metadata.exifDateTimeOriginal)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun referenceMetadataReader_exifDateTimeOriginal_isNull_whenInvalidCalendarDay() {
+        // February 31 does not exist
+        val file = makeDateTimeJpeg("test_datetime_feb31.jpg", "2008:02:31 00:00:00")
+        try {
+            val metadata = readFromFile(file)
+            requireNotNull(metadata)
+            assertNull(metadata.exifDateTimeOriginal)
+        } finally {
+            file.delete()
+        }
+    }
+
     // ── SAF / non-media authority regression tests ────────────────────────────
 
     /**
@@ -399,6 +470,22 @@ class ReferenceImageMetadataReaderTest {
         }
         ExifInterface(file.absolutePath).apply {
             configure(this)
+            saveAttributes()
+        }
+        return file
+    }
+
+    /**
+     * Copies exif_none.jpg to a temp file, sets TAG_DATETIME_ORIGINAL to [dateTimeString],
+     * and returns the file. Caller is responsible for deletion.
+     */
+    private fun makeDateTimeJpeg(filename: String, dateTimeString: String): File {
+        val file = File(appContext.cacheDir, filename)
+        assets.open("exif_none.jpg").use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+        ExifInterface(file.absolutePath).apply {
+            setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, dateTimeString)
             saveAttributes()
         }
         return file

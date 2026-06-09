@@ -428,4 +428,94 @@ class SessionStorageMetadataTest {
         assertFalse(SessionStorage.updateTitle(testRoot, ".", "Title"))
         assertFalse(SessionStorage.updateTitle(testRoot, "..", "Title"))
     }
+
+    // ── Block D: reference.date EXIF auto-population ──────────────────────────
+
+    private fun saveTestSessionWithDate(exifDate: String): File {
+        val tempFile = File(appContext.cacheDir, "test_reference_date.jpg")
+        testContext.assets.open("exif_90.jpg").use { input ->
+            tempFile.outputStream().use { input.copyTo(it) }
+        }
+        val exifOrientation = testContext.assets.open("exif_90.jpg").use { stream ->
+            android.media.ExifInterface(stream).getAttributeInt(
+                android.media.ExifInterface.TAG_ORIENTATION,
+                android.media.ExifInterface.ORIENTATION_UNDEFINED
+            )
+        }
+        val options = BitmapFactory.Options().also { it.inJustDecodeBounds = true }
+        testContext.assets.open("exif_90.jpg").use { BitmapFactory.decodeStream(it, null, options) }
+        val rawWidth = options.outWidth
+        val rawHeight = options.outHeight
+        val isRotated = exifOrientation == android.media.ExifInterface.ORIENTATION_ROTATE_90 ||
+                exifOrientation == android.media.ExifInterface.ORIENTATION_ROTATE_270 ||
+                exifOrientation == android.media.ExifInterface.ORIENTATION_TRANSPOSE ||
+                exifOrientation == android.media.ExifInterface.ORIENTATION_TRANSVERSE
+        val orientedWidth = if (isRotated) rawHeight else rawWidth
+        val orientedHeight = if (isRotated) rawWidth else rawHeight
+        val snapshot = CaptureSessionSnapshot(
+            referenceImageUri = Uri.fromFile(tempFile),
+            referenceImageMetadata = ReferenceImageMetadata(
+                rawWidth = rawWidth,
+                rawHeight = rawHeight,
+                orientedWidth = orientedWidth,
+                orientedHeight = orientedHeight,
+                exifOrientation = exifOrientation,
+                exifDateTimeOriginal = exifDate,
+            ),
+            overlayScale = testOverlayScale,
+            overlayOffsetX = testOverlayOffsetX,
+            overlayOffsetY = testOverlayOffsetY,
+            referenceImageDisplayMode = testDisplayMode,
+            viewportWidth = testViewportWidth,
+            viewportHeight = testViewportHeight,
+        )
+        val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+        SessionStorage.saveSession(
+            context = appContext,
+            sessionsRoot = testRoot,
+            capturedBitmap = captureBitmap,
+            snapshot = snapshot,
+            captureMediaStoreUri = captureMediaStoreUri
+        )
+        captureBitmap.recycle()
+        return testRoot.listFiles()?.firstOrNull()
+            ?: error("SessionStorage did not create a session directory")
+    }
+
+    @Test
+    fun reference_date_isPopulated_whenExifDateTimeOriginalPresent() {
+        val json = readMetadata(saveTestSessionWithDate("2008-06-15"))
+        assertEquals("2008-06-15", json.getJSONObject("reference").getString("date"))
+    }
+
+    @Test
+    fun reference_dateSource_isExif_whenAutoPopulated() {
+        val json = readMetadata(saveTestSessionWithDate("2008-06-15"))
+        assertEquals("exif", json.getJSONObject("reference").getString("dateSource"))
+    }
+
+    @Test
+    fun reference_userEdited_isFalse_whenAutoPopulated() {
+        val json = readMetadata(saveTestSessionWithDate("2008-06-15"))
+        assertFalse(json.getJSONObject("reference").getBoolean("userEdited"))
+    }
+
+    @Test
+    fun reference_date_isAbsent_whenNoExifDateTimeOriginal() {
+        // Standard saveTestSession() uses buildTestSnapshot() which has exifDateTimeOriginal=null
+        val json = readMetadata(saveTestSession())
+        assertFalse(json.getJSONObject("reference").has("date"))
+    }
+
+    @Test
+    fun reference_dateSource_isAbsent_whenNoExifDateTimeOriginal() {
+        val json = readMetadata(saveTestSession())
+        assertFalse(json.getJSONObject("reference").has("dateSource"))
+    }
+
+    @Test
+    fun reference_userEdited_isAbsent_whenNoExifDateTimeOriginal() {
+        val json = readMetadata(saveTestSession())
+        assertFalse(json.getJSONObject("reference").has("userEdited"))
+    }
 }

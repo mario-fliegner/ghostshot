@@ -288,6 +288,12 @@ internal object SessionStorage {
                 put("orientedHeight", snapshot.referenceImageMetadata.orientedHeight)
                 val exifOri = snapshot.referenceImageMetadata.exifOrientation
                 if (exifOri != null) put("exifOrientation", exifOri) else put("exifOrientation", JSONObject.NULL)
+                val exifDate = snapshot.referenceImageMetadata.exifDateTimeOriginal
+                if (exifDate != null) {
+                    put("date", exifDate)
+                    put("dateSource", "exif")
+                    put("userEdited", false)
+                }
             })
             put("viewport", JSONObject().apply {
                 put("width", snapshot.viewportWidth)
