@@ -774,6 +774,40 @@ Unify sentence case across all visible text, correct placeholders to use concret
 
 ---
 
+## Block UX3 — Session Metadata Editor UX Polish
+
+**Status:** Completed (2026-06-09)
+
+### Goal
+
+Three targeted UX corrections to the already-implemented Session Metadata Editor. No new features, no storage changes, no navigation changes, no ViewModel changes.
+
+### What Changes
+
+**`EditSessionScreen.kt`:**
+- Current photo card: label changed from `edit_session_label_captured_on` ("Captured on") to `edit_session_label_session_date` ("Session date") — consistent with Session card and app terminology
+- Reference photo thumbnail: `.size(64.dp)` → `.size(80.dp)`
+- Current photo thumbnail: `.size(64.dp)` → `.size(80.dp)`
+
+**`app/src/main/res/values/strings.xml`:**
+- `edit_session_reference_date_help`: "Approximate date of the reference photo.\nExamples: 2008, 2008-06, 2008-06-15" → "Reference photo date.\nExamples: 2008, June 2008, or June 15, 2008."
+
+**`app/src/main/res/values-de/strings.xml`:**
+- `edit_session_reference_date_help`: "Ungefähres Datum des Referenzfotos.\nBeispiele: 2008, 2008-06, 2008-06-15" → "Aufnahmedatum des Referenzfotos.\nBeispiele: 2008, Juni 2008 oder 15. Juni 2008."
+
+### Unchanged
+
+- Storage formats and validation (`isValidReferenceDate`, `updateReferenceDate`) — unchanged
+- `edit_session_reference_date_error` string — unchanged
+- Save workflow, dirty state, DatePicker, navigation, card order, description, placeholders, CompareScreen — unchanged
+
+### Block UX3 Test Results (2026-06-09)
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+---
+
 ## Block H — Full Test Coverage + Regression Verification
 
 **Status:** Not started

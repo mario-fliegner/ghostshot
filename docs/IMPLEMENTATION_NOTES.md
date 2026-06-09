@@ -456,6 +456,21 @@ Latest verified test state (Session Metadata Editor Block UX — Completed 2026-
 
 No open Session Metadata Editor Block UX tasks remain. Next block: Block H (instrumentation tests for `EditSessionScreen`).
 
+Block UX3 completed (2026-06-09) — Session Metadata Editor UX Polish:
+
+- **"Session date" terminology unified** — the label in the Current photo card changed from "Captured on" (`edit_session_label_captured_on`) to "Session date" (`edit_session_label_session_date`), matching the Session card and the app's consistent terminology.
+- **Thumbnails enlarged** — both the Reference photo and Current photo thumbnails increased from 64 dp to 80 dp; shape, crop logic, and layout unchanged.
+- **Reference date help text improved** — `edit_session_reference_date_help` rewritten from technical ISO format examples to user-friendly natural-language examples ("Reference photo date. Examples: 2008, June 2008, or June 15, 2008."); German translation updated accordingly; storage formats and validation unchanged.
+
+Latest verified test state (Session Metadata Editor Block UX3 — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block UX3 tasks remain.
+
+---
+
 Block UX2 completed (2026-06-09) — Session Metadata Editor UX Refinement V2:
 
 - **Sentence case unified** — all visible text in the Session Metadata Editor now uses sentence case consistently: "Edit session", "Save changes", "Reference photo", "Session date", "Current photo". No Title Case labels remain.

@@ -321,7 +321,7 @@ fun EditSessionScreen(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(80.dp)
                         .clip(MaterialTheme.shapes.small)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -369,13 +369,13 @@ fun EditSessionScreen(
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(80.dp)
                             .clip(MaterialTheme.shapes.small)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = stringResource(R.string.edit_session_label_captured_on),
+                            text = stringResource(R.string.edit_session_label_session_date),
                             style = MaterialTheme.typography.labelSmall,
                             color = SameViewSettingsSecondaryText
                         )
