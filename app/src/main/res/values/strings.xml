@@ -213,35 +213,36 @@
 
     <!-- Edit Session — overflow item, screen, and top app bar -->
     <string name="edit_session_overflow_item">Edit session</string>
-    <string name="edit_session_screen_title">Edit Session</string>
+    <string name="edit_session_screen_title">Edit session</string>
     <string name="edit_session_subtitle">Update information about this comparison</string>
     <string name="edit_session_save">Save</string>
-    <string name="edit_session_save_changes">Save Changes</string>
+    <string name="edit_session_save_changes">Save changes</string>
     <string name="edit_session_back_content_description">Back</string>
     <!-- Edit Session — card section titles -->
     <string name="edit_session_card_session">Session</string>
-    <string name="edit_session_card_reference_photo">Reference Photo</string>
+    <string name="edit_session_card_reference_photo">Reference photo</string>
+    <string name="edit_session_card_current_photo">Current photo</string>
     <string name="edit_session_card_location">Location</string>
     <!-- Edit Session — form fields -->
     <string name="edit_session_field_title">Title</string>
-    <string name="edit_session_placeholder_title">Add a title</string>
+    <string name="edit_session_placeholder_title">e.g. Family trip</string>
     <string name="edit_session_field_description">Description</string>
-    <string name="edit_session_placeholder_description">Add a description</string>
+    <string name="edit_session_placeholder_description">Add notes about this comparison</string>
     <string name="edit_session_field_reference_date">Reference date</string>
     <string name="edit_session_placeholder_reference_date">e.g. 2008 or 2008-06</string>
     <string name="edit_session_reference_date_hint">e.g. 2008 or 2008-06</string>
     <string name="edit_session_reference_date_help">Approximate date of the reference photo.\nExamples: 2008, 2008-06, 2008-06-15</string>
     <string name="edit_session_reference_date_error">Enter a year (e.g. 2008), year-month (e.g. 2008-06), or full date (e.g. 2008-06-15).</string>
-    <string name="edit_session_label_filename">Filename</string>
-    <string name="edit_session_label_session_date">Session Date</string>
+    <string name="edit_session_label_session_date">Session date</string>
+    <string name="edit_session_label_captured_on">Captured on</string>
     <string name="edit_session_pick_date_content_description">Pick date</string>
     <string name="edit_session_field_place_name">Place name</string>
-    <string name="edit_session_placeholder_place_name">Add a place name</string>
+    <string name="edit_session_placeholder_place_name">e.g. Marienplatz</string>
     <string name="edit_session_field_location_display_name">Location</string>
     <string name="edit_session_field_city">City</string>
-    <string name="edit_session_placeholder_city">Add a city</string>
+    <string name="edit_session_placeholder_city">e.g. Munich</string>
     <string name="edit_session_field_country">Country</string>
-    <string name="edit_session_placeholder_country">Add a country</string>
+    <string name="edit_session_placeholder_country">e.g. Germany</string>
     <!-- Edit Session — save error -->
     <string name="edit_session_save_failed">Couldn\'t save changes</string>
     <!-- Edit Session — discard dialog -->

@@ -712,6 +712,68 @@ Track whether any field has been changed from its initial state. On Back with di
 
 ---
 
+## Block UX2 — Session Metadata Editor UX Refinement V2
+
+**Status:** Completed (2026-06-09)
+
+### Goal
+
+Unify sentence case across all visible text, correct placeholders to use concrete examples, move Session date from the Reference photo card into the Session card, remove the Filename display entirely, add a Current photo card (capture thumbnail only), and reduce the Reference photo card to thumbnail + reference date field only.
+
+### Binding Product Decisions
+
+- Sentence case is the only accepted casing for all visible labels, card titles, button labels, and screen titles in the Session Metadata Editor.
+- Session date belongs to the Session card, not the Reference photo card.
+- Filename is not user-relevant and must not be displayed.
+- Current photo card shows only the capture thumbnail — no labels, no metadata, no actions.
+- Card order: Session → Reference photo → Current photo → Location.
+
+### What Changes
+
+**`EditSessionScreen.kt`:**
+- Removed `val referenceSourceDisplayName by viewModel.referenceSourceDisplayName.collectAsStateWithLifecycle()` (no longer needed in screen)
+- Removed `val referenceFilename = remember(...)` derivation
+- Added `val captureImageUri = remember(viewModel.sessionId) { Uri.fromFile(...capture.jpg) }`
+- Session card: added session date display (`edit_session_label_session_date` + formatted date) below Description field, inside the card, guarded by `captureDate.isNotEmpty()`
+- Reference photo card: replaced Row-with-column layout (thumbnail + filename + session date + Column) with simple thumbnail-only block; kept existing reference date field and help text unchanged
+- Added Current photo card (between Reference photo and Location): `SettingsCard(edit_session_card_current_photo)` containing only the capture thumbnail; no labels, no buttons
+- Removed unused imports: `Row`, `Alignment`, `width` (Spacer), `TextOverflow`
+
+**`strings.xml`:**
+- `edit_session_screen_title`: "Edit Session" → "Edit session" (sentence case)
+- `edit_session_save_changes`: "Save Changes" → "Save changes" (sentence case)
+- `edit_session_card_reference_photo`: "Reference Photo" → "Reference photo" (sentence case)
+- `edit_session_label_session_date`: "Session Date" → "Session date" (sentence case)
+- `edit_session_placeholder_title`: "Add a title" → "e.g. Summer vacation in Italy"
+- `edit_session_placeholder_description`: "Add a description" → "Add notes about this comparison"
+- `edit_session_placeholder_place_name`: "Add a place name" → "e.g. Marienplatz"
+- `edit_session_placeholder_city`: "Add a city" → "e.g. Munich"
+- `edit_session_placeholder_country`: "Add a country" → "e.g. Germany"
+- `edit_session_label_filename`: **removed** (string no longer used; filename display removed)
+- `edit_session_card_current_photo`: **added** → "Current photo"
+
+### Affected Files
+
+| File | Change Type |
+|---|---|
+| `app/src/main/java/com/isardomains/sameview/ui/compare/EditSessionScreen.kt` | Modified |
+| `app/src/main/res/values/strings.xml` | Modified |
+| `docs/SESSION_METADATA_EDITOR_IMPLEMENTATION_PLAN.md` | Modified |
+| `docs/IMPLEMENTATION_NOTES.md` | Modified |
+
+### Unchanged
+
+- `EditSessionViewModel.kt` — no changes; `referenceSourceDisplayName` StateFlow remains (populated from metadata, exposed to screen); unused in screen after this block but ViewModel is not refactored per scope rules
+- All storage functions, navigation, dialog logic, save workflow, dirty tracking — unchanged
+- `EditSessionViewModelTest.kt` — no changes; no string-value assertions were present
+
+### Block UX2 Test Results (2026-06-09)
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+---
+
 ## Block H — Full Test Coverage + Regression Verification
 
 **Status:** Not started
@@ -808,6 +870,7 @@ The following must remain unaffected and pass:
 | Block F | Save workflow | Completed |
 | Block G | Dirty state + discard dialog | Completed |
 | Block UX | Session Metadata Editor UX Correction (Pre-Block-H) | Completed |
+| Block UX2 | Session Metadata Editor UX Refinement V2 | Completed |
 | Block H | Full test coverage + regression verification | Not started |
 
 ---

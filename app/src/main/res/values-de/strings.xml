@@ -193,4 +193,48 @@
     <string name="create_video_error_render_failed">Video konnte nicht erstellt werden</string>
     <string name="create_video_quality_fallback_notice">Hohe Qualität wird auf diesem Gerät nicht unterstützt</string>
     <string name="create_video_delete_failed">Video konnte nicht gelöscht werden</string>
+
+    <!-- Session bearbeiten — Überlaufmenü, Screen, TopAppBar -->
+    <string name="edit_session_overflow_item">Session bearbeiten</string>
+    <string name="edit_session_screen_title">Session bearbeiten</string>
+    <string name="edit_session_subtitle">Informationen zu diesem Vergleich aktualisieren</string>
+    <string name="edit_session_save">Speichern</string>
+    <string name="edit_session_save_changes">Änderungen speichern</string>
+    <string name="edit_session_back_content_description">Zurück</string>
+    <!-- Session bearbeiten — Card-Titel -->
+    <string name="edit_session_card_session">Session</string>
+    <string name="edit_session_card_reference_photo">Referenzfoto</string>
+    <string name="edit_session_card_current_photo">Aktuelles Foto</string>
+    <string name="edit_session_card_location">Ort</string>
+    <!-- Session bearbeiten — Formularfelder -->
+    <string name="edit_session_field_title">Titel</string>
+    <string name="edit_session_placeholder_title">z. B. Familienausflug</string>
+    <string name="edit_session_field_description">Beschreibung</string>
+    <string name="edit_session_placeholder_description">Notizen zu diesem Vergleich hinzufügen</string>
+    <string name="edit_session_field_reference_date">Referenzdatum</string>
+    <string name="edit_session_placeholder_reference_date">z. B. 2008 oder 2008-06</string>
+    <string name="edit_session_reference_date_hint">z. B. 2008 oder 2008-06</string>
+    <string name="edit_session_reference_date_help">Ungefähres Datum des Referenzfotos.\nBeispiele: 2008, 2008-06, 2008-06-15</string>
+    <string name="edit_session_reference_date_error">Gib ein Jahr (z. B. 2008), Jahr-Monat (z. B. 2008-06) oder ein vollständiges Datum (z. B. 2008-06-15) ein.</string>
+    <string name="edit_session_label_session_date">Aufnahmedatum</string>
+    <string name="edit_session_label_captured_on">Aufgenommen am</string>
+    <string name="edit_session_pick_date_content_description">Datum auswählen</string>
+    <string name="edit_session_field_place_name">Ortsname</string>
+    <string name="edit_session_placeholder_place_name">z. B. Marienplatz</string>
+    <string name="edit_session_field_location_display_name">Ort</string>
+    <string name="edit_session_field_city">Stadt</string>
+    <string name="edit_session_placeholder_city">z. B. München</string>
+    <string name="edit_session_field_country">Land</string>
+    <string name="edit_session_placeholder_country">z. B. Deutschland</string>
+    <!-- Session bearbeiten — Speicher-Fehler -->
+    <string name="edit_session_save_failed">Änderungen konnten nicht gespeichert werden</string>
+    <!-- Session bearbeiten — Verwerfen-Dialog -->
+    <string name="edit_session_discard_dialog_title">Änderungen verwerfen?</string>
+    <string name="edit_session_discard_dialog_body">Deine Änderungen wurden nicht gespeichert.</string>
+    <string name="edit_session_discard_confirm">Verwerfen</string>
+    <string name="edit_session_discard_cancel">Weiter bearbeiten</string>
+    <!-- Session bearbeiten — Speichern-läuft-Dialog -->
+    <string name="edit_session_saving_dialog_title">Änderungen werden gespeichert</string>
+    <string name="edit_session_saving_dialog_body">Bitte warte, bis das Speichern abgeschlossen ist.</string>
+    <string name="edit_session_saving_dialog_confirm">OK</string>
 </resources>

@@ -54,7 +54,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
@@ -105,7 +104,6 @@ fun EditSessionScreen(
     val isDirty by viewModel.isDirty.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val captureTimestampMs by viewModel.captureTimestampMs.collectAsStateWithLifecycle()
-    val referenceSourceDisplayName by viewModel.referenceSourceDisplayName.collectAsStateWithLifecycle()
 
     // ── UI derivations ─────────────────────────────────────────────────────────
     val context = LocalContext.current
@@ -115,16 +113,21 @@ fun EditSessionScreen(
         Uri.fromFile(File(context.filesDir, "sessions/${viewModel.sessionId}/reference.jpg"))
     }
 
-    val referenceFilename = remember(referenceSourceDisplayName) {
-        if (referenceSourceDisplayName.isBlank()) "reference.jpg"
-        else Uri.parse(referenceSourceDisplayName).lastPathSegment?.takeIf { it.isNotBlank() }
-            ?: "reference.jpg"
+    val captureImageUri = remember(viewModel.sessionId) {
+        Uri.fromFile(File(context.filesDir, "sessions/${viewModel.sessionId}/capture.jpg"))
     }
 
     val locale = LocalConfiguration.current.locales[0]
     val captureDate = remember(captureTimestampMs, locale) {
         if (captureTimestampMs > 0L)
             java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, locale)
+                .format(java.util.Date(captureTimestampMs))
+        else ""
+    }
+    // Same format as CompareScreen timestamp display.
+    val captureDateWithTime = remember(captureTimestampMs) {
+        if (captureTimestampMs > 0L)
+            java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
                 .format(java.util.Date(captureTimestampMs))
         else ""
     }
@@ -292,52 +295,35 @@ fun EditSessionScreen(
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (captureDate.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.edit_session_label_session_date),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SameViewSettingsSecondaryText
+                    )
+                    Text(
+                        text = captureDate,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SameViewSettingsLabelText
+                    )
+                }
             }
 
-            // ── Reference Photo card ──────────────────────────────────────────
+            // ── Reference photo card ──────────────────────────────────────────
             SettingsCard(title = stringResource(R.string.edit_session_card_reference_photo)) {
-                Row(verticalAlignment = Alignment.Top) {
-                    val painter = rememberAsyncImagePainter(
-                        model = referenceImageUri,
-                        imageLoader = context.imageLoader
-                    )
-                    androidx.compose.foundation.Image(
-                        painter = painter,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(MaterialTheme.shapes.small)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = stringResource(R.string.edit_session_label_filename),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = SameViewSettingsSecondaryText
-                        )
-                        Text(
-                            text = referenceFilename,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SameViewSettingsLabelText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (captureDate.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.edit_session_label_session_date),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = SameViewSettingsSecondaryText
-                            )
-                            Text(
-                                text = captureDate,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = SameViewSettingsLabelText
-                            )
-                        }
-                    }
-                }
+                val painter = rememberAsyncImagePainter(
+                    model = referenceImageUri,
+                    imageLoader = context.imageLoader
+                )
+                androidx.compose.foundation.Image(
+                    painter = painter,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(MaterialTheme.shapes.small)
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = referenceDate,
@@ -369,6 +355,39 @@ fun EditSessionScreen(
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            // ── Current photo card ────────────────────────────────────────────
+            SettingsCard(title = stringResource(R.string.edit_session_card_current_photo)) {
+                Row(verticalAlignment = Alignment.Top) {
+                    val capturePainter = rememberAsyncImagePainter(
+                        model = captureImageUri,
+                        imageLoader = context.imageLoader
+                    )
+                    androidx.compose.foundation.Image(
+                        painter = capturePainter,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(MaterialTheme.shapes.small)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = stringResource(R.string.edit_session_label_captured_on),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = SameViewSettingsSecondaryText
+                        )
+                        if (captureDateWithTime.isNotEmpty()) {
+                            Text(
+                                text = captureDateWithTime,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = SameViewSettingsLabelText
+                            )
+                        }
+                    }
+                }
             }
 
             // ── Location card ─────────────────────────────────────────────────
