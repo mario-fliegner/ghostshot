@@ -323,6 +323,27 @@ These are robustness/polish items, not known Closed Testing blockers.
 
 ---
 
+### Session Metadata Editor
+
+Full specification: `SESSION_METADATA_EDITOR_V1.md`
+Implementation plan: `SESSION_METADATA_EDITOR_IMPLEMENTATION_PLAN.md`
+
+Block A completed (2026-06-09):
+
+- **Edit Session entry point** — `CompareScreen` overflow menu "Edit Title" + "Remove Title" items replaced with single "Edit Session" item; `onSaveTitle` parameter removed; `onEditSession: (() -> Unit)?` parameter added; title `AlertDialog` and all associated local state removed; `sessionTitle` prop is now read-only display (no local mutation)
+- **`EditSessionScreen` navigation shell** — new fullscreen opaque composable in `com.isardomains.sameview.ui.compare`; `TopAppBar` with back icon, "Edit session" title, disabled Save button; scrollable empty body; no ViewModel, no state, no save logic
+- **Navigation route** — `ROUTE_EDIT_SESSION_WITH_ARGS` added to `MainActivity`; `editSessionRoute()` helper function encodes `sessionId` via `Uri.encode()`; back navigation via `navController.popBackStack()`
+- **Test suite updated** — 7 title-dialog tests removed; 5 tests renamed/updated; 1 new test `moreMenu_editSessionItem_invokesCallback` added; `setCompareContent()` helper updated to `onEditSession`
+
+Latest verified test state (Session Metadata Editor Block A — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `CompareScreenTest` — 79/79 PASSED on SM-S911B (Android 16), BUILD SUCCESSFUL in 2m 47s
+
+No open Session Metadata Editor Block A tasks remain. Next block: Block B (EditSessionViewModel: initial state loading).
+
+---
+
 ## Practical Working Rules
 
 ### Scope discipline
@@ -412,7 +433,7 @@ No open Video Export Blocks 1–2 implementation tasks remain.
 Latest verified test state (Video Export Block 3+4 — Manual Verification Pending):
 
 - `testDebugUnitTest` — PASSED
-- `CompareScreenTest` — 82/82 PASSED
+- `CompareScreenTest` — 82/82 PASSED (prior to Session Metadata Editor Block A)
 - `VideoExportPipelineTest` — 2/2 PASSED
 - `assembleRelease` — BUILD SUCCESSFUL
 - `ReferenceImageMetadataReaderTest` — 2 Failures; pre-existing, not caused by Block 3+4

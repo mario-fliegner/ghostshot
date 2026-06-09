@@ -210,4 +210,10 @@
     <string name="gps_fallback_dialog_message">SameView couldn\'t read location data from this selection. Try choosing the original file to enable GPS guidance.</string>
     <string name="gps_fallback_dialog_choose_file_manager">Choose original file</string>
     <string name="gps_fallback_dialog_continue_without_gps">Continue without GPS</string>
+
+    <!-- Edit Session — overflow item, screen, and top app bar -->
+    <string name="edit_session_overflow_item">Edit session</string>
+    <string name="edit_session_screen_title">Edit session</string>
+    <string name="edit_session_save">Save</string>
+    <string name="edit_session_back_content_description">Back</string>
 </resources>

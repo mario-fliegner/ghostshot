@@ -24,7 +24,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
@@ -731,29 +730,6 @@ class CompareScreenTest {
     }
 
     @Test
-    fun sessionTitle_updatedAfterEditTitleDialogSave() {
-        setCompareContent(
-            referenceImageUri = null,
-            captureImageUri = null,
-            timestamp = fakeTimestamp,
-            sessionTitle = null,
-            onSaveTitle = {}
-        )
-
-        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title)).performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("compare_screen_title_input").performTextInput("New Title")
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title_save)).performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag("compare_screen_session_title").assertIsDisplayed()
-        composeRule.onNodeWithText("New Title").assertIsDisplayed()
-    }
-
-    @Test
     fun sessionTitle_notDisplayedWhenEmpty() {
         setCompareContent(
             referenceImageUri = null,
@@ -939,141 +915,45 @@ class CompareScreenTest {
     }
 
     @Test
-    fun moreMenuButton_hiddenWhenOnSaveTitleNull() {
-        setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = null)
+    fun moreMenuButton_hiddenWhenNoSessionContext() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null)
 
         composeRule.onNodeWithTag("compare_screen_more_menu_button").assertDoesNotExist()
     }
 
     @Test
-    fun moreMenuButton_visibleWhenOnSaveTitleProvided() {
-        setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = {})
+    fun moreMenuButton_visibleWhenEditSessionProvided() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onEditSession = {})
 
         composeRule.onNodeWithTag("compare_screen_more_menu_button").assertIsDisplayed()
     }
 
     @Test
     fun moreMenu_opensOnClick() {
-        setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = {})
+        setCompareContent(referenceImageUri = null, captureImageUri = null, onEditSession = {})
 
         composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
+        composeRule.onNodeWithText(context.getString(R.string.edit_session_overflow_item))
             .assertIsDisplayed()
     }
 
     @Test
-    fun editTitleDialog_opensOnMenuItemClick() {
-        setCompareContent(referenceImageUri = null, captureImageUri = null, onSaveTitle = {})
-
-        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
-            .performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title_dialog_title))
-            .assertIsDisplayed()
-    }
-
-    @Test
-    fun editTitleDialog_prefillsCurrentTitle() {
+    fun moreMenu_editSessionItem_invokesCallback() {
+        var editSessionCount = 0
         setCompareContent(
             referenceImageUri = null,
             captureImageUri = null,
-            sessionTitle = "My Title",
-            onSaveTitle = {}
+            onEditSession = { editSessionCount++ }
         )
 
         composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
-            .performClick()
+        composeRule.onNodeWithTag("compare_screen_edit_session_item").performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("My Title").assertIsDisplayed()
-    }
-
-    @Test
-    fun editTitleDialog_save_invokesCallback() {
-        var savedTitle: String? = "SENTINEL"
-        setCompareContent(
-            referenceImageUri = null,
-            captureImageUri = null,
-            onSaveTitle = { savedTitle = it }
-        )
-
-        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
-            .performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title_save))
-            .performClick()
-        composeRule.waitForIdle()
-
-        // empty input → trimmed → null
-        assert(savedTitle != "SENTINEL")
-    }
-
-    @Test
-    fun editTitleDialog_cancel_doesNotInvokeCallback() {
-        var callCount = 0
-        setCompareContent(
-            referenceImageUri = null,
-            captureImageUri = null,
-            onSaveTitle = { callCount++ }
-        )
-
-        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title))
-            .performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title_cancel))
-            .performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(0, callCount)
-    }
-
-    @Test
-    fun removeTitle_visibleAndWorksWhenTitleIsSet() {
-        var savedTitle: String? = "SENTINEL"
-        setCompareContent(
-            referenceImageUri = null,
-            captureImageUri = null,
-            timestamp = fakeTimestamp,
-            sessionTitle = "My Shot",
-            onSaveTitle = { savedTitle = it }
-        )
-
-        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("compare_screen_remove_title_item").assertIsDisplayed()
-        composeRule.onNodeWithTag("compare_screen_remove_title_item").performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(null, savedTitle)
-        composeRule.onNodeWithTag("compare_screen_session_title").assertDoesNotExist()
-        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
-    }
-
-    @Test
-    fun removeTitle_notVisibleWhenNoTitleSet() {
-        setCompareContent(
-            referenceImageUri = null,
-            captureImageUri = null,
-            sessionTitle = null,
-            onSaveTitle = {}
-        )
-
-        composeRule.onNodeWithTag("compare_screen_more_menu_button").performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag("compare_screen_remove_title_item").assertDoesNotExist()
-        composeRule.onNodeWithText(context.getString(R.string.compare_screen_edit_title)).assertIsDisplayed()
+        assertEquals(1, editSessionCount)
     }
 
     @Test
@@ -1082,7 +962,7 @@ class CompareScreenTest {
             referenceImageUri = null,
             captureImageUri = null,
             onDelete = {},
-            onSaveTitle = {}
+            onEditSession = {}
         )
 
         composeRule.onNodeWithTag("compare_screen_delete_button").assertIsDisplayed()
@@ -1119,7 +999,7 @@ class CompareScreenTest {
                 captureImageUri = null,
                 onBack = {},
                 sessionId = null,
-                onSaveTitle = {}
+                onEditSession = {}
             )
         }
 
@@ -1451,7 +1331,7 @@ class CompareScreenTest {
         timestamp: Long? = null,
         onDelete: (() -> Unit)? = null,
         sessionTitle: String? = null,
-        onSaveTitle: ((String?) -> Unit)? = null
+        onEditSession: (() -> Unit)? = null
     ) {
         setHostContent {
             CompareScreen(
@@ -1461,7 +1341,7 @@ class CompareScreenTest {
                 timestamp = timestamp,
                 onDelete = onDelete,
                 sessionTitle = sessionTitle,
-                onSaveTitle = onSaveTitle
+                onEditSession = onEditSession
             )
         }
     }

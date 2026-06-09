@@ -105,7 +105,7 @@ Blocks C, D, E are independent of each other once Block B is complete and may be
 
 ## Block A — CompareScreen Overflow Refactor + Navigation Shell
 
-**Status:** Not started
+**Status:** Completed (2026-06-09)
 
 ### Goal
 
@@ -186,6 +186,11 @@ Replace the title dialog in `CompareScreen` with a navigation entry to the new `
 - `testDebugUnitTest` passes
 - `CompareScreenTest` passes with no compilation errors
 - All other instrumentation tests unaffected
+
+### Test Results
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `CompareScreenTest` — 79/79 PASSED on SM-S911B (Android 16), BUILD SUCCESSFUL in 2m 47s
 
 ---
 
@@ -683,7 +688,7 @@ The following must remain unaffected and pass:
 
 | Block | Description | Status |
 |---|---|---|
-| Block A | CompareScreen overflow refactor + navigation shell | Not started |
+| Block A | CompareScreen overflow refactor + navigation shell | Completed |
 | Block B | EditSessionViewModel: initial state loading | Not started |
 | Block C | Title field | Not started |
 | Block D | Reference date field + validation | Not started |

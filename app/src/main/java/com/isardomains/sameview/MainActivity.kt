@@ -33,6 +33,7 @@ import com.isardomains.sameview.ui.camera.UiEvent
 import com.isardomains.sameview.ui.about.AboutScreenRoute
 import com.isardomains.sameview.ui.compare.CompareLibraryScreen
 import com.isardomains.sameview.ui.compare.CompareScreen
+import com.isardomains.sameview.ui.compare.EditSessionScreen
 import com.isardomains.sameview.ui.settings.SettingsScreen
 import com.isardomains.sameview.ui.theme.SameViewTheme
 import com.isardomains.sameview.ui.video.CreateVideoScreen
@@ -47,6 +48,9 @@ private const val ROUTE_ABOUT = "about"
 private const val ROUTE_CREATE_VIDEO = "create_video"
 private const val ARG_CREATE_VIDEO_SESSION_ID = "sessionId"
 private const val ROUTE_CREATE_VIDEO_WITH_ARGS = "$ROUTE_CREATE_VIDEO/{$ARG_CREATE_VIDEO_SESSION_ID}"
+private const val ROUTE_EDIT_SESSION = "edit_session"
+private const val ARG_EDIT_SESSION_ID = "sessionId"
+private const val ROUTE_EDIT_SESSION_WITH_ARGS = "$ROUTE_EDIT_SESSION/{$ARG_EDIT_SESSION_ID}"
 private const val ARG_REFERENCE_URI = "referenceUri"
 private const val ARG_CAPTURE_URI = "captureUri"
 private const val ARG_SESSION_ID = "sessionId"
@@ -260,8 +264,8 @@ class MainActivity : ComponentActivity() {
                                     }
                                 } else null,
                                 sessionTitle = sessionTitle,
-                                onSaveTitle = if (sessionId != null) {
-                                    { title -> viewModel.updateSessionTitle(sessionId, title) }
+                                onEditSession = if (sessionId != null) {
+                                    { navController.navigate(editSessionRoute(sessionId)) }
                                 } else null,
                                 sessionId = sessionId,
                                 onBackupSession = if (sessionId != null) {
@@ -292,6 +296,21 @@ class MainActivity : ComponentActivity() {
                     ) {
                         CreateVideoScreen(onBack = { navController.popBackStack() })
                     }
+                    composable(
+                        route = ROUTE_EDIT_SESSION_WITH_ARGS,
+                        arguments = listOf(
+                            navArgument(ARG_EDIT_SESSION_ID) {
+                                type = NavType.StringType
+                            }
+                        )
+                    ) { backStackEntry ->
+                        val sessionId = backStackEntry.arguments?.getString(ARG_EDIT_SESSION_ID)
+                            ?: return@composable
+                        EditSessionScreen(
+                            sessionId = sessionId,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                 }
             }
         }
@@ -315,3 +334,6 @@ private fun compareRoute(
 
 private fun createVideoRoute(sessionId: String): String =
     "$ROUTE_CREATE_VIDEO/${Uri.encode(sessionId)}"
+
+private fun editSessionRoute(sessionId: String): String =
+    "$ROUTE_EDIT_SESSION/${Uri.encode(sessionId)}"
