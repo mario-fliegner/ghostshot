@@ -598,14 +598,14 @@ No other call sites updated — trailing default eliminated that requirement.
 
 ### Block E — reference.date Manual Edit via updateReferenceDate()
 
-**Status:** Not Started
+**Status:** Completed (2026-06-09)
 
 **Goal:**
 Implement `SessionStorage.updateReferenceDate()` to allow users to manually set, update, or remove `reference.date`. When the user sets the date manually, `reference.dateSource` is set to `"manual"` and `reference.userEdited` is set to `true`. A `"manual"` source must never revert to `"exif"`.
 
 **Scope:**
-- `SessionStorage.kt` — add `updateReferenceDate(sessionsRoot, sessionId, date: String?, dateSource: String)` method; path traversal validation identical to `updateTitle()`; write `reference.date`, `reference.dateSource`, `reference.userEdited`; when date is removed, remove `reference.date` and `reference.dateSource` but `reference.userEdited` may remain `true`
-- `SessionStorageMetadataTest.kt` — tests analogous to updateTitle tests
+- `SessionStorage.kt` — added `updateReferenceDate(sessionsRoot: File, sessionId: String, date: String?): Boolean`; path traversal validation identical to `updateTitle()`; writes `reference.date`, `reference.dateSource`, `reference.userEdited`; when date is null (removed), removes `reference.date` and `reference.dateSource` but `reference.userEdited` stays/becomes `true`; invalid non-null date string returns `false` without modifying anything; added `isValidReferenceDate(date: String): Boolean` private validation function
+- `SessionStorageMetadataTest.kt` — 1 new private helper `createSessionWithReferenceDateFields()`; 16 new test methods covering set/change/remove/validate/security cases
 
 **Affected Files:**
 - `app/src/main/java/com/isardomains/sameview/ui/camera/SessionStorage.kt`
@@ -616,25 +616,40 @@ Implement `SessionStorage.updateReferenceDate()` to allow users to manually set,
 - No scanner changes to expose `reference.date` in `ScannedSession` (added when UI needs it)
 - No automatic EXIF re-read after manual edit
 
-**Risks:**
-- Low — analogous to `updateTitle()` which is fully tested and stable.
+**Risks resolved:**
+- Low — pattern is identical to `updateTitle()` which is fully tested and stable
+- `isValidReferenceDate()` uses the same non-lenient Calendar approach as Block D `parseExifDateToIsoDate()`
 
-**Required Tests:**
-- `updateReferenceDate_writesDate_andDateSource_andUserEdited`
-- `updateReferenceDate_setsManualSource`
-- `updateReferenceDate_doesNotRevertToExif`
-- `updateReferenceDate_removesDate_removesDateSource`
-- `updateReferenceDate_preservesAllOtherFields`
-- `updateReferenceDate_pathTraversal_returnsFalse`
-- `updateReferenceDate_absolutePath_returnsFalse`
+**Required Tests — all implemented and PASSED:**
+- `updateReferenceDate_writesDate_andDateSource_andUserEdited` ✓
+- `updateReferenceDate_setsManualSource` ✓
+- `updateReferenceDate_doesNotRevertToExif` ✓
+- `updateReferenceDate_removesDate_removesDateSource` ✓
+- `updateReferenceDate_preservesAllOtherFields` ✓
+- `updateReferenceDate_pathTraversal_returnsFalse` ✓
+- `updateReferenceDate_absolutePath_returnsFalse` ✓
+- `updateReferenceDate_setsUserEdited_true_whenRemovingDate` ✓
+- `updateReferenceDate_yearOnly_isValid` ✓
+- `updateReferenceDate_yearMonth_isValid` ✓
+- `updateReferenceDate_invalidDate_emptyString_returnsFalse` ✓
+- `updateReferenceDate_invalidDate_invalidMonth_returnsFalse` ✓
+- `updateReferenceDate_invalidDate_invalidCalendarDay_returnsFalse` ✓
+- `updateReferenceDate_invalidDate_yearBefore1826_returnsFalse` ✓
+- `updateReferenceDate_invalidDate_yearAfterCurrentYear_returnsFalse` ✓
+- `updateReferenceDate_missingSession_returnsFalse` ✓
 
 **Definition of Done:**
-- `updateReferenceDate()` correctly writes and removes reference date fields
-- Path traversal protection in place
-- All listed tests pass
-- Full test suite green
+- `updateReferenceDate()` correctly writes and removes reference date fields ✓
+- Path traversal protection in place ✓
+- All listed tests pass ✓
+- Full test suite green ✓
 
 **Real-Device Validation Required:** No.
+
+**Test Results (2026-06-09):**
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `SessionStorageMetadataTest` (55/55) — PASSED on SM-S911B (Android 16) — 16 new tests added
+- `assembleRelease` — BUILD SUCCESSFUL
 
 ---
 
@@ -687,7 +702,7 @@ Implement `SessionStorage.updateLocation()` to set, update, or remove `location.
 | Block B | additional block at session creation | Not Started |
 | Block C | content block cleanup (fix §12.1 violation) | Not Started |
 | Block D | reference.date EXIF auto-population | Completed (2026-06-09) |
-| Block E | reference.date manual edit via updateReferenceDate() | Not Started |
+| Block E | reference.date manual edit via updateReferenceDate() | Completed (2026-06-09) |
 | Block F | location block via updateLocation() | Not Started |
 
 ---

@@ -15,6 +15,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -135,6 +136,59 @@ internal object SessionStorage {
         }
     }
 
+    /**
+     * Updates [reference.date], [reference.dateSource], and [reference.userEdited] in the session's
+     * metadata.json.
+     *
+     * When [date] is a valid ISO 8601 date string ("YYYY", "YYYY-MM", or "YYYY-MM-DD"):
+     * sets [reference.date] to [date], [reference.dateSource] to "manual",
+     * and [reference.userEdited] to true.
+     *
+     * When [date] is null: removes [reference.date] and [reference.dateSource];
+     * sets [reference.userEdited] to true to record the deliberate user action.
+     *
+     * When [date] is a non-null invalid value: returns false without modifying anything.
+     *
+     * All other reference block fields (sourceDisplayName, dimensions, exifOrientation) are
+     * preserved unchanged.
+     *
+     * Returns false on invalid [sessionId], path traversal, missing metadata.json, IO or security errors.
+     */
+    fun updateReferenceDate(sessionsRoot: File, sessionId: String, date: String?): Boolean {
+        return try {
+            val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
+
+            if (date != null && !isValidReferenceDate(date)) return false
+
+            val metadataFile = File(sessionDir, "metadata.json")
+            if (!metadataFile.exists()) return false
+
+            val json = try {
+                JSONObject(metadataFile.readText())
+            } catch (e: Exception) {
+                return false
+            }
+
+            val reference = json.optJSONObject("reference") ?: JSONObject()
+            if (date != null) {
+                reference.put("date", date)
+                reference.put("dateSource", "manual")
+            } else {
+                reference.remove("date")
+                reference.remove("dateSource")
+            }
+            reference.put("userEdited", true)
+            json.put("reference", reference)
+
+            metadataFile.writeText(json.toString())
+            true
+        } catch (e: SecurityException) {
+            false
+        } catch (e: IOException) {
+            false
+        }
+    }
+
     private fun resolveDirectSessionDir(sessionsRoot: File, sessionId: String): File? {
         if (sessionId.isEmpty()) return null
         if (sessionId == "." || sessionId == "..") return null
@@ -157,6 +211,56 @@ internal object SessionStorage {
             counter++
         }
         return candidate
+    }
+
+    /**
+     * Returns true if [date] is a valid reference date in one of the three supported ISO 8601
+     * precision levels: "YYYY", "YYYY-MM", or "YYYY-MM-DD".
+     *
+     * Rules:
+     * - No trimming; any whitespace makes the value invalid.
+     * - Only "-" is accepted as a separator.
+     * - Year must be exactly 4 ASCII digits, >= 1826 and <= current device year.
+     * - Month (when present) must be exactly 2 ASCII digits, 01–12.
+     * - Day (when present) must be a real calendar day for the given month and year,
+     *   validated with a non-lenient Calendar (rejects e.g. Feb 31, Apr 31).
+     * - Empty string is invalid; removal is expressed by passing null to [updateReferenceDate].
+     */
+    private fun isValidReferenceDate(date: String): Boolean {
+        if (date.isEmpty()) return false
+        val parts = date.split("-")
+        if (parts.size < 1 || parts.size > 3) return false
+
+        // Year: exactly 4 ASCII digits
+        if (parts[0].length != 4 || !parts[0].all { it in '0'..'9' }) return false
+        val year = parts[0].toIntOrNull() ?: return false
+
+        // Year plausibility: 1826 (earliest photograph) <= year <= current device year
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        if (year < 1826 || year > currentYear) return false
+
+        if (parts.size >= 2) {
+            // Month: exactly 2 ASCII digits, 01–12
+            if (parts[1].length != 2 || !parts[1].all { it in '0'..'9' }) return false
+            val month = parts[1].toIntOrNull() ?: return false
+            if (month < 1 || month > 12) return false
+        }
+
+        if (parts.size == 3) {
+            // Day: exactly 2 ASCII digits; validate with non-lenient Calendar
+            if (parts[2].length != 2 || !parts[2].all { it in '0'..'9' }) return false
+            val month = parts[1].toIntOrNull() ?: return false
+            val day = parts[2].toIntOrNull() ?: return false
+            val cal = Calendar.getInstance().apply { isLenient = false }
+            cal.set(year, month - 1, day)
+            try {
+                cal.time // throws IllegalArgumentException for out-of-range dates
+            } catch (_: Exception) {
+                return false
+            }
+        }
+
+        return true
     }
 
     private fun writeCapture(bitmap: Bitmap, sessionDir: File, gpsSnapshot: GpsSnapshot?) {

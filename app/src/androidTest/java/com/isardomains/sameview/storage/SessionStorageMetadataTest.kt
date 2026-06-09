@@ -22,6 +22,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.Calendar
 
 @RunWith(AndroidJUnit4::class)
 class SessionStorageMetadataTest {
@@ -517,5 +518,231 @@ class SessionStorageMetadataTest {
     fun reference_userEdited_isAbsent_whenNoExifDateTimeOriginal() {
         val json = readMetadata(saveTestSession())
         assertFalse(json.getJSONObject("reference").has("userEdited"))
+    }
+
+    // ── Block E: updateReferenceDate ──────────────────────────────────────────
+
+    /**
+     * Creates a minimal session with a reference block carrying specified date fields.
+     * No image files are written — only metadata.json is needed for updateReferenceDate tests.
+     */
+    private fun createSessionWithReferenceDateFields(
+        sessionId: String = "test-session-refdate",
+        date: String? = null,
+        dateSource: String? = null,
+        userEdited: Boolean? = null
+    ): File {
+        val sessionDir = File(testRoot, sessionId)
+        sessionDir.mkdirs()
+        val json = JSONObject().apply {
+            put("version", 4)
+            put("session", JSONObject().apply { put("createdAtMs", 1_000_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("overlay", JSONObject().apply {
+                put("scale", 1.0)
+                put("offsetX", 0.0)
+                put("offsetY", 0.0)
+                put("displayMode", "COMPARE_WITH_PREVIEW")
+            })
+            put("reference", JSONObject().apply {
+                put("sourceDisplayName", "content://test/reference/1")
+                put("originalWidth", 100)
+                put("originalHeight", 60)
+                put("orientedWidth", 60)
+                put("orientedHeight", 100)
+                if (date != null) put("date", date)
+                if (dateSource != null) put("dateSource", dateSource)
+                if (userEdited != null) put("userEdited", userEdited)
+            })
+        }
+        File(sessionDir, "metadata.json").writeText(json.toString())
+        return sessionDir
+    }
+
+    @Test
+    fun updateReferenceDate_writesDate_andDateSource_andUserEdited() {
+        val sessionDir = createSessionWithReferenceDateFields()
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "2008-06-15")
+
+        assertTrue(result)
+        val reference = readMetadata(sessionDir).getJSONObject("reference")
+        assertEquals("2008-06-15", reference.getString("date"))
+        assertEquals("manual", reference.getString("dateSource"))
+        assertTrue(reference.getBoolean("userEdited"))
+    }
+
+    @Test
+    fun updateReferenceDate_setsManualSource() {
+        val sessionDir = createSessionWithReferenceDateFields()
+
+        SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "2019")
+
+        assertEquals("manual", readMetadata(sessionDir).getJSONObject("reference").getString("dateSource"))
+    }
+
+    @Test
+    fun updateReferenceDate_doesNotRevertToExif() {
+        val sessionDir = createSessionWithReferenceDateFields(
+            date = "2008-06-15",
+            dateSource = "exif",
+            userEdited = false
+        )
+
+        SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "2009-01")
+
+        val reference = readMetadata(sessionDir).getJSONObject("reference")
+        assertEquals("2009-01", reference.getString("date"))
+        assertEquals("manual", reference.getString("dateSource"))
+        assertTrue(reference.getBoolean("userEdited"))
+    }
+
+    @Test
+    fun updateReferenceDate_removesDate_removesDateSource() {
+        val sessionDir = createSessionWithReferenceDateFields(
+            date = "2008-06-15",
+            dateSource = "manual",
+            userEdited = true
+        )
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, null)
+
+        assertTrue(result)
+        val reference = readMetadata(sessionDir).getJSONObject("reference")
+        assertFalse(reference.has("date"))
+        assertFalse(reference.has("dateSource"))
+    }
+
+    @Test
+    fun updateReferenceDate_setsUserEdited_true_whenRemovingDate() {
+        val sessionDir = createSessionWithReferenceDateFields(
+            date = "2008-06-15",
+            dateSource = "exif",
+            userEdited = false
+        )
+
+        SessionStorage.updateReferenceDate(testRoot, sessionDir.name, null)
+
+        assertTrue(readMetadata(sessionDir).getJSONObject("reference").getBoolean("userEdited"))
+    }
+
+    @Test
+    fun updateReferenceDate_preservesAllOtherFields() {
+        val sessionDir = createSessionWithReferenceDateFields()
+        val jsonBefore = readMetadata(sessionDir)
+
+        SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "2020-03-15")
+
+        val jsonAfter = readMetadata(sessionDir)
+        assertEquals(jsonBefore.getInt("version"), jsonAfter.getInt("version"))
+        assertEquals(
+            jsonBefore.getJSONObject("session").getLong("createdAtMs"),
+            jsonAfter.getJSONObject("session").getLong("createdAtMs")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("files").getString("capture"),
+            jsonAfter.getJSONObject("files").getString("capture")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("overlay").getDouble("scale"),
+            jsonAfter.getJSONObject("overlay").getDouble("scale"),
+            0.0
+        )
+        val refAfter = jsonAfter.getJSONObject("reference")
+        assertEquals("content://test/reference/1", refAfter.getString("sourceDisplayName"))
+        assertEquals(100, refAfter.getInt("originalWidth"))
+        assertEquals(60, refAfter.getInt("originalHeight"))
+        assertEquals(60, refAfter.getInt("orientedWidth"))
+        assertEquals(100, refAfter.getInt("orientedHeight"))
+    }
+
+    @Test
+    fun updateReferenceDate_pathTraversal_returnsFalse() {
+        assertFalse(SessionStorage.updateReferenceDate(testRoot, "../some-other-dir", "2020"))
+    }
+
+    @Test
+    fun updateReferenceDate_absolutePath_returnsFalse() {
+        val absoluteSessionId = File(testRoot, "absolute-session").absolutePath
+        assertFalse(SessionStorage.updateReferenceDate(testRoot, absoluteSessionId, "2020"))
+    }
+
+    @Test
+    fun updateReferenceDate_yearOnly_isValid() {
+        val sessionDir = createSessionWithReferenceDateFields()
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "2008")
+
+        assertTrue(result)
+        assertEquals("2008", readMetadata(sessionDir).getJSONObject("reference").getString("date"))
+    }
+
+    @Test
+    fun updateReferenceDate_yearMonth_isValid() {
+        val sessionDir = createSessionWithReferenceDateFields()
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "2008-06")
+
+        assertTrue(result)
+        assertEquals("2008-06", readMetadata(sessionDir).getJSONObject("reference").getString("date"))
+    }
+
+    @Test
+    fun updateReferenceDate_invalidDate_emptyString_returnsFalse() {
+        val sessionDir = createSessionWithReferenceDateFields()
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "")
+
+        assertFalse(result)
+        assertFalse(readMetadata(sessionDir).getJSONObject("reference").has("date"))
+    }
+
+    @Test
+    fun updateReferenceDate_invalidDate_invalidMonth_returnsFalse() {
+        val sessionDir = createSessionWithReferenceDateFields()
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "2008-13")
+
+        assertFalse(result)
+        assertFalse(readMetadata(sessionDir).getJSONObject("reference").has("date"))
+    }
+
+    @Test
+    fun updateReferenceDate_invalidDate_invalidCalendarDay_returnsFalse() {
+        val sessionDir = createSessionWithReferenceDateFields()
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "2008-02-31")
+
+        assertFalse(result)
+        assertFalse(readMetadata(sessionDir).getJSONObject("reference").has("date"))
+    }
+
+    @Test
+    fun updateReferenceDate_invalidDate_yearBefore1826_returnsFalse() {
+        val sessionDir = createSessionWithReferenceDateFields()
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "1825")
+
+        assertFalse(result)
+        assertFalse(readMetadata(sessionDir).getJSONObject("reference").has("date"))
+    }
+
+    @Test
+    fun updateReferenceDate_invalidDate_yearAfterCurrentYear_returnsFalse() {
+        val sessionDir = createSessionWithReferenceDateFields()
+        val futureYear = Calendar.getInstance().get(Calendar.YEAR) + 1
+
+        val result = SessionStorage.updateReferenceDate(testRoot, sessionDir.name, "$futureYear")
+
+        assertFalse(result)
+        assertFalse(readMetadata(sessionDir).getJSONObject("reference").has("date"))
+    }
+
+    @Test
+    fun updateReferenceDate_missingSession_returnsFalse() {
+        assertFalse(SessionStorage.updateReferenceDate(testRoot, "does-not-exist", "2020"))
     }
 }
