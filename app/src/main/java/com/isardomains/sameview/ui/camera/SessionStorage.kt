@@ -284,7 +284,7 @@ internal object SessionStorage {
      *   validated with a non-lenient Calendar (rejects e.g. Feb 31, Apr 31).
      * - Empty string is invalid; removal is expressed by passing null to [updateReferenceDate].
      */
-    private fun isValidReferenceDate(date: String): Boolean {
+    internal fun isValidReferenceDate(date: String): Boolean {
         if (date.isEmpty()) return false
         val parts = date.split("-")
         if (parts.size < 1 || parts.size > 3) return false

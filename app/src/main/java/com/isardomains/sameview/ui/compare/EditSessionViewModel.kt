@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.isardomains.sameview.ui.camera.SessionStorage
 import org.json.JSONObject
 import java.io.File
 import javax.inject.Inject
@@ -68,6 +69,27 @@ class EditSessionViewModel @Inject constructor(
     private val _referenceDateField = MutableStateFlow("")
     /** Current value of reference.date; empty string when absent. */
     val referenceDateField: StateFlow<String> = _referenceDateField.asStateFlow()
+
+    internal val _referenceDateError = MutableStateFlow<String?>(null)
+    /** Current validation error for the reference date field; null when no error is present. */
+    val referenceDateError: StateFlow<String?> = _referenceDateError.asStateFlow()
+
+    /** Updates the reference date field as the user types and clears any existing validation error. */
+    fun onReferenceDateChanged(value: String) {
+        _referenceDateField.value = value
+        _referenceDateError.value = null
+    }
+
+    /**
+     * Returns true if [value] is a valid reference date input.
+     *
+     * An empty or blank value is valid in the UI context (means "remove date" on save).
+     * A non-empty trimmed value is delegated to [SessionStorage.isValidReferenceDate].
+     */
+    internal fun isValidReferenceDateInput(value: String): Boolean {
+        val trimmed = value.trim()
+        return trimmed.isEmpty() || SessionStorage.isValidReferenceDate(trimmed)
+    }
 
     private val _locationDisplayNameField = MutableStateFlow("")
     /** Current value of location.displayName; empty string when absent. */

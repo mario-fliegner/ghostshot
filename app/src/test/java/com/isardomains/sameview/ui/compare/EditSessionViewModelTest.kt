@@ -14,7 +14,9 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import java.util.Calendar
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.doReturn
@@ -176,5 +178,84 @@ class EditSessionViewModelTest {
         advanceUntilIdle()
         vm.onTitleChanged("Zugspitze 2026")
         assertEquals("Zugspitze 2026", vm.titleField.value)
+    }
+
+    // ── Block D: reference date field mutation and validation ─────────────────
+
+    @Test
+    fun onReferenceDateChanged_clearsPreviousError() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        advanceUntilIdle()
+        vm._referenceDateError.value = "previous error"
+        assertEquals("previous error", vm.referenceDateError.value)
+        vm.onReferenceDateChanged("2008")
+        assertNull(vm.referenceDateError.value)
+    }
+
+    @Test
+    fun validateReferenceDate_emptyString_isValid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertTrue(vm.isValidReferenceDateInput(""))
+    }
+
+    @Test
+    fun validateReferenceDate_blankString_isValid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertTrue(vm.isValidReferenceDateInput("   "))
+    }
+
+    @Test
+    fun validateReferenceDate_yearOnly_isValid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertTrue(vm.isValidReferenceDateInput("2008"))
+    }
+
+    @Test
+    fun validateReferenceDate_yearMonth_isValid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertTrue(vm.isValidReferenceDateInput("2008-06"))
+    }
+
+    @Test
+    fun validateReferenceDate_fullDate_isValid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertTrue(vm.isValidReferenceDateInput("2008-06-15"))
+    }
+
+    @Test
+    fun validateReferenceDate_invalidMonth_isInvalid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertFalse(vm.isValidReferenceDateInput("2008-13"))
+    }
+
+    @Test
+    fun validateReferenceDate_invalidCalendarDay_isInvalid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertFalse(vm.isValidReferenceDateInput("2008-02-31"))
+    }
+
+    @Test
+    fun validateReferenceDate_yearBefore1826_isInvalid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertFalse(vm.isValidReferenceDateInput("1825"))
+    }
+
+    @Test
+    fun validateReferenceDate_yearAfterCurrentYear_isInvalid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        val nextYear = Calendar.getInstance().get(Calendar.YEAR) + 1
+        assertFalse(vm.isValidReferenceDateInput("$nextYear"))
+    }
+
+    @Test
+    fun validateReferenceDate_wrongFormat_isInvalid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertFalse(vm.isValidReferenceDateInput("2008/06/15"))
+    }
+
+    @Test
+    fun validateReferenceDate_singleDigitMonth_isInvalid() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        assertFalse(vm.isValidReferenceDateInput("2008-6"))
     }
 }

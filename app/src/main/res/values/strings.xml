@@ -218,4 +218,7 @@
     <string name="edit_session_back_content_description">Back</string>
     <!-- Edit Session — form fields -->
     <string name="edit_session_field_title">Title</string>
+    <string name="edit_session_field_reference_date">Reference date</string>
+    <string name="edit_session_reference_date_hint">e.g. 2008 or 2008-06</string>
+    <string name="edit_session_reference_date_error">Enter a year (e.g. 2008), year-month (e.g. 2008-06), or full date (e.g. 2008-06-15).</string>
 </resources>

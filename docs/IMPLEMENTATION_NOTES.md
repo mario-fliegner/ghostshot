@@ -367,7 +367,23 @@ Latest verified test state (Session Metadata Editor Block C — Completed 2026-0
 - `EditSessionViewModelTest` — 7/7 PASSED
 - `assembleDebug` — BUILD SUCCESSFUL
 
-No open Session Metadata Editor Block C tasks remain. Next block: Block D (Reference Date field + validation).
+No open Session Metadata Editor Block C tasks remain.
+
+Block D completed (2026-06-09):
+
+- **Shared validation** — `SessionStorage.isValidReferenceDate()` changed from `private` to `internal` (1-word change); single source of truth for date format validation; no duplication
+- **Reference date field** — `OutlinedTextField` added to `EditSessionScreen`; `referenceDate` and `referenceError` collected via `collectAsStateWithLifecycle()`; placeholder hint, `isError`, conditional `supportingText` for error display; `ImeAction.Done` + `clearFocus()`
+- **Title field IME** — changed from `ImeAction.Done` to `ImeAction.Next` with `moveFocus(FocusDirection.Down)` to chain keyboard navigation to Reference Date
+- **`EditSessionViewModel`** — `internal val _referenceDateError: MutableStateFlow<String?>` (null initially; accessible in tests); `referenceDateError: StateFlow<String?>`; `onReferenceDateChanged()` (updates field, clears error); `internal fun isValidReferenceDateInput()` (empty/blank → true; non-empty → delegates to `SessionStorage.isValidReferenceDate(trimmed)`); error state is present but stays null in Block D (no save trigger yet)
+- **`EditSessionViewModelTest`** — 12 new tests: `onReferenceDateChanged_clearsPreviousError` + 11 validation cases; 19/19 pass
+
+Latest verified test state (Session Metadata Editor Block D — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 407/407 unit tests passed, 0 failures
+- `EditSessionViewModelTest` — 19/19 PASSED
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block D tasks remain. Next block: Block E (Location fields).
 
 ---
 

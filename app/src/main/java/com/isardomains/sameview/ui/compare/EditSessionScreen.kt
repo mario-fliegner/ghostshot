@@ -21,6 +21,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -33,8 +34,8 @@ import com.isardomains.sameview.R
 /**
  * Fullscreen editor screen for session metadata.
  *
- * Block C: adds the Title [OutlinedTextField], wired to [EditSessionViewModel.titleField].
- * No save logic or dirty-state tracking yet.
+ * Block D: adds the Reference Date [OutlinedTextField] with validation error display.
+ * Title field ImeAction updated to Next. No save logic or dirty-state tracking yet.
  *
  * @param sessionId The session being edited.
  * @param onBack Called when the user navigates back.
@@ -49,6 +50,8 @@ fun EditSessionScreen(
     viewModel: EditSessionViewModel = hiltViewModel()
 ) {
     val title by viewModel.titleField.collectAsStateWithLifecycle()
+    val referenceDate by viewModel.referenceDateField.collectAsStateWithLifecycle()
+    val referenceError by viewModel.referenceDateError.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
 
     Scaffold(
@@ -92,6 +95,22 @@ fun EditSessionScreen(
                 onValueChange = viewModel::onTitleChanged,
                 label = { Text(stringResource(R.string.edit_session_field_title)) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            OutlinedTextField(
+                value = referenceDate,
+                onValueChange = viewModel::onReferenceDateChanged,
+                label = { Text(stringResource(R.string.edit_session_field_reference_date)) },
+                placeholder = { Text(stringResource(R.string.edit_session_reference_date_hint)) },
+                singleLine = true,
+                isError = referenceError != null,
+                supportingText = if (referenceError != null) {
+                    { Text(stringResource(R.string.edit_session_reference_date_error)) }
+                } else null,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 modifier = Modifier

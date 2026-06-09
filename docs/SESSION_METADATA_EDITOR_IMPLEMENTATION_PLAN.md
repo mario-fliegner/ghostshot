@@ -332,7 +332,7 @@ Add the Title `OutlinedTextField` to `EditSessionScreen`. Wire it to `EditSessio
 
 ## Block D — Reference Date Field
 
-**Status:** Not started
+**Status:** Completed (2026-06-09)
 
 ### Goal
 
@@ -340,40 +340,44 @@ Add the Reference Date `OutlinedTextField` to `EditSessionScreen`. Wire to ViewM
 
 ### What Changes
 
+**`SessionStorage.kt`:**
+- `private fun isValidReferenceDate` → `internal fun isValidReferenceDate` (1-word change)
+- No logic change; exposes the function to the same Gradle module so `EditSessionViewModel` can delegate directly
+
 **`EditSessionScreen.kt`:**
-- Add `OutlinedTextField` with label "Reference date" and placeholder hint (`"e.g. 2008 or 2008-06"`)
-- `isError = referenceDateError != null`
-- If `referenceDateError != null`, show supporting text with error message below field
+- `referenceDate` and `referenceError` collected via `collectAsStateWithLifecycle()`
+- Title field `ImeAction.Done` → `ImeAction.Next` + `onNext = { focusManager.moveFocus(FocusDirection.Down) }`
+- Reference Date `OutlinedTextField` with label, placeholder hint, `singleLine = true`, `isError = referenceError != null`, conditional `supportingText`, `ImeAction.Done` + `clearFocus()`
+- Added `import androidx.compose.ui.focus.FocusDirection`
 
 **`EditSessionViewModel.kt`:**
-- Add `_referenceDateField: MutableStateFlow<String>`
-- Add `_referenceDateError: MutableStateFlow<String?>` (null = valid or empty)
-- Add `onReferenceDateChanged(value: String)` — updates field, clears error immediately on change (validation runs on Save, not on change)
-- Add internal `validateReferenceDate(value: String): Boolean` — mirrors `SessionStorage.isValidReferenceDate()`:
-  - Empty string → valid (means "remove")
-  - Non-empty: must match `"YYYY"`, `"YYYY-MM"`, or `"YYYY-MM-DD"` with plausibility filter (year 1826–current year) and non-lenient Calendar check for month/day validity
+- Added `import com.isardomains.sameview.ui.camera.SessionStorage`
+- Added `internal val _referenceDateError = MutableStateFlow<String?>(null)` (internal for test access)
+- Added `val referenceDateError: StateFlow<String?>`
+- Added `onReferenceDateChanged(value: String)` — updates field, clears error immediately
+- Added `internal fun isValidReferenceDateInput(value: String): Boolean` — trims value; empty/blank → true; non-empty → delegates to `SessionStorage.isValidReferenceDate(trimmed)`. Single source of truth, no duplication.
+- Note: `_referenceDateField: MutableStateFlow<String>` already existed from Block B; no new declaration needed
 
 **`strings.xml`:**
-- Add `edit_session_field_reference_date` → "Reference date"
-- Add `edit_session_reference_date_hint` → "e.g. 2008 or 2008-06"
-- Add `edit_session_reference_date_error` → "Enter a year (e.g. 2008), year–month (e.g. 2008-06), or full date (e.g. 2008-06-15)."
+- Added `edit_session_field_reference_date` → "Reference date"
+- Added `edit_session_reference_date_hint` → "e.g. 2008 or 2008-06"
+- Added `edit_session_reference_date_error` → "Enter a year (e.g. 2008), year-month (e.g. 2008-06), or full date (e.g. 2008-06-15)."
 
 ### Affected Files
 
 | File | Change Type |
 |---|---|
+| `app/src/main/java/com/isardomains/sameview/ui/camera/SessionStorage.kt` | Modified — visibility only |
 | `app/src/main/java/com/isardomains/sameview/ui/compare/EditSessionScreen.kt` | Modified |
 | `app/src/main/java/com/isardomains/sameview/ui/compare/EditSessionViewModel.kt` | Modified |
 | `app/src/main/res/values/strings.xml` | Modified |
 | `app/src/test/java/com/isardomains/sameview/ui/compare/EditSessionViewModelTest.kt` | Modified |
 
-### Risks
-
-- `validateReferenceDate()` in `EditSessionViewModel` must be an exact replica of `SessionStorage.isValidReferenceDate()`. Any divergence allows the UI to accept a value the storage layer rejects. The safest approach: extract the validation logic into a shared internal utility function (e.g., a `companion object` function in `SessionStorage` made `internal`) and call it from both places. Alternatively, duplicate the logic carefully and add parallel unit tests.
-
 ### Required Tests
 
+- `onReferenceDateChanged_clearsPreviousError` — sets `_referenceDateError` manually, calls `onReferenceDateChanged()`, asserts null
 - `validateReferenceDate_emptyString_isValid`
+- `validateReferenceDate_blankString_isValid`
 - `validateReferenceDate_yearOnly_isValid` — `"2008"`
 - `validateReferenceDate_yearMonth_isValid` — `"2008-06"`
 - `validateReferenceDate_fullDate_isValid` — `"2008-06-15"`
@@ -383,15 +387,23 @@ Add the Reference Date `OutlinedTextField` to `EditSessionScreen`. Wire to ViewM
 - `validateReferenceDate_yearAfterCurrentYear_isInvalid`
 - `validateReferenceDate_wrongFormat_isInvalid` — `"2008/06/15"`
 - `validateReferenceDate_singleDigitMonth_isInvalid` — `"2008-6"`
-- `onReferenceDateChanged_clearsPreviousError`
 
 ### Definition of Done
 
 - Reference date field visible, pre-populated, editable
-- Validation runs on Save (not on change)
-- Error shown inline when invalid
+- Validation infrastructure present; error state stays null until Block F activates it via `onSave()`
+- Error UI (isError, supportingText) ready but dormant in Block D
+- Title field ImeAction changed to Next
 - All validation unit tests pass
 - Build green
+
+### Test Results (2026-06-09)
+
+- All 12 new Block D tests — PASSED
+- All 7 existing tests — PASSED (unchanged)
+- `EditSessionViewModelTest` — 19/19 PASSED
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 407/407 unit tests passed, 0 failures
+- `assembleDebug` — BUILD SUCCESSFUL
 
 ---
 
@@ -711,7 +723,7 @@ The following must remain unaffected and pass:
 | Block A | CompareScreen overflow refactor + navigation shell | Completed |
 | Block B | EditSessionViewModel: initial state loading | Completed |
 | Block C | Title field | Completed |
-| Block D | Reference date field + validation | Not started |
+| Block D | Reference date field + validation | Completed |
 | Block E | Location fields | Not started |
 | Block F | Save workflow | Not started |
 | Block G | Dirty state + discard dialog | Not started |
