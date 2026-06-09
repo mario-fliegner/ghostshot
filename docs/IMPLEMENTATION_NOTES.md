@@ -236,6 +236,8 @@ Feedback:
 ### Session Storage
 - Successful captures with an active reference can create an internal session under `filesDir/sessions/<sessionId>/`
 - Each session stores `capture.jpg`, `reference.jpg`, and `metadata.json`
+- `metadata.json` schema is **v4** (bumped from v3 in Block A, 2026-06-09): includes `capture.timestampMs` as the canonical capture timestamp inside the `capture` block; `session.createdAtMs` is preserved for backward compatibility and carries the same value
+- `SessionScanner` accepts versions {2, 3, 4}; reads `capture.timestampMs` as primary timestamp source, falls back to `session.createdAtMs` for v2/v3 sessions that have no `capture` block
 - `metadata.json` includes schema version, timestamp, file names, MediaStore URI, picker URI, optional title, and optional GPS location fields (`captureLocation`, `referenceLocation`)
 - Missing, corrupt, or incomplete session metadata is ignored during scanning
 - Session writes are best-effort and do not invalidate the main MediaStore save; if `SessionStorage.saveSession` returns null after a successful MediaStore save, the user receives `capture_saved_compare_failed` instead of the generic `capture_saved`

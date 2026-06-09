@@ -144,9 +144,23 @@ class SessionStorageMetadataTest {
     }
 
     @Test
-    fun metadataFile_containsVersion3() {
+    fun metadataFile_containsVersion4() {
         val json = readMetadata(saveTestSession())
-        assertEquals(3, json.getInt("version"))
+        assertEquals(4, json.getInt("version"))
+    }
+
+    @Test
+    fun metadataFile_capture_containsTimestampMs_greaterThanZero() {
+        val json = readMetadata(saveTestSession())
+        assertTrue(json.getJSONObject("capture").getLong("timestampMs") > 0L)
+    }
+
+    @Test
+    fun metadataFile_capture_timestampMs_equalsSessionCreatedAtMs() {
+        val json = readMetadata(saveTestSession())
+        val sessionCreatedAtMs = json.getJSONObject("session").getLong("createdAtMs")
+        val captureTimestampMs = json.getJSONObject("capture").getLong("timestampMs")
+        assertEquals(sessionCreatedAtMs, captureTimestampMs)
     }
 
     @Test

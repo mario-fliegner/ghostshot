@@ -369,7 +369,7 @@ The following may be modified after session save via explicit user action:
 
 ### Block A — capture.timestampMs + METADATA_VERSION 4 + SUPPORTED_VERSIONS
 
-**Status:** Not Started
+**Status:** Completed (2026-06-09)
 
 **Goal:**
 Add `capture.timestampMs` as the canonical capture timestamp in v4 sessions. Bump `METADATA_VERSION` to 4. Update `SessionScanner` to accept v4 sessions and read `capture.timestampMs` as the primary timestamp source with fallback to `session.createdAtMs` for v2/v3 sessions.
@@ -418,6 +418,16 @@ Add `capture.timestampMs` as the canonical capture timestamp in v4 sessions. Bum
 - `assembleRelease` build successful
 
 **Real-Device Validation Required:** No — pure file-based logic, fully covered by instrumentation tests.
+
+**Test Results (2026-06-09):**
+- `v4_isAccepted` — implemented (inverted from `v4_isRejected`)
+- `v4_sessionWithCaptureTsMs_timestampReadCorrectly` — implemented
+- `v3_sessionWithoutCaptureBlock_fallsBackToSessionCreatedAtMs` — implemented
+- `metadataFile_containsVersion4` — implemented (replaces `metadataFile_containsVersion3`)
+- `metadataFile_capture_containsTimestampMs_greaterThanZero` — implemented
+- `metadataFile_capture_timestampMs_equalsSessionCreatedAtMs` — implemented
+- `connectedDebugAndroidTest` — pending device run
+- `assembleRelease` — pending
 
 ---
 
@@ -643,7 +653,7 @@ Implement `SessionStorage.updateLocation()` to set, update, or remove `location.
 
 | Block | Description | Status |
 |---|---|---|
-| Block A | capture.timestampMs + METADATA_VERSION 4 + SUPPORTED_VERSIONS | Not Started |
+| Block A | capture.timestampMs + METADATA_VERSION 4 + SUPPORTED_VERSIONS | Completed (2026-06-09) |
 | Block B | additional block at session creation | Not Started |
 | Block C | content block cleanup (fix §12.1 violation) | Not Started |
 | Block D | reference.date EXIF auto-population | Not Started |

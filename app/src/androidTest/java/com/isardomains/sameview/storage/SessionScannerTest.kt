@@ -442,7 +442,7 @@ class SessionScannerTest {
     }
 
     @Test
-    fun v4_isRejected() {
+    fun v4_isAccepted() {
         val dir = createSessionDir("2026-04-24_10-00-00")
         val json = JSONObject().apply {
             put("version", 4)
@@ -451,11 +451,45 @@ class SessionScannerTest {
                 put("capture", "capture.jpg")
                 put("reference", "reference.jpg")
             })
+            put("capture", JSONObject().apply { put("timestampMs", 5_000L) })
         }
         File(dir, "metadata.json").writeText(json.toString())
         touch(dir, "reference.jpg")
         touch(dir, "capture.jpg")
 
-        assertTrue(SessionScanner.scan(testRoot).isEmpty())
+        assertEquals(1, SessionScanner.scan(testRoot).size)
+    }
+
+    @Test
+    fun v4_sessionWithCaptureTsMs_timestampReadCorrectly() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        val json = JSONObject().apply {
+            put("version", 4)
+            put("session", JSONObject().apply { put("createdAtMs", 5_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("capture", JSONObject().apply { put("timestampMs", 9_000L) })
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+        assertEquals(1, result.size)
+        assertEquals(9_000L, result[0].timestamp)
+    }
+
+    @Test
+    fun v3_sessionWithoutCaptureBlock_fallsBackToSessionCreatedAtMs() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, version = 3, timestamp = 7_000L)
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+        assertEquals(1, result.size)
+        assertEquals(7_000L, result[0].timestamp)
     }
 }

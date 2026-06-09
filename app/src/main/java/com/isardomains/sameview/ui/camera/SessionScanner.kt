@@ -22,7 +22,7 @@ internal object SessionScanner {
     private const val TAG = "SessionScanner"
     private const val SESSIONS_DIR = "sessions"
     private const val METADATA_FILE = "metadata.json"
-    private val SUPPORTED_VERSIONS = setOf(2, 3)
+    private val SUPPORTED_VERSIONS = setOf(2, 3, 4)
 
     fun scan(context: Context): List<ScannedSession> = scan(File(context.filesDir, SESSIONS_DIR))
 
@@ -85,15 +85,23 @@ internal object SessionScanner {
             return null
         }
 
-        val timestamp: Long = try {
-            sessionObj.getLong("createdAtMs")
-        } catch (e: JSONException) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: session.createdAtMs field missing or not a Long") }
-            return null
-        }
-        if (timestamp <= 0L) {
-            if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: session.createdAtMs is <= 0") }
-            return null
+        // Prefer capture.timestampMs (v4 canonical); fall back to session.createdAtMs for v2/v3.
+        val captureObj: JSONObject? = json.optJSONObject("capture")
+        val captureTs = captureObj?.optLong("timestampMs", 0L) ?: 0L
+        val timestamp: Long = if (captureTs > 0L) {
+            captureTs
+        } else {
+            val fallbackTs = try {
+                sessionObj.getLong("createdAtMs")
+            } catch (e: JSONException) {
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: session.createdAtMs field missing or not a Long") }
+                return null
+            }
+            if (fallbackTs <= 0L) {
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: session.createdAtMs is <= 0") }
+                return null
+            }
+            fallbackTs
         }
 
         val filesObj: JSONObject = try {
