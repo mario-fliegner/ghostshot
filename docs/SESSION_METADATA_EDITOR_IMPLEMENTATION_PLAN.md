@@ -187,7 +187,7 @@ Replace the title dialog in `CompareScreen` with a navigation entry to the new `
 - `CompareScreenTest` passes with no compilation errors
 - All other instrumentation tests unaffected
 
-### Test Results
+### Block A Test Results
 
 - `testDebugUnitTest` — BUILD SUCCESSFUL
 - `CompareScreenTest` — 79/79 PASSED on SM-S911B (Android 16), BUILD SUCCESSFUL in 2m 47s
@@ -265,7 +265,7 @@ Read `content.title`, `reference.date`, `location.displayName`, `location.city`,
 - All listed unit tests pass
 - Build green
 
-### Test Results (2026-06-09)
+### Block B Test Results (2026-06-09)
 
 - `initialState_titleLoaded_fromMetadata` — PASSED
 - `initialState_referenceDate_loaded_fromMetadata` — PASSED
@@ -277,7 +277,7 @@ Read `content.title`, `reference.date`, `location.displayName`, `location.city`,
 
 ---
 
-## Block C — Title Field
+## Block C — Title Field — Title Field
 
 **Status:** Completed (2026-06-09)
 
@@ -320,7 +320,7 @@ Add the Title `OutlinedTextField` to `EditSessionScreen`. Wire it to `EditSessio
 - Title field visible in editor, pre-populated, editable
 - Build green, tests pass
 
-### Test Results (2026-06-09)
+### Block C Test Results (2026-06-09)
 
 - `onTitleChanged_updatesState` — PASSED
 - All 6 Block B tests — PASSED (unchanged)
@@ -397,7 +397,7 @@ Add the Reference Date `OutlinedTextField` to `EditSessionScreen`. Wire to ViewM
 - All validation unit tests pass
 - Build green
 
-### Test Results (2026-06-09)
+### Block D Test Results (2026-06-09)
 
 - All 12 new Block D tests — PASSED
 - All 7 existing tests — PASSED (unchanged)
@@ -456,7 +456,7 @@ Add the three location `OutlinedTextField` fields to `EditSessionScreen`: Locati
 - All 3 location fields visible, pre-populated, editable
 - Build green, tests pass
 
-### Test Results (2026-06-09)
+### Block E Test Results (2026-06-09)
 
 - `onLocationDisplayNameChanged_updatesState` — PASSED
 - `onLocationCityChanged_updatesState` — PASSED
@@ -470,7 +470,7 @@ Add the three location `OutlinedTextField` fields to `EditSessionScreen`: Locati
 
 ## Block F — Save Workflow
 
-**Status:** Not started
+**Status:** Completed (2026-06-09)
 
 ### Goal
 
@@ -584,11 +584,51 @@ EditSessionScreen(
 - All listed unit tests pass
 - Build green
 
+### Block F Implementation Notes
+
+**Deviations from the Block F plan spec:**
+
+- `isDirty` and `isSaving` `StateFlow`s were implemented in Block F (not Block G), as these are required to enable/disable the Save button. The Save button is `enabled = isDirty && !isSaving`.
+- `EditSessionScreen` receives `viewModel: EditSessionViewModel` as a **required parameter** (no `= hiltViewModel()` default). `MainActivity` creates the ViewModel via `hiltViewModel()` and passes it explicitly. This is necessary so `MainActivity` can observe `viewModel.events` independently of the composable lifecycle.
+- `normalizeField(s: String): String? = s.trim().ifEmpty { null }` — blank → null for all fields at save time. Display values are not modified.
+- `isDirty` is computed via manual `updateIsDirty()` calls (not `combine + stateIn`) to avoid a race condition in `init` where `combine` would re-evaluate before `initial*` vars are set.
+- `createViewModel` in `EditSessionViewModelTest` has `reader` as the **last** parameter so existing trailing-lambda syntax `createViewModel { _, _ -> InitialSessionFields(...) }` continues to bind correctly to `reader`. New Block F tests use named parameters.
+
+### Block F Test Results (2026-06-09)
+
+- `isDirty_falseInitially` — PASSED
+- `isDirty_trueAfterTitleChanged` — PASSED
+- `isDirty_trueAfterReferenceDateChanged` — PASSED
+- `isDirty_trueAfterLocationFieldChanged` — PASSED
+- `isDirty_falseAfterRevertingToInitialValue` — PASSED
+- `isDirty_falseWhenInitialAndCurrentBothBlank` — PASSED
+- `onSave_withValidTitle_callsTitleUpdater` — PASSED
+- `onSave_withUnchangedTitle_doesNotCallTitleUpdater` — PASSED
+- `onSave_withBlankTitle_callsTitleUpdaterWithNull` — PASSED
+- `onSave_withValidReferenceDate_callsReferenceDateUpdater` — PASSED
+- `onSave_withBlankReferenceDate_callsReferenceDateUpdaterWithNull` — PASSED
+- `onSave_withInvalidReferenceDate_setsError_doesNotCallUpdater` — PASSED
+- `onSave_withLocationFields_callsLocationUpdater_withTrimmedValues` — PASSED
+- `onSave_withAllLocationFieldsBlank_callsLocationUpdater_withNulls` — PASSED
+- `onSave_success_emitsSaveComplete` — PASSED
+- `onSave_noFieldChanged_emitsSaveComplete_withoutCallingAnyUpdater` — PASSED
+- `onSave_titleUpdaterFails_emitsSaveFailed` — PASSED
+- `onSave_referenceDateUpdaterFails_emitsSaveFailed` — PASSED
+- `onSave_locationUpdaterFails_emitsSaveFailed` — PASSED
+- `isDirty_falseAfterSuccessfulSave` — PASSED
+- `onSave_storageOrderIsTitleThenReferenceDateThenLocation` — PASSED
+- `isSaving_falseBeforeAndAfterSave` — PASSED
+- `onSave_titleUpdaterFails_doesNotEmitSaveComplete` — PASSED
+- All 22 existing tests — PASSED (unchanged)
+- `EditSessionViewModelTest` — 46/46 PASSED (22 existing + 24 new)
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
 ---
 
 ## Block G — Dirty State + Discard Dialog
 
-**Status:** Not started
+**Status:** Completed (2026-06-09)
 
 ### Goal
 
@@ -645,6 +685,30 @@ Track whether any field has been changed from its initial state. On Back with di
 - Cancelling dialog: user remains on editor
 - All listed unit tests pass
 - Build green
+
+### Block G Implementation Notes
+
+**Deviations and additions vs. plan:**
+
+- `isSaving` back-blocking was added as a second dialog path (not in the original Block G plan). When `isSaving == true`, a "Saving changes" information dialog is shown instead of the discard dialog. Navigation is blocked until the user dismisses the dialog (the save continues running). This applies to both system back and the TopAppBar back icon.
+- `isDirty` was already implemented and tested in Block F. No ViewModel changes were needed for Block G.
+- `BackHandler(enabled = isSaving || isDirty)` — the handler fires for both states. Inside, `isSaving` is checked first: `if (isSaving) showSavingDialog = true else showDiscardDialog = true`.
+- TopAppBar back button: `if (isSaving) showSavingDialog = true else if (isDirty) showDiscardDialog = true else onBack()`.
+- Both dialog states are local Compose state (`var showXxxDialog by remember { mutableStateOf(false) }`).
+- SaveComplete path in `MainActivity` is unchanged — `isDirty` is already `false` before `popBackStack()` is called, so no dialog can appear.
+- 4 required ViewModel unit tests from Block G's plan were already passing from Block F. No new unit tests added.
+- Instrumentation tests for this block are deferred to Block H (`EditSessionScreenTest.kt`).
+
+**String keys added:**
+
+- `edit_session_discard_dialog_title` / `_body` / `_confirm` / `_cancel`
+- `edit_session_saving_dialog_title` / `_body` / `_confirm`
+
+### Block G Test Results (2026-06-09)
+
+- All 46 existing `EditSessionViewModelTest` — PASSED (unchanged)
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
 
 ---
 
@@ -741,8 +805,8 @@ The following must remain unaffected and pass:
 | Block C | Title field | Completed |
 | Block D | Reference date field + validation | Completed |
 | Block E | Location fields | Completed |
-| Block F | Save workflow | Not started |
-| Block G | Dirty state + discard dialog | Not started |
+| Block F | Save workflow | Completed |
+| Block G | Dirty state + discard dialog | Completed |
 | Block H | Full test coverage + regression verification | Not started |
 
 ---

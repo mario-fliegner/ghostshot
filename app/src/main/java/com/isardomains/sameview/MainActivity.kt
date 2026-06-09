@@ -33,7 +33,9 @@ import com.isardomains.sameview.ui.camera.UiEvent
 import com.isardomains.sameview.ui.about.AboutScreenRoute
 import com.isardomains.sameview.ui.compare.CompareLibraryScreen
 import com.isardomains.sameview.ui.compare.CompareScreen
+import com.isardomains.sameview.ui.compare.EditSessionEvent
 import com.isardomains.sameview.ui.compare.EditSessionScreen
+import com.isardomains.sameview.ui.compare.EditSessionViewModel
 import com.isardomains.sameview.ui.settings.SettingsScreen
 import com.isardomains.sameview.ui.theme.SameViewTheme
 import com.isardomains.sameview.ui.video.CreateVideoScreen
@@ -306,10 +308,39 @@ class MainActivity : ComponentActivity() {
                     ) { backStackEntry ->
                         val sessionId = backStackEntry.arguments?.getString(ARG_EDIT_SESSION_ID)
                             ?: return@composable
-                        EditSessionScreen(
-                            sessionId = sessionId,
-                            onBack = { navController.popBackStack() }
-                        )
+                        val cameraEntry = remember(backStackEntry) {
+                            navController.getBackStackEntry(ROUTE_CAMERA)
+                        }
+                        val cameraViewModel: CameraViewModel = hiltViewModel(cameraEntry)
+                        val editSessionViewModel: EditSessionViewModel = hiltViewModel()
+                        val snackbarHostState = remember { SnackbarHostState() }
+                        val saveFailedMessage = stringResource(R.string.edit_session_save_failed)
+                        LaunchedEffect(editSessionViewModel) {
+                            editSessionViewModel.events.collect { event ->
+                                when (event) {
+                                    EditSessionEvent.SaveComplete -> {
+                                        cameraViewModel.refreshSavedSessions()
+                                        navController.popBackStack()
+                                    }
+                                    EditSessionEvent.SaveFailed -> {
+                                        snackbarHostState.showSnackbar(saveFailedMessage)
+                                    }
+                                }
+                            }
+                        }
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            EditSessionScreen(
+                                sessionId = sessionId,
+                                onBack = { navController.popBackStack() },
+                                viewModel = editSessionViewModel
+                            )
+                            SnackbarHost(
+                                hostState = snackbarHostState,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .navigationBarsPadding()
+                            )
+                        }
                     }
                 }
             }

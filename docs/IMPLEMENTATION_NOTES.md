@@ -399,7 +399,43 @@ Latest verified test state (Session Metadata Editor Block E — Completed 2026-0
 - `testDebugUnitTest` — BUILD SUCCESSFUL, 22/22 `EditSessionViewModelTest` PASSED, 0 failures
 - `assembleDebug` — BUILD SUCCESSFUL
 
-No open Session Metadata Editor Block E tasks remain. Next block: Block F (Save workflow).
+No open Session Metadata Editor Block E tasks remain.
+
+Block F completed (2026-06-09):
+
+- **`EditSessionEvent`** — `sealed interface EditSessionEvent` with `data object SaveComplete` and `data object SaveFailed`; declared at package level in `EditSessionViewModel.kt`; exposed as `SharedFlow<EditSessionEvent>` from `events` property
+- **`isDirty` and `isSaving`** — both `StateFlow<Boolean>` added to `EditSessionViewModel`; `isDirty` computed via `updateIsDirty()` called from every `onXxxChanged()` handler; `isSaving` set true at start of `onSave()` coroutine, guaranteed false in `finally`; Save button `enabled = isDirty && !isSaving`
+- **`normalizeField()`** — `private fun normalizeField(s: String): String? = s.trim().ifEmpty { null }`; blank input always becomes null at save time; display values are never modified
+- **`onSave()`** — validates reference date first (sets `referenceDateError`, returns without writing on failure); then `_isSaving.value = true`; writes changed field groups in order: title → referenceDate → location (all-or-nothing per group, not per field); on any storage write returning `false`, emits `SaveFailed` and returns; on all writes succeeding (or no writes needed), updates `initial*` vars, calls `updateIsDirty()` (resets `isDirty` to false), emits `SaveComplete`
+- **Injectable storage lambdas** — `internal var sessionTitleUpdater`, `sessionReferenceDateUpdater`, `sessionLocationUpdater` (all replaceable in tests); defaults delegate to `SessionStorage.updateTitle/updateReferenceDate/updateLocation` respectively
+- **`EditSessionScreen`** — `viewModel: EditSessionViewModel` is now a **required parameter** (no `= hiltViewModel()` default); `isDirty` and `isSaving` collected via `collectAsStateWithLifecycle()`; Save button wired to `viewModel::onSave` and `enabled = isDirty && !isSaving`
+- **`MainActivity`** — `ROUTE_EDIT_SESSION_WITH_ARGS` composable fully wired: creates `editSessionViewModel = hiltViewModel()` and `cameraViewModel = hiltViewModel(cameraEntry)`; `LaunchedEffect` collects `editSessionViewModel.events`; `SaveComplete` → `cameraViewModel.refreshSavedSessions()` + `navController.popBackStack()`; `SaveFailed` → `snackbarHostState.showSnackbar(saveFailedMessage)`; `SnackbarHost` rendered at bottom of screen
+- **`strings.xml`** — `edit_session_save_failed` → `"Couldn't save changes"` added
+- **`EditSessionViewModelTest`** — 24 new tests added (isDirty tracking, onSave paths, event emission, storage call order, isSaving state); `createViewModel` helper updated with `titleUpdater`, `referenceDateUpdater`, `locationUpdater` parameters (all with defaults); `reader` moved to last position so existing trailing-lambda calls continue to work
+
+Latest verified test state (Session Metadata Editor Block F — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 46/46 `EditSessionViewModelTest` PASSED (22 existing + 24 new)
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block F tasks remain.
+
+Block G completed (2026-06-09):
+
+- **Back handling** — `EditSessionScreen` now intercepts both system back and the TopAppBar back icon. `BackHandler(enabled = isSaving || isDirty)` is active whenever either state is true.
+- **Dirty back → Discard dialog** — when `isSaving == false && isDirty == true`, pressing back shows a Material 3 `AlertDialog`: title "Discard changes?", body "Your changes have not been saved.", confirm "Discard" (navigates back via `onBack()`), dismiss "Keep editing" (closes dialog).
+- **Saving back → Saving-in-progress dialog** — when `isSaving == true`, pressing back shows an information dialog: title "Saving changes", body "Please wait until saving is finished.", confirm "OK" (closes dialog). Navigation is blocked; the save continues running.
+- **Clean back** — when both `isDirty == false` and `isSaving == false`, back navigates immediately via `onBack()` with no dialog.
+- **SaveComplete path unchanged** — `isDirty == false` is guaranteed before `SaveComplete` is emitted, so the `BackHandler` is disabled at navigation time; no dialog risk.
+- **No ViewModel changes** — `isDirty` and `isSaving` were already implemented in Block F. Block G is purely a screen-level change.
+- **7 new string resources** — 4 discard dialog strings + 3 saving dialog strings added to `strings.xml`.
+
+Latest verified test state (Session Metadata Editor Block G — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL, all 46 `EditSessionViewModelTest` PASSED
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block G tasks remain. Next block: Block H (instrumentation tests for `EditSessionScreen`).
 
 ---
 

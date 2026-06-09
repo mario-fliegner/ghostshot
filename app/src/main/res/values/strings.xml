@@ -224,4 +224,15 @@
     <string name="edit_session_field_location_display_name">Location</string>
     <string name="edit_session_field_city">City</string>
     <string name="edit_session_field_country">Country</string>
+    <!-- Edit Session — save error -->
+    <string name="edit_session_save_failed">Couldn\'t save changes</string>
+    <!-- Edit Session — discard dialog -->
+    <string name="edit_session_discard_dialog_title">Discard changes?</string>
+    <string name="edit_session_discard_dialog_body">Your changes have not been saved.</string>
+    <string name="edit_session_discard_confirm">Discard</string>
+    <string name="edit_session_discard_cancel">Keep editing</string>
+    <!-- Edit Session — saving-in-progress dialog -->
+    <string name="edit_session_saving_dialog_title">Saving changes</string>
+    <string name="edit_session_saving_dialog_body">Please wait until saving is finished.</string>
+    <string name="edit_session_saving_dialog_confirm">OK</string>
 </resources>

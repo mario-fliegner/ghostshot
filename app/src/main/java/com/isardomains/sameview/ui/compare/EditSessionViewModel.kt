@@ -5,19 +5,28 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.isardomains.sameview.ui.camera.SessionStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.isardomains.sameview.ui.camera.SessionStorage
 import org.json.JSONObject
 import java.io.File
 import javax.inject.Inject
+
+/** Single-shot events emitted by [EditSessionViewModel] to drive navigation and error display. */
+sealed interface EditSessionEvent {
+    data object SaveComplete : EditSessionEvent
+    data object SaveFailed : EditSessionEvent
+}
 
 /**
  * Carries the five user-editable metadata fields read from metadata.json at editor open time.
@@ -40,6 +49,14 @@ internal data class InitialSessionFields(
  * [StateFlow]s. The read is best-effort: any IO or parse error leaves all fields at their empty
  * initial values without crashing.
  *
+ * [isDirty] is true when any current field value differs from the loaded initial value (after
+ * blank normalization). The Save button is enabled when [isDirty] is true and [isSaving] is false.
+ *
+ * [onSave] validates the reference date field first. On validation failure, sets [referenceDateError]
+ * and returns without writing. On validation success, writes changed field groups in order:
+ * title → referenceDate → location. Emits [EditSessionEvent.SaveComplete] when all writes succeed
+ * (or no writes were needed); emits [EditSessionEvent.SaveFailed] if any storage write returns false.
+ *
  * [sessionId] is provided by Navigation Compose via [SavedStateHandle].
  */
 @HiltViewModel
@@ -53,9 +70,21 @@ class EditSessionViewModel @Inject constructor(
     /** Replaceable for unit tests; defaults to [Dispatchers.IO]. */
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
+    // ── Initial field values (set before corresponding StateFlows to keep isDirty stable) ──
+
+    private var initialTitle = ""
+    private var initialReferenceDate = ""
+    private var initialLocationDisplayName = ""
+    private var initialLocationCity = ""
+    private var initialLocationCountry = ""
+
+    // ── Loading state ───────────────────────────────────────────────────────────
+
     private val _isLoading = MutableStateFlow(true)
     /** True while the initial metadata.json read is in progress, false once complete. */
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // ── Field StateFlows ────────────────────────────────────────────────────────
 
     private val _titleField = MutableStateFlow("")
     /** Current value of content.title; empty string when absent. */
@@ -64,6 +93,7 @@ class EditSessionViewModel @Inject constructor(
     /** Updates the title field as the user types. */
     fun onTitleChanged(value: String) {
         _titleField.value = value
+        updateIsDirty()
     }
 
     private val _referenceDateField = MutableStateFlow("")
@@ -78,6 +108,7 @@ class EditSessionViewModel @Inject constructor(
     fun onReferenceDateChanged(value: String) {
         _referenceDateField.value = value
         _referenceDateError.value = null
+        updateIsDirty()
     }
 
     /**
@@ -106,17 +137,68 @@ class EditSessionViewModel @Inject constructor(
     /** Updates the location display name field as the user types. */
     fun onLocationDisplayNameChanged(value: String) {
         _locationDisplayNameField.value = value
+        updateIsDirty()
     }
 
     /** Updates the city field as the user types. */
     fun onLocationCityChanged(value: String) {
         _locationCityField.value = value
+        updateIsDirty()
     }
 
     /** Updates the country field as the user types. */
     fun onLocationCountryChanged(value: String) {
         _locationCountryField.value = value
+        updateIsDirty()
     }
+
+    // ── Dirty and saving state ──────────────────────────────────────────────────
+
+    private val _isDirty = MutableStateFlow(false)
+    /**
+     * True when any current field value differs from its loaded initial value (blank-normalized).
+     * The Save button is enabled when this is true and [isSaving] is false.
+     */
+    val isDirty: StateFlow<Boolean> = _isDirty.asStateFlow()
+
+    private val _isSaving = MutableStateFlow(false)
+    /** True while a save operation is in progress. */
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+    /** Normalizes a field value: trims whitespace; empty string becomes null (absent). */
+    private fun normalizeField(s: String): String? = s.trim().ifEmpty { null }
+
+    /** Recomputes [isDirty] from the current field values against the loaded initial values. */
+    private fun updateIsDirty() {
+        _isDirty.value =
+            normalizeField(_titleField.value) != normalizeField(initialTitle) ||
+            normalizeField(_referenceDateField.value) != normalizeField(initialReferenceDate) ||
+            normalizeField(_locationDisplayNameField.value) != normalizeField(initialLocationDisplayName) ||
+            normalizeField(_locationCityField.value) != normalizeField(initialLocationCity) ||
+            normalizeField(_locationCountryField.value) != normalizeField(initialLocationCountry)
+    }
+
+    // ── Events ────────────────────────────────────────────────────────────────
+
+    private val _events = MutableSharedFlow<EditSessionEvent>()
+    /** Single-shot navigation and error events consumed by the host (MainActivity). */
+    val events: SharedFlow<EditSessionEvent> = _events.asSharedFlow()
+
+    // ── Storage lambdas (replaceable for unit tests) ─────────────────────────
+
+    /** Replaceable for unit tests. Defaults to [SessionStorage.updateTitle]. */
+    internal var sessionTitleUpdater: (File, String, String?) -> Boolean =
+        { root, id, title -> SessionStorage.updateTitle(root, id, title) }
+
+    /** Replaceable for unit tests. Defaults to [SessionStorage.updateReferenceDate]. */
+    internal var sessionReferenceDateUpdater: (File, String, String?) -> Boolean =
+        { root, id, date -> SessionStorage.updateReferenceDate(root, id, date) }
+
+    /** Replaceable for unit tests. Defaults to [SessionStorage.updateLocation]. */
+    internal var sessionLocationUpdater: (File, String, String?, String?, String?) -> Boolean =
+        { root, id, dn, city, country -> SessionStorage.updateLocation(root, id, dn, city, country) }
+
+    // ── Metadata reader ─────────────────────────────────────────────────────
 
     /**
      * Reads the five editor fields from metadata.json.
@@ -147,6 +229,12 @@ class EditSessionViewModel @Inject constructor(
                 val fields = withContext(ioDispatcher) {
                     metadataReader(sessionsRoot, sessionId)
                 }
+                // Set initial values BEFORE field StateFlows so isDirty stays false after load.
+                initialTitle = fields.title
+                initialReferenceDate = fields.referenceDate
+                initialLocationDisplayName = fields.locationDisplayName
+                initialLocationCity = fields.locationCity
+                initialLocationCountry = fields.locationCountry
                 _titleField.value = fields.title
                 _referenceDateField.value = fields.referenceDate
                 _locationDisplayNameField.value = fields.locationDisplayName
@@ -156,6 +244,81 @@ class EditSessionViewModel @Inject constructor(
                 // All fields remain at their initial empty-string values.
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Validates the reference date field, then writes all changed fields to storage in order:
+     * title → referenceDate → location. Emits [EditSessionEvent.SaveComplete] on success or when
+     * no fields changed; emits [EditSessionEvent.SaveFailed] if any storage write returns false.
+     *
+     * If reference date validation fails, sets [referenceDateError] and returns without writing.
+     * Blank normalization (trim + empty → null) is applied at save time only; field display values
+     * are not altered.
+     */
+    fun onSave() {
+        viewModelScope.launch {
+            // Validate first — before setting isSaving — so a validation failure is not treated
+            // as a save attempt.
+            if (!isValidReferenceDateInput(_referenceDateField.value)) {
+                _referenceDateError.value = "error"
+                return@launch
+            }
+
+            _isSaving.value = true
+            try {
+                val sessionsRoot = File(context.filesDir, "sessions")
+
+                val normalizedTitle = normalizeField(_titleField.value)
+                val normalizedRefDate = normalizeField(_referenceDateField.value)
+                val normalizedDisplayName = normalizeField(_locationDisplayNameField.value)
+                val normalizedCity = normalizeField(_locationCityField.value)
+                val normalizedCountry = normalizeField(_locationCountryField.value)
+
+                // 1. Write title if changed.
+                if (normalizedTitle != normalizeField(initialTitle)) {
+                    val ok = withContext(ioDispatcher) {
+                        sessionTitleUpdater(sessionsRoot, sessionId, normalizedTitle)
+                    }
+                    if (!ok) { _events.emit(EditSessionEvent.SaveFailed); return@launch }
+                }
+
+                // 2. Write reference date if changed.
+                if (normalizedRefDate != normalizeField(initialReferenceDate)) {
+                    val ok = withContext(ioDispatcher) {
+                        sessionReferenceDateUpdater(sessionsRoot, sessionId, normalizedRefDate)
+                    }
+                    if (!ok) { _events.emit(EditSessionEvent.SaveFailed); return@launch }
+                }
+
+                // 3. Write location if any location field changed.
+                val locationChanged =
+                    normalizedDisplayName != normalizeField(initialLocationDisplayName) ||
+                    normalizedCity != normalizeField(initialLocationCity) ||
+                    normalizedCountry != normalizeField(initialLocationCountry)
+                if (locationChanged) {
+                    val ok = withContext(ioDispatcher) {
+                        sessionLocationUpdater(
+                            sessionsRoot, sessionId,
+                            normalizedDisplayName, normalizedCity, normalizedCountry
+                        )
+                    }
+                    if (!ok) { _events.emit(EditSessionEvent.SaveFailed); return@launch }
+                }
+
+                // All writes succeeded (or no writes were needed).
+                // Update initial fields so isDirty resets to false.
+                initialTitle = normalizedTitle ?: ""
+                initialReferenceDate = normalizedRefDate ?: ""
+                initialLocationDisplayName = normalizedDisplayName ?: ""
+                initialLocationCity = normalizedCity ?: ""
+                initialLocationCountry = normalizedCountry ?: ""
+                updateIsDirty()
+
+                _events.emit(EditSessionEvent.SaveComplete)
+            } finally {
+                _isSaving.value = false
             }
         }
     }

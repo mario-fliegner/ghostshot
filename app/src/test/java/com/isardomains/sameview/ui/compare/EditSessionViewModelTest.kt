@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -14,6 +15,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import java.util.Calendar
@@ -52,8 +54,8 @@ class EditSessionViewModelTest {
     }
 
     /**
-     * Creates a ViewModel with [sessionId] and overrides [ioDispatcher] and [metadataReader]
-     * before the init coroutine has a chance to run.
+     * Creates a ViewModel with [sessionId] and overrides [ioDispatcher], [metadataReader], and
+     * storage updater lambdas before the init coroutine has a chance to run.
      *
      * The init coroutine is queued on [testDispatcher] (via viewModelScope / Dispatchers.Main)
      * but not started yet. Property reads inside the coroutine pick up the overridden values
@@ -61,6 +63,9 @@ class EditSessionViewModelTest {
      */
     private fun createViewModel(
         sessionId: String = TEST_SESSION_ID,
+        titleUpdater: (File, String, String?) -> Boolean = { _, _, _ -> true },
+        referenceDateUpdater: (File, String, String?) -> Boolean = { _, _, _ -> true },
+        locationUpdater: (File, String, String?, String?, String?) -> Boolean = { _, _, _, _, _ -> true },
         reader: (File, String) -> InitialSessionFields = { _, _ ->
             InitialSessionFields("", "", "", "", "")
         }
@@ -70,6 +75,9 @@ class EditSessionViewModelTest {
         val vm = EditSessionViewModel(savedStateHandle, context)
         vm.ioDispatcher = testDispatcher
         vm.metadataReader = reader
+        vm.sessionTitleUpdater = titleUpdater
+        vm.sessionReferenceDateUpdater = referenceDateUpdater
+        vm.sessionLocationUpdater = locationUpdater
         return vm
     }
 
@@ -289,5 +297,375 @@ class EditSessionViewModelTest {
         advanceUntilIdle()
         vm.onLocationCountryChanged("Deutschland")
         assertEquals("Deutschland", vm.locationCountryField.value)
+    }
+
+    // ── Block F: isDirty tracking ─────────────────────────────────────────────
+
+    @Test
+    fun isDirty_falseInitially() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("Zugspitze 2026", "2008-06", "Summit", "Garmisch", "Deutschland")
+        }
+        advanceUntilIdle()
+        assertFalse(vm.isDirty.value)
+    }
+
+    @Test
+    fun isDirty_trueAfterTitleChanged() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("initial title", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onTitleChanged("new title")
+        assertTrue(vm.isDirty.value)
+    }
+
+    @Test
+    fun isDirty_trueAfterReferenceDateChanged() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "2008", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2009")
+        assertTrue(vm.isDirty.value)
+    }
+
+    @Test
+    fun isDirty_trueAfterLocationFieldChanged() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "München", "")
+        }
+        advanceUntilIdle()
+        vm.onLocationCityChanged("Berlin")
+        assertTrue(vm.isDirty.value)
+    }
+
+    @Test
+    fun isDirty_falseAfterRevertingToInitialValue() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("original", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onTitleChanged("changed")
+        assertTrue(vm.isDirty.value)
+        vm.onTitleChanged("original")
+        assertFalse(vm.isDirty.value)
+    }
+
+    @Test
+    fun isDirty_falseWhenInitialAndCurrentBothBlank() = runTest(testDispatcher) {
+        // Initial absent (empty string) + current blank → normalized both null → not dirty.
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onTitleChanged("   ")
+        assertFalse(vm.isDirty.value)
+    }
+
+    // ── Block F: onSave — title ───────────────────────────────────────────────
+
+    @Test
+    fun onSave_withValidTitle_callsTitleUpdater() = runTest(testDispatcher) {
+        var capturedTitle: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("old title", "", "", "", "") },
+            titleUpdater = { _, _, title -> capturedTitle = title; true }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("new title")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals("new title", capturedTitle)
+    }
+
+    @Test
+    fun onSave_withUnchangedTitle_doesNotCallTitleUpdater() = runTest(testDispatcher) {
+        var titleUpdaterCalled = false
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("same title", "", "", "", "") },
+            titleUpdater = { _, _, _ -> titleUpdaterCalled = true; true }
+        )
+        advanceUntilIdle()
+        // Title unchanged — onSave should not call titleUpdater.
+        vm.onSave()
+        advanceUntilIdle()
+        assertFalse(titleUpdaterCalled)
+    }
+
+    @Test
+    fun onSave_withBlankTitle_callsTitleUpdaterWithNull() = runTest(testDispatcher) {
+        var capturedTitle: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("existing title", "", "", "", "") },
+            titleUpdater = { _, _, title -> capturedTitle = title; true }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("   ")  // blank → normalized null
+        vm.onSave()
+        advanceUntilIdle()
+        assertNull(capturedTitle)
+    }
+
+    // ── Block F: onSave — reference date ──────────────────────────────────────
+
+    @Test
+    fun onSave_withValidReferenceDate_callsReferenceDateUpdater() = runTest(testDispatcher) {
+        var capturedDate: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
+            referenceDateUpdater = { _, _, date -> capturedDate = date; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2008-06")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals("2008-06", capturedDate)
+    }
+
+    @Test
+    fun onSave_withBlankReferenceDate_callsReferenceDateUpdaterWithNull() = runTest(testDispatcher) {
+        var capturedDate: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "2008", "", "", "") },
+            referenceDateUpdater = { _, _, date -> capturedDate = date; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("")  // blank → normalized null
+        vm.onSave()
+        advanceUntilIdle()
+        assertNull(capturedDate)
+    }
+
+    @Test
+    fun onSave_withInvalidReferenceDate_setsError_doesNotCallUpdater() = runTest(testDispatcher) {
+        var referenceDateUpdaterCalled = false
+        val vm = createViewModel(
+            referenceDateUpdater = { _, _, _ -> referenceDateUpdaterCalled = true; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("not-a-date")
+        vm.onSave()
+        advanceUntilIdle()
+        assertNotNull(vm.referenceDateError.value)
+        assertFalse(referenceDateUpdaterCalled)
+    }
+
+    // ── Block F: onSave — location ────────────────────────────────────────────
+
+    @Test
+    fun onSave_withLocationFields_callsLocationUpdater_withTrimmedValues() = runTest(testDispatcher) {
+        var capturedDisplayName: String? = "SENTINEL"
+        var capturedCity: String? = "SENTINEL"
+        var capturedCountry: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
+            locationUpdater = { _, _, dn, city, country ->
+                capturedDisplayName = dn
+                capturedCity = city
+                capturedCountry = country
+                true
+            }
+        )
+        advanceUntilIdle()
+        vm.onLocationDisplayNameChanged("  Summit  ")
+        vm.onLocationCityChanged("  Garmisch  ")
+        vm.onLocationCountryChanged("  Deutschland  ")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals("Summit", capturedDisplayName)
+        assertEquals("Garmisch", capturedCity)
+        assertEquals("Deutschland", capturedCountry)
+    }
+
+    @Test
+    fun onSave_withAllLocationFieldsBlank_callsLocationUpdater_withNulls() = runTest(testDispatcher) {
+        var capturedDisplayName: String? = "SENTINEL"
+        var capturedCity: String? = "SENTINEL"
+        var capturedCountry: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "existing", "München", "Deutschland") },
+            locationUpdater = { _, _, dn, city, country ->
+                capturedDisplayName = dn
+                capturedCity = city
+                capturedCountry = country
+                true
+            }
+        )
+        advanceUntilIdle()
+        vm.onLocationDisplayNameChanged("")
+        vm.onLocationCityChanged("")
+        vm.onLocationCountryChanged("")
+        vm.onSave()
+        advanceUntilIdle()
+        assertNull(capturedDisplayName)
+        assertNull(capturedCity)
+        assertNull(capturedCountry)
+    }
+
+    // ── Block F: onSave — events ──────────────────────────────────────────────
+
+    @Test
+    fun onSave_success_emitsSaveComplete() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("old", "", "", "", "") }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("new")
+        val events = mutableListOf<EditSessionEvent>()
+        val job = launch { vm.events.collect { events.add(it) } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertEquals(1, events.size)
+        assertTrue(events[0] is EditSessionEvent.SaveComplete)
+    }
+
+    @Test
+    fun onSave_noFieldChanged_emitsSaveComplete_withoutCallingAnyUpdater() = runTest(testDispatcher) {
+        var anyUpdaterCalled = false
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("same", "2008", "Place", "City", "Country") },
+            titleUpdater = { _, _, _ -> anyUpdaterCalled = true; true },
+            referenceDateUpdater = { _, _, _ -> anyUpdaterCalled = true; true },
+            locationUpdater = { _, _, _, _, _ -> anyUpdaterCalled = true; true }
+        )
+        advanceUntilIdle()
+        val events = mutableListOf<EditSessionEvent>()
+        val job = launch { vm.events.collect { events.add(it) } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertFalse(anyUpdaterCalled)
+        assertEquals(1, events.size)
+        assertTrue(events[0] is EditSessionEvent.SaveComplete)
+    }
+
+    @Test
+    fun onSave_titleUpdaterFails_emitsSaveFailed() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("old", "", "", "", "") },
+            titleUpdater = { _, _, _ -> false }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("new")
+        val events = mutableListOf<EditSessionEvent>()
+        val job = launch { vm.events.collect { events.add(it) } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertEquals(1, events.size)
+        assertTrue(events[0] is EditSessionEvent.SaveFailed)
+    }
+
+    @Test
+    fun onSave_referenceDateUpdaterFails_emitsSaveFailed() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
+            referenceDateUpdater = { _, _, _ -> false }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2008")
+        val events = mutableListOf<EditSessionEvent>()
+        val job = launch { vm.events.collect { events.add(it) } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertEquals(1, events.size)
+        assertTrue(events[0] is EditSessionEvent.SaveFailed)
+    }
+
+    @Test
+    fun onSave_locationUpdaterFails_emitsSaveFailed() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
+            locationUpdater = { _, _, _, _, _ -> false }
+        )
+        advanceUntilIdle()
+        vm.onLocationCityChanged("München")
+        val events = mutableListOf<EditSessionEvent>()
+        val job = launch { vm.events.collect { events.add(it) } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertEquals(1, events.size)
+        assertTrue(events[0] is EditSessionEvent.SaveFailed)
+    }
+
+    // ── Block F: isDirty after save ───────────────────────────────────────────
+
+    @Test
+    fun isDirty_falseAfterSuccessfulSave() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("old", "", "", "", "") }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("new")
+        assertTrue(vm.isDirty.value)
+        val job = launch { vm.events.collect { } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertFalse(vm.isDirty.value)
+    }
+
+    // ── Block F: storage order ────────────────────────────────────────────────
+
+    @Test
+    fun onSave_storageOrderIsTitleThenReferenceDateThenLocation() = runTest(testDispatcher) {
+        val callOrder = mutableListOf<String>()
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
+            titleUpdater = { _, _, _ -> callOrder.add("title"); true },
+            referenceDateUpdater = { _, _, _ -> callOrder.add("referenceDate"); true },
+            locationUpdater = { _, _, _, _, _ -> callOrder.add("location"); true }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("T")
+        vm.onReferenceDateChanged("2008")
+        vm.onLocationCityChanged("München")
+        val job = launch { vm.events.collect { } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertEquals(listOf("title", "referenceDate", "location"), callOrder)
+    }
+
+    // ── Block F: isSaving state ───────────────────────────────────────────────
+
+    @Test
+    fun isSaving_falseBeforeAndAfterSave() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("old", "", "", "", "") }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("new")
+        assertFalse(vm.isSaving.value)
+        val job = launch { vm.events.collect { } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertFalse(vm.isSaving.value)
+    }
+
+    // ── Block F: refreshSavedSessions not called on failure ───────────────────
+    // (refreshSavedSessions is a CameraViewModel concern called in MainActivity on
+    // SaveComplete. Verified here that SaveFailed is emitted — not SaveComplete — on failure,
+    // so the caller knows not to refresh.)
+
+    @Test
+    fun onSave_titleUpdaterFails_doesNotEmitSaveComplete() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("old", "", "", "", "") },
+            titleUpdater = { _, _, _ -> false }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("new")
+        val events = mutableListOf<EditSessionEvent>()
+        val job = launch { vm.events.collect { events.add(it) } }
+        vm.onSave()
+        advanceUntilIdle()
+        job.cancel()
+        assertFalse(events.any { it is EditSessionEvent.SaveComplete })
     }
 }
