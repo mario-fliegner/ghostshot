@@ -433,7 +433,7 @@ Add `capture.timestampMs` as the canonical capture timestamp in v4 sessions. Bum
 
 ### Block B — additional Block at Session Creation
 
-**Status:** Not Started
+**Status:** Completed (2026-06-09)
 
 **Goal:**
 Write `additional: {isFavorite: false, visibility: "private", source: "sameview"}` at session creation for every new v4 session.
@@ -466,6 +466,14 @@ Write `additional: {isFavorite: false, visibility: "private", source: "sameview"
 - Full test suite green
 
 **Real-Device Validation Required:** No.
+
+**Test Results (2026-06-09):**
+- `metadataFile_additional_isFavorite_isFalse` — PASSED on SM-S911B (Android 16)
+- `metadataFile_additional_visibility_isPrivate` — PASSED on SM-S911B (Android 16)
+- `metadataFile_additional_source_isSameview` — PASSED on SM-S911B (Android 16)
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `SessionStorageMetadataTest` (32/32) — PASSED on SM-S911B (Android 16)
+- `SessionScannerTest` (30/30) — PASSED on SM-S911B (Android 16)
 
 ---
 

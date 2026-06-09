@@ -259,6 +259,24 @@ class SessionStorageMetadataTest {
         assertFalse(json.has("location"))
     }
 
+    @Test
+    fun metadataFile_additional_isFavorite_isFalse() {
+        val json = readMetadata(saveTestSession())
+        assertFalse(json.getJSONObject("additional").getBoolean("isFavorite"))
+    }
+
+    @Test
+    fun metadataFile_additional_visibility_isPrivate() {
+        val json = readMetadata(saveTestSession())
+        assertEquals("private", json.getJSONObject("additional").getString("visibility"))
+    }
+
+    @Test
+    fun metadataFile_additional_source_isSameview() {
+        val json = readMetadata(saveTestSession())
+        assertEquals("sameview", json.getJSONObject("additional").getString("source"))
+    }
+
     // ── EXIF software tag ─────────────────────────────────────────────────────
 
     @Test

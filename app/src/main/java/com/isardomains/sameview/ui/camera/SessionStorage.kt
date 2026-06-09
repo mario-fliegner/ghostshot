@@ -309,6 +309,11 @@ internal object SessionStorage {
                 put("referenceBackgroundColor", "#17202F")
                 put("referenceJpegQuality", JPEG_QUALITY)
             })
+            put("additional", JSONObject().apply {
+                put("isFavorite", false)
+                put("visibility", "private")
+                put("source", "sameview")
+            })
         }
         File(sessionDir, "metadata.json").writeText(json.toString())
     }
