@@ -18,23 +18,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.isardomains.sameview.R
 
 /**
  * Fullscreen editor screen for session metadata.
  *
- * Block A shell: opaque screen with TopAppBar and navigation only.
- * No form fields, no ViewModel, no save logic in this block.
+ * Block B: wires [EditSessionViewModel] for initial metadata loading.
+ * No form fields or save logic yet.
  *
- * @param sessionId The session being edited; passed through to subsequent blocks.
+ * @param sessionId The session being edited.
  * @param onBack Called when the user navigates back.
+ * @param viewModel Injected by Hilt; replaceable in tests.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditSessionScreen(
     sessionId: String,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: EditSessionViewModel = hiltViewModel()
 ) {
     Scaffold(
         modifier = modifier.testTag("edit_session_screen_root"),

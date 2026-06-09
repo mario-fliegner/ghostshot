@@ -340,7 +340,21 @@ Latest verified test state (Session Metadata Editor Block A — Completed 2026-0
 - `testDebugUnitTest` — BUILD SUCCESSFUL
 - `CompareScreenTest` — 79/79 PASSED on SM-S911B (Android 16), BUILD SUCCESSFUL in 2m 47s
 
-No open Session Metadata Editor Block A tasks remain. Next block: Block B (EditSessionViewModel: initial state loading).
+No open Session Metadata Editor Block A tasks remain.
+
+Block B completed (2026-06-09):
+
+- **`EditSessionViewModel`** — new `@HiltViewModel` in `com.isardomains.sameview.ui.compare`; `sessionId` extracted from `SavedStateHandle["sessionId"]`; on `init`, reads `metadata.json` from `filesDir/sessions/<sessionId>/` on the IO dispatcher and populates five `StateFlow`s: `titleField`, `referenceDateField`, `locationDisplayNameField`, `locationCityField`, `locationCountryField`; `isLoading: StateFlow<Boolean>` starts `true`, guaranteed `false` in `finally` block; best-effort load — any exception leaves all fields at empty string without crashing
+- **Injectable lambda** — `internal var metadataReader: (sessionsRoot: File, sessionId: String) -> InitialSessionFields` replaceable in tests; default reads and parses the actual file; `internal var ioDispatcher` replaceable for test dispatcher injection
+- **`EditSessionScreen`** — `viewModel: EditSessionViewModel = hiltViewModel()` default parameter added; `MainActivity.kt` unchanged (no extra wiring needed; identical pattern to `CreateVideoScreen`)
+- **`EditSessionViewModelTest`** — 6 unit tests using `StandardTestDispatcher` so the `init` coroutine is queued but not started during construction; `ioDispatcher` and `metadataReader` overridden after construction before `advanceUntilIdle()`; tests cover: title load, referenceDate load, all three location fields load, all-fields-empty on IOException, all-fields-empty when blocks absent, `isLoading` true→false transition
+
+Latest verified test state (Session Metadata Editor Block B — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 394/394 unit tests passed, 0 failures
+- `EditSessionViewModelTest` — 6/6 PASSED
+
+No open Session Metadata Editor Block B tasks remain. Next block: Block C (title field UI and save logic).
 
 ---
 

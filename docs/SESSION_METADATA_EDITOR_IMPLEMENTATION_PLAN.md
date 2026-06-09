@@ -196,7 +196,7 @@ Replace the title dialog in `CompareScreen` with a navigation entry to the new `
 
 ## Block B — EditSessionViewModel: Initial State Loading
 
-**Status:** Not started
+**Status:** Completed (2026-06-09)
 
 ### Goal
 
@@ -233,17 +233,19 @@ Read `content.title`, `reference.date`, `location.displayName`, `location.city`,
 
 `sessionId` is passed to the ViewModel via a `SavedStateHandle` key (Hilt + Navigation compose pattern). Not via constructor parameter.
 
+**`MainActivity.kt` — no changes required.** `EditSessionScreen` uses `hiltViewModel()` as a default parameter (identical pattern to `CreateVideoScreen`). The nav route was already wired in Block A.
+
 ### Affected Files
 
 | File | Change Type |
 |---|---|
 | `app/src/main/java/com/isardomains/sameview/ui/compare/EditSessionViewModel.kt` | New |
-| `app/src/main/java/com/isardomains/sameview/MainActivity.kt` | Modified (wire ViewModel to EditSessionScreen) |
+| `app/src/main/java/com/isardomains/sameview/ui/compare/EditSessionScreen.kt` | Modified (added `viewModel: EditSessionViewModel = hiltViewModel()` parameter) |
 | `app/src/test/java/com/isardomains/sameview/ui/compare/EditSessionViewModelTest.kt` | New |
 
 ### Risks
 
-- `SavedStateHandle` injection requires the `sessionId` nav argument name to match exactly. Mismatch causes `IllegalArgumentException` at runtime.
+- `SavedStateHandle` injection requires the `sessionId` nav argument name to match exactly. Mismatch causes `IllegalArgumentException` at runtime. Verified: `ARG_EDIT_SESSION_ID = "sessionId"` matches `SavedStateHandle["sessionId"]`.
 - Large `metadata.json` files (unlikely but possible) could cause visible loading state. `isLoading` guards the UI.
 
 ### Required Tests
@@ -262,6 +264,16 @@ Read `content.title`, `reference.date`, `location.displayName`, `location.city`,
 - Missing or corrupt metadata produces empty fields without throwing
 - All listed unit tests pass
 - Build green
+
+### Test Results (2026-06-09)
+
+- `initialState_titleLoaded_fromMetadata` — PASSED
+- `initialState_referenceDate_loaded_fromMetadata` — PASSED
+- `initialState_locationFields_loaded_fromMetadata` — PASSED
+- `initialState_allFieldsEmpty_whenMetadataAbsent` — PASSED
+- `initialState_allFieldsEmpty_whenBlocksAbsent` — PASSED
+- `initialState_isLoading_trueInitially_falseAfterLoad` — PASSED
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 394/394 unit tests passed, 0 failures
 
 ---
 
