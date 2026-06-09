@@ -354,7 +354,20 @@ Latest verified test state (Session Metadata Editor Block B — Completed 2026-0
 - `testDebugUnitTest` — BUILD SUCCESSFUL, 394/394 unit tests passed, 0 failures
 - `EditSessionViewModelTest` — 6/6 PASSED
 
-No open Session Metadata Editor Block B tasks remain. Next block: Block C (title field UI and save logic).
+No open Session Metadata Editor Block B tasks remain.
+
+Block C completed (2026-06-09):
+
+- **Title field** — `OutlinedTextField` added to `EditSessionScreen`; `titleField` collected via `collectAsStateWithLifecycle()`; `onValueChange` wired to new `onTitleChanged(value: String)` function in `EditSessionViewModel`; `singleLine = true`, `ImeAction.Done` + `clearFocus()`; pre-populated from Block B initial load; Save button remains disabled; string resource `edit_session_field_title` added
+- **`EditSessionViewModelTest`** — `onTitleChanged_updatesState` added; 7/7 tests pass
+
+Latest verified test state (Session Metadata Editor Block C — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 395/395 unit tests passed, 0 failures
+- `EditSessionViewModelTest` — 7/7 PASSED
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block C tasks remain. Next block: Block D (Reference Date field + validation).
 
 ---
 

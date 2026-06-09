@@ -216,4 +216,6 @@
     <string name="edit_session_screen_title">Edit session</string>
     <string name="edit_session_save">Save</string>
     <string name="edit_session_back_content_description">Back</string>
+    <!-- Edit Session — form fields -->
+    <string name="edit_session_field_title">Title</string>
 </resources>

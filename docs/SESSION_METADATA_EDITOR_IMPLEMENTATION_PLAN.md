@@ -279,7 +279,7 @@ Read `content.title`, `reference.date`, `location.displayName`, `location.city`,
 
 ## Block C — Title Field
 
-**Status:** Not started
+**Status:** Completed (2026-06-09)
 
 ### Goal
 
@@ -288,18 +288,18 @@ Add the Title `OutlinedTextField` to `EditSessionScreen`. Wire it to `EditSessio
 ### What Changes
 
 **`EditSessionScreen.kt`:**
-- Accept `viewModel: EditSessionViewModel = hiltViewModel()` (or passed as parameter)
-- Collect `titleField` from ViewModel
-- Render `OutlinedTextField` with label "Title"
-- `onValueChange` calls a ViewModel `onTitleChanged(String)` function
-- No character limit enforcement in V1 (spec §11 — no max length enforced by validation)
+- `titleField` collected via `collectAsStateWithLifecycle()`
+- `OutlinedTextField` with label `edit_session_field_title`, `singleLine = true`, `ImeAction.Done` + `clearFocus()`, `fillMaxWidth()`, `padding(horizontal = 16.dp, vertical = 8.dp)`
+- `onValueChange = viewModel::onTitleChanged`
+- Save button remains `enabled = false` — no save logic in this block
+- KDoc updated to Block C
 
 **`EditSessionViewModel.kt`:**
-- Add `onTitleChanged(value: String)` function that updates `titleField` state
-- Add `_titleField: MutableStateFlow<String>`
+- Added `onTitleChanged(value: String)` — sets `_titleField.value = value` directly; no coroutine needed
+- Note: `_titleField: MutableStateFlow<String>` already existed from Block B; no new state declaration needed
 
 **`strings.xml`:**
-- Add `edit_session_field_title` → "Title"
+- Added `edit_session_field_title` → "Title"
 
 ### Affected Files
 
@@ -313,12 +313,20 @@ Add the Title `OutlinedTextField` to `EditSessionScreen`. Wire it to `EditSessio
 ### Required Tests
 
 - `onTitleChanged_updatesState` — calling `onTitleChanged("foo")` produces `titleField.value == "foo"`
-- `titleField_initializedFromLoadedMetadata` — pre-population from Block B is preserved
+- `titleField_initializedFromLoadedMetadata` — covered by existing `initialState_titleLoaded_fromMetadata` from Block B; no duplicate added
 
 ### Definition of Done
 
 - Title field visible in editor, pre-populated, editable
 - Build green, tests pass
+
+### Test Results (2026-06-09)
+
+- `onTitleChanged_updatesState` — PASSED
+- All 6 Block B tests — PASSED (unchanged)
+- `EditSessionViewModelTest` — 7/7 PASSED
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 395/395 unit tests passed, 0 failures
+- `assembleDebug` — BUILD SUCCESSFUL
 
 ---
 
@@ -701,8 +709,8 @@ The following must remain unaffected and pass:
 | Block | Description | Status |
 |---|---|---|
 | Block A | CompareScreen overflow refactor + navigation shell | Completed |
-| Block B | EditSessionViewModel: initial state loading | Not started |
-| Block C | Title field | Not started |
+| Block B | EditSessionViewModel: initial state loading | Completed |
+| Block C | Title field | Completed |
 | Block D | Reference date field + validation | Not started |
 | Block E | Location fields | Not started |
 | Block F | Save workflow | Not started |

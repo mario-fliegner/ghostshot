@@ -60,6 +60,11 @@ class EditSessionViewModel @Inject constructor(
     /** Current value of content.title; empty string when absent. */
     val titleField: StateFlow<String> = _titleField.asStateFlow()
 
+    /** Updates the title field as the user types. */
+    fun onTitleChanged(value: String) {
+        _titleField.value = value
+    }
+
     private val _referenceDateField = MutableStateFlow("")
     /** Current value of reference.date; empty string when absent. */
     val referenceDateField: StateFlow<String> = _referenceDateField.asStateFlow()

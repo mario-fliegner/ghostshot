@@ -165,4 +165,16 @@ class EditSessionViewModelTest {
 
         assertFalse("isLoading must be false once the metadata read completes", vm.isLoading.value)
     }
+
+    // ── Block C: title field mutation ─────────────────────────────────────────
+
+    @Test
+    fun onTitleChanged_updatesState() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onTitleChanged("Zugspitze 2026")
+        assertEquals("Zugspitze 2026", vm.titleField.value)
+    }
 }

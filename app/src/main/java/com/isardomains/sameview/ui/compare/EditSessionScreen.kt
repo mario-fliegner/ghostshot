@@ -2,30 +2,39 @@ package com.isardomains.sameview.ui.compare
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.sameview.R
 
 /**
  * Fullscreen editor screen for session metadata.
  *
- * Block B: wires [EditSessionViewModel] for initial metadata loading.
- * No form fields or save logic yet.
+ * Block C: adds the Title [OutlinedTextField], wired to [EditSessionViewModel.titleField].
+ * No save logic or dirty-state tracking yet.
  *
  * @param sessionId The session being edited.
  * @param onBack Called when the user navigates back.
@@ -39,6 +48,9 @@ fun EditSessionScreen(
     modifier: Modifier = Modifier,
     viewModel: EditSessionViewModel = hiltViewModel()
 ) {
+    val title by viewModel.titleField.collectAsStateWithLifecycle()
+    val focusManager = LocalFocusManager.current
+
     Scaffold(
         modifier = modifier.testTag("edit_session_screen_root"),
         topBar = {
@@ -75,7 +87,17 @@ fun EditSessionScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Form fields will be added in subsequent blocks.
+            OutlinedTextField(
+                value = title,
+                onValueChange = viewModel::onTitleChanged,
+                label = { Text(stringResource(R.string.edit_session_field_title)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
         }
     }
 }
