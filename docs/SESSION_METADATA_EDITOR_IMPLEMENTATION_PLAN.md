@@ -409,7 +409,7 @@ Add the Reference Date `OutlinedTextField` to `EditSessionScreen`. Wire to ViewM
 
 ## Block E — Location Fields
 
-**Status:** Not started
+**Status:** Completed (2026-06-09)
 
 ### Goal
 
@@ -418,17 +418,23 @@ Add the three location `OutlinedTextField` fields to `EditSessionScreen`: Locati
 ### What Changes
 
 **`EditSessionScreen.kt`:**
-- Add three `OutlinedTextField` fields, each with appropriate label
-- Each field wired to its ViewModel state and `onValueChange` handler
+- Added `locationDisplayName`, `locationCity`, `locationCountry` via `collectAsStateWithLifecycle()`
+- Reference Date field `ImeAction.Done` → `ImeAction.Next` + `moveFocus(FocusDirection.Down)` (chains keyboard into location fields)
+- Three new `OutlinedTextField` fields added under Reference Date: Location (displayName), City, Country
+- IME chain: Title → Reference Date → Location → City → Country (Done + clearFocus)
+- No section labels; layout consistent with Title and Reference Date fields
+- KDoc updated to Block E
 
 **`EditSessionViewModel.kt`:**
-- Add `_locationDisplayNameField`, `_locationCityField`, `_locationCountryField: MutableStateFlow<String>`
-- Add corresponding `onLocationDisplayNameChanged`, `onLocationCityChanged`, `onLocationCountryChanged` functions
+- Added `onLocationDisplayNameChanged(value: String)` — sets `_locationDisplayNameField.value = value` directly
+- Added `onLocationCityChanged(value: String)` — sets `_locationCityField.value = value` directly
+- Added `onLocationCountryChanged(value: String)` — sets `_locationCountryField.value = value` directly
+- Note: `_locationDisplayNameField`, `_locationCityField`, `_locationCountryField` already existed from Block B; no new state declarations needed
 
 **`strings.xml`:**
-- Add `edit_session_field_location_display_name` → "Location"
-- Add `edit_session_field_city` → "City"
-- Add `edit_session_field_country` → "Country"
+- Added `edit_session_field_location_display_name` → "Location"
+- Added `edit_session_field_city` → "City"
+- Added `edit_session_field_country` → "Country"
 
 ### Affected Files
 
@@ -449,6 +455,16 @@ Add the three location `OutlinedTextField` fields to `EditSessionScreen`: Locati
 
 - All 3 location fields visible, pre-populated, editable
 - Build green, tests pass
+
+### Test Results (2026-06-09)
+
+- `onLocationDisplayNameChanged_updatesState` — PASSED
+- `onLocationCityChanged_updatesState` — PASSED
+- `onLocationCountryChanged_updatesState` — PASSED
+- All 19 existing tests — PASSED (unchanged)
+- `EditSessionViewModelTest` — 22/22 PASSED
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
 
 ---
 
@@ -724,7 +740,7 @@ The following must remain unaffected and pass:
 | Block B | EditSessionViewModel: initial state loading | Completed |
 | Block C | Title field | Completed |
 | Block D | Reference date field + validation | Completed |
-| Block E | Location fields | Not started |
+| Block E | Location fields | Completed |
 | Block F | Save workflow | Not started |
 | Block G | Dirty state + discard dialog | Not started |
 | Block H | Full test coverage + regression verification | Not started |

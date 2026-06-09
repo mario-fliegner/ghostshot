@@ -34,8 +34,9 @@ import com.isardomains.sameview.R
 /**
  * Fullscreen editor screen for session metadata.
  *
- * Block D: adds the Reference Date [OutlinedTextField] with validation error display.
- * Title field ImeAction updated to Next. No save logic or dirty-state tracking yet.
+ * Block E: adds the three Location [OutlinedTextField]s (display name, city, country).
+ * Reference Date ImeAction updated to Next to chain keyboard focus into the location fields.
+ * No save logic or dirty-state tracking yet.
  *
  * @param sessionId The session being edited.
  * @param onBack Called when the user navigates back.
@@ -52,6 +53,9 @@ fun EditSessionScreen(
     val title by viewModel.titleField.collectAsStateWithLifecycle()
     val referenceDate by viewModel.referenceDateField.collectAsStateWithLifecycle()
     val referenceError by viewModel.referenceDateError.collectAsStateWithLifecycle()
+    val locationDisplayName by viewModel.locationDisplayNameField.collectAsStateWithLifecycle()
+    val locationCity by viewModel.locationCityField.collectAsStateWithLifecycle()
+    val locationCountry by viewModel.locationCountryField.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
 
     Scaffold(
@@ -111,6 +115,39 @@ fun EditSessionScreen(
                 supportingText = if (referenceError != null) {
                     { Text(stringResource(R.string.edit_session_reference_date_error)) }
                 } else null,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            OutlinedTextField(
+                value = locationDisplayName,
+                onValueChange = viewModel::onLocationDisplayNameChanged,
+                label = { Text(stringResource(R.string.edit_session_field_location_display_name)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            OutlinedTextField(
+                value = locationCity,
+                onValueChange = viewModel::onLocationCityChanged,
+                label = { Text(stringResource(R.string.edit_session_field_city)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            OutlinedTextField(
+                value = locationCountry,
+                onValueChange = viewModel::onLocationCountryChanged,
+                label = { Text(stringResource(R.string.edit_session_field_country)) },
+                singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 modifier = Modifier

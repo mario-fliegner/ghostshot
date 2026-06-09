@@ -103,6 +103,21 @@ class EditSessionViewModel @Inject constructor(
     /** Current value of location.country; empty string when absent. */
     val locationCountryField: StateFlow<String> = _locationCountryField.asStateFlow()
 
+    /** Updates the location display name field as the user types. */
+    fun onLocationDisplayNameChanged(value: String) {
+        _locationDisplayNameField.value = value
+    }
+
+    /** Updates the city field as the user types. */
+    fun onLocationCityChanged(value: String) {
+        _locationCityField.value = value
+    }
+
+    /** Updates the country field as the user types. */
+    fun onLocationCountryChanged(value: String) {
+        _locationCountryField.value = value
+    }
+
     /**
      * Reads the five editor fields from metadata.json.
      *

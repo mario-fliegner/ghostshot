@@ -383,7 +383,23 @@ Latest verified test state (Session Metadata Editor Block D — Completed 2026-0
 - `EditSessionViewModelTest` — 19/19 PASSED
 - `assembleDebug` — BUILD SUCCESSFUL
 
-No open Session Metadata Editor Block D tasks remain. Next block: Block E (Location fields).
+No open Session Metadata Editor Block D tasks remain.
+
+Block E completed (2026-06-09):
+
+- **Location fields** — three `OutlinedTextField`s added to `EditSessionScreen`: Location (display name), City, Country; each wired to its own `StateFlow` via `collectAsStateWithLifecycle()` and to `onLocationDisplayNameChanged()`, `onLocationCityChanged()`, `onLocationCountryChanged()` in `EditSessionViewModel`; all three handler functions set their respective `MutableStateFlow` directly without normalization or coroutine
+- **Reference Date IME** — `ImeAction` changed from `Done` to `Next` + `moveFocus(FocusDirection.Down)` to chain keyboard focus into the location fields
+- **IME chain** — Title → Reference Date → Location → City → Country (Done + clearFocus); Country is the final field and clears focus on Done
+- **No GPS coupling** — location fields are architecturally isolated; `captureLocation`/`referenceLocation` are not touched; no reverse geocoding
+- **Save remains disabled** — `TextButton(enabled = false)` unchanged; no `onSave` logic in Block E
+- **`EditSessionViewModelTest`** — three new tests added: `onLocationDisplayNameChanged_updatesState`, `onLocationCityChanged_updatesState`, `onLocationCountryChanged_updatesState`
+
+Latest verified test state (Session Metadata Editor Block E — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL, 22/22 `EditSessionViewModelTest` PASSED, 0 failures
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block E tasks remain. Next block: Block F (Save workflow).
 
 ---
 

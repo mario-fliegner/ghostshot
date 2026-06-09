@@ -258,4 +258,36 @@ class EditSessionViewModelTest {
         val vm = createViewModel()
         assertFalse(vm.isValidReferenceDateInput("2008-6"))
     }
+
+    // ── Block E: location field mutations ────────────────────────────────────
+
+    @Test
+    fun onLocationDisplayNameChanged_updatesState() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onLocationDisplayNameChanged("Zugspitze Summit")
+        assertEquals("Zugspitze Summit", vm.locationDisplayNameField.value)
+    }
+
+    @Test
+    fun onLocationCityChanged_updatesState() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onLocationCityChanged("Garmisch-Partenkirchen")
+        assertEquals("Garmisch-Partenkirchen", vm.locationCityField.value)
+    }
+
+    @Test
+    fun onLocationCountryChanged_updatesState() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onLocationCountryChanged("Deutschland")
+        assertEquals("Deutschland", vm.locationCountryField.value)
+    }
 }
