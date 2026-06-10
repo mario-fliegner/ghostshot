@@ -126,8 +126,8 @@
     <string name="about_screen_title">About</string>
     <string name="about_back">Back</string>
     <string name="about_app_name">SameView</string>
-    <string name="about_description">Recreate your photos.</string>
-    <string name="about_local_device">Real photos. Real memories.</string>
+    <string name="about_description">Capture the same view again.</string>
+    <string name="about_local_device">Recreate memories. Not images.</string>
     <string name="about_no_account_required">Your memories.</string>
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_visit_website">Website</string>
