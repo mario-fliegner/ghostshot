@@ -44,6 +44,10 @@
     <string name="compare_label_reference">Reference</string>
     <string name="compare_label_capture">Current</string>
     <string name="compare_slider_content_description">Compare slider</string>
+    <string name="compare_label_past">Past</string>
+    <string name="compare_label_present">Present</string>
+    <string name="compare_label_current">Current</string>
+    <string name="compare_slider_labels_content_description">Compare slider: %1$s on the left, %2$s on the right. Drag to adjust split position.</string>
     <string name="compare_original_reference">ORIGINAL</string>
     <string name="compare_show_original_reference">Show original reference</string>
     <string name="compare_original_reference_active">Original reference visible</string>

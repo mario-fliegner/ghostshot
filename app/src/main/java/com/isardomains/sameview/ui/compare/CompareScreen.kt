@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -38,6 +39,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material3.AlertDialog
@@ -61,7 +64,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -78,7 +83,9 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
@@ -111,8 +118,9 @@ private const val TransformEpsilon = 0.01f
 private const val AspectRatioMismatchThreshold = 0.05f
 private val CompareViewportCornerRadius = 8.dp
 private val CompareSliderTouchWidth = 48.dp
-private val CompareSliderHandleSize = 32.dp
+private val CompareSliderHandleSize = 40.dp
 private val CompareBadgeHeight = 32.dp
+private val CompareHandleLabelGap = 8.dp
 
 /**
  * Fullscreen compare screen for the V1 slider compare flow.
@@ -327,6 +335,7 @@ fun CompareScreen(
                                         captureImageUri = captureImageUri!!,
                                         contentScale = compareContentScale,
                                         referenceDate = referenceDate,
+                                        captureTimestampMs = timestamp ?: 0L,
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .testTag("compare_screen_shell_content")
@@ -398,6 +407,7 @@ fun CompareScreen(
                             captureImageUri = captureImageUri!!,
                             contentScale = compareContentScale,
                             referenceDate = referenceDate,
+                            captureTimestampMs = timestamp ?: 0L,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .testTag("compare_screen_shell_content")
@@ -440,6 +450,7 @@ private fun CompareSliderViewport(
     captureImageUri: Uri,
     contentScale: ContentScale = ContentScale.Fit,
     referenceDate: String? = null,
+    captureTimestampMs: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -462,6 +473,23 @@ private fun CompareSliderViewport(
         model = originalReferenceUri,
         imageLoader = imageLoader
     )
+    val labelLocale = LocalConfiguration.current.locales.get(0)
+    val labelPast = stringResource(R.string.compare_label_past)
+    val labelPresent = stringResource(R.string.compare_label_present)
+    val labelReference = stringResource(R.string.compare_label_reference)
+    val labelCurrent = stringResource(R.string.compare_label_current)
+    val compareLabels = remember(referenceDate, captureTimestampMs, labelLocale) {
+        computeCompareLabels(
+            referenceDate = referenceDate,
+            captureTimestampMs = captureTimestampMs,
+            locale = labelLocale,
+            labelPast = labelPast,
+            labelPresent = labelPresent,
+            labelReference = labelReference,
+            labelCurrent = labelCurrent
+        )
+    }
+
     var sliderFraction by rememberSaveable { mutableFloatStateOf(InitialSliderFraction) }
     var isOriginalPeekActive by remember { mutableStateOf(false) }
 
@@ -565,15 +593,17 @@ private fun CompareSliderViewport(
                     modifier = Modifier.matchParentSize()
                 )
 
-                if (sliderFraction > 0f) {
-                    ReferenceBadgeGroup(
-                        hasOriginalReference = showOriginalReferenceBadge,
-                        isOriginalPeekActive = isOriginalPeekActive,
-                        onOriginalPeekActiveChange = { isOriginalPeekActive = it },
+                if (sliderFraction > 0f && showOriginalReferenceBadge) {
+                    OriginalReferenceBadge(
+                        isActive = isOriginalPeekActive,
+                        contentDescription = stringResource(R.string.compare_show_original_reference),
+                        activeStateDescription = stringResource(R.string.compare_original_reference_active),
+                        onActiveChange = { isOriginalPeekActive = it },
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(12.dp)
-                            .testTag("compare_reference_badge_group")
+                            .height(CompareBadgeHeight)
+                            .testTag("compare_original_reference_badge")
                     )
                 }
 
@@ -585,15 +615,6 @@ private fun CompareSliderViewport(
                         modifier = Modifier.matchParentSize()
                     )
                 }
-                if (sliderFraction < 1f && !isOriginalPeekActive) {
-                    CompareLabelBadge(
-                        text = stringResource(R.string.compare_label_capture),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(12.dp)
-                            .testTag("compare_capture_label")
-                    )
-                }
 
                 if (!isOriginalPeekActive) {
                     CompareDivider(
@@ -602,6 +623,9 @@ private fun CompareSliderViewport(
                         imageRenderedWPx = imageBounds.widthPx,
                         imageOffsetYPx = imageBounds.offsetYPx,
                         imageRenderedHPx = imageBounds.heightPx,
+                        viewportWidthPx = targetWPx,
+                        leftLabel = compareLabels.left,
+                        rightLabel = compareLabels.right,
                         modifier = Modifier.align(Alignment.TopStart)
                     )
                 }
@@ -700,40 +724,6 @@ private fun BoxScope.OriginalReferencePeekOverlay(
 }
 
 @Composable
-private fun ReferenceBadgeGroup(
-    hasOriginalReference: Boolean,
-    isOriginalPeekActive: Boolean,
-    onOriginalPeekActiveChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = Modifier
-            .then(modifier)
-            .height(CompareBadgeHeight),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CompareLabelBadge(
-            text = stringResource(R.string.compare_label_reference),
-            modifier = Modifier
-                .fillMaxHeight()
-                .testTag("compare_reference_label")
-        )
-        if (hasOriginalReference) {
-            OriginalReferenceBadge(
-                isActive = isOriginalPeekActive,
-                contentDescription = stringResource(R.string.compare_show_original_reference),
-                activeStateDescription = stringResource(R.string.compare_original_reference_active),
-                onActiveChange = onOriginalPeekActiveChange,
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .testTag("compare_original_reference_badge")
-            )
-        }
-    }
-}
-
-@Composable
 private fun OriginalReferenceBadge(
     isActive: Boolean,
     contentDescription: String,
@@ -809,55 +799,72 @@ private fun CompareOriginalReferenceLabel(
 }
 
 @Composable
-private fun CompareLabelBadge(
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.shadow(2.dp, RoundedCornerShape(8.dp)),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-        )
-    }
-}
-
-@Composable
 private fun CompareDivider(
     sliderFraction: Float,
     imageOffsetXPx: Float,
     imageRenderedWPx: Float,
     imageOffsetYPx: Float,
     imageRenderedHPx: Float,
+    viewportWidthPx: Float,
+    leftLabel: String,
+    rightLabel: String,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val dividerXPx = (imageOffsetXPx + imageRenderedWPx * sliderFraction).roundToInt()
+    val dividerXPx = imageOffsetXPx + imageRenderedWPx * sliderFraction
+    val dividerXInt = dividerXPx.roundToInt()
     val imageHeightDp = with(density) { imageRenderedHPx.toDp() }
-    val sliderDescription = stringResource(R.string.compare_slider_content_description)
+    val handleRadiusPx = with(density) { (CompareSliderHandleSize / 2).toPx() }
+    val labelGapPx = with(density) { CompareHandleLabelGap.toPx() }
 
+    val textMeasurer = rememberTextMeasurer()
+    val labelTextStyle = MaterialTheme.typography.labelLarge.copy(
+        color = Color.White,
+        shadow = Shadow(
+            color = Color.Black.copy(alpha = 0.75f),
+            offset = Offset(0f, 1f),
+            blurRadius = 4f
+        )
+    )
+
+    val leftMeasured = remember(leftLabel, labelTextStyle) {
+        textMeasurer.measure(leftLabel, labelTextStyle)
+    }
+    val rightMeasured = remember(rightLabel, labelTextStyle) {
+        textMeasurer.measure(rightLabel, labelTextStyle)
+    }
+    val leftLabelWidthPx = leftMeasured.size.width.toFloat()
+    val rightLabelWidthPx = rightMeasured.size.width.toFloat()
+    val labelHeightPx = leftMeasured.size.height.toFloat()
+
+    val showLeftLabel = (dividerXPx - handleRadiusPx - labelGapPx - leftLabelWidthPx) >= 0f
+    val showRightLabel = (dividerXPx + handleRadiusPx + labelGapPx + rightLabelWidthPx) <= viewportWidthPx
+
+    val labelsDescription = stringResource(
+        R.string.compare_slider_labels_content_description,
+        leftLabel,
+        rightLabel
+    )
+
+    // Outer Box: same width/height/offset as before so compare_slider bounds remain stable for tests.
     Box(
         modifier = modifier
             .width(CompareSliderTouchWidth)
             .height(imageHeightDp)
             .offset {
                 IntOffset(
-                    x = dividerXPx - (CompareSliderTouchWidth.roundToPx() / 2),
+                    x = dividerXInt - (CompareSliderTouchWidth.roundToPx() / 2),
                     y = imageOffsetYPx.roundToInt()
                 )
             }
             .testTag("compare_slider")
             .semantics {
-                contentDescription = sliderDescription
+                contentDescription = labelsDescription
                 stateDescription = "${(sliderFraction * 100).roundToInt()}%"
                 progressBarRangeInfo = ProgressBarRangeInfo(sliderFraction, 0f..1f)
             }
     ) {
+        // Vertical divider line
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -866,30 +873,81 @@ private fun CompareDivider(
                 .background(Color.White.copy(alpha = 0.9f))
                 .testTag("compare_divider_line")
         )
+
+        // Handle — blue filled circle with ◀ ▶ arrows
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(CompareSliderHandleSize)
                 .shadow(3.dp, CircleShape)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                .background(SameViewAccent)
                 .testTag("compare_divider_handle"),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(16.dp)
-                    .clip(CircleShape)
-                    .background(SameViewTextPrimary.copy(alpha = 0.95f)),
-                contentAlignment = Alignment.Center
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(SameViewAccent)
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowLeft,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
                 )
             }
+        }
+
+        // Left label — rendered outside the 48dp touch Box (no clipToBounds on this Box)
+        if (showLeftLabel) {
+            val touchHalfWidthPx = with(density) { CompareSliderTouchWidth.toPx() / 2 }
+            val imageCenterRelY = imageRenderedHPx / 2f
+            val labelXRelative = touchHalfWidthPx - handleRadiusPx - labelGapPx - leftLabelWidthPx
+            val labelYRelative = imageCenterRelY - labelHeightPx / 2f
+            Text(
+                text = leftLabel,
+                style = labelTextStyle,
+                overflow = TextOverflow.Visible,
+                softWrap = false,
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            x = labelXRelative.roundToInt(),
+                            y = labelYRelative.roundToInt()
+                        )
+                    }
+                    .wrapContentHeight()
+                    .testTag("compare_handle_label_left")
+            )
+        }
+
+        // Right label
+        if (showRightLabel) {
+            val touchHalfWidthPx = with(density) { CompareSliderTouchWidth.toPx() / 2 }
+            val imageCenterRelY = imageRenderedHPx / 2f
+            val labelXRelative = touchHalfWidthPx + handleRadiusPx + labelGapPx
+            val labelYRelative = imageCenterRelY - labelHeightPx / 2f
+            Text(
+                text = rightLabel,
+                style = labelTextStyle,
+                overflow = TextOverflow.Visible,
+                softWrap = false,
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            x = labelXRelative.roundToInt(),
+                            y = labelYRelative.roundToInt()
+                        )
+                    }
+                    .wrapContentHeight()
+                    .testTag("compare_handle_label_right")
+            )
         }
     }
 }

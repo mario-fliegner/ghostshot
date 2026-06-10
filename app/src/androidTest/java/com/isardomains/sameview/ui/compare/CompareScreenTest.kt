@@ -131,14 +131,18 @@ class CompareScreenTest {
     }
 
     @Test
-    fun compareScreen_roleBadgesUseLocalizedCompareLabels() {
+    fun compareScreen_handleLabelsShowFallbackLabels() {
+        // No referenceDate provided → Level 5: Reference / Current labels on handle
         val compareInput = createCompareInput()
         setCompareContent(compareInput.referenceUri, compareInput.captureUri)
 
         waitForSliderViewport()
+        // At 50% position both labels are within viewport and must be displayed
+        composeRule.onNodeWithTag("compare_handle_label_left").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_handle_label_right").assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.compare_label_reference))
             .assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.compare_label_capture))
+        composeRule.onNodeWithText(context.getString(R.string.compare_label_current))
             .assertIsDisplayed()
     }
 
@@ -161,26 +165,26 @@ class CompareScreenTest {
 
         waitForSliderViewport()
 
-        composeRule.onNodeWithTag("compare_reference_label").assertIsDisplayed()
+        // Reference label badge is replaced by handle labels; info badge is retained
         composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
     }
 
     @Test
-    fun originalPeek_badgeSitsBesideReferenceLabelWithMatchingHeight() {
+    fun originalPeek_infoBadgeDisplayedWithinViewport() {
+        // Reference label badge removed; verify the info badge is displayed and positioned
+        // in the top-start area of the viewport.
         val compareInput = createSessionCompareInput(includeOriginalReference = true)
         setCompareContent(compareInput.referenceUri, compareInput.captureUri)
 
         waitForSliderViewport()
 
-        val labelBounds = composeRule.onNodeWithTag("compare_reference_label").getUnclippedBoundsInRoot()
+        val viewportBounds = composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot()
         val badgeBounds = composeRule.onNodeWithTag("compare_original_reference_badge").getUnclippedBoundsInRoot()
-        assertTrue(badgeBounds.left > labelBounds.right)
-        assertCenterYNear(labelBounds, badgeBounds, 1.dp)
-        assertEquals(
-            (labelBounds.bottom - labelBounds.top).value,
-            (badgeBounds.bottom - badgeBounds.top).value,
-            1f
-        )
+        val viewportMidX = viewportBounds.left + (viewportBounds.right - viewportBounds.left) / 2f
+        val viewportMidY = viewportBounds.top + (viewportBounds.bottom - viewportBounds.top) / 2f
+        // Badge must be in the left half and top half of the viewport
+        assertTrue("Badge center must be left of viewport center", badgeBounds.left < viewportMidX)
+        assertTrue("Badge center must be above viewport center", badgeBounds.top < viewportMidY)
     }
 
     @Test
@@ -351,8 +355,9 @@ class CompareScreenTest {
     }
 
     @Test
-    fun referenceBadge_remainsVisibleAfterSliderMovedFarLeft() {
-        val compareInput = createCompareInput()
+    fun infoBadge_remainsVisibleAfterSliderMovedFarLeft_withOriginalReference() {
+        // Info badge must stay visible at fraction > 0 even with slider near left edge
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
         setCompareContent(compareInput.referenceUri, compareInput.captureUri)
 
         waitForSliderViewport()
@@ -363,7 +368,7 @@ class CompareScreenTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("compare_reference_label").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
     }
 
     @Test
@@ -383,7 +388,8 @@ class CompareScreenTest {
     }
 
     @Test
-    fun referenceBadge_notVisibleAtSliderFractionZero() {
+    fun handleLabel_leftLabelHiddenAtSliderFractionZero() {
+        // At fraction ≈ 0, the left label is edge-hidden (no room to the left of handle)
         val compareInput = createCompareInput()
         setCompareContent(compareInput.referenceUri, compareInput.captureUri)
 
@@ -395,7 +401,7 @@ class CompareScreenTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("compare_reference_label").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_handle_label_left").assertDoesNotExist()
     }
 
     @Test
@@ -415,7 +421,8 @@ class CompareScreenTest {
     }
 
     @Test
-    fun captureLabel_notVisibleDuringOriginalPeek() {
+    fun handleLabels_notVisibleDuringOriginalPeek() {
+        // Divider is hidden during peek, so handle labels are also absent
         val compareInput = createSessionCompareInput(includeOriginalReference = true)
         setCompareContent(compareInput.referenceUri, compareInput.captureUri)
 
@@ -424,7 +431,8 @@ class CompareScreenTest {
             .performTouchInput { down(center) }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("compare_capture_label").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_handle_label_right").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_handle_label_left").assertDoesNotExist()
 
         composeRule.onNodeWithTag("compare_original_reference_badge")
             .performTouchInput { up() }
@@ -447,7 +455,8 @@ class CompareScreenTest {
     }
 
     @Test
-    fun captureLabel_visibleAfterPeekRelease() {
+    fun handleLabel_rightLabelVisibleAfterPeekRelease() {
+        // After releasing peek, divider reappears; right label visible at center position
         val compareInput = createSessionCompareInput(includeOriginalReference = true)
         setCompareContent(compareInput.referenceUri, compareInput.captureUri)
 
@@ -459,7 +468,7 @@ class CompareScreenTest {
             }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("compare_capture_label").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_handle_label_right").assertIsDisplayed()
     }
 
     @Test
@@ -479,7 +488,8 @@ class CompareScreenTest {
     }
 
     @Test
-    fun fullscreen_captureLabel_notVisibleDuringPeek() {
+    fun fullscreen_handleLabels_notVisibleDuringPeek() {
+        // In fullscreen, handle labels must also be absent during peek
         val compareInput = createSessionCompareInput(includeOriginalReference = true)
         setCompareContent(compareInput.referenceUri, compareInput.captureUri)
 
@@ -492,7 +502,7 @@ class CompareScreenTest {
             .performTouchInput { down(center) }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("compare_capture_label").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_handle_label_right").assertDoesNotExist()
 
         composeRule.onNodeWithTag("compare_original_reference_badge")
             .performTouchInput { up() }
@@ -1322,6 +1332,136 @@ class CompareScreenTest {
         val vpW = vpBounds.right - vpBounds.left
         val vpH = vpBounds.bottom - vpBounds.top
         assertTrue("Portrait image in portrait device: viewport height ($vpH) must exceed width ($vpW)", vpH > vpW)
+    }
+
+    // --- Handle label UI tests ---
+
+    @Test
+    fun handleLabels_bothVisibleAtCenterPosition() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_handle_label_left").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_handle_label_right").assertIsDisplayed()
+    }
+
+    @Test
+    fun handleLabels_showDateLabels_levelOne_differentYears() {
+        val compareInput = createCompareInput()
+        // 2026-06-11 ~00:00 UTC
+        val timestamp2026 = 1_781_136_000_000L
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = compareInput.referenceUri,
+                captureImageUri = compareInput.captureUri,
+                onBack = {},
+                referenceDate = "2008",
+                timestamp = timestamp2026
+            )
+        }
+
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_handle_label_left").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_handle_label_right").assertIsDisplayed()
+        composeRule.onNodeWithText("2008").assertIsDisplayed()
+    }
+
+    @Test
+    fun handleLabel_leftHiddenWhenSliderNearLeftEdge() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        // Drag slider far to the left so the left label would overflow the viewport
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(-width * 0.45f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_handle_label_left").assertDoesNotExist()
+    }
+
+    @Test
+    fun handleLabel_rightHiddenWhenSliderNearRightEdge() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        // Drag slider far to the right so the right label would overflow the viewport
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(width * 0.45f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_handle_label_right").assertDoesNotExist()
+    }
+
+    @Test
+    fun handleAlwaysVisible_atExtremeSides() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        // Far left
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(-width * 0.45f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_divider_handle").assertIsDisplayed()
+
+        // Far right
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(width * 0.9f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_divider_handle").assertIsDisplayed()
+    }
+
+    @Test
+    fun handleLabels_visibleInFullscreen() {
+        val compareInput = createCompareInput()
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+        composeRule.onNodeWithTag("compare_screen_shell_content").performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_handle_label_left").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_handle_label_right").assertIsDisplayed()
+    }
+
+    @Test
+    fun originalPeek_sliderAndLabelsRestoredAfterPeekRelease() {
+        val compareInput = createSessionCompareInput(includeOriginalReference = true)
+        setCompareContent(compareInput.referenceUri, compareInput.captureUri)
+
+        waitForSliderViewport()
+
+        // Start peek
+        composeRule.onNodeWithTag("compare_original_reference_badge").performTouchInput { down(center) }
+        composeRule.waitForIdle()
+
+        // End peek
+        composeRule.onNodeWithTag("compare_original_reference_badge").performTouchInput { up() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_slider").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_handle_label_left").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_handle_label_right").assertIsDisplayed()
     }
 
     private fun setCompareContent(

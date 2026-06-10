@@ -40,6 +40,10 @@
     <string name="compare_label_reference">Referenz</string>
     <string name="compare_label_capture">Aktuell</string>
     <string name="compare_slider_content_description">Vergleichs-Slider</string>
+    <string name="compare_label_past">Früher</string>
+    <string name="compare_label_present">Heute</string>
+    <string name="compare_label_current">Aktuell</string>
+    <string name="compare_slider_labels_content_description">Vergleichs-Slider: %1$s links, %2$s rechts. Ziehen zum Anpassen.</string>
     <string name="compare_error_missing_images">Bilder fehlen</string>
     <string name="compare_error_missing_images_body">Füge eine Referenz hinzu und nimm ein Foto auf, bevor du vergleichst.</string>
     <string name="compare_error_load_failed">Bilder konnten nicht geladen werden</string>
