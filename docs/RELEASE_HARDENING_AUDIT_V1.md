@@ -30,7 +30,7 @@ Weitere Findings liegen im Bereich Manifest-Konfiguration, Accessibility, Storag
 
 | ID | Severity | Bereich | Beschreibung | Empfehlung |
 |----|----------|---------|-------------|------------|
-| M-01 | High | Manifest | `android.hardware.camera` mit `required="false"` — App kann auf Geräten ohne Kamerahardware installiert werden, obwohl keine Fallback-UX existiert | Evaluieren ob `required="true"` korrekt ist; alternativ explizite camera-less Fallback-UX |
+| M-01 | Resolved (2026-06-10) | Manifest | `android.hardware.camera required="true"` gesetzt — Geräte ohne Kamera werden durch den Play Store ausgeschlossen. SameView V1 erfordert eine Rückkamera zwingend; kameralose Geräte haben in V1 keinen nutzbaren Produktwert. Runtime-Guard in `CameraScreen` (`hasCamera(DEFAULT_BACK_CAMERA)`) bleibt defensiv bestehen. `android.hardware.camera.autofocus` bleibt `required="false"`. | Umgesetzt (2026-06-10): `android:required="true"` in `app/src/main/AndroidManifest.xml`. |
 | M-02 | Medium | Manifest | Kein `networkSecurityConfig` deklariert — kein formelles Klartext-Verbot, obwohl keine INTERNET-Permission vorhanden | `network_security_config.xml` mit `cleartextTrafficPermitted="false"` als Defense-in-Depth |
 | M-03 | Info | Manifest | `xmlns:tools` deklariert, aber keine `tools:`-Attribute im Manifest verwendet | Namespace entfernen |
 | M-04 | Info | Manifest | `<queries>` für `SENDTO/mailto` korrekt für About-Screen-Feedback-Intent; Android-11+-Sichtbarkeitsregel | Korrekt — Dokumentation für Reviewer ausreichend |
@@ -84,8 +84,10 @@ Weitere Findings liegen im Bereich Manifest-Konfiguration, Accessibility, Storag
 ### Manifest
 
 **Gefundene Risiken:**
-- `android.hardware.camera required="false"` erlaubt Installation auf kameralosem Gerät (M-01, High)
 - Kein `networkSecurityConfig` als formelles Dokument der Netzwerkabstinenz (M-02, Medium)
+
+**Resolved:**
+- `android.hardware.camera required="true"` gesetzt (M-01, resolved 2026-06-10) — kameralose Geräte werden durch Play Store ausgeschlossen
 
 **Korrekte Umsetzungen:**
 - Nur `MainActivity` exportiert, korrekt mit MAIN/LAUNCHER-Intent-Filter
@@ -218,13 +220,14 @@ Die folgenden Blöcke sind so dimensioniert, dass sie einzeln und unabhängig um
 ### Block B — Manifest-Hardening
 
 **Scope:**
-- `android.hardware.camera required="true"` evaluieren und ggf. umstellen
 - `network_security_config.xml` mit `cleartextTrafficPermitted="false"` erstellen und in Manifest referenzieren
 - Unused `xmlns:tools` aus Manifest entfernen
 
-**Findings:** M-01, M-02, M-03
+**Findings:** M-02, M-03
 
-**Abhängigkeiten:** M-01 beeinflusst Play-Store-Geräte-Targeting; Entscheidung benötigt Produkt-Input
+**Hinweis M-01:** `android.hardware.camera required="true"` wurde umgesetzt (2026-06-10) — nicht mehr Teil des offenen Block-B-Scopes.
+
+**Abhängigkeiten:** isolierte Manifest-Änderungen ohne Code-Impact
 
 ---
 
@@ -325,7 +328,7 @@ Block D ist kein Prerequisite für das Session-Backup-Export-Feature. Das Backup
 ## Empfohlene Reihenfolge
 
 1. **Block A** — Play-Store-Blocker zuerst, da ohne Privacy Policy kein öffentlicher Upload möglich
-2. **Block B** — Manifest-Hardening früh klären (M-01-Entscheidung beeinflusst Play-Targeting)
+2. **Block B** — Manifest-Hardening (M-01 resolved 2026-06-10; verbleibend: M-02 networkSecurityConfig, M-03 xmlns:tools)
 3. **Block E** — Privacy-Kommunikation (kleine Änderung, hoher User-Trust-Wert)
 4. **Block F** — Accessibility Core (isoliert, geringer Aufwand, hoher Impact)
 5. **Block C** — Storage-Backup-Hardening (Entscheidung notwendig, dann kleine Änderung)
@@ -341,7 +344,8 @@ Block D ist kein Prerequisite für das Session-Backup-Export-Feature. Das Backup
 | Severity | Anzahl | IDs |
 |----------|--------|-----|
 | Critical | 0 | — |
-| High | 4 | M-01, P-01, PS-01, PS-02 |
+| Resolved | 1 | M-01 (2026-06-10) |
+| High | 3 | P-01, PS-01, PS-02 |
 | No Active Issue | 1 | A-01 (false positive — see finding) |
 | Medium | 8 | M-02, P-02, S-01, S-02, A-02, A-03, R-01, PS-03 |
 | Low | 10 | P-03, P-04, S-03, S-04, LC-01, LC-02, A-04, A-05, R-02, R-03, PS-04 |
@@ -354,7 +358,7 @@ Block D ist kein Prerequisite für das Session-Backup-Export-Feature. Das Backup
 
 1. **Play-Store-Blocker**: Privacy Policy URL und Data-Safety-Formular fehlen (PS-01, PS-02, P-01) — ohne diese ist kein öffentlicher Upload möglich
 2. ~~**Accessibility-Lücke Camera-Preview** (A-01)~~ — **Neu bewertet: Audit false positive.** PreviewView ist korrekt nicht TalkBack-fokussierbar. Kein `contentDescription` auf die Camera-Preview setzen. Kein aktives Problem.
-3. **Camera required="false"**: Kein funktionsfähiger Fallback für kameralose Geräte (M-01)
+3. ~~**Camera required="false"** (M-01)~~ — **Resolved (2026-06-10).** `android.hardware.camera required="true"` gesetzt; kameralose Geräte werden durch den Play Store ausgeschlossen.
 4. **Session-Delete-Missverständnis**: GPS-EXIF im MediaStore-Foto bleibt nach Session-Delete bestehen — wird nicht kommuniziert (P-04)
 5. **Backup-State nach Restore**: Recreation Guidance könnte als ON erscheinen ohne aktive GPS-Permission (S-01)
 
