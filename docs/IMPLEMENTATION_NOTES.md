@@ -565,32 +565,44 @@ No open Session Metadata Editor Block UX2 tasks remain.
 
 ### Compare Slider Date Labels and Handle Refresh
 
-**Status:** Analysed — Not yet implemented  
+**Status:** Completed  
 **Specification:** `COMPARE_FLOW_V1.md §41`  
-**Analysis date:** 2026-06-10
+**Implementation date:** 2026-06-10
 
 This block implements the handle redesign and temporal date labels specified in `COMPARE_FLOW_V1.md §41`. It was enabled by the Session Metadata v4 work (Blocks A–F), which established reliable availability of `reference.date` and `capture.timestampMs` in `metadata.json`.
 
-**Data-layer prerequisites (not yet implemented):**
+**Step 1 — Data-layer prerequisites (commit e15bdb3):**
 
-- `SavedSessionRef` — add `referenceDate: String?`; `saveSession()` derives it from the written `reference.date` value
-- `ScannedSession` — add `referenceDate: String?`; `validateUnsafe()` reads `json.optJSONObject("reference")?.optString("date")`
-- `CompareInput` — add `referenceDate: String?`; populated from `SavedSessionRef` in `onCaptureSaved()`
-- `MainActivity` — extend route, both `compareRoute()` overloads, and the `CompareScreen` call with `referenceDate`
+- `SavedSessionRef` — `referenceDate: String?` added; `saveSession()` derives it from `reference.date`
+- `ScannedSession` — `referenceDate: String?` added; `validateUnsafe()` reads `json.optJSONObject("reference")?.optString("date")`
+- `CompareInput` — `referenceDate: String?` added; populated from `SavedSessionRef` in `onCaptureSaved()`
+- `MainActivity` — route, both `compareRoute()` overloads, and the `CompareScreen` call extended with `referenceDate`
 - `CompareScreen` — new `referenceDate: String?` parameter, threaded to `CompareSliderViewport`
+- `SessionScannerTest` — coverage for `referenceDate` propagation added
 
-**UI scope (summary):**
+**Step 2 — UI/UX layer (commit 3fb489d):**
 
-- Remove Reference/Current image-overlay badges from `CompareSliderViewport`; retain Original Reference peek badge as a standalone element
-- Redesign `CompareDivider` handle: filled circle in SameView primary blue with ◀/▶ white arrow icons
-- Add moving text labels left/right of handle; per-label edge-hiding via `rememberTextMeasurer()`
-- Date label logic extracted as a pure function for unit-testability
-
-**New string resources required:** `compare_label_past`, `compare_label_present`, `compare_label_current`, accessibility format string with both label values
-
-**Test impact:** `compareScreen_roleBadgesUseLocalizedCompareLabels` and two `originalPeek_*` tests in `CompareScreenTest` break by design on badge removal; must be updated in the same change
+- `CompareLabelLogic.kt` (new) — pure function `computeCompareLabels` with 5-level priority chain; locale-aware `SimpleDateFormat`; no Compose/Android Context dependency; `CompareLabelPair` data class
+- `CompareDivider` handle redesigned — 40dp (was 32dp) filled circle in `SameViewAccent` blue with white `KeyboardArrowLeft`/`KeyboardArrowRight` icons
+- Moving text labels left/right of handle; per-label edge-hiding via `rememberTextMeasurer()`; text shadow for contrast
+- Accessibility: `compare_slider_labels_content_description` format string always includes both label values, even when edge-hidden
+- Reference and Current image-overlay badges removed from `CompareSliderViewport`; `OriginalReferenceBadge` retained unchanged
+- `CompareLabelLogicTest.kt` (new) — 16 unit tests covering all 5 levels, precision boundaries, and German locale
+- `CompareScreenTest.kt` — 8 affected tests updated; 7 new UI tests added (86 total)
+- `strings.xml` (EN + DE) — `compare_label_past`, `compare_label_present`, `compare_label_current`, `compare_slider_labels_content_description` added
 
 Full UX spec, five-level label logic, edge behavior, fullscreen behavior, accessibility, and i18n: `COMPARE_FLOW_V1.md §41`.
+
+Latest verified test state (Compare Slider Date Labels and Handle Refresh — Completed 2026-06-10):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `CompareLabelLogicTest` — 16/16 PASSED (JVM unit tests)
+- `CompareScreenTest` — 86/86 PASSED on SM-S911B (Android 16)
+- `MediaStoreWriterGpsTest` (isolated) — 3/3 PASSED on SM-S911B (Android 16)
+- Manual smoke test — completed successfully
+- `connectedDebugAndroidTest` full suite — 1 consistent failure in `MediaStoreWriterGpsTest.save_hasGpsTags_whenGpsSnapshotPresent`; pre-existing Samsung IS_PENDING/media-scanner timing race; passes 3/3 in isolation; not caused by this block; same category as Block H flakiness; full suite not claimed as fully green
+
+No open Compare Slider Date Labels and Handle Refresh tasks remain.
 
 ---
 
