@@ -454,7 +454,7 @@ Latest verified test state (Session Metadata Editor Block UX — Completed 2026-
 - `assembleDebug` — BUILD SUCCESSFUL
 - `SessionStorageMetadataTest.updateContent_*` — 6 tests added; require instrumented device run (not yet executed on device)
 
-No open Session Metadata Editor Block UX tasks remain. Next block: Block H (instrumentation tests for `EditSessionScreen`).
+No open Session Metadata Editor Block UX tasks remain.
 
 Block UX6 completed (2026-06-09) — Session Metadata Editor Final UX Cleanup Before Block H:
 
@@ -482,6 +482,22 @@ Latest verified test state (Session Metadata Editor Block UX7 — Completed 2026
 - `assembleDebug` — BUILD SUCCESSFUL
 
 No open Session Metadata Editor Block UX7 tasks remain.
+
+---
+
+Block H completed (2026-06-10) — Session Metadata Editor Instrumentation/UI Tests:
+
+- **`EditSessionScreenTest`** — new instrumentation test class in `com.isardomains.sameview.ui.compare`; 22 tests across five groups: screen structure (8 tests: root present, back/save buttons present, all six field test tags present, created header when timestamp available, absence of standalone "Session" card title, reference/current/location cards present, captured-on label present), field pre-population (3 tests: title, reference date, and location fields), Save button state (4 tests: disabled initially; enabled after title, description, reference date, or location change), back/discard dialog navigation (4 tests: immediate back with no changes invokes callback, back with changes shows discard dialog, confirm navigates back, cancel keeps editor open), reference date validation UI (2 tests: invalid date shows error text, valid date shows no error text)
+- **Test infrastructure** — `setEditSessionContent()` launches `ComponentActivity` via `ActivityScenario`, wires `EditSessionViewModel` with a real `SavedStateHandle`, and awaits `isLoading == false` before proceeding; `createSession()` writes a v4-compatible `metadata.json` plus reference and capture JPEG stubs into `filesDir/sessions/<sessionId>/`; `wakeTestDevice()` fires `KEYCODE_WAKEUP` to prevent display-off timing failures; `@After tearDown()` closes the scenario and deletes temp session directories
+
+Latest verified test state (Session Metadata Editor Block H — Completed 2026-06-10):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `EditSessionScreenTest` — 22/22 PASSED on SM-S911B (Android 16)
+- `MediaStoreWriterGpsTest` (isolated) — 3/3 PASSED on SM-S911B (Android 16)
+- `connectedDebugAndroidTest` full suite (482 tests) — 481/482 across two consecutive runs; one consistent failure in `MediaStoreWriterGpsTest.save_noGps_whenGpsSnapshotNull`; root cause: known Samsung IS_PENDING/media-scanner timing race (see Video Export Block 7 full-suite note for prior manifestation as `save_hasGpsTags_whenGpsSnapshotPresent`); both affected methods pass 3/3 in isolation; no functional coupling between Block H and `MediaStoreWriter` or `GpsExifWriter`; pre-existing device-state flake, full suite not claimed as fully green
+
+No open Session Metadata Editor Block H tasks remain.
 
 ---
 
