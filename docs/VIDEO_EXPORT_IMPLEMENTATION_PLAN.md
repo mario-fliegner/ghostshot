@@ -711,7 +711,7 @@ Alle Elemente vertikal und horizontal zentriert. Keine formatspezifischen Varian
 | T-U-01 / T-U-05 (animationFrameCount branding ON aktualisiert) | PASSED |
 | `assembleDebug` | BUILD SUCCESSFUL |
 | `assembleRelease` | BUILD SUCCESSFUL |
-| T-I-02 (branding ON + Dauer-Check) | Ausstehend — Geräteverifikation erforderlich |
+| T-I-02 (branding ON + Dauer-Check) | PASSED on SM-S911B (Android 16) |
 
 ##### Manuelle Verifikation (Block 6) — Abgeschlossen
 

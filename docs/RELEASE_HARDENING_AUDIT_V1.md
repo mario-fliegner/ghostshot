@@ -54,7 +54,7 @@ Weitere Findings liegen im Bereich Manifest-Konfiguration, Accessibility, Storag
 | LC-03 | Info | Lifecycle | CameraX Async-Binding korrekt gegen Late-Bind nach Dispose abgesichert | Positiver Befund |
 | LC-04 | Info | Lifecycle | `keepScreenOn` wird korrekt bei `ON_PAUSE`, `ON_STOP`, `ON_DESTROY` und CameraScreen-Dispose zurückgesetzt | Positiver Befund |
 | LC-05 | Info | Lifecycle | GPS `startUpdates()` / `stopUpdates()` werden via `onCameraScreenActive()` / `onCameraScreenInactive()` lifecyclekorrrekt gesteuert | Positiver Befund |
-| A-01 | High | Accessibility | CameraX-Preview (`PreviewView` via `AndroidView`) hat keine `contentDescription` — TalkBack-Nutzer erhalten für den Kern-Interaction-Bereich keine semantische Beschreibung | `contentDescription` auf den `AndroidView`-Wrapper setzen (z. B. "Live camera preview") |
+| A-01 | No Active Issue | Accessibility | CameraX-Preview (`PreviewView` via `AndroidView`) ist nicht TalkBack-fokussierbar — **kein aktives Problem (Audit false positive).** Eine `contentDescription` wie "Live camera preview" wäre falsch: sie erzeugt einen unnötigen Focus-Stop für einen nicht-interaktiven Live-Stream. **Do not add a contentDescription to the camera preview.** Optionales defensives Future-Hardening: `PreviewView` darf explizit `importantForAccessibility = NO` gesetzt werden, wenn zukünftige Code-Änderungen die Absicht unklar machen. | Kein Code-Fix erforderlich. Do not add contentDescription to the camera preview. Optional: `previewView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO` als defensives Future-Hardening. |
 | A-02 | Medium | Accessibility | Compare-Slider in `CompareScreen` hat korrekte Semantics (`progressBarRangeInfo`, `stateDescription`, `Role.Image`), aber keine TalkBack-kompatible Alternative-Action zum Verschieben des Dividers — nur pointer-basierte Drag-Geste | Accessibility-Action für Slider-Verschiebung via `semantics { onClick / customActions }` ergänzen |
 | A-03 | Medium | Accessibility | Overlay-Gesture-Bereich in `CameraScreen` (Drag + Pinch) ist für TalkBack-Nutzer nicht bedienbar — keine Alternative-Actions für Overlay-Repositionierung oder Skalierung | TalkBack-Accessibility-Actions für Reset und Opacity ergänzen; vollständige Overlay-Steuerung via Touch-Gesten ist schwer vollständig zugänglich zu machen |
 | A-04 | Low | Accessibility | App-Icon-`AndroidView` in `AboutScreen` hat keine `contentDescription` — dekoratives Element, Accessibility-Guidelines erlauben leere Beschreibung für Dekorationen | `contentDescription = ""` explizit auf `ImageView` setzen (markiert als dekorativ) |
@@ -149,11 +149,13 @@ Weitere Findings liegen im Bereich Manifest-Konfiguration, Accessibility, Storag
 ### Accessibility
 
 **Gefundene Risiken:**
-- Camera-Preview ohne `contentDescription` (A-01, High)
 - Compare-Slider ohne TalkBack-Alternative-Action (A-02, Medium)
 - Overlay-Gestures ohne TalkBack-Alternative-Actions (A-03, Medium)
 - Dekoratives App-Icon ohne explizit leere `contentDescription` (A-04, Low)
 - Feedback-Button ohne `Role.Button` (A-05, Low)
+
+**Neu bewertet — kein aktives Problem:**
+- A-01 (Camera-Preview): Audit false positive — PreviewView ist korrekt nicht TalkBack-fokussierbar; kein `contentDescription` setzen (wäre falsch für einen nicht-interaktiven Live-Stream); kein Code-Fix; optionales Future-Hardening: `importantForAccessibility = NO`
 
 **Korrekte Umsetzungen:**
 - Alle `IconButton`-Komponenten mit `contentDescription`
@@ -268,14 +270,15 @@ Block D ist kein Prerequisite für das Session-Backup-Export-Feature. Das Backup
 
 ---
 
-### Block F — Accessibility Core (Camera Preview)
+### Block F — Accessibility Core
 
 **Scope:**
-- `contentDescription` auf Camera-Preview `AndroidView`-Wrapper setzen
 - `contentDescription = ""` auf App-Icon-`ImageView` in AboutScreen setzen (dekorativ)
 - `role = Role.Button` auf Feedback-Button in AboutScreen ergänzen
 
-**Findings:** A-01, A-04, A-05
+**Findings:** A-04, A-05
+
+**Hinweis A-01:** Camera-Preview wurde als Audit false positive neu bewertet. `contentDescription` auf die CameraX-Preview darf **nicht** gesetzt werden — sie erzeugt einen unnötigen Focus-Stop für einen nicht-interaktiven Live-Stream. Kein Code-Fix für A-01. Optionales defensives Future-Hardening: `previewView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO` wenn zukünftige Code-Änderungen die Absicht unklar machen.
 
 **Abhängigkeiten:** isolierte Compose-Änderungen ohne Architektureinfluss
 
@@ -338,7 +341,8 @@ Block D ist kein Prerequisite für das Session-Backup-Export-Feature. Das Backup
 | Severity | Anzahl | IDs |
 |----------|--------|-----|
 | Critical | 0 | — |
-| High | 5 | M-01, P-01, A-01, PS-01, PS-02 |
+| High | 4 | M-01, P-01, PS-01, PS-02 |
+| No Active Issue | 1 | A-01 (false positive — see finding) |
 | Medium | 8 | M-02, P-02, S-01, S-02, A-02, A-03, R-01, PS-03 |
 | Low | 10 | P-03, P-04, S-03, S-04, LC-01, LC-02, A-04, A-05, R-02, R-03, PS-04 |
 | Info | 23 | M-03, M-04, M-05, M-06, P-05, P-06, S-05, S-06, S-07, LC-03, LC-04, LC-05, A-06, A-07, A-08, R-04, R-05, R-06, R-07, PS-05, PS-06, PS-07 |
@@ -349,7 +353,7 @@ Block D ist kein Prerequisite für das Session-Backup-Export-Feature. Das Backup
 ## Wichtigste Risiken
 
 1. **Play-Store-Blocker**: Privacy Policy URL und Data-Safety-Formular fehlen (PS-01, PS-02, P-01) — ohne diese ist kein öffentlicher Upload möglich
-2. **Accessibility-Lücke Camera-Preview**: TalkBack-Nutzer erhalten für den Kern-Interaction-Bereich keine semantische Beschreibung (A-01)
+2. ~~**Accessibility-Lücke Camera-Preview** (A-01)~~ — **Neu bewertet: Audit false positive.** PreviewView ist korrekt nicht TalkBack-fokussierbar. Kein `contentDescription` auf die Camera-Preview setzen. Kein aktives Problem.
 3. **Camera required="false"**: Kein funktionsfähiger Fallback für kameralose Geräte (M-01)
 4. **Session-Delete-Missverständnis**: GPS-EXIF im MediaStore-Foto bleibt nach Session-Delete bestehen — wird nicht kommuniziert (P-04)
 5. **Backup-State nach Restore**: Recreation Guidance könnte als ON erscheinen ohne aktive GPS-Permission (S-01)
