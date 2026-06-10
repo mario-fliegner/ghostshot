@@ -214,10 +214,12 @@
     <string name="edit_session_field_reference_date">Referenzdatum</string>
     <string name="edit_session_placeholder_reference_date">z. B. 2008 oder 2008-06</string>
     <string name="edit_session_reference_date_hint">z. B. 2008 oder 2008-06</string>
-    <string name="edit_session_reference_date_help">Aufnahmedatum des Referenzfotos.\nBeispiele: 2008, Juni 2008 oder 15. Juni 2008.</string>
+    <string name="edit_session_reference_date_help">Wann das Referenzfoto aufgenommen wurde.\nBeispiele: 2008, 2008-06 oder 2008-06-15.</string>
     <string name="edit_session_reference_date_error">Gib ein Jahr (z. B. 2008), Jahr-Monat (z. B. 2008-06) oder ein vollständiges Datum (z. B. 2008-06-15) ein.</string>
     <string name="edit_session_label_session_date">Aufnahmedatum</string>
     <string name="edit_session_label_captured_on">Aufgenommen am</string>
+    <string name="edit_session_captured_on">Aufgenommen am %s</string>
+    <string name="edit_session_created">Erstellt am %s</string>
     <string name="edit_session_pick_date_content_description">Datum auswählen</string>
     <string name="edit_session_field_place_name">Ortsname</string>
     <string name="edit_session_placeholder_place_name">z. B. Marienplatz</string>

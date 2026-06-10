@@ -774,6 +774,138 @@ Unify sentence case across all visible text, correct placeholders to use concret
 
 ---
 
+## Block UX7 — Final Visual Alignment Fix
+
+**Status:** Completed (2026-06-10)
+
+### Goal
+
+Two visual corrections to finalize card appearance before Block H test authoring. No ViewModel, storage, navigation, validation, or DatePicker changes.
+
+### What Changes
+
+**`EditSessionScreen.kt`:**
+- Session card: `SettingsCard(title = stringResource(R.string.edit_session_card_session))` → `SettingsCard(title = if (captureDateWithTime.isNotEmpty()) stringResource(R.string.edit_session_created, captureDateWithTime) else null)`. Body-`Text` + `Spacer(8.dp)` for "Captured on ..." removed. Header renders in SettingsCard's native `titleMedium` / `SameViewSettingsHeaderText` style, identical to the old "Session" header.
+- Current photo card: `Row(verticalAlignment = Alignment.Top)` → `Row(verticalAlignment = Alignment.CenterVertically)` — thumbnail and display-Box share the same vertical midpoint.
+
+**`app/src/main/res/values/strings.xml`:**
+- Added `edit_session_created` → `"Created %s"`
+
+**`app/src/main/res/values-de/strings.xml`:**
+- Added `edit_session_created` → `"Erstellt am %s"`
+
+### Unchanged
+
+- `edit_session_captured_on` strings (kept, now unused in code)
+- Reference photo card — layout, alignment, help text, error text all unchanged
+- Current photo card Box size, width, inner content, border — unchanged
+- ViewModel, storage, save workflow, DatePicker, Location card — all unchanged
+
+### Block UX7 Test Results (2026-06-10)
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+---
+
+## Block UX6 — Final UX Cleanup Before Block H
+
+**Status:** Completed (2026-06-09)
+
+### Goal
+
+Three layout corrections to finalize visual quality before Block H test authoring. No ViewModel, storage, navigation, or validation changes.
+
+### What Changes
+
+**`EditSessionScreen.kt`:**
+- Session card: two-line "Session date" label + value replaced by single `Text(stringResource(R.string.edit_session_captured_on, captureDateWithTime))` in `bodySmall` / `SameViewSettingsSecondaryText`; one line, no separate label
+- Reference photo card: `supportingText` parameter removed from `OutlinedTextField`; `isError` retained; help text and error text rendered as free `Text` composables below the Row, full card width; `Spacer(4.dp)` between Row and text; error text uses `MaterialTheme.colorScheme.error`
+- Current photo card: plain `Column` replaced by `Box` with `Modifier.border(1.dp, colorScheme.outline, shapes.extraSmall)` + `heightIn(min = 56.dp)` + `weight(1f)` + inner padding `(start=16, end=16, top=8, bottom=8.dp)`; no focus, cursor, or click affordance; visually matches OutlinedTextField weight
+- Added imports: `androidx.compose.foundation.border`, `androidx.compose.foundation.layout.heightIn`
+
+**`app/src/main/res/values/strings.xml`:**
+- Added `edit_session_captured_on` → `"Captured on %s"`
+
+**`app/src/main/res/values-de/strings.xml`:**
+- Added `edit_session_captured_on` → `"Aufgenommen am %s"`
+
+### Unchanged
+
+- ViewModel, storage, dirty state, save workflow, DatePicker, validation — all unchanged
+- `isError` flag on OutlinedTextField — retained (red outline remains active on validation error)
+- Location card, Session card fields, Reference photo thumbnail, Current photo thumbnail — unchanged
+
+### Block UX6 Test Results (2026-06-09)
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+---
+
+## Block UX5 — Pre-Block-H UX Fix
+
+**Status:** Completed (2026-06-09)
+
+### Goal
+
+Three targeted corrections before Block H test authoring to ensure no misleading strings get frozen into test assertions and the Session card presents information in priority order.
+
+### What Changes
+
+**`EditSessionScreen.kt`:**
+- Session card: "Session date" block moved to top (before Title and Description fields)
+- Session card: changed from `captureDate` (date only) to `captureDateWithTime` (date + time) — consistent with Current photo card and CompareScreen
+- Removed `captureDate` derivation (now unused) and `locale` variable (now unused)
+- Removed `LocalConfiguration` import (now unused)
+
+**`app/src/main/res/values/strings.xml`:**
+- `edit_session_reference_date_help`: "Reference photo date.\nExamples: 2008, June 2008, or June 15, 2008." → "When the reference photo was taken.\nExamples: 2008, 2008-06, or 2008-06-15."
+
+**`app/src/main/res/values-de/strings.xml`:**
+- `edit_session_reference_date_help`: "Aufnahmedatum des Referenzfotos.\nBeispiele: 2008, Juni 2008 oder 15. Juni 2008." → "Wann das Referenzfoto aufgenommen wurde.\nBeispiele: 2008, 2008-06 oder 2008-06-15."
+
+### Unchanged
+
+- Current photo card (plain text, no change)
+- Reference photo card layout, DatePicker, validation, storage, dirty state, navigation — all unchanged
+
+### Block UX5 Test Results (2026-06-09)
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+---
+
+## Block UX4 — Reference Card Layout Refinement
+
+**Status:** Completed (2026-06-09)
+
+### Goal
+
+Rebuild the Reference photo card body from a vertical stack (thumbnail → spacer → full-width field) to a horizontal Row (thumbnail left, field right), matching the visual structure of the Current photo card.
+
+### What Changes
+
+**`EditSessionScreen.kt`:**
+- Reference photo card: wrapped thumbnail and `OutlinedTextField` in `Row(verticalAlignment = Alignment.Top)`
+- Replaced vertical `Spacer(height = 12.dp)` with horizontal `Spacer(width = 12.dp)` between thumbnail and field
+- Changed `modifier = Modifier.fillMaxWidth()` on the field to `modifier = Modifier.weight(1f)` so the field fills the remaining row width
+- All other field properties unchanged: label, placeholder, trailingIcon (DatePicker), singleLine, isError, supportingText, keyboardOptions, keyboardActions
+
+### Unchanged
+
+- Session card, Current photo card, Location card — unchanged
+- DatePicker trigger and dialog logic — unchanged
+- Validation, dirty state, save workflow, strings — unchanged
+
+### Block UX4 Test Results (2026-06-09)
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+---
+
 ## Block UX3 — Session Metadata Editor UX Polish
 
 **Status:** Completed (2026-06-09)

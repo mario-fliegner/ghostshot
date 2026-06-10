@@ -456,6 +456,63 @@ Latest verified test state (Session Metadata Editor Block UX — Completed 2026-
 
 No open Session Metadata Editor Block UX tasks remain. Next block: Block H (instrumentation tests for `EditSessionScreen`).
 
+Block UX6 completed (2026-06-09) — Session Metadata Editor Final UX Cleanup Before Block H:
+
+- **Session Card auf einzeilige Metadaten-Darstellung reduziert** — zwei-zeilige Darstellung (Label "Session date" + Wert) ersetzt durch einzelne Textzeile `"Captured on Jun 9, 2026 19:22"` mit formatierbarem String `edit_session_captured_on` = `"Captured on %s"`; ein `Text`-Composable statt zwei; `SameViewSettingsSecondaryText`/`bodySmall` Stil.
+- **Reference-Date-Hilfetext aus TextField ausgelagert** — `supportingText`-Parameter aus `OutlinedTextField` entfernt; Help-Text und Error-Text werden jetzt als freie `Text`-Composables unterhalb der Thumbnail/Field-Row gerendert, über volle Card-Breite; `isError` verbleibt am TextField (rote Outline bleibt aktiv); Error-Text in `MaterialTheme.colorScheme.error`; 4dp-Spacer zwischen Row und Hilfetext.
+- **Current Photo Card visuell an Reference Photo Card angeglichen** — plain `Column` ersetzt durch `Box` mit `Modifier.border(1.dp, outline, extraSmall)`, `heightIn(min = 56.dp)`, `padding(16/8dp)` und `Modifier.weight(1f)`; Label + Wert im Box-Inneren; keine Fokus-, Cursor- oder Klick-Affordance.
+
+Latest verified test state (Session Metadata Editor Block UX6 — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block UX6 tasks remain.
+
+---
+
+Block UX7 completed (2026-06-10) — Session Metadata Editor Final Visual Alignment Fix:
+
+- **Session Card Header vereinfacht** — Card-Titel "Session" entfernt; `captureDateWithTime` wird jetzt direkt als Card-Header übergeben (`SettingsCard(title = ...)`), formatiert als `"Created %s"` / `"Erstellt am %s"` mit neuem formatierbarem String `edit_session_created`; wenn kein Timestamp vorhanden, `title = null` (Card ohne Titel). Bisheriges Body-`Text`-Composable mit `edit_session_captured_on` und `Spacer(8.dp)` entfernt. Typografie, Farbe und Abstände identisch mit altem "Session"-Header (SettingsCard-interne Darstellung unverändert).
+- **Current Photo Card Display-Box vertikal zentriert** — `Row(verticalAlignment = Alignment.Top)` → `Row(verticalAlignment = Alignment.CenterVertically)`; die Display-Box und das Thumbnail werden jetzt auf der gemeinsamen Mittelachse ausgerichtet. Größe, Breite und Inhalt der Box unverändert.
+
+Latest verified test state (Session Metadata Editor Block UX7 — Completed 2026-06-10):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block UX7 tasks remain.
+
+---
+
+Block UX5 completed (2026-06-09) — Session Metadata Editor Pre-Block-H UX Fix:
+
+- **Session date priorisiert** — in der Session Card steht "Session date" jetzt als erstes Element, vor Title und Description; die Hauptinformation der Session ist damit sofort sichtbar.
+- **Session date Zeitgenauigkeit unified** — Session Card verwendet nun `captureDateWithTime` (Datum + Uhrzeit, z. B. "Jun 9, 2026 19:22") statt `captureDate` (nur Datum); konsistent mit CompareScreen und Current photo Card. `captureDate`-Derivation und unbenutzter `locale`-Import entfernt.
+- **Reference-Date-Hilfetext korrigiert** — `edit_session_reference_date_help` zeigt jetzt die tatsächlich akzeptierten ISO-8601-Eingabeformate (`2008`, `2008-06`, `2008-06-15`); vorheriger Text zeigte "June 2008" / "June 15, 2008", was die Validierung ablehnt. Deutsche Übersetzung entsprechend angepasst.
+
+Latest verified test state (Session Metadata Editor Block UX5 — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block UX5 tasks remain.
+
+---
+
+Block UX4 completed (2026-06-09) — Session Metadata Editor Reference Card Layout Refinement:
+
+- **Reference photo card layout unified** — card body rebuilt from vertical (thumbnail → spacer → full-width field) to horizontal Row: thumbnail (80 dp) on the left, `OutlinedTextField` with `Modifier.weight(1f)` on the right. Mirrors the Current photo card structure. `supportingText` (help text / error) remains attached to the field and renders below it. All DatePicker logic, validation, strings, and dirty-state tracking unchanged.
+
+Latest verified test state (Session Metadata Editor Block UX4 — Completed 2026-06-09):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+
+No open Session Metadata Editor Block UX4 tasks remain.
+
+---
+
 Block UX3 completed (2026-06-09) — Session Metadata Editor UX Polish:
 
 - **"Session date" terminology unified** — the label in the Current photo card changed from "Captured on" (`edit_session_label_captured_on`) to "Session date" (`edit_session_label_session_date`), matching the Session card and the app's consistent terminology.

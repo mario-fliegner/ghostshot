@@ -2,6 +2,7 @@ package com.isardomains.sameview.ui.compare
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -48,7 +50,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -117,14 +118,6 @@ fun EditSessionScreen(
         Uri.fromFile(File(context.filesDir, "sessions/${viewModel.sessionId}/capture.jpg"))
     }
 
-    val locale = LocalConfiguration.current.locales[0]
-    val captureDate = remember(captureTimestampMs, locale) {
-        if (captureTimestampMs > 0L)
-            java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, locale)
-                .format(java.util.Date(captureTimestampMs))
-        else ""
-    }
-    // Same format as CompareScreen timestamp display.
     val captureDateWithTime = remember(captureTimestampMs) {
         if (captureTimestampMs > 0L)
             java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
@@ -272,7 +265,11 @@ fun EditSessionScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // ── Session card ──────────────────────────────────────────────────
-            SettingsCard(title = stringResource(R.string.edit_session_card_session)) {
+            SettingsCard(
+                title = if (captureDateWithTime.isNotEmpty())
+                    stringResource(R.string.edit_session_created, captureDateWithTime)
+                else null
+            ) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = viewModel::onTitleChanged,
@@ -295,19 +292,6 @@ fun EditSessionScreen(
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (captureDate.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.edit_session_label_session_date),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = SameViewSettingsSecondaryText
-                    )
-                    Text(
-                        text = captureDate,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = SameViewSettingsLabelText
-                    )
-                }
             }
 
             // ── Reference photo card ──────────────────────────────────────────
@@ -316,50 +300,55 @@ fun EditSessionScreen(
                     model = referenceImageUri,
                     imageLoader = context.imageLoader
                 )
-                androidx.compose.foundation.Image(
-                    painter = painter,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(MaterialTheme.shapes.small)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = referenceDate,
-                    onValueChange = viewModel::onReferenceDateChanged,
-                    label = { Text(stringResource(R.string.edit_session_field_reference_date)) },
-                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_reference_date)) },
-                    trailingIcon = {
-                        IconButton(onClick = { showDatePicker = true }) {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = stringResource(R.string.edit_session_pick_date_content_description)
-                            )
-                        }
-                    },
-                    singleLine = true,
-                    isError = referenceError != null,
-                    supportingText = if (referenceError != null) {
-                        { Text(stringResource(R.string.edit_session_reference_date_error)) }
-                    } else {
-                        {
-                            Text(
-                                text = stringResource(R.string.edit_session_reference_date_help),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = SameViewSettingsSecondaryText
-                            )
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(verticalAlignment = Alignment.Top) {
+                    androidx.compose.foundation.Image(
+                        painter = painter,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(MaterialTheme.shapes.small)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    OutlinedTextField(
+                        value = referenceDate,
+                        onValueChange = viewModel::onReferenceDateChanged,
+                        label = { Text(stringResource(R.string.edit_session_field_reference_date)) },
+                        placeholder = { Text(stringResource(R.string.edit_session_placeholder_reference_date)) },
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = stringResource(R.string.edit_session_pick_date_content_description)
+                                )
+                            }
+                        },
+                        singleLine = true,
+                        isError = referenceError != null,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                if (referenceError != null) {
+                    Text(
+                        text = stringResource(R.string.edit_session_reference_date_error),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.edit_session_reference_date_help),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SameViewSettingsSecondaryText
+                    )
+                }
             }
 
             // ── Current photo card ────────────────────────────────────────────
             SettingsCard(title = stringResource(R.string.edit_session_card_current_photo)) {
-                Row(verticalAlignment = Alignment.Top) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     val capturePainter = rememberAsyncImagePainter(
                         model = captureImageUri,
                         imageLoader = context.imageLoader
@@ -373,18 +362,27 @@ fun EditSessionScreen(
                             .clip(MaterialTheme.shapes.small)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = stringResource(R.string.edit_session_label_session_date),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = SameViewSettingsSecondaryText
-                        )
-                        if (captureDateWithTime.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 56.dp)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall)
+                            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Column {
                             Text(
-                                text = captureDateWithTime,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = SameViewSettingsLabelText
+                                text = stringResource(R.string.edit_session_label_captured_on),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = SameViewSettingsSecondaryText
                             )
+                            if (captureDateWithTime.isNotEmpty()) {
+                                Text(
+                                    text = captureDateWithTime,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = SameViewSettingsLabelText
+                                )
+                            }
                         }
                     }
                 }
