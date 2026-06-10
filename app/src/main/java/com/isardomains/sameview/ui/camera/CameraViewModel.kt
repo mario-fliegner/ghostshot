@@ -141,7 +141,8 @@ data class CompareInput(
     val referenceImageUri: Uri,
     val captureImageUri: Uri,
     val sessionId: String? = null,
-    val timestamp: Long? = null
+    val timestamp: Long? = null,
+    val referenceDate: String? = null
 )
 
 /**
@@ -837,7 +838,8 @@ class CameraViewModel @Inject constructor(
                 referenceImageUri = it.referenceFileUri,
                 captureImageUri = it.captureFileUri,
                 sessionId = it.sessionId,
-                timestamp = it.timestamp
+                timestamp = it.timestamp,
+                referenceDate = it.referenceDate
             )
         }
         val autoOpen = _uiState.value.autoOpenCompareAfterCapture

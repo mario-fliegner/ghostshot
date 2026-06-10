@@ -23,7 +23,8 @@ internal data class SavedSessionRef(
     val sessionId: String,
     val timestamp: Long,
     val referenceFileUri: Uri,
-    val captureFileUri: Uri
+    val captureFileUri: Uri,
+    val referenceDate: String? = null
 )
 
 /**
@@ -92,7 +93,8 @@ internal object SessionStorage {
                 sessionId = sessionDir.name,
                 timestamp = sessionTimestampMs,
                 referenceFileUri = Uri.fromFile(File(sessionDir, FILE_REFERENCE)),
-                captureFileUri = Uri.fromFile(File(sessionDir, FILE_CAPTURE))
+                captureFileUri = Uri.fromFile(File(sessionDir, FILE_CAPTURE)),
+                referenceDate = snapshot.referenceImageMetadata.exifDateTimeOriginal
             )
         } catch (e: Exception) {
             if (BuildConfig.DEBUG) { Log.w(TAG, "Session save failed, removing partial session: ${e.message}") }

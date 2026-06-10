@@ -57,9 +57,10 @@ private const val ARG_REFERENCE_URI = "referenceUri"
 private const val ARG_CAPTURE_URI = "captureUri"
 private const val ARG_SESSION_ID = "sessionId"
 private const val ARG_TIMESTAMP = "timestamp"
+private const val ARG_REFERENCE_DATE = "referenceDate"
 private const val ROUTE_COMPARE_WITH_ARGS =
     "$ROUTE_COMPARE?$ARG_REFERENCE_URI={$ARG_REFERENCE_URI}&$ARG_CAPTURE_URI={$ARG_CAPTURE_URI}" +
-        "&$ARG_SESSION_ID={$ARG_SESSION_ID}&$ARG_TIMESTAMP={$ARG_TIMESTAMP}"
+        "&$ARG_SESSION_ID={$ARG_SESSION_ID}&$ARG_TIMESTAMP={$ARG_TIMESTAMP}&$ARG_REFERENCE_DATE={$ARG_REFERENCE_DATE}"
 
 /**
  * The single activity for the SameView app.
@@ -93,12 +94,14 @@ class MainActivity : ComponentActivity() {
                                             referenceImageUri = input.referenceImageUri,
                                             captureImageUri = input.captureImageUri,
                                             sessionId = sessionId,
-                                            timestamp = timestamp
+                                            timestamp = timestamp,
+                                            referenceDate = input.referenceDate
                                         )
                                     } else {
                                         compareRoute(
                                             referenceImageUri = input.referenceImageUri,
-                                            captureImageUri = input.captureImageUri
+                                            captureImageUri = input.captureImageUri,
+                                            referenceDate = input.referenceDate
                                         )
                                     }
                                 )
@@ -155,7 +158,8 @@ class MainActivity : ComponentActivity() {
                                             referenceImageUri = session.referenceFileUri,
                                             captureImageUri = session.captureFileUri,
                                             sessionId = session.sessionId,
-                                            timestamp = session.timestamp
+                                            timestamp = session.timestamp,
+                                            referenceDate = session.referenceDate
                                         )
                                     )
                                 },
@@ -195,6 +199,11 @@ class MainActivity : ComponentActivity() {
                                 type = NavType.StringType
                                 nullable = true
                                 defaultValue = null
+                            },
+                            navArgument(ARG_REFERENCE_DATE) {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
                             }
                         )
                     ) { backStackEntry ->
@@ -206,6 +215,7 @@ class MainActivity : ComponentActivity() {
                         val sessionId = backStackEntry.arguments?.getString(ARG_SESSION_ID)
                         val timestamp =
                             backStackEntry.arguments?.getString(ARG_TIMESTAMP)?.toLongOrNull()
+                        val referenceDate = backStackEntry.arguments?.getString(ARG_REFERENCE_DATE)
                         val sessionTitle = uiState.savedSessions
                             .find { it.sessionId == sessionId }
                             ?.title
@@ -255,6 +265,7 @@ class MainActivity : ComponentActivity() {
                                     ?.let(Uri::parse),
                                 onBack = { navController.popBackStack() },
                                 timestamp = timestamp,
+                                referenceDate = referenceDate,
                                 onDelete = if (sessionId != null) {
                                     {
                                         coroutineScope.launch {
@@ -348,20 +359,29 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun compareRoute(referenceImageUri: Uri, captureImageUri: Uri): String =
-    "$ROUTE_COMPARE?$ARG_REFERENCE_URI=${Uri.encode(referenceImageUri.toString())}" +
+private fun compareRoute(
+    referenceImageUri: Uri,
+    captureImageUri: Uri,
+    referenceDate: String? = null
+): String {
+    val base = "$ROUTE_COMPARE?$ARG_REFERENCE_URI=${Uri.encode(referenceImageUri.toString())}" +
         "&$ARG_CAPTURE_URI=${Uri.encode(captureImageUri.toString())}"
+    return if (referenceDate != null) "$base&$ARG_REFERENCE_DATE=${Uri.encode(referenceDate)}" else base
+}
 
 private fun compareRoute(
     referenceImageUri: Uri,
     captureImageUri: Uri,
     sessionId: String,
-    timestamp: Long
-): String =
-    "$ROUTE_COMPARE?$ARG_REFERENCE_URI=${Uri.encode(referenceImageUri.toString())}" +
+    timestamp: Long,
+    referenceDate: String? = null
+): String {
+    val base = "$ROUTE_COMPARE?$ARG_REFERENCE_URI=${Uri.encode(referenceImageUri.toString())}" +
         "&$ARG_CAPTURE_URI=${Uri.encode(captureImageUri.toString())}" +
         "&$ARG_SESSION_ID=${Uri.encode(sessionId)}" +
         "&$ARG_TIMESTAMP=$timestamp"
+    return if (referenceDate != null) "$base&$ARG_REFERENCE_DATE=${Uri.encode(referenceDate)}" else base
+}
 
 private fun createVideoRoute(sessionId: String): String =
     "$ROUTE_CREATE_VIDEO/${Uri.encode(sessionId)}"

@@ -134,6 +134,7 @@ fun CompareScreen(
     isBackupInProgress: Boolean = false,
     onCreateVideo: (() -> Unit)? = null,
     isCreateVideoAvailable: Boolean = false,
+    referenceDate: String? = null,
     modifier: Modifier = Modifier
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
@@ -325,6 +326,7 @@ fun CompareScreen(
                                         referenceImageUri = referenceImageUri!!,
                                         captureImageUri = captureImageUri!!,
                                         contentScale = compareContentScale,
+                                        referenceDate = referenceDate,
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .testTag("compare_screen_shell_content")
@@ -395,6 +397,7 @@ fun CompareScreen(
                             referenceImageUri = referenceImageUri!!,
                             captureImageUri = captureImageUri!!,
                             contentScale = compareContentScale,
+                            referenceDate = referenceDate,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .testTag("compare_screen_shell_content")
@@ -436,6 +439,7 @@ private fun CompareSliderViewport(
     referenceImageUri: Uri,
     captureImageUri: Uri,
     contentScale: ContentScale = ContentScale.Fit,
+    referenceDate: String? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current

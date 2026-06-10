@@ -48,7 +48,8 @@ class SessionScannerTest {
         timestamp: Long = 1_000L,
         referenceFile: String = "reference.jpg",
         captureFile: String = "capture.jpg",
-        title: String? = null
+        title: String? = null,
+        referenceDate: String? = null
     ) {
         val json = JSONObject().apply {
             put("version", version)
@@ -59,6 +60,9 @@ class SessionScannerTest {
             })
             if (title != null) {
                 put("content", JSONObject().apply { put("title", title) })
+            }
+            if (referenceDate != null) {
+                put("reference", JSONObject().apply { put("date", referenceDate) })
             }
         }
         File(sessionDir, "metadata.json").writeText(json.toString())
@@ -491,5 +495,30 @@ class SessionScannerTest {
         val result = SessionScanner.scan(testRoot)
         assertEquals(1, result.size)
         assertEquals(7_000L, result[0].timestamp)
+    }
+
+    // ── referenceDate tests ───────────────────────────────────────────────────
+
+    @Test
+    fun session_withReferenceDate_referenceDateIsRead() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, timestamp = 5_000L, referenceDate = "2008-06-15")
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertEquals("2008-06-15", result[0].referenceDate)
+    }
+
+    @Test
+    fun session_withoutReferenceDate_referenceDateIsNull() {
+        fullSession("2026-04-24_10-00-00", timestamp = 5_000L)
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertNull(result[0].referenceDate)
     }
 }
