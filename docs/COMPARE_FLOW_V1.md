@@ -1341,14 +1341,20 @@ Display: abbreviated month + year on each side, locale-formatted.
 Mar 2026   ◀ ● ▶   Oct 2026
 ```
 
-#### Level 3 — Same year, same month, different days, day precision available
+#### Level 3 — Same year, same month, day precision available
 
-Condition: `reference.date` has full date precision (format `"YYYY-MM-DD"`) AND extracted reference year equals capture year AND extracted reference month equals capture month AND extracted reference day differs from capture day derived from `capture.timestampMs`.
+Condition: `reference.date` has full date precision (format `"YYYY-MM-DD"`) AND extracted reference year equals capture year AND extracted reference month equals capture month.
 
-Display: day number + abbreviated month on each side, locale-formatted (year omitted; it is shared context and would add no information).
+Display: day number + abbreviated month on each side, locale-formatted (year omitted; it is shared context and would add no information). When reference day equals capture day, both labels show the same value — this is intentional and informs the user that both photos are from the same calendar day.
 
 ```
 12 Jun   ◀ ● ▶   28 Jun
+```
+
+Same-day example:
+
+```
+10 Jun   ◀ ● ▶   10 Jun
 ```
 
 #### Level 4 — Indistinguishable dates at available precision
@@ -1357,7 +1363,6 @@ Condition: `reference.date` is present, but no level above (1–3) would produce
 
 - Year-only precision (`"YYYY"`) and reference year equals capture year
 - Month precision (`"YYYY-MM"`) and reference year equals capture year and reference month equals capture month
-- Day precision (`"YYYY-MM-DD"`) and reference date equals capture date exactly
 
 Display: semantic temporal labels.
 

@@ -183,7 +183,7 @@ class CompareLabelLogicTest {
     }
 
     @Test
-    fun level4_dayPrecision_exactSameDate() {
+    fun level3_sameYear_sameMonth_sameDays_dayPrecision() {
         val result = computeCompareLabels(
             referenceDate = "2026-06-10",
             captureTimestampMs = makeTimestamp(2026, Calendar.JUNE, 10),
@@ -191,8 +191,8 @@ class CompareLabelLogicTest {
             labelPast = past, labelPresent = present,
             labelReference = reference, labelCurrent = current
         )
-        assertEquals(past, result.left)
-        assertEquals(present, result.right)
+        assertEquals("10 Jun", result.left)
+        assertEquals("10 Jun", result.right)
     }
 
     // ── Precision boundary ───────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -16,7 +17,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,8 +39,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material3.AlertDialog
@@ -65,9 +63,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -117,8 +120,11 @@ private const val ReferenceOriginalFileName = "reference-original.jpg"
 private const val TransformEpsilon = 0.01f
 private const val AspectRatioMismatchThreshold = 0.05f
 private val CompareViewportCornerRadius = 8.dp
-private val CompareSliderTouchWidth = 48.dp
-private val CompareSliderHandleSize = 40.dp
+private const val CompareSliderRingGapAngle = 12f
+private val CompareSliderTouchWidth = 56.dp
+private val CompareSliderHandleSize = 48.dp
+private val CompareSliderRingThickness = 2.dp
+private val CompareSliderRingGap = 1.dp
 private val CompareBadgeHeight = 32.dp
 private val CompareHandleLabelGap = 8.dp
 
@@ -814,7 +820,9 @@ private fun CompareDivider(
     val dividerXPx = imageOffsetXPx + imageRenderedWPx * sliderFraction
     val dividerXInt = dividerXPx.roundToInt()
     val imageHeightDp = with(density) { imageRenderedHPx.toDp() }
-    val handleRadiusPx = with(density) { (CompareSliderHandleSize / 2).toPx() }
+    val handleRadiusPx = with(density) {
+        (CompareSliderHandleSize / 2 + CompareSliderRingGap + CompareSliderRingThickness).toPx()
+    }
     val labelGapPx = with(density) { CompareHandleLabelGap.toPx() }
 
     val textMeasurer = rememberTextMeasurer()
@@ -864,7 +872,84 @@ private fun CompareDivider(
                 progressBarRangeInfo = ProgressBarRangeInfo(sliderFraction, 0f..1f)
             }
     ) {
-        // Vertical divider line
+        // 1. Outer ring — two arcs with genuine gaps at top and bottom where the divider line runs through.
+        val ringCanvasSize = CompareSliderHandleSize + CompareSliderRingGap * 2 + CompareSliderRingThickness * 2
+        Canvas(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(ringCanvasSize)
+        ) {
+            val strokePx = CompareSliderRingThickness.toPx()
+            val inset = strokePx / 2
+            val arcTopLeft = Offset(inset, inset)
+            val arcSize = Size(size.width - strokePx, size.height - strokePx)
+            val gapDeg = CompareSliderRingGapAngle
+            // Left half: clockwise from just past bottom (90°+gap) through left (180°) to just before top (270°-gap).
+            drawArc(
+                color = Color.White,
+                startAngle = 90f + gapDeg,
+                sweepAngle = 180f - 2 * gapDeg,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx)
+            )
+            // Right half: clockwise from just past top (270°+gap) through right (0°/360°) to just before bottom (360°+90°-gap).
+            drawArc(
+                color = Color.White,
+                startAngle = 270f + gapDeg,
+                sweepAngle = 180f - 2 * gapDeg,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx)
+            )
+        }
+
+        // 2. Handle — white filled circle with blue ◀ ▶ arrows
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(CompareSliderHandleSize)
+                .shadow(3.dp, CircleShape)
+                .clip(CircleShape)
+                .background(Color.White)
+                .testTag("compare_divider_handle"),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.size(CompareSliderHandleSize)) {
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                // All geometry expressed as fractions of the 48dp circle so density
+                // scaling is automatic. Each arrow is centered 9dp from the midpoint,
+                // extends 4dp toward its tip/base, and spans 7dp above/below center.
+                val unit = size.width / 48f
+                val arrowCenterOffset = unit * 9f
+                val halfDepth = unit * 4f
+                val halfH = unit * 7f
+                val arrowStroke = Stroke(
+                    width = unit * 2.5f,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+                // Left < : base-top → tip → base-bottom
+                val leftPath = Path().apply {
+                    moveTo(cx - arrowCenterOffset + halfDepth, cy - halfH)
+                    lineTo(cx - arrowCenterOffset - halfDepth, cy)
+                    lineTo(cx - arrowCenterOffset + halfDepth, cy + halfH)
+                }
+                // Right > : exact mirror of left arrow
+                val rightPath = Path().apply {
+                    moveTo(cx + arrowCenterOffset - halfDepth, cy - halfH)
+                    lineTo(cx + arrowCenterOffset + halfDepth, cy)
+                    lineTo(cx + arrowCenterOffset - halfDepth, cy + halfH)
+                }
+                drawPath(path = leftPath, color = SameViewAccent, style = arrowStroke)
+                drawPath(path = rightPath, color = SameViewAccent, style = arrowStroke)
+            }
+        }
+
+        // 3. Vertical divider line — rendered last so it sits on top of the ring, flowing through the open gaps.
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -874,37 +959,7 @@ private fun CompareDivider(
                 .testTag("compare_divider_line")
         )
 
-        // Handle — blue filled circle with ◀ ▶ arrows
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(CompareSliderHandleSize)
-                .shadow(3.dp, CircleShape)
-                .clip(CircleShape)
-                .background(SameViewAccent)
-                .testTag("compare_divider_handle"),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowLeft,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-
-        // Left label — rendered outside the 48dp touch Box (no clipToBounds on this Box)
+        // Left label — rendered outside the 56dp touch Box (no clipToBounds on this Box)
         if (showLeftLabel) {
             val touchHalfWidthPx = with(density) { CompareSliderTouchWidth.toPx() / 2 }
             val imageCenterRelY = imageRenderedHPx / 2f

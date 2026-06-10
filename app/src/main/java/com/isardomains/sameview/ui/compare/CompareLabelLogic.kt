@@ -64,20 +64,17 @@ fun computeCompareLabels(
         }
     }
 
-    // Level 3 — same year, same month, different days, day precision available
+    // Level 3 — same year, same month, day precision available (includes same-day)
     if (referenceDate.length >= 10) {
+        val fmt = SimpleDateFormat("d MMM", locale)
+        val refMonth = parseDateMonth(referenceDate)
         val refDay = parseDateDay(referenceDate)
-        val capDay = capCal.get(Calendar.DAY_OF_MONTH)
-        if (refDay != capDay) {
-            val fmt = SimpleDateFormat("d MMM", locale)
-            val refMonth = parseDateMonth(referenceDate)
-            val refCal = Calendar.getInstance().apply {
-                set(Calendar.YEAR, refYear)
-                set(Calendar.MONTH, refMonth)
-                set(Calendar.DAY_OF_MONTH, refDay)
-            }
-            return CompareLabelPair(fmt.format(refCal.time), fmt.format(capCal.time))
+        val refCal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, refYear)
+            set(Calendar.MONTH, refMonth)
+            set(Calendar.DAY_OF_MONTH, refDay)
         }
+        return CompareLabelPair(fmt.format(refCal.time), fmt.format(capCal.time))
     }
 
     // Level 4 — reference.date present but dates indistinguishable at available precision

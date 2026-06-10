@@ -602,6 +602,8 @@ Latest verified test state (Compare Slider Date Labels and Handle Refresh — Co
 - Manual smoke test — completed successfully
 - `connectedDebugAndroidTest` full suite — 1 consistent failure in `MediaStoreWriterGpsTest.save_hasGpsTags_whenGpsSnapshotPresent`; pre-existing Samsung IS_PENDING/media-scanner timing race; passes 3/3 in isolation; not caused by this block; same category as Block H flakiness; full suite not claimed as fully green
 
+Spec correction (2026-06-10): Level 3 condition relaxed — day precision now always produces `d MMM` labels when year and month match, including same-day (`10 Jun ↔ 10 Jun`). Level 4 no longer covers the day-precision same-date case. `CompareLabelLogicTest.level3_sameYear_sameMonth_sameDays_dayPrecision` updated accordingly; full unit test suite green.
+
 No open Compare Slider Date Labels and Handle Refresh tasks remain.
 
 ---
