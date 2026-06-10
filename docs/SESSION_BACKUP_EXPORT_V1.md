@@ -179,7 +179,7 @@ No GPS-specific warning dialog is displayed before export. The backup is a trust
 
 ### 5.4 Schema Version Contract
 
-`metadata.json` contains a `version` integer field (currently `3`). This field is the authoritative schema version for future import compatibility.
+`metadata.json` contains a `version` integer field (currently `4`). This field is the authoritative schema version for future import compatibility.
 
 **Rule for the development team:** The `version` field must be incremented whenever a breaking change is introduced to the `metadata.json` schema. Minor additions (new optional fields) do not require a version increment but must be additive and non-breaking. `SessionScanner.SUPPORTED_VERSIONS` must be kept up to date with the accepted version set.
 
@@ -190,7 +190,7 @@ A future import implementation must follow these rules:
 1. **Directory-based session discovery**: each top-level subdirectory of the ZIP that contains a parseable `metadata.json` with a `version` field is a candidate session. No ZIP-level index file is required.
 2. **Unknown field tolerance**: unknown fields anywhere in `metadata.json` — at any nesting level — must be silently ignored. This is the forward compatibility guarantee for future schema evolution.
 3. **Device-local field treatment**: `capture.mediaStoreUri` and `reference.sourceDisplayName` must not be used for file resolution on the importing device. All session files are resolved exclusively from within the ZIP.
-4. **Version validation**: an importer must accept version 3. An importer encountering an unknown version must reject that session with an explicit, user-visible error, not a silent skip.
+4. **Version validation**: an importer must accept versions 2, 3, and 4. An importer encountering an unknown version must reject that session with an explicit, user-visible error, not a silent skip.
 5. **Optional field tolerance**: absent optional fields (`captureLocation`, `referenceLocation`, `content.title`) must not cause import failure.
 
 ---

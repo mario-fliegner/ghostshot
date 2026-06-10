@@ -43,6 +43,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -184,6 +187,7 @@ private fun AboutHeroCard() {
                         ImageView(context).apply {
                             setImageResource(R.mipmap.ic_launcher)
                             scaleType = ImageView.ScaleType.FIT_CENTER
+                            contentDescription = ""
                         }
                     },
                     modifier = Modifier
@@ -251,6 +255,7 @@ private fun AboutFooter(
                         .clip(MaterialTheme.shapes.small)
                         .background(SameViewAboutIconSurface)
                         .defaultMinSize(minHeight = 48.dp)
+                        .semantics { role = Role.Button }
                         .clickable(onClick = onWebsiteClick)
                         .testTag("about_visit_website")
                         .padding(horizontal = 18.dp, vertical = 14.dp),
@@ -269,6 +274,7 @@ private fun AboutFooter(
                         .clip(MaterialTheme.shapes.small)
                         .background(SameViewAboutIconSurface)
                         .defaultMinSize(minHeight = 48.dp)
+                        .semantics { role = Role.Button }
                         .clickable(onClick = onFeedbackClick)
                         .testTag("about_send_feedback")
                         .padding(horizontal = 18.dp, vertical = 14.dp),
