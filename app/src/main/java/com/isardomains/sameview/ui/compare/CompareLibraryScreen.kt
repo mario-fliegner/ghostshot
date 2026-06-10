@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -70,8 +71,10 @@ import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.camera.ScannedSession
 import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewAppSurface
+import com.isardomains.sameview.ui.theme.SameViewAppSurfaceElevated
 import com.isardomains.sameview.ui.theme.SameViewSelectionOverlay
 import com.isardomains.sameview.ui.theme.SameViewTextPrimary
+import com.isardomains.sameview.ui.theme.SameViewTextSecondary
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -267,32 +270,28 @@ fun CompareLibraryScreen(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                                .background(SameViewAppSurfaceElevated),
                             contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 18.dp, height = 26.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f))
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 18.dp, height = 26.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.52f))
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.CompareArrows,
+                                contentDescription = null,
+                                tint = SameViewTextPrimary.copy(alpha = 0.88f),
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.height(18.dp))
                         Text(
                             text = stringResource(R.string.compare_library_empty_title),
                             style = MaterialTheme.typography.titleMedium,
                             color = SameViewTextPrimary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = stringResource(R.string.compare_library_empty_body),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = SameViewTextSecondary,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(18.dp))

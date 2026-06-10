@@ -624,6 +624,22 @@ This section tracks UX questions that are deliberately left open — not committ
 
 ---
 
+## Localization
+
+### German Tone Rule
+
+German localization uses informal user address consistently.
+
+- Use: `du`, `dir`, `dich`, `dein`, `deine`, `deiner`, `deinem`
+- Do not use: `Sie`, `Ihnen`, `Ihr`, `Ihre`, `Ihren`, `Ihrem`
+- Imperative forms must be informal: `Öffne`, `Wähle`, `Tippe`, `Aktiviere`
+- Never use formal imperative: `Öffnen Sie`, `Wählen Sie`, `Tippen Sie`
+
+This rule applies to all user-facing German strings in `values-de/strings.xml`.
+Non-user-facing strings (content descriptions, test tags) are not affected.
+
+---
+
 ## Practical Working Rules
 
 ### Scope discipline

@@ -18,7 +18,8 @@
 
     <string name="compare_library_title">Vergleiche</string>
     <string name="compare_library_empty_title">Noch keine Vergleiche</string>
-    <string name="compare_library_empty_cta">Erstes Foto aufnehmen</string>
+    <string name="compare_library_empty_body">Mach ein Foto, um deinen ersten Vergleich zu erstellen.</string>
+    <string name="compare_library_empty_cta">Mach dein erstes Foto</string>
     <string name="compare_library_session_content_description">Vergleich vom %s</string>
     <string name="compare_library_selection_count">%d ausgewählt</string>
     <string name="compare_library_cancel_selection">Abbrechen</string>
@@ -145,7 +146,7 @@
 
     <!-- GPS-Fallback-Dialog (erscheint wenn Photo-Picker-Ergebnis kein GPS hat und Standortführung aktiv ist) -->
     <string name="gps_fallback_dialog_title">Standortdaten nicht verfügbar</string>
-    <string name="gps_fallback_dialog_message">SameView konnte aus dieser Auswahl keine Standortdaten lesen. Versuchen Sie, die Originaldatei auszuwählen, um GPS-Navigation zu nutzen.</string>
+    <string name="gps_fallback_dialog_message">SameView konnte aus dieser Auswahl keine Standortdaten lesen. Wähle die Originaldatei aus, um die GPS-Navigation zu nutzen.</string>
     <string name="gps_fallback_dialog_choose_file_manager">Originaldatei wählen</string>
     <string name="gps_fallback_dialog_continue_without_gps">Ohne GPS fortfahren</string>
 

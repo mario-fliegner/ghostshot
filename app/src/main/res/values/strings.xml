@@ -20,7 +20,8 @@
 
     <!-- Compare Library -->
     <string name="compare_library_title">Compares</string>
-    <string name="compare_library_empty_title">No compares yet</string>
+    <string name="compare_library_empty_title">No comparisons yet</string>
+    <string name="compare_library_empty_body">Take a photo to create one.</string>
     <string name="compare_library_empty_cta">Take your first shot</string>
     <string name="compare_library_session_content_description">Compare from %s</string>
     <string name="compare_library_selection_count">%d selected</string>
