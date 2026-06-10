@@ -1249,3 +1249,273 @@ Current structure (unchanged by this spec):
 ```
 ← Back  |  [Delete Session icon]  |  ⋮
 ```
+
+---
+
+## 41. COMPARE SLIDER DATE LABELS AND HANDLE DESIGN (2026-06-10)
+
+This section documents the product decision to replace the existing Reference/Current image-overlay badges with temporal context labels positioned adjacent to the slider handle, and to redesign the slider handle to communicate drag affordance.
+
+The motivation for this change originated in the Session Metadata v4 work: once `reference.date` and `capture.timestampMs` became reliably available in `metadata.json`, displaying temporal context at the comparison point became feasible and desirable.
+
+This section is the authoritative specification for the new handle design and label logic. It supersedes any previously existing badge-based label approach.
+
+---
+
+### 41.1 Badge Replacement
+
+The existing Reference/Current image-overlay badges are replaced by the slider handle labels defined in this section.
+
+Removed:
+
+- "Reference" overlay badge positioned on or near the left image
+- "Current" overlay badge positioned on or near the right image
+
+Added:
+
+- Text label to the left of the slider handle (representing the reference / past side)
+- Text label to the right of the slider handle (representing the current / present side)
+
+The image-level badges must be removed. Label responsibility moves entirely to the handle area. The two systems must not coexist.
+
+---
+
+### 41.2 Handle Design
+
+The slider handle is redesigned as follows:
+
+- **Shape:** filled circle
+- **Fill color:** SameView CI primary blue (the current handle color, unchanged)
+- **Icons:** left-facing white arrow (◀) and right-facing white arrow (▶) rendered inside the circle
+- **Size:** moderately larger than the current handle point; exact pixel size is an implementation decision, not a spec decision; the size must not be so large that it significantly obscures the image content or conflicts with the "calm, low-noise" UX principle
+- **Visibility:** the handle must remain always visible in all positions and both viewing modes
+- **Contrast aid:** a subtle text shadow or equivalent is required on the flanking labels to ensure legibility over variable image content; the handle itself has sufficient contrast from its filled background
+
+The existing vertical divider line remains unchanged.
+
+---
+
+### 41.3 Label Position and Behavior
+
+- The left label is rendered directly to the left of the handle circle, with a small gap
+- The right label is rendered directly to the right of the handle circle, with a small gap
+- Both labels move horizontally with the handle as the user drags
+- Labels are always visible when sufficient viewport space exists (see §41.6 for edge behavior)
+- Labels are informational only — they are not interactive, not tappable, and must not introduce any new gesture or interaction
+- Tap on the compare viewport continues to toggle fullscreen (§11A); labels must not intercept or prevent this
+- No animation, no auto-hide, no fade-out, no tap-to-reveal behavior is implemented
+
+---
+
+### 41.4 Date Label Logic
+
+Label content follows a five-level priority chain. Each level is evaluated in order; the first matching level determines the displayed content.
+
+All parsing uses the two canonical data sources defined in §41.5. No other data is consulted.
+
+#### Level 1 — Different years
+
+Condition: `reference.date` is present AND the year extracted from `reference.date` differs from the capture year derived from `capture.timestampMs`.
+
+Display: year number on each side.
+
+```
+2008   ◀ ● ▶   2026
+```
+
+Year extraction from `reference.date`:
+
+- `"2008"` → year 2008
+- `"2008-06"` → year 2008
+- `"2008-06-15"` → year 2008
+
+Capture year is always derived from `capture.timestampMs`.
+
+#### Level 2 — Same year, different months, month precision available
+
+Condition: `reference.date` has month precision or better (format `"YYYY-MM"` or `"YYYY-MM-DD"`) AND extracted reference year equals capture year AND extracted reference month differs from capture month derived from `capture.timestampMs`.
+
+Display: abbreviated month + year on each side, locale-formatted.
+
+```
+Mar 2026   ◀ ● ▶   Oct 2026
+```
+
+#### Level 3 — Same year, same month, different days, day precision available
+
+Condition: `reference.date` has full date precision (format `"YYYY-MM-DD"`) AND extracted reference year equals capture year AND extracted reference month equals capture month AND extracted reference day differs from capture day derived from `capture.timestampMs`.
+
+Display: day number + abbreviated month on each side, locale-formatted (year omitted; it is shared context and would add no information).
+
+```
+12 Jun   ◀ ● ▶   28 Jun
+```
+
+#### Level 4 — Indistinguishable dates at available precision
+
+Condition: `reference.date` is present, but no level above (1–3) would produce different labels on the two sides. This covers:
+
+- Year-only precision (`"YYYY"`) and reference year equals capture year
+- Month precision (`"YYYY-MM"`) and reference year equals capture year and reference month equals capture month
+- Day precision (`"YYYY-MM-DD"`) and reference date equals capture date exactly
+
+Display: semantic temporal labels.
+
+```
+Past   ◀ ● ▶   Present
+```
+
+Left label: `Past` (string resource `compare_label_past`)
+
+Right label: `Present` (string resource `compare_label_present`)
+
+#### Level 5 — No reference date available
+
+Condition: `reference.date` is absent from `metadata.json`.
+
+Display: role labels.
+
+```
+Reference   ◀ ● ▶   Current
+```
+
+Left label: `Reference` (string resource `compare_label_reference`, existing)
+
+Right label: `Current` (string resource `compare_label_current`)
+
+---
+
+### 41.5 Data Sources
+
+The label logic uses exactly these two data sources:
+
+| Source | Field | Availability |
+| --- | --- | --- |
+| `metadata.json` | `reference.date` | Optional; may be absent; ISO 8601 string at year, month, or day precision |
+| `metadata.json` | `capture.timestampMs` | Always present for v4 sessions; fallback to `session.createdAtMs` for v2/v3 sessions |
+
+No EXIF re-reads are performed at compare time. No live data beyond what is stored in `metadata.json` is used. No new metadata fields are required for this feature.
+
+Precision of `reference.date` is determined by string length:
+
+- Length 4 (`"YYYY"`) → year precision
+- Length 7 (`"YYYY-MM"`) → month precision
+- Length 10 (`"YYYY-MM-DD"`) → day precision
+
+---
+
+### 41.6 Edge Behavior — Labels Near Viewport Boundary
+
+Labels must never be clipped, truncated, ellipsized, or rendered even partially outside the compare viewport.
+
+Each label is evaluated independently.
+
+Left label visibility rule: the left label is shown only when it can be rendered fully within the compare viewport. It is hidden when the handle position is too close to the left viewport edge for the full left label text to fit without clipping.
+
+Right label visibility rule: the right label is shown only when it can be rendered fully within the compare viewport. It is hidden when the handle position is too close to the right viewport edge for the full right label text to fit without clipping.
+
+Asymmetric hide behavior: when one label must be hidden, the other label remains visible if it fits. One visible label is always more informative than zero.
+
+Handle always visible: the handle must remain always visible regardless of label visibility state, including at the extreme left and right slider positions.
+
+No partial rendering: a label is either fully visible or fully hidden. There is no partial display, no fade at boundaries, and no ellipsis.
+
+Behavior at extreme positions (examples):
+
+Slider near right edge — right label hidden:
+
+```
+2008   ◀ ● ▶
+```
+
+Slider near left edge — left label hidden:
+
+```
+◀ ● ▶   2026
+```
+
+Slider at center — both labels visible:
+
+```
+2008   ◀ ● ▶   2026
+```
+
+Implementation note (non-normative): determining whether a label fits requires measuring the rendered text width. The implementation must measure each label's pixel width (using the same text style and locale that will be used for rendering) and compare it against the available space on each side of the handle. Text width measurement must account for the actual locale-formatted label string, since month names vary in length across locales.
+
+---
+
+### 41.7 Fullscreen Mode
+
+In fullscreen mode:
+
+- Labels remain visible (same rule as the slider and divider — they are unchanged in fullscreen per §11A)
+- Labels do not hide in fullscreen
+- Edge behavior (§41.6) applies identically in fullscreen
+- The contrast aid (text shadow or equivalent) is especially important in fullscreen, where `ContentScale.Crop` may place high-contrast image content beneath the labels
+
+Labels are part of the slider mechanism, not part of the session metadata display (timestamp, title) that is hidden in fullscreen. The distinction: session metadata provides context about the session; slider labels provide orientation for the comparison mechanic itself. These are different concerns at different hierarchy levels.
+
+---
+
+### 41.8 Landscape Mode
+
+In landscape mode, the compare viewport is wider than in portrait. Label and edge-behavior rules apply identically in both orientations. No special landscape-specific label logic is required.
+
+The label visibility check operates on actual viewport pixel bounds, which correctly reflect the landscape dimensions.
+
+---
+
+### 41.9 Accessibility
+
+- The slider handle's semantic node must include both label values and communicate the drag interaction, for example: "Compare slider: [left label] on the left, [right label] on the right. Drag to adjust split position."
+- When a label is hidden due to edge behavior, its value must still be included in the semantic description of the handle
+- All formatted date values in accessibility descriptions must be locale-aware
+- All fixed strings in accessibility descriptions must use string resources
+
+---
+
+### 41.10 i18n Requirements
+
+The following string resources are required for this feature in addition to the existing resources defined in §17:
+
+| Key | Usage |
+| --- | --- |
+| `compare_label_past` | Level 4 left label |
+| `compare_label_present` | Level 4 right label |
+| `compare_label_current` | Level 5 right label |
+
+`compare_label_reference` is already required by §17 and is reused as the Level 5 left label.
+
+All date formatting (years, month+year, day+month) must use Android locale-aware date formatters. No hardcoded date format strings are permitted. The formatted date strings are data values, not UI strings, and must not be stored in `strings.xml`.
+
+All existing i18n rules from §16 apply to this feature.
+
+---
+
+### 41.11 Implementation Prerequisites
+
+Before this feature can be implemented, the following is required at the data layer:
+
+- `ScannedSession` (used by the Compare Library flow) must expose `reference.date` as an optional field
+- The Camera Flow path to `CompareScreen` must pass `reference.date` alongside the existing session context parameters
+
+These are data-layer prerequisites, not UI prerequisites. The spec for those changes will be defined as part of the implementation planning for this feature.
+
+---
+
+### 41.12 Explicit Non-Goals
+
+The following are explicitly out of scope for this feature and must not be implemented:
+
+- Animation or auto-hide of labels
+- Tap-to-show or tap-to-hide labels
+- User setting to toggle labels on or off
+- Displaying `reference.dateSource` or `reference.userEdited` in the label
+- Resetting or modifying `reference.date` from `CompareScreen`
+- Any new interaction or gesture added to the slider
+- Displaying full date with time (day + month + year + time)
+- Displaying GPS location or place name in the slider area
+- Retaining image-overlay badges alongside the new labels (badges are fully removed)
+- Label content influencing compare rendering, `ContentScale`, or divider position
+- Adding `additional.originalDate` or any new metadata field for this feature
+- Label color customization or theming beyond the standard contrast aid

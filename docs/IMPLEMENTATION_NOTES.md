@@ -563,6 +563,53 @@ No open Session Metadata Editor Block UX2 tasks remain.
 
 ---
 
+### Compare Slider Date Labels and Handle Refresh
+
+**Status:** Analysed — Not yet implemented  
+**Specification:** `COMPARE_FLOW_V1.md §41`  
+**Analysis date:** 2026-06-10
+
+This block implements the handle redesign and temporal date labels specified in `COMPARE_FLOW_V1.md §41`. It was enabled by the Session Metadata v4 work (Blocks A–F), which established reliable availability of `reference.date` and `capture.timestampMs` in `metadata.json`.
+
+**Data-layer prerequisites (not yet implemented):**
+
+- `SavedSessionRef` — add `referenceDate: String?`; `saveSession()` derives it from the written `reference.date` value
+- `ScannedSession` — add `referenceDate: String?`; `validateUnsafe()` reads `json.optJSONObject("reference")?.optString("date")`
+- `CompareInput` — add `referenceDate: String?`; populated from `SavedSessionRef` in `onCaptureSaved()`
+- `MainActivity` — extend route, both `compareRoute()` overloads, and the `CompareScreen` call with `referenceDate`
+- `CompareScreen` — new `referenceDate: String?` parameter, threaded to `CompareSliderViewport`
+
+**UI scope (summary):**
+
+- Remove Reference/Current image-overlay badges from `CompareSliderViewport`; retain Original Reference peek badge as a standalone element
+- Redesign `CompareDivider` handle: filled circle in SameView primary blue with ◀/▶ white arrow icons
+- Add moving text labels left/right of handle; per-label edge-hiding via `rememberTextMeasurer()`
+- Date label logic extracted as a pure function for unit-testability
+
+**New string resources required:** `compare_label_past`, `compare_label_present`, `compare_label_current`, accessibility format string with both label values
+
+**Test impact:** `compareScreen_roleBadgesUseLocalizedCompareLabels` and two `originalPeek_*` tests in `CompareScreenTest` break by design on badge removal; must be updated in the same change
+
+Full UX spec, five-level label logic, edge behavior, fullscreen behavior, accessibility, and i18n: `COMPARE_FLOW_V1.md §41`.
+
+---
+
+## Open Future UX Investigations
+
+This section tracks UX questions that are deliberately left open — not committed features, but unresolved questions that must be investigated before they can become product decisions.
+
+### Reference Date Override Transparency
+
+**Question:** Should users be able to see whether a session's reference date was automatically detected from EXIF metadata or manually entered?
+
+**Context:** `reference.dateSource` (`"exif"` or `"manual"`) and `reference.userEdited` are persisted in `metadata.json` at creation and update time. The Session Metadata Editor V1 does not expose this distinction in the UI — all reference dates appear identically regardless of origin. A user who corrects an EXIF-derived date has no confirmation that their edit superseded the automatic value.
+
+**Not a V1 requirement. No implementation. No `reference.originalDate` field.** No UI change until this investigation produces a product decision.
+
+**Cross-reference:** `SESSION_METADATA_EDITOR_V1.md §19` already lists "Visual indicator showing whether the current date was set from EXIF or manually" and "Read-only original EXIF date hint with Reset action" as explicitly deferred future extensions. The investigation point here is whether either of these additions would meaningfully help users, or whether the `dateSource`/`userEdited` distinction is too technical to warrant surface-level exposure in V1 UX.
+
+---
+
 ## Practical Working Rules
 
 ### Scope discipline
