@@ -1,9 +1,9 @@
 # VIDEO_EXPORT_IMPLEMENTATION_PLAN.md
 
-**Status:** In Progress — Block 1 Completed / Block 2 Completed / Block 3+4 Implemented — Manual Verification Pending / Block 5 Completed / Block 6 Completed / Block 7 Video Export Targeted Verification Completed — Manual Smoke Test Pending
+**Status:** Completed — All Blocks (1–7) Completed (2026-06-10)
 **Grundlage:** VIDEO_EXPORT_V1.md (authoritative), CLAUDE_PROJECT_INSTRUCTION.md, COMPARE_FLOW_V1.md, COMPARE_SESSION_RENDERING_V1.md, SESSION_BACKUP_EXPORT_IMPLEMENTATION_PLAN.md, IMPLEMENTATION_NOTES.md, aktueller Codebestand
 **Planerstellt:** 2026-06-02
-**Zuletzt aktualisiert:** 2026-06-04
+**Zuletzt aktualisiert:** 2026-06-10
 
 ---
 
@@ -11,7 +11,7 @@
 
 | Eigenschaft | Wert |
 |---|---|
-| Status | In Progress |
+| Status | Completed |
 | Autoritative Quelle | `VIDEO_EXPORT_V1.md` |
 | Dieses Dokument | Technischer Implementierungsplan — verbindliche Arbeitsgrundlage |
 | Block 1 | Completed (2026-06-02) |
@@ -19,7 +19,7 @@
 | Block 3+4 | Completed (2026-06-03) |
 | Block 5 | Completed (2026-06-04) |
 | Block 6 | Completed (2026-06-04) |
-| Block 7 | Video Export Targeted Verification Completed (2026-06-04) — Manual Smoke Test Pending |
+| Block 7 | Completed (2026-06-10) |
 
 **Konfliktauflösung:** Bei Widerspruch zwischen diesem Dokument und `VIDEO_EXPORT_V1.md` gilt immer `VIDEO_EXPORT_V1.md`.
 
@@ -476,22 +476,20 @@ Block 3 und Block 4 wurden als untrennbare Einheit implementiert und gemeinsam c
 | `VideoExportPipelineTest` | 2/2 PASSED |
 | `assembleRelease` | BUILD SUCCESSFUL |
 | `ReferenceImageMetadataReaderTest` | 2 Failures — pre-existing, nicht Block 3+4 zugehörig |
-| Manueller Device-Flow | Pending — vollständige Verifikation auf realem Gerät ausstehend |
+| Manueller Device-Flow | **Abgeschlossen auf SM-S911B (Android 16, 2026-06-10)** |
 
-##### Offene manuelle Verifikation
+##### Manuelle Verifikation Block 3+4 — Abgeschlossen (SM-S911B, Android 16, 2026-06-10)
 
-Folgende Flows müssen auf einem realen Gerät verifiziert werden, bevor Block 3+4 als Completed gilt:
-
-- [ ] Configuring-State vollständig bedienbar
-- [ ] Rendering-State + Fortschrittsanzeige
-- [ ] Cancel Export Dialog (Back aus Rendering)
-- [ ] Preview Playback (Auto-Play, Loop, Muted)
-- [ ] Share Sheet (öffnet sich; Abbrechen ist kein Fehlerfall)
-- [ ] Delete Video Confirmation + Delete
-- [ ] Done / Back aus Preview
-- [ ] Portrait-Rendering korrekt
-- [ ] Landscape-Rendering korrekt
-- [ ] Gallery/Movies/SameView Sichtprüfung nach Export
+- [x] Configuring-State vollständig bedienbar
+- [x] Rendering-State + Fortschrittsanzeige
+- [x] Cancel Export Dialog (Back aus Rendering)
+- [x] Preview Playback (Auto-Play, Loop, Muted)
+- [x] Share Sheet (öffnet sich; Abbrechen ist kein Fehlerfall)
+- [x] Delete Video Confirmation + Delete
+- [x] Done / Back aus Preview
+- [x] Portrait-Rendering korrekt
+- [x] Landscape-Rendering korrekt
+- [x] Gallery/Movies/SameView Sichtprüfung nach Export
 
 ---
 
@@ -759,7 +757,7 @@ Vollständige Feature-Verifikation, Regression-Überprüfung, Release-Smoke-Test
 - Release Build erfolgreich
 - Keine bekannten Regressionen
 
-#### Implementierungsnotizen Block 7 (Video Export Targeted Verification Completed — 2026-06-04)
+#### Implementierungsnotizen Block 7 (Completed — 2026-06-10)
 
 ##### T-I-04 Implementiert (2026-06-04)
 
@@ -793,9 +791,9 @@ Vollständige Feature-Verifikation, Regression-Überprüfung, Release-Smoke-Test
 | T-I-04 (`VideoExportPipelineTest`) | PASSED on SM-S911B (Android 16) |
 | `ReferenceImageMetadataReaderTest` | 19/19 PASSED on SM-S911B (Android 16) — nach Test-Infrastruktur-Fix |
 | `connectedDebugAndroidTest` full suite (407 Tests) | Zweimal ausgeführt — keine Video-Export-Fehler; keine `ReferenceImageMetadataReaderTest`-Fehler |
-| Manueller Smoke-Test | **Ausstehend** |
+| Manueller Smoke-Test | **Abgeschlossen auf SM-S911B (Android 16, 2026-06-10)** |
 
-**Kein verbleibender Video-Export-Blocker.**
+**Kein verbleibender Video-Export-Blocker. Block 7 vollständig abgeschlossen.**
 
 Full-Suite-Status: beide Läufe zeigten je einen unzusammenhängenden Flaky-Fehler (verschiedene Tests, verschiedene Läufe: `AboutScreenTest` Compose-Timing-Race; `MediaStoreWriterGpsTest` transientes MediaStore-ENOENT). Beide bestehen isoliert. Die vollständige Suite wird **nicht** als grün dokumentiert. Flakiness wird außerhalb des Video-Export-Scopes nachverfolgt.
 
@@ -978,11 +976,11 @@ Release-APK auf realem Gerät installieren: Video-Export vollständig funktional
 | --- | --- | --- | --- | --- |
 | Block 1 | Renderer Core | **Completed** | 2026-06-02 | T-U-01–T-U-14 grün; `testDebugUnitTest` PASSED |
 | Block 2 | VideoEncoder + MediaStoreVideoWriter + Pipeline | **Completed** | 2026-06-02 | T-I-01 PASSED; 329/329 Instrumentation-Tests grün; MP4-Wiedergabe auf SM-S911B (Android 16) verifiziert; `BrandingEndcardRenderer.kt` bewusst auf Block 6 verschoben |
-| Block 3 | CreateVideoScreen + ViewModel + Entry Point | **Implemented — Manual Verification Pending** | 2026-06-03 | Gemeinsam mit Block 4 als gekoppelte Einheit implementiert; Section 26 Compliance erfüllt; UX-Polish abgeschlossen |
-| Block 4 | Preview State + Share + Delete | **Implemented — Manual Verification Pending** | 2026-06-03 | ExoPlayer/Media3; Share Sheet; Delete mit Confirmation Dialog; Done/Back; vollständige manuelle Device-Verifikation ausstehend |
+| Block 3 | CreateVideoScreen + ViewModel + Entry Point | **Completed** | 2026-06-10 | Gemeinsam mit Block 4 als gekoppelte Einheit implementiert; Section 26 Compliance erfüllt; UX-Polish abgeschlossen; manuelle Device-Verifikation abgeschlossen auf SM-S911B (2026-06-10) |
+| Block 4 | Preview State + Share + Delete | **Completed** | 2026-06-10 | ExoPlayer/Media3; Share Sheet; Delete mit Confirmation Dialog; Done/Back; manuelle Device-Verifikation abgeschlossen auf SM-S911B (2026-06-10) |
 | Block 5 | High Quality + Device Limit Fallback | **Completed** | 2026-06-04 | T-U-20 grün; T-I-01/T-I-02/T-I-03 PASSED on SM-S911B (Android 16); Debug + Release BUILD SUCCESSFUL; T-I-01/T-I-02 in VideoExportPipelineStandardTest.kt nach DEX-Shard-Isolationsfix |
 | Block 6 | Branding Endcard | **Completed** | 2026-06-04 | Endcard 1.5 s / 45 frames; fade-in/out; logo + "Made with ❤️" + "#MadeWithSameView"; T-U-09–T-U-10 grün; T-I-02 PASSED on SM-S911B; manuelle Verifikation abgeschlossen |
-| Block 7 | Final Verification | **Video Export Targeted Verification Completed** | 2026-06-04 | T-I-01–T-I-04 PASSED on SM-S911B (Android 16); `ReferenceImageMetadataReaderTest` 19/19 PASSED nach Test-Infrastruktur-Fix; full suite zweimal ausgeführt — keine Video-Export-Fehler; zwei unzusammenhängende Flaky-Failures (`AboutScreenTest`, `MediaStoreWriterGpsTest`) werden außerhalb Video-Export nachverfolgt; Manueller Smoke-Test ausstehend |
+| Block 7 | Final Verification | **Completed** | 2026-06-10 | T-I-01–T-I-04 PASSED on SM-S911B (Android 16); `ReferenceImageMetadataReaderTest` 19/19 PASSED nach Test-Infrastruktur-Fix; full suite zweimal ausgeführt — keine Video-Export-Fehler; zwei unzusammenhängende Flaky-Failures (`AboutScreenTest`, `MediaStoreWriterGpsTest`) außerhalb Video-Export nachverfolgt; Manueller Smoke-Test abgeschlossen auf SM-S911B (2026-06-10) |
 
 ---
 

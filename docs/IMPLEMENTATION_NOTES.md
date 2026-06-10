@@ -180,7 +180,7 @@ Active compare session lifecycle — fully implemented:
 Full specification: `VIDEO_EXPORT_V1.md`
 Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
 
-MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented and verified (Blocks 3+4 Completed). High Quality export implemented and verified (Block 5 Completed). Branding endcard implemented and verified (Block 6 Completed). Block 7 targeted Video Export verification completed; manual device smoke test pending:
+MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented and verified (Blocks 3+4 Completed). High Quality export implemented and verified (Block 5 Completed). Branding endcard implemented and verified (Block 6 Completed). Block 7 Final Verification completed — manual device smoke test passed on SM-S911B (2026-06-10). All Video Export blocks complete:
 
 - **Renderer Core (Block 1)** — `VideoRenderConfig`, `VideoMode`, `VideoExportFormat`, `VideoQuality` enums; `VideoFrameRenderer` interface; `CompareSliderRenderEngine` (cubic smoothstep, gradient soft-transition divider + 1 px core line, fill semantics); `BeforeAfterRenderEngine` (linear crossfade, fit semantics); canvas setup and bitmap lifecycle; `computeCanvasDimensions` with even-dimension enforcement
 - **Encoding Pipeline (Block 2)** — `VideoEncoder` (MediaCodec H.264/AVC, ByteBuffer input, ARGB→YUV420 conversion, NV12/I420 auto-detect via `MediaCodecList`); `MediaStoreVideoWriter` (IS_PENDING lifecycle, `Movies/SameView`, cleanup on failure); `VideoExportPipeline` (orchestrates decode → render → encode → commit; coroutine-cancellation-safe cleanup via `NonCancellable`)
@@ -726,27 +726,27 @@ Latest verified test state (Video Export Blocks 1–2 complete):
 
 No open Video Export Blocks 1–2 implementation tasks remain.
 
-Latest verified test state (Video Export Block 3+4 — Manual Verification Pending):
+Latest verified test state (Video Export Block 3+4 — Completed 2026-06-10):
 
 - `testDebugUnitTest` — PASSED
 - `CompareScreenTest` — 82/82 PASSED (prior to Session Metadata Editor Block A)
 - `VideoExportPipelineTest` — 2/2 PASSED
 - `assembleRelease` — BUILD SUCCESSFUL
 - `ReferenceImageMetadataReaderTest` — 2 Failures; pre-existing, not caused by Block 3+4
-- Manual device flow — **Pending**
+- Manual device flow — **Completed on SM-S911B (2026-06-10)**
 
-Pending manual device verification (required before Block 3+4 is Completed):
+Manual device verification completed (SM-S911B, Android 16, 2026-06-10):
 
-- Configuring-State fully operable
-- Rendering-State and progress display
-- Cancel Export Dialog (Back from Rendering)
-- Preview Playback (auto-play, loop, muted)
-- Share Sheet (opens on tap; cancel is not an error)
-- Delete Video Confirmation + Delete
-- Done / Back from Preview
-- Portrait rendering and preview
-- Landscape rendering and preview
-- Gallery / Movies / SameView visibility check after export
+- [x] Configuring-State fully operable
+- [x] Rendering-State and progress display
+- [x] Cancel Export Dialog (Back from Rendering)
+- [x] Preview Playback (auto-play, loop, muted)
+- [x] Share Sheet (opens on tap; cancel is not an error)
+- [x] Delete Video Confirmation + Delete
+- [x] Done / Back from Preview
+- [x] Portrait rendering and preview
+- [x] Landscape rendering and preview
+- [x] Gallery / Movies / SameView visibility check after export
 
 Latest verified test state (Video Export Block 5 — Completed 2026-06-04):
 
@@ -794,9 +794,11 @@ Latest verified test state (Video Export Block 7 — Targeted Verification Compl
 - T-I-04 (`VideoExportPipelineTest`) — PASSED on SM-S911B (Android 16)
 - `ReferenceImageMetadataReaderTest` — 19/19 PASSED on SM-S911B (Android 16) — after test infrastructure fix
 - `connectedDebugAndroidTest` full suite (407 tests) — run twice on SM-S911B (Android 16); no Video Export failures; no `ReferenceImageMetadataReaderTest` failures
-- Manual smoke test — **Pending**
+- Manual smoke test — **Completed on SM-S911B (2026-06-10)**
 
-No remaining Video Export blocker.
+No remaining Video Export blocker. Block 7 fully complete.
+
+No open Video Export Block 7 tasks remain.
 
 T-I-04 (`t_i_04_deleteVideo_removesEntryFromMediaStore`) added to `VideoExportPipelineTest.kt` in Block 7. No production code changes.
 
