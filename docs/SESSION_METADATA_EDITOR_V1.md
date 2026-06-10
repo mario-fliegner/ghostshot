@@ -156,41 +156,54 @@ After Save or confirmed Cancel: the user returns to `CompareScreen`. The `Compar
 
 ## 6. V1 Field Scope
 
-The editor presents exactly five fields in V1:
+The editor presents exactly six editable fields in V1:
 
 | Field | Label (intent) | Storage Path | Nullable |
 |---|---|---|---|
 | Title | "Title" | `content.title` | Yes |
+| Description | "Description" | `content.description` | Yes |
 | Reference date | "Reference date" | `reference.date` | Yes |
-| Location display name | "Location" | `location.displayName` | Yes |
+| Location display name | "Place name" | `location.displayName` | Yes |
 | City | "City" | `location.city` | Yes |
 | Country | "Country" | `location.country` | Yes |
 
-All five fields are optional. No field is required for a valid session save.
+All six fields are optional. No field is required for a valid session save.
 
-### Section Grouping (Recommended)
+### Card Structure
 
-The form may optionally group fields visually:
+The form is organized into four `SettingsCard` sections:
 
-- **Session** section: Title
-- **Reference photo** section: Reference date
-- **Location** section: Location, City, Country
-
-Grouping is a UX suggestion, not a binding layout requirement.
+- **Session card**: Header shows `"Created <capture date>"` (read-only, derived from `capture.timestampMs`). Editable fields: Title, Description.
+- **Reference photo card**: Thumbnail (80 dp, left side). Editable field: Reference date (with DatePicker companion). Help text and validation error displayed below the field at full card width.
+- **Current photo card**: Thumbnail (80 dp, left side). Read-only display box (right side) showing the label "Captured on" and the formatted capture date. Not editable.
+- **Location card**: Editable fields: Place name, City, Country.
 
 ### Field Order
 
-Fields are presented in the order listed in the table above. The field order must not be randomized or dynamically reordered.
+Fields are presented in card order: Session → Reference photo → Current photo → Location. Within each card, fields follow the order listed in the table above. Field order must not be randomized or dynamically reordered.
+
+### Current Photo Card
+
+The Current photo card is a read-only contextual display. It shows the user the capture date of the current photo without providing any editable controls.
+
+- **Thumbnail**: the session's `capture.jpg`, rendered at 80 dp, clipped to a rounded rectangle.
+- **Display box**: a non-interactive outlined box (matching `OutlinedTextField` visual weight) containing:
+  - Label: "Captured on" (`edit_session_label_captured_on`) in `labelSmall` / `SameViewSettingsSecondaryText`
+  - Value: formatted capture date and time (derived from `capture.timestampMs`) in `bodyMedium` / `SameViewSettingsLabelText`
+- The display box has no focus state, cursor, click handler, or edit affordance.
+- The display box is absent from dirty tracking and the save workflow.
 
 ### Pre-Population at Open
 
-When the editor opens, each field is pre-populated from the current session metadata:
+When the editor opens, each editable field is pre-populated from the current session metadata:
 
 - `content.title` → pre-fill Title field; empty when absent
+- `content.description` → pre-fill Description field; empty when absent
 - `reference.date` → pre-fill Reference date field; empty when absent
-- `location.displayName` → pre-fill Location field; empty when absent
+- `location.displayName` → pre-fill Place name field; empty when absent
 - `location.city` → pre-fill City field; empty when absent
 - `location.country` → pre-fill Country field; empty when absent
+- `capture.timestampMs` → shown read-only in Current photo card; not pre-filled into any editable field
 
 The pre-populated values are the current saved state. They represent the last persisted values, not live ViewModel state.
 
@@ -202,13 +215,11 @@ The following are explicitly out of scope for V1 and must not be implemented as 
 
 **Fields not in V1:**
 - Tags (`content.tags`)
-- Description (`content.description`)
 - Favorite toggle (`additional.isFavorite`)
 - Visibility selector (`additional.visibility`)
 - GPS coordinates (any field from `captureLocation` or `referenceLocation`)
 
 **Features not in V1:**
-- Date picker widget for Reference date (a free text field with validation is the V1 approach because year-only input must be supported)
 - GPS-based location auto-fill
 - Reverse geocoding
 - Location search or suggestions
@@ -236,16 +247,19 @@ The editor uses an **explicit Save model**. No field is saved on blur, on focus 
 
 ### Save Button Behavior
 
-- Save is always tappable (not disabled based on field content)
+- The Save button is **enabled** only when `isDirty == true` and `isSaving == false`
+- The Save button is **disabled** when no field has been changed from its pre-populated initial value, or while a save operation is in progress
 - Tapping Save validates all fields (see Section 11)
 - If validation passes: write all changed fields, then navigate back to `CompareScreen`
 - If validation fails: show inline field errors; remain on the editor; do not write anything
 
 ### Dirty State Tracking
 
-The editor tracks whether any field value differs from the pre-populated initial state. This is the "dirty" state.
+The editor tracks whether any editable field value differs from the pre-populated initial state (after blank normalization). This is the "dirty" state.
 
-Dirty state is used exclusively to decide whether to show the unsaved-changes confirmation dialog on Back. It is not used to enable or disable the Save button.
+Dirty state controls two behaviors:
+- **Save button enabled state**: Save is disabled when the editor is not dirty
+- **Back navigation dialog**: shows the unsaved-changes confirmation dialog when the editor is dirty
 
 ### Back with No Unsaved Changes
 
@@ -285,9 +299,9 @@ If the storage write fails for any reason:
 
 ### Input Model
 
-Reference date is a **free text field** with format validation. It is not a date picker.
+Reference date is a **free text field** with format validation. A Material 3 DatePicker is available as a companion entry method via a calendar icon button.
 
-**Rationale:** Year-only input (`"2008"`) must be supported. Standard Android `DatePickerDialog` and Material 3 date pickers do not support year-only selection. A free text field is the V1 solution.
+The free text field is the primary input path because year-only (`"2008"`) and year-month (`"2008-06"`) inputs must be supported and cannot be expressed through a day-precision date picker. The DatePicker provides a convenient alternative for full-date (`YYYY-MM-DD`) selection only.
 
 ### Supported Formats
 
@@ -327,6 +341,18 @@ The editor does not distinguish EXIF-derived from manually-entered dates in the 
 ### Manual Entry Always Wins
 
 Once the user saves a manual value for Reference date, the session's `reference.dateSource` becomes `"manual"` permanently. Future auto-population from EXIF on re-read must never overwrite a manually saved date (enforced at the storage layer per `SESSION_METADATA_V1.md §7.4`).
+
+### DatePicker Companion
+
+A calendar icon button (`Icons.Default.DateRange`) appears as the trailing icon of the Reference date `OutlinedTextField`. Tapping it opens a Material 3 `DatePickerDialog`.
+
+When the user confirms a date in the picker:
+- The selected date is converted to `YYYY-MM-DD` format (UTC calendar, zero-padded month and day)
+- The Reference date text field is updated with the formatted date string
+- Any existing validation error is cleared
+- Dirty state is updated accordingly
+
+The DatePicker is day-precision only. Year-only and year-month inputs must be entered via the text field directly. The DatePicker does not replace the text field; it is a convenience shortcut for full-date entry.
 
 ---
 
@@ -463,7 +489,7 @@ The editor uses exactly the following existing storage functions:
 
 | Changed field(s) | Storage function |
 |---|---|
-| `content.title` | `SessionStorage.updateTitle()` |
+| `content.title` and/or `content.description` | `SessionStorage.updateContent()` |
 | `reference.date` | `SessionStorage.updateReferenceDate()` |
 | `location.*` | `SessionStorage.updateLocation()` |
 
@@ -472,13 +498,13 @@ No new storage functions are introduced for V1.
 ### Write Strategy
 
 On Save, the editor writes each changed group independently in sequence:
-1. If Title changed: call `updateTitle()`
+1. If Title or Description changed: call `updateContent(title, description)`
 2. If Reference date changed: call `updateReferenceDate()`
 3. If any location field changed: call `updateLocation()` (with all three location values as a unit)
 
-"Changed" means the current field value differs from the pre-populated initial value at editor open.
+"Changed" means the current field value differs from the pre-populated initial value at editor open (after blank normalization). Title and Description are treated as a unit: if either changes, `updateContent()` is called with both current values.
 
-If a field was not changed, its write function is not called.
+If a field group was not changed, its write function is not called.
 
 If any write call returns failure, the Save is treated as a storage write error (see Section 12). Writes that already succeeded before the failure are not rolled back (partial update is a known edge case; the write functions each preserve all other fields per `SESSION_METADATA_V1.md §12.2`).
 
@@ -494,7 +520,9 @@ These fields are immutable after session creation and must not be touched by the
 
 ### Blank / Absent Normalization
 
-- Blank Title → `updateTitle(null)` (removes title)
+- Blank Title and blank Description → `updateContent(null, null)` (removes both)
+- Blank Title only → `updateContent(null, description)` (removes title, keeps description)
+- Blank Description only → `updateContent(title, null)` (keeps title, removes description)
 - Blank Reference date → `updateReferenceDate(null)` (removes date)
 - All blank location fields → `updateLocation(null, null, null)` (removes location block)
 
@@ -650,15 +678,17 @@ This section identifies what must be verified when the editor is implemented. It
 
 ### Unit Tests
 
-**ViewModel (if a dedicated ViewModel is introduced):**
-- Pre-population of fields from session metadata at open
-- Dirty state tracking: editor is not dirty when no fields changed; is dirty when any field changed
+**ViewModel:**
+- Pre-population of all six editable fields from session metadata at open
+- `capture.timestampMs` loaded as read-only; not included in dirty tracking
+- Dirty state is false when no editable fields have changed; true when any field changed (including Description)
 - Dirty state resets correctly after Save
+- Save button is disabled when not dirty; enabled when dirty and not saving
 - Save action calls the correct storage functions with the correct arguments
-- Save with blank title calls `updateTitle(null)` (not `updateTitle("")`)
+- Save with blank title and blank description calls `updateContent(null, null)`
 - Save with blank reference date calls `updateReferenceDate(null)`
 - Save with all blank location fields calls `updateLocation(null, null, null)`
-- Save with non-empty location fields calls `updateLocation()` with trimmed values
+- Save with non-empty location fields calls `updateContent()` / `updateLocation()` with trimmed values
 - Save with unchanged fields does not call the corresponding write function
 - Storage write failure on any field results in save error emission (no navigation)
 
@@ -684,10 +714,16 @@ This section identifies what must be verified when the editor is implemented. It
 - Confirming discard navigates back to CompareScreen
 - Cancelling discard returns to the editor
 
+**Save button state:**
+- Save button is disabled when no fields have been changed from their pre-populated values
+- Save button becomes enabled after any field is changed
+
 **Save behavior:**
 - Filling Title and tapping Save: CompareScreen shows updated title
 - Clearing Title and tapping Save: CompareScreen title is removed
-- Filling Reference date with valid value and tapping Save: save succeeds
+- Filling Description and tapping Save: description persisted
+- Filling Reference date via text field with valid value and tapping Save: save succeeds
+- Selecting a date via the DatePicker companion: Reference date field is updated with `YYYY-MM-DD` value; editor becomes dirty
 - Filling Reference date with invalid value and tapping Save: inline error shown, no navigation
 - Clearing all location fields and tapping Save: location block removed (no crash)
 
@@ -714,7 +750,6 @@ The following are explicitly deferred and must not be implemented as part of V1:
 ### Additional Fields
 
 - Tags (`content.tags`) — requires tag input UI (chip input or tag list)
-- Description (`content.description`) — requires multiline text area
 - Favorite toggle (`additional.isFavorite`) — requires toggle and library integration
 - Visibility selector (`additional.visibility`) — requires selector and upload-flow integration
 
@@ -726,9 +761,8 @@ The following are explicitly deferred and must not be implemented as part of V1:
 
 ### Reference Date UX
 
-- Optional Material 3 date picker as a companion to the free text field (requires design decision on how to handle year-only)
 - Visual indicator showing whether the current date was set from EXIF or manually
-- EXIF date as a read-only hint below the text field
+- Read-only original EXIF date hint with Reset action (requires `reference.originalDate` storage field)
 
 ### Location UX
 
