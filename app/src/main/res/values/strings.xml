@@ -186,7 +186,7 @@
     <string name="create_video_rendering_progress">Rendering frame %1$d of %2$d</string>
 
     <!-- Create Video — Preview state -->
-    <string name="create_video_preview_title">Video Created</string>
+    <string name="create_video_preview_title">Video created</string>
     <string name="create_video_action_done">Done</string>
     <string name="create_video_action_share">Share</string>
     <string name="create_video_action_delete">Delete Video</string>
