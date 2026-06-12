@@ -215,7 +215,10 @@ class MainActivity : ComponentActivity() {
                         val sessionId = backStackEntry.arguments?.getString(ARG_SESSION_ID)
                         val timestamp =
                             backStackEntry.arguments?.getString(ARG_TIMESTAMP)?.toLongOrNull()
-                        val referenceDate = backStackEntry.arguments?.getString(ARG_REFERENCE_DATE)
+                        val referenceDate = uiState.savedSessions
+                            .find { it.sessionId == sessionId }
+                            ?.referenceDate
+                            ?: backStackEntry.arguments?.getString(ARG_REFERENCE_DATE)
                         val sessionTitle = uiState.savedSessions
                             .find { it.sessionId == sessionId }
                             ?.title
