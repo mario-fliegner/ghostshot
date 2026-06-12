@@ -180,6 +180,7 @@ private val CameraOpacitySliderLandscapeMaxWidth = 320.dp
 private val CameraGridLineWidth = 1.dp
 private val LandscapeTopActionsTopDistance = 20.dp
 private val LandscapeOverflowMenuGap = 8.dp
+private val CameraPortraitPreviewTopOffset = 20.dp
 private const val CaptureSuccessSnackbarStateKey =
     "com.isardomains.sameview.ui.camera.CaptureSuccessSnackbar"
 private const val CaptureSuccessSnackbarLastShownGenerationKey = "lastShownGeneration"
@@ -527,10 +528,12 @@ fun CameraScreen(
                     .background(SameViewPreviewFrameScrim)
                     .onSizeChanged { size ->
                         if (!isLandscape) {
-                            val effectiveHeight = minOf(size.height, size.width * 16 / 9)
+                            val offsetPx = with(density) { CameraPortraitPreviewTopOffset.roundToPx() }
+                            val availableHeight = (size.height - offsetPx).coerceAtLeast(0)
+                            val effectiveHeight = minOf(availableHeight, size.width * 16 / 9)
                             viewModel.onReferenceViewportChanged(size.width, effectiveHeight)
                             frameLeftDp = 0.dp
-                            frameTopDp = with(density) { ((size.height - effectiveHeight) / 2).toDp() }
+                            frameTopDp = with(density) { (offsetPx + (availableHeight - effectiveHeight) / 2).toDp() }
                         } else {
                             val w = size.width.toFloat()
                             val h = size.height.toFloat()
@@ -575,7 +578,7 @@ fun CameraScreen(
                             boundPreview = null
                         }
                     }
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = if (!isLandscape) Modifier.fillMaxSize().padding(top = CameraPortraitPreviewTopOffset) else Modifier.fillMaxSize()) {
                         // ── Layer 1: Camera preview ───────────────────────────────────────
                         AndroidView(
                             factory = { ctx ->
@@ -725,16 +728,15 @@ fun CameraScreen(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    val topRightActionsModifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .statusBarsPadding()
-                        .padding(end = 4.dp, top = 0.dp)
                     CameraTopRightActions(
                         onOpenHistory = onOpenCompareLibrary,
                         onOpenSettings = onOpenSettings,
                         onOpenAbout = onOpenAbout,
                         iconSize = 22.dp,
-                        modifier = topRightActionsModifier
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .padding(end = 4.dp, top = 0.dp)
                     )
                 }
 
