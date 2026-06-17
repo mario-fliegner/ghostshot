@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -22,8 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.isardomains.sameview.ui.theme.SameViewSettingsCardSurface
 import com.isardomains.sameview.ui.theme.SameViewSettingsControlOutline
@@ -95,7 +99,9 @@ fun SettingsSwitchRow(
 /** A single selectable item in a [SameViewSegmentControl]. */
 data class SameViewSegmentItem(
     val label: String,
-    val testTag: String? = null
+    val testTag: String? = null,
+    /** Optional decorative icon displayed above the label. When null, only the label is shown. */
+    val icon: ImageVector? = null
 )
 
 /**
@@ -140,11 +146,29 @@ fun SameViewSegmentControl(
                 itemModifier = itemModifier.testTag(item.testTag)
             }
             Box(modifier = itemModifier, contentAlignment = Alignment.Center) {
-                Text(
-                    text = item.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (selected) SameViewSettingsLabelText else SameViewSettingsSecondaryText
-                )
+                if (item.icon != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = null,
+                            tint = if (selected) SameViewSettingsLabelText else SameViewSettingsSecondaryText,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = item.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (selected) SameViewSettingsLabelText else SameViewSettingsSecondaryText,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    Text(
+                        text = item.label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (selected) SameViewSettingsLabelText else SameViewSettingsSecondaryText
+                    )
+                }
             }
         }
     }

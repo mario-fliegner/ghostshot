@@ -21,7 +21,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
-class VideoExportPipelineStandardTest {
+class VideoExportPipelineFlashTest {
 
     private lateinit var resolver: ContentResolver
     private lateinit var sessionDir: File
@@ -31,7 +31,7 @@ class VideoExportPipelineStandardTest {
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         resolver = context.contentResolver
-        sessionDir = File(context.filesDir, "test_session_${System.currentTimeMillis()}")
+        sessionDir = File(context.filesDir, "test_flash_${System.currentTimeMillis()}")
         sessionDir.mkdirs()
         writeSyntheticImages(sessionDir)
     }
@@ -44,11 +44,16 @@ class VideoExportPipelineStandardTest {
         }
     }
 
+    /**
+     * T-F-I-01: Flash, 1 s animation, Standard, Original, branding OFF.
+     * Verifies a valid MP4 is created in Movies/SameView with correct metadata.
+     * Uses 1 s duration for fast test execution; cycle count falls back to default (4).
+     */
     @Test
-    fun t_i_01_compareSlider_standard_landscape_brandingOff_producesValidMp4() {
+    fun t_f_i_01_flash_standard_original_brandingOff_producesValidMp4() {
         val config = VideoRenderConfig(
-            videoMode = VideoMode.COMPARE_SLIDER,
-            format = VideoExportFormat.LANDSCAPE_16_9,
+            videoMode = VideoMode.FLASH,
+            format = VideoExportFormat.ORIGINAL,
             quality = VideoQuality.STANDARD_1080P,
             durationMs = 1_000,
             brandingEnabled = false
@@ -59,7 +64,7 @@ class VideoExportPipelineStandardTest {
 
         val result = runBlocking { pipeline.run(config, sessionDir) }
 
-        assertTrue("Pipeline must succeed: ${result.exceptionOrNull()?.message}", result.isSuccess)
+        assertTrue("Flash pipeline must succeed: ${result.exceptionOrNull()?.message}", result.isSuccess)
 
         val uri = result.getOrThrow()
         createdVideoUri = uri
@@ -81,31 +86,23 @@ class VideoExportPipelineStandardTest {
             val mimeType = c.getString(c.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE))
             val isPending = c.getInt(c.getColumnIndexOrThrow(MediaStore.Video.Media.IS_PENDING))
 
-            assertEquals("IS_PENDING must be 0 after successful export", 0, isPending)
+            assertEquals("IS_PENDING must be 0", 0, isPending)
             assertEquals("MIME type must be video/mp4", "video/mp4", mimeType)
-            assertTrue(
-                "Display name must start with 'SameView_', was: $displayName",
-                displayName.startsWith("SameView_")
-            )
-            assertTrue(
-                "Display name must end with '.mp4', was: $displayName",
-                displayName.endsWith(".mp4")
-            )
+            assertTrue("Display name must start with SameView_", displayName.startsWith("SameView_"))
+            assertTrue("Display name must end with _flash.mp4", displayName.endsWith("_flash.mp4"))
         }
     }
 
     /**
-     * T-I-02: Before & After, 2 s animation, Standard, Portrait 9:16, branding ON.
-     *
+     * T-F-I-02: Flash, 2 s animation, Standard, Portrait 9:16, branding ON.
      * New branding model: animation = 60 frames (2000 ms), endcard = 45 frames (1500 ms),
-     * total = 105 frames (3500 ms). The selected duration describes the animation duration;
-     * the branding endcard is appended additively.
+     * total = 105 frames (3500 ms). Verifies valid MP4 and correct total duration.
      */
     @Test
-    fun t_i_02_beforeAfter_standard_portrait_brandingOn_producesValidMp4WithCorrectDuration() {
+    fun t_f_i_02_flash_standard_portrait_brandingOn_producesValidMp4WithCorrectDuration() {
         val durationMs = 2_000
         val config = VideoRenderConfig(
-            videoMode = VideoMode.BEFORE_AFTER,
+            videoMode = VideoMode.FLASH,
             format = VideoExportFormat.PORTRAIT_9_16,
             quality = VideoQuality.STANDARD_1080P,
             durationMs = durationMs,
@@ -117,7 +114,7 @@ class VideoExportPipelineStandardTest {
 
         val result = runBlocking { pipeline.run(config, sessionDir) }
 
-        assertTrue("Pipeline must succeed: ${result.exceptionOrNull()?.message}", result.isSuccess)
+        assertTrue("Flash pipeline must succeed: ${result.exceptionOrNull()?.message}", result.isSuccess)
 
         val uri = result.getOrThrow()
         createdVideoUri = uri
@@ -125,7 +122,6 @@ class VideoExportPipelineStandardTest {
         val cursor = resolver.query(
             uri,
             arrayOf(
-                MediaStore.Video.Media.DISPLAY_NAME,
                 MediaStore.Video.Media.MIME_TYPE,
                 MediaStore.Video.Media.IS_PENDING
             ),
@@ -134,24 +130,13 @@ class VideoExportPipelineStandardTest {
         assertNotNull("MediaStore cursor must not be null", cursor)
         cursor!!.use { c ->
             assertTrue("MediaStore entry must exist", c.moveToFirst())
-
-            val displayName = c.getString(c.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME))
-            val mimeType = c.getString(c.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE))
-            val isPending = c.getInt(c.getColumnIndexOrThrow(MediaStore.Video.Media.IS_PENDING))
-
-            assertEquals("IS_PENDING must be 0 after successful export", 0, isPending)
-            assertEquals("MIME type must be video/mp4", "video/mp4", mimeType)
-            assertTrue(
-                "Display name must start with 'SameView_', was: $displayName",
-                displayName.startsWith("SameView_")
-            )
-            assertTrue(
-                "Display name must end with '.mp4', was: $displayName",
-                displayName.endsWith(".mp4")
-            )
+            assertEquals("MIME type must be video/mp4", "video/mp4",
+                c.getString(c.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)))
+            assertEquals("IS_PENDING must be 0", 0,
+                c.getInt(c.getColumnIndexOrThrow(MediaStore.Video.Media.IS_PENDING)))
         }
 
-        // Verify duration = animation + branding endcard (new model: additive, not subtractive).
+        // Verify total duration = animation + branding endcard.
         val expectedTotalMs = durationMs + VideoRenderConfig.BRANDING_DURATION_MS  // 3500 ms
         val retriever = MediaMetadataRetriever()
         try {

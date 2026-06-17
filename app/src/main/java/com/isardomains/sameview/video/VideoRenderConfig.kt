@@ -2,7 +2,8 @@ package com.isardomains.sameview.video
 
 enum class VideoMode {
     COMPARE_SLIDER,
-    BEFORE_AFTER
+    BEFORE_AFTER,
+    FLASH
 }
 
 enum class VideoExportFormat {
@@ -25,13 +26,11 @@ data class VideoRenderConfig(
     val frameRate: Int = 30,
     val overlay: VideoOverlay? = null
 ) {
-    /** Frames for the main animation; endcard frames are excluded. */
+    /** Frames for the main animation; endcard frames are excluded.
+     * The selected duration always describes the animation duration.
+     * The branding endcard (if enabled) is appended after the animation. */
     val animationFrameCount: Int
-        get() = if (brandingEnabled) {
-            (durationMs - BRANDING_DURATION_MS) * frameRate / 1000
-        } else {
-            durationMs * frameRate / 1000
-        }
+        get() = durationMs * frameRate / 1000
 
     /** Total frames including the branding endcard when enabled. */
     val totalFrameCount: Int

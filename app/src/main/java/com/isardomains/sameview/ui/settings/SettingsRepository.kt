@@ -85,9 +85,9 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    /** Branding endcard toggle; default ON per VIDEO_EXPORT_V1 §13.3. */
+    /** Branding endcard toggle; default OFF per VIDEO_EXPORT_V1 §13.3. */
     val brandingEnabled: Flow<Boolean> = preferences.map { prefs ->
-        prefs[Keys.BRANDING_ENABLED] ?: true
+        prefs[Keys.BRANDING_ENABLED] ?: false
     }
 
     suspend fun setBrandingEnabled(enabled: Boolean) {

@@ -164,8 +164,9 @@
     <!-- Create Video — Configuring state -->
     <string name="create_video_screen_title">Create video</string>
     <string name="create_video_mode_label">Video type</string>
-    <string name="create_video_mode_compare_slider">Compare Slider</string>
-    <string name="create_video_mode_before_after">Before &amp; After</string>
+    <string name="create_video_mode_compare_slider">Slider</string>
+    <string name="create_video_mode_before_after">Fade</string>
+    <string name="create_video_mode_flash">Flash</string>
     <string name="create_video_format_label">Format</string>
     <string name="create_video_format_original">Original</string>
     <string name="create_video_format_portrait">Portrait</string>

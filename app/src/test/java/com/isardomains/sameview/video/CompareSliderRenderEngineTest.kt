@@ -25,14 +25,14 @@ class CompareSliderRenderEngineTest {
     @Test fun animationFrameCount_8s_brandingOff_is240() =
         assertEquals(240, CompareSliderRenderEngine.animationFrameCount(cfg(8000, false)))
 
-    @Test fun animationFrameCount_4s_brandingOn_is75() =
-        assertEquals(75, CompareSliderRenderEngine.animationFrameCount(cfg(4000, true)))
+    @Test fun animationFrameCount_4s_brandingOn_is120() =
+        assertEquals(120, CompareSliderRenderEngine.animationFrameCount(cfg(4000, true)))
 
-    @Test fun animationFrameCount_6s_brandingOn_is135() =
-        assertEquals(135, CompareSliderRenderEngine.animationFrameCount(cfg(6000, true)))
+    @Test fun animationFrameCount_6s_brandingOn_is180() =
+        assertEquals(180, CompareSliderRenderEngine.animationFrameCount(cfg(6000, true)))
 
-    @Test fun animationFrameCount_8s_brandingOn_is195() =
-        assertEquals(195, CompareSliderRenderEngine.animationFrameCount(cfg(8000, true)))
+    @Test fun animationFrameCount_8s_brandingOn_is240() =
+        assertEquals(240, CompareSliderRenderEngine.animationFrameCount(cfg(8000, true)))
 
     // T-U-02 — slider starts at 0
 

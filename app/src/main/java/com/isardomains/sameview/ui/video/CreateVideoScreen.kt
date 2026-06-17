@@ -263,10 +263,11 @@ private fun ConfiguringContent(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // ── Mode ──────────────────────────────────────────────────────────
-        val modes = listOf(VideoMode.COMPARE_SLIDER, VideoMode.BEFORE_AFTER)
+        val modes = listOf(VideoMode.COMPARE_SLIDER, VideoMode.BEFORE_AFTER, VideoMode.FLASH)
         val modeItems = listOf(
             SameViewSegmentItem(stringResource(R.string.create_video_mode_compare_slider)),
-            SameViewSegmentItem(stringResource(R.string.create_video_mode_before_after))
+            SameViewSegmentItem(stringResource(R.string.create_video_mode_before_after)),
+            SameViewSegmentItem(stringResource(R.string.create_video_mode_flash))
         )
         SettingsCard(title = stringResource(R.string.create_video_mode_label)) {
             SameViewSegmentControl(

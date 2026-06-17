@@ -172,6 +172,7 @@ class VideoExportPipeline(private val context: Context) {
     ): VideoFrameRenderer = when (config.videoMode) {
         VideoMode.COMPARE_SLIDER -> CompareSliderRenderEngine(config, refBitmap, capBitmap)
         VideoMode.BEFORE_AFTER -> BeforeAfterRenderEngine(config, refBitmap, capBitmap)
+        VideoMode.FLASH -> FlashRenderEngine(config, refBitmap, capBitmap)
     }
 
     /**
@@ -203,6 +204,7 @@ class VideoExportPipeline(private val context: Context) {
         val modeSuffix = when (config.videoMode) {
             VideoMode.COMPARE_SLIDER -> "compare_slider"
             VideoMode.BEFORE_AFTER -> "before_after"
+            VideoMode.FLASH -> "flash"
         }
         return "SameView_${sessionId}_${modeSuffix}.mp4"
     }
@@ -251,6 +253,7 @@ class VideoExportPipeline(private val context: Context) {
             val crossfade = config.frameRate / 2
             (config.animationFrameCount - crossfade) / 2
         }
+        VideoMode.FLASH -> FlashRenderEngine.FLASH_HOLD_FRAMES
     }
 
     companion object {

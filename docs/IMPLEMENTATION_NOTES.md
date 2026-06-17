@@ -180,7 +180,7 @@ Active compare session lifecycle — fully implemented:
 Full specification: `VIDEO_EXPORT_V1.md`
 Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
 
-MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented and verified (Blocks 3+4 Completed). High Quality export implemented and verified (Block 5 Completed). Branding endcard implemented and verified (Block 6 Completed). Block 7 Final Verification completed — manual device smoke test passed on SM-S911B (2026-06-10). All Video Export blocks complete:
+MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented and verified (Blocks 3+4 Completed). High Quality export implemented and verified (Block 5 Completed). Branding endcard implemented and verified (Block 6 Completed). Block 7 Final Verification completed — manual device smoke test passed on SM-S911B (2026-06-10). Block 9 Flash Mode completed (2026-06-17). All Video Export blocks complete:
 
 - **Renderer Core (Block 1)** — `VideoRenderConfig`, `VideoMode`, `VideoExportFormat`, `VideoQuality` enums; `VideoFrameRenderer` interface; `CompareSliderRenderEngine` (cubic smoothstep, gradient soft-transition divider + 1 px core line, fill semantics); `BeforeAfterRenderEngine` (linear crossfade, fit semantics); canvas setup and bitmap lifecycle; `computeCanvasDimensions` with even-dimension enforcement
 - **Encoding Pipeline (Block 2)** — `VideoEncoder` (MediaCodec H.264/AVC, ByteBuffer input, ARGB→YUV420 conversion, NV12/I420 auto-detect via `MediaCodecList`); `MediaStoreVideoWriter` (IS_PENDING lifecycle, `Movies/SameView`, cleanup on failure); `VideoExportPipeline` (orchestrates decode → render → encode → commit; coroutine-cancellation-safe cleanup via `NonCancellable`)
@@ -853,3 +853,149 @@ For the next Closed Testing upload, re-run the following verifications after any
 - unit tests
 - connected instrumentation tests
 - release build/sign/install smoke test on a real device
+
+---
+
+### Block 9 — Flash Video Mode + Branding Timing Model (2026-06-17)
+
+**Neue Dateien:**
+
+| Datei | Inhalt |
+|---|---|
+| `video/FlashRenderEngine.kt` | `FlashRenderEngine : VideoFrameRenderer`; Phase 1 (45 Frames Hold, Reference+Overlay), Phase 2 (Hard-Cut-Wechsel Reference/Capture); Fill-Semantik; companion object mit `FLASH_HOLD_FRAMES=45`, `cycleCount()`, `showCaptureAt()` |
+| `video/FlashRenderEngineTest.kt` | T-F-U-01–T-F-U-09; 21 Unit-Tests für Frame-Count, Phase-Grenzen, Zyklus-Logik, Endframe=Capture |
+| `androidTest/video/VideoExportPipelineFlashTest.kt` | T-F-I-01, T-F-I-02; End-to-End-Tests (Flash MP4 gültig; Dateiname endet auf `_flash.mp4`; Duration-Check mit neuem Branding-Modell) |
+
+**Geänderte Produktionsdateien:**
+
+| Datei | Änderung |
+|---|---|
+| `video/VideoRenderConfig.kt` | `VideoMode.FLASH` ergänzt; `animationFrameCount` gibt jetzt immer `durationMs × 30 / 1000` zurück (Branding-Timing-Modell-Änderung) |
+| `video/VideoExportPipeline.kt` | `createRenderer()` + `buildDisplayName()` + `computeHoldFrameCount()` um `FLASH`-Zweig erweitert; Flash-HoldFrameCount = `FlashRenderEngine.FLASH_HOLD_FRAMES` (45, fest) |
+| `ui/video/CreateVideoScreen.kt` | 3. Modus (`VideoMode.FLASH`) im Segment-Control; `create_video_branding_hint`-Text unter Branding-Toggle (dauerhaft sichtbar, `bodySmall`, `SameViewSettingsSecondaryText`) |
+| `ui/video/VideoModePreview.kt` | `FLASH`-Zweig mit `FlashStatic` (beide Bilder 0.5 Alpha) und `FlashAnimated` (Hard-Cut via `flashShowCaptureFromProgress`) |
+| `ui/video/VideoLoadingPreview.kt` | `FLASH`-Zweig mit `FlashLoadingStatic` und `FlashLoadingAnimated` + `FlashLoadingFrame` (ContentScale.Crop) |
+| `values/strings.xml` | `create_video_mode_compare_slider` → "Compare"; neu: `create_video_mode_flash` = "Flash"; `create_video_branding_hint` = "Adds 1.5 seconds to your video" |
+| `values-de/strings.xml` | `create_video_mode_compare_slider` → "Compare"; neu: `create_video_mode_flash` = "Flash"; `create_video_branding_hint` = "Fügt deinem Video 1,5 Sekunden hinzu" |
+
+**Geänderte Testdateien (Wertanpassungen durch Branding-Timing-Modell):**
+
+| Datei | Änderung |
+|---|---|
+| `VideoRenderConfigTest.kt` | T-U-09: Assertions 75+45=120, 135+45=180, 195+45=240 → 120+45=165, 180+45=225, 240+45=285 |
+| `CompareSliderRenderEngineTest.kt` | T-U-01 branding ON: `is75`, `is135`, `is195` → `is120`, `is180`, `is240` |
+| `BeforeAfterRenderEngineTest.kt` | T-U-05 branding ON: identische Änderungen |
+| `VideoExportPipelineStandardTest.kt` | T-I-02: Duration-Assertion `≈durationMs` → `≈durationMs + BRANDING_DURATION_MS` (3500 ms) |
+
+**Branding-Timing-Modell — Zusammenfassung der Änderung:**
+
+Vorher: `animationFrameCount = (selectedDuration − brandingDuration) wenn branding ON`. Gesamt-Video = immer = selectedDuration.
+
+Neu: `animationFrameCount = selectedDuration` (immer). Endcard wird additiv angehängt. Gesamt-Video = selectedDuration + 1.5 s (wenn branding ON). Die gewählte Dauer beschreibt immer die eigentliche Animationsdauer — unabhängig vom Branding-Toggle. Gilt für alle drei Modi gleichmäßig.
+
+**Teststatus (2026-06-17):**
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` (gesamt) | PASSED |
+| `FlashRenderEngineTest` (21 Tests) | PASSED |
+| `CompareSliderRenderEngineTest` | PASSED |
+| `BeforeAfterRenderEngineTest` | PASSED |
+| `VideoRenderConfigTest` | PASSED |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `assembleRelease` | BUILD SUCCESSFUL |
+
+Manuelle Geräteverifikation (Flash-Export, Branding-Timing, UI-Labels) offen — auf SM-S911B oder gleichwertigem Gerät auszuführen.
+
+---
+
+### Block 9b — Video Type Selector UX Polish (2026-06-17)
+
+**Geänderte Dateien:**
+
+| Datei | Änderung |
+|---|---|
+| `ui/settings/SettingsComponents.kt` | `SameViewSegmentItem`: neues optionales Feld `icon: ImageVector? = null` (nach `testTag`, Default null — alle bestehenden Aufrufer unverändert); `SameViewSegmentControl`: Box-Inhalt verzweigt — wenn `icon != null`: Column mit Icon 24dp (dekorativ, `contentDescription = null`, `tint` = Segment-Farbe) + Spacer 4dp + Text labelLarge zentriert; wenn `icon == null`: bestehendes Text-only-Verhalten exakt unverändert |
+| `ui/video/CreateVideoScreen.kt` | `modeItems`: Icons zu allen drei Modi ergänzt (`CompareArrows`, `Timeline`, `FlashOn`); Branding-Hint-`Text` entfernt |
+| `values/strings.xml` | `create_video_branding_hint` Key entfernt |
+| `values-de/strings.xml` | `create_video_branding_hint` Key entfernt |
+
+**Neue Imports in SettingsComponents.kt:**
+`size`, `Icon` (Material 3), `ImageVector`, `TextAlign`
+
+**Neue Imports in CreateVideoScreen.kt:**
+`Icons.AutoMirrored.Filled.CompareArrows`, `Icons.Filled.Timeline`, `Icons.Filled.FlashOn`
+
+**Icons (alle aus `material-icons-extended`, bereits Abhängigkeit):**
+- Compare → `Icons.AutoMirrored.Filled.CompareArrows`
+- Before & After → `Icons.Filled.Timeline`
+- Flash → `Icons.Filled.FlashOn`
+
+**Bekannte Einschränkung — Label-Umbruch:**
+
+Mit `labelLarge` (14sp) und 1/3-Breite (≈91dp Textbereich auf 360dp Gerät) bricht "Before & After" weiterhin auf 2 Zeilen um. Das ist durch die Produkt-Entscheidung bewusst akzeptiert: die Schriftgröße wurde NICHT reduziert, um den Umbruch zu vermeiden. Der Icon als visuelles Anker-Element aller drei Segmente schafft Gleichgewicht, auch wenn "Before & After" mehr Texthöhe belegt als "Compare" und "Flash". Manuelle Verifikation bei Font Scale 1.3× und 1.5× erforderlich.
+
+**Teststatus (2026-06-17):**
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` | PASSED |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `assembleRelease` | BUILD SUCCESSFUL |
+
+Manuelle Verifikation offen: Portrait (360dp), Landscape, Font Scale 1.3×, Font Scale 1.5×.
+
+---
+
+### Block 9d — Video Mode Label Rename + Icon Revert (2026-06-17)
+
+**Geänderte Dateien:**
+
+| Datei | Änderung |
+|---|---|
+| `values/strings.xml` | `create_video_mode_compare_slider`: "Compare" → "Slider"; `create_video_mode_before_after`: "Before &amp; After" → "Fade" |
+| `values-de/strings.xml` | identische Änderungen; "Flash" in beiden Sprachen unverändert |
+| `ui/video/CreateVideoScreen.kt` | `modeItems` zurück auf einfache `SameViewSegmentItem(label)`; Icon-Imports (`CompareArrows`, `Timeline`, `FlashOn`) entfernt |
+| `ui/settings/SettingsComponents.kt` | icon != null Zweig: `labelMedium` → `labelLarge`; alle Segment-Controls wieder typografisch einheitlich |
+| `docs/VIDEO_EXPORT_V1.md` | §7.3 Wizard Layout; §24.0 Mode-Label-Ausnahmen; §24.1 String-Werte aktualisiert |
+
+**Neue UI-Terminologie:**
+
+| Modus | Bisheriger Label | Neuer Label | Interner Enum |
+|---|---|---|---|
+| Compare Slider | Compare | **Slider** | `VideoMode.COMPARE_SLIDER` (unverändert) |
+| Before & After | Before & After | **Fade** | `VideoMode.BEFORE_AFTER` (unverändert) |
+| Flash | Flash | **Flash** | `VideoMode.FLASH` (unverändert) |
+
+**Teststatus (2026-06-17):**
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` | PASSED |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `assembleRelease` | BUILD SUCCESSFUL |
+
+---
+
+### Block 9c — Branding Default OFF + labelMedium Icon-Modus (2026-06-17)
+
+**Geänderte Dateien:**
+
+| Datei | Änderung |
+|---|---|
+| `ui/settings/SettingsRepository.kt` | `prefs[Keys.BRANDING_ENABLED] ?: true` → `?: false`; Kommentar aktualisiert |
+| `ui/settings/SettingsComponents.kt` | Im `icon != null`-Zweig: `labelLarge` → `labelMedium` (12sp); `icon == null`-Zweig unverändert (labelLarge) |
+| `docs/VIDEO_EXPORT_V1.md` | FD-15: "enabled by default" → "disabled by default"; §13.3 Rationale aktualisiert |
+| `docs/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Block 9c in Progress Tracking ergänzt |
+
+**Branding Default OFF:** Unter dem neuen Branding-Timing-Modell (additive Endcard) würde Default-ON dazu führen, dass Erstnutzer ein Video erhalten, das länger ist als die gewählte Dauer. Default-OFF entspricht der Nutzererwartung.
+
+**labelMedium (12sp) für Icon-Segmente:** Löst den "Before & After"-Umbruch bei Standard-Scale (1.0×). Nur im `icon != null`-Zweig; Format/Duration/Quality-Segmente (ohne Icon) weiterhin `labelLarge` (14sp).
+
+**Teststatus (2026-06-17):**
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` | PASSED |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `assembleRelease` | BUILD SUCCESSFUL |

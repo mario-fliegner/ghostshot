@@ -133,6 +133,11 @@ fun VideoLoadingPreview(
                 } else {
                     BeforeAfterLoadingAnimated(sessionDir, progress)
                 }
+                VideoMode.FLASH -> if (reduceMotion) {
+                    FlashLoadingStatic(sessionDir)
+                } else {
+                    FlashLoadingAnimated(sessionDir, progress)
+                }
             }
 
             if (previewLines.isNotEmpty() && overlayAlpha > 0f) {
@@ -285,4 +290,54 @@ private fun loadingAlphasFromProgress(progress: Float): Pair<Float, Float> = whe
         (1f - cf) to cf
     }
     else -> 0f to 1f
+}
+
+// ── Flash ────────────────────────────────────────────────────────────────────────
+
+/** Static fallback for Flash Loading Preview (Reduce Motion): both images at 0.5 alpha. */
+@Composable
+private fun FlashLoadingStatic(sessionDir: File) {
+    FlashLoadingFrame(sessionDir = sessionDir, showCapture = false, alpha = 0.5f)
+}
+
+/**
+ * Animated Flash Loading Preview: hard-cut alternation between Reference and Capture.
+ * Phase 1 (0–15 %): Reference hold. Phase 2 (15–100 %): rapid alternation.
+ * ContentScale.Crop matches FlashRenderEngine fill semantics.
+ */
+@Composable
+private fun FlashLoadingAnimated(sessionDir: File, progress: Float) {
+    val showCapture = flashLoadingShowCapture(progress)
+    FlashLoadingFrame(sessionDir = sessionDir, showCapture = showCapture, alpha = 1f)
+}
+
+@Composable
+private fun FlashLoadingFrame(sessionDir: File, showCapture: Boolean, alpha: Float) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        AsyncImage(
+            model = File(sessionDir, "reference.jpg"),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().alpha(if (showCapture) 1f - alpha else alpha)
+        )
+        if (showCapture) {
+            AsyncImage(
+                model = File(sessionDir, "capture.jpg"),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().alpha(alpha)
+            )
+        }
+    }
+}
+
+// 4 preview cycles in the loading preview (visual selection aid).
+private const val FL_LOADING_PREVIEW_CYCLES = 4
+
+private fun flashLoadingShowCapture(progress: Float): Boolean {
+    if (progress < CS_HOLD_REF_END_L) return false
+    val flashProgress = (progress - CS_HOLD_REF_END_L) / (1f - CS_HOLD_REF_END_L)
+    val flashFrameIndex = (flashProgress * (FL_LOADING_PREVIEW_CYCLES * 2))
+        .toInt().coerceIn(0, FL_LOADING_PREVIEW_CYCLES * 2 - 1)
+    return flashFrameIndex % 2 == 1
 }

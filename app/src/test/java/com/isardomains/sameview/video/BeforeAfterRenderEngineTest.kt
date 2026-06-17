@@ -24,14 +24,14 @@ class BeforeAfterRenderEngineTest {
     @Test fun animationFrameCount_8s_brandingOff_is240() =
         assertEquals(240, BeforeAfterRenderEngine.animationFrameCount(cfg(8000, false)))
 
-    @Test fun animationFrameCount_4s_brandingOn_is75() =
-        assertEquals(75, BeforeAfterRenderEngine.animationFrameCount(cfg(4000, true)))
+    @Test fun animationFrameCount_4s_brandingOn_is120() =
+        assertEquals(120, BeforeAfterRenderEngine.animationFrameCount(cfg(4000, true)))
 
-    @Test fun animationFrameCount_6s_brandingOn_is135() =
-        assertEquals(135, BeforeAfterRenderEngine.animationFrameCount(cfg(6000, true)))
+    @Test fun animationFrameCount_6s_brandingOn_is180() =
+        assertEquals(180, BeforeAfterRenderEngine.animationFrameCount(cfg(6000, true)))
 
-    @Test fun animationFrameCount_8s_brandingOn_is195() =
-        assertEquals(195, BeforeAfterRenderEngine.animationFrameCount(cfg(8000, true)))
+    @Test fun animationFrameCount_8s_brandingOn_is240() =
+        assertEquals(240, BeforeAfterRenderEngine.animationFrameCount(cfg(8000, true)))
 
     // T-U-06 — reference shown first: frame 0 = reference fully visible, capture hidden
 

@@ -24,7 +24,7 @@ This specification covers the creation and export of a video file from an existi
 - Triggered from `CompareScreen` via a dedicated `Create Video` action in the top app bar
 - Output: a standard MP4 file without an audio track, written to `Movies/SameView` via MediaStore
 - Fully offline: no network calls; the app makes no uploads
-- Two video modes in V1: **Compare Slider** and **Before & After**
+- Three video modes: **Compare Slider**, **Before & After**, and **Flash**
 
 ### What this feature IS NOT
 
@@ -61,7 +61,7 @@ These decisions are final and must not be re-evaluated during implementation.
 | FD-01 | Video is saved to `MediaStore.Video.Media`, `RELATIVE_PATH = Movies/SameView` |
 | FD-02 | Renderer is fully UI-independent: no CompareScreen capture, no display size, no status bar, no Notch |
 | FD-03 | Renderer input: `reference.jpg` and `capture.jpg` from the compare session; `metadata.json` optional |
-| FD-04 | Two video modes in V1: **Compare Slider** and **Before & After** |
+| FD-04 | Three video modes: **Compare Slider**, **Before & After**, and **Flash** |
 | FD-05 | No audio track. MP4 without any audio stream. No music, no sound effects, no empty audio track. |
 | FD-06 | No platform picker in the app. No TikTok, Instagram, WhatsApp, or YouTube buttons. |
 | FD-07 | Android Share Sheet opens only on explicit user tap on `[Share]`. Never opens automatically. |
@@ -72,7 +72,7 @@ These decisions are final and must not be re-evaluated during implementation.
 | FD-12 | No new Manifest permissions required for this feature. |
 | FD-13 | Free areas in the video frame are filled with the app surface color `#17202F`. No blurred background in V1. |
 | FD-14 | No crop. No automatic reframe. No content modification of session images. |
-| FD-15 | Branding endcard is **enabled by default** (Default = ON). The last-used branding setting persists across video exports via DataStore. |
+| FD-15 | Branding endcard is **disabled by default** (Default = OFF). The last-used branding setting persists across video exports via DataStore. |
 | FD-16 | Endcard content: "SameView" and "#MadeWithSameView". No "Created with SameView" wording. |
 
 ---
@@ -134,6 +134,35 @@ The Before & After mode shows both images completely and sequentially. The user 
 
 Full animation specification in Section 15.
 
+### 6.3 Flash
+
+The Flash mode delivers an attention-grabbing, high-energy alternation between reference and capture. It is designed for social media sharing and focuses on making the change between images as visible and striking as possible. Flash is not a replacement for Compare Slider — it serves a different purpose.
+
+**Phase 1 — Intro (1.5 s = 45 frames, fixed):**
+- Reference image shown in full with Fill semantics (ContentScale.Fill — same as Compare Slider)
+- Optional Extras overlays active (Show title and date, Show location) — identical behavior to other modes
+- `TitleDateOverlayRenderer` is called for frames 0–44; overlay fades out at 80 % of the hold phase
+
+**Phase 2 — Flash sequence (remaining animation duration):**
+- Hard cuts only — no crossfades, no alpha animation
+- Alternation: Reference → Capture → Reference → Capture → …
+- Always begins with Reference; always ends on Capture
+- No text overlays, no title, no date, no location
+- Fill semantics throughout (ContentScale.Fill — same as Phase 1)
+
+**Phase 3 — Branding endcard (optional, unchanged):**
+- Identical to other modes; `BrandingEndcardRenderer` appended after Phase 2
+
+**Cycle counts (hard cuts per preset):**
+
+| Duration preset | Cycles | Flash frames (cycles × 2) |
+|---|---|---|
+| 4 s | 2 | 4 |
+| 6 s | 4 | 8 |
+| 8 s | 6 | 12 |
+
+Full animation specification in the Flash Animation Specification section below (§15a).
+
 ---
 
 ## 7. Wizard UX
@@ -160,7 +189,7 @@ Back navigation from `Preview`: equivalent to `[Done]` — screen closes, video 
 TopAppBar:  ← Back   "Create Video"
 
 Video Type
-[ Compare Slider ]  [ Before & After ]   ← Mode selection (segmented or card-based)
+[ Slider ]  [ Fade ]  [ Flash ]   ← Mode selection (segmented control)
 ─────────────────────────────────────────  ← internal divider (same card)
 [ Animated mode preview — 16:9, max 200 dp height ]
 
@@ -351,7 +380,13 @@ Three presets, no free input:
 | Medium | 6 s | ✓ |
 | Long | 8 s | |
 
-Both video modes use the same presets. The animation timing is internally scaled to the total duration. The endcard (if branding enabled) is subtracted from the animation duration before scaling — see Sections 13, 14, and 15 for timing details.
+All video modes use the same presets. **The selected duration always describes the animation duration.** The branding endcard (if enabled) is appended additively after the animation — it does not reduce the animation time. See Sections 13, 14, 15, and 16 for timing details.
+
+| Preset | Animation duration | With branding ON | With branding OFF |
+|---|---|---|---|
+| 4 s | 4.0 s | 5.5 s total | 4.0 s total |
+| 6 s | 6.0 s | 7.5 s total | 6.0 s total |
+| 8 s | 8.0 s | 9.5 s total | 8.0 s total |
 
 ---
 
@@ -454,18 +489,20 @@ Background: #0D1424
 
 The Wizard offers a toggle: **"Add #MadeWithSameView card"**
 
-When enabled: 1.5s endcard is appended. Animation duration = total duration − 1.5s.
-When disabled: no endcard frames. Animation duration = total duration.
+When enabled: 1.5s endcard is appended after the full animation. Total video = animation duration + 1.5s.
+When disabled: no endcard frames. Total video = animation duration.
 
 ### 13.3 Branding Default
 
-**Default = ON.**
+**Default = OFF.**
 
 Rationale:
 
-- SameView is a new product and benefits from organic discovery through shared videos.
+The original default was ON, established when the branding endcard was "cost-free" in terms of video duration (old model: branding subtracted from animation time, total duration = selected duration). Under the current timing model, branding is additive: a user who selects 6 s receives a 7.5 s video when branding is enabled. Default OFF aligns with the user's expectation that the selected duration equals the total video length on first use.
+
+- SameView benefits from organic discovery — users who choose to enable branding contribute to this.
 - The branding appears exclusively as a post-animation endcard — it does not overlay, watermark, or interfere with the actual comparison content.
-- Users can disable branding at any time; the setting persists (see 13.5).
+- Users can enable branding at any time; the setting persists (see §13.5).
 - The endcard uses the established community hashtag `#MadeWithSameView`.
 
 ### 13.4 Endcard Visual Design
@@ -594,25 +631,27 @@ T = 6.0s, Hold = (6.0 − 0.5) / 2 = 2.75s
 | Hold After | 3.25s | 2.75s | 6.00s |
 
 **Worked example — 6s, branding ON:**
-T = 4.5s, Hold = (4.5 − 0.5) / 2 = 2.00s
+T = 6.0s (animation always = selected duration), Hold = (6.0 − 0.5) / 2 = 2.75s
 
 | Phase | Start | Duration | End |
 |---|---|---|---|
-| Hold Before | 0.00s | 2.00s | 2.00s |
-| Crossfade | 2.00s | 0.50s | 2.50s |
-| Hold After | 2.50s | 2.00s | 4.50s |
-| Endcard | 4.50s | 1.50s | 6.00s |
+| Hold Before | 0.00s | 2.75s | 2.75s |
+| Crossfade | 2.75s | 0.50s | 3.25s |
+| Hold After | 3.25s | 2.75s | 6.00s |
+| Endcard | 6.00s | 1.50s | 7.50s |
 
 **All preset timings with branding ON/OFF:**
 
-| Preset | T_anim | Hold | Crossfade | Hold | Endcard |
-|---|---|---|---|---|---|
-| 4s, branding OFF | 4.0s | 1.75s | 0.5s | 1.75s | — |
-| 4s, branding ON | 2.5s | 1.00s | 0.5s | 1.00s | 1.5s |
-| 6s, branding OFF | 6.0s | 2.75s | 0.5s | 2.75s | — |
-| 6s, branding ON | 4.5s | 2.00s | 0.5s | 2.00s | 1.5s |
-| 8s, branding OFF | 8.0s | 3.75s | 0.5s | 3.75s | — |
-| 8s, branding ON | 6.5s | 3.00s | 0.5s | 3.00s | 1.5s |
+Under the current branding model, the animation always equals the selected duration. The endcard is additive.
+
+| Preset | T_anim | Hold | Crossfade | Hold | Endcard | Total video |
+|---|---|---|---|---|---|---|
+| 4s, branding OFF | 4.0s | 1.75s | 0.5s | 1.75s | — | 4.0s |
+| 4s, branding ON | 4.0s | 1.75s | 0.5s | 1.75s | 1.5s | 5.5s |
+| 6s, branding OFF | 6.0s | 2.75s | 0.5s | 2.75s | — | 6.0s |
+| 6s, branding ON | 6.0s | 2.75s | 0.5s | 2.75s | 1.5s | 7.5s |
+| 8s, branding OFF | 8.0s | 3.75s | 0.5s | 3.75s | — | 8.0s |
+| 8s, branding ON | 8.0s | 3.75s | 0.5s | 3.75s | 1.5s | 9.5s |
 
 ### 15.2 Crossfade Computation
 
@@ -628,6 +667,68 @@ Frame rendering: draw `#17202F` background, draw reference at `alpha_reference`,
 ### 15.3 ContentScale
 
 Both images use **Fit** semantics (preserve aspect ratio, fully visible, no crop). This is the primary semantic difference from the Compare Slider mode, which uses Fill semantics for both images.
+
+---
+
+## 15a. Animation Specification — Flash
+
+### 15a.1 Timing Model
+
+Let `T` = animation duration in seconds = `durationMs / 1000` (always the selected duration; independent of branding).
+
+`FLASH_HOLD_FRAMES` = 45 (1.5 s × 30 FPS, constant).
+
+| Phase | Duration | Content |
+|---|---|---|
+| Phase 1 – Intro | 1.5 s (45 frames, fixed) | Reference image; optional text overlays active |
+| Phase 2 – Flash sequence | T − 1.5 s | Hard-cut alternation Reference/Capture; no overlays |
+| Phase 3 – Endcard | 1.5 s (45 frames, if branding ON) | Branding endcard (appended after T) |
+
+**Cycle counts:**
+
+| Duration preset | Cycles | Flash frames (cycles × 2) | Phase 2 duration | ms per flash frame |
+|---|---|---|---|---|
+| 4 s | 2 | 4 | 2.5 s | 625 ms |
+| 6 s | 4 | 8 | 4.5 s | 562 ms |
+| 8 s | 6 | 12 | 6.5 s | 542 ms |
+
+**Worked example — 6s, branding OFF:**
+
+| Phase | Start | Duration | End | Total video |
+|---|---|---|---|---|
+| Phase 1 – Intro | 0.00s | 1.50s | 1.50s | |
+| Phase 2 – Flash | 1.50s | 4.50s | 6.00s | 6.00s |
+
+**Worked example — 6s, branding ON:**
+
+| Phase | Start | Duration | End | Total video |
+|---|---|---|---|---|
+| Phase 1 – Intro | 0.00s | 1.50s | 1.50s | |
+| Phase 2 – Flash | 1.50s | 4.50s | 6.00s | |
+| Endcard | 6.00s | 1.50s | 7.50s | 7.50s |
+
+### 15a.2 Frame Computation
+
+For frame `i` (0-based, total animation frames = `durationMs × 30 / 1000`):
+
+**Phase 1** (`i < 45`): render Reference image with Fill semantics. Text overlay applied by pipeline if active.
+
+**Phase 2** (`i ≥ 45`):
+```
+phase2Frames     = animationFrameCount − 45
+totalFlashFrames = cycleCount × 2
+phase2FrameIndex = i − 45
+flashFrameIndex  = (phase2FrameIndex × totalFlashFrames) / phase2Frames   // integer division
+```
+- `flashFrameIndex` even (0, 2, 4 …): render Reference
+- `flashFrameIndex` odd (1, 3, 5 …): render Capture
+- Last flash frame is always odd (totalFlashFrames − 1) → always Capture
+
+Integer division ensures `flashFrameIndex` reaches exactly `totalFlashFrames − 1` on the last Phase-2 frame, with no remainder problem.
+
+### 15a.3 ContentScale
+
+Both images use **Fill** semantics (ContentScale.Fill / maxOf scaling) — identical to Compare Slider. The canvas is always fully covered. At aspect-ratio mismatch, a proportional centred crop is applied.
 
 ---
 
@@ -762,7 +863,7 @@ MIME_TYPE     = video/mp4
 IS_PENDING    = 1
 ```
 
-Where `<mode>` is `compare_slider` or `before_after`.
+Where `<mode>` is `compare_slider`, `before_after`, or `flash`.
 
 ### 18.2 IS_PENDING Lifecycle
 
@@ -893,12 +994,14 @@ interface VideoFrameRenderer {
 
 ### 20.4 Extensibility
 
-V1 has exactly two `VideoFrameRenderer` implementations. Adding a V2 mode requires:
+There are currently three `VideoFrameRenderer` implementations: `CompareSliderRenderEngine`, `BeforeAfterRenderEngine`, and `FlashRenderEngine`. Adding a future mode requires:
 1. A new enum value in `VideoMode`
 2. A new `VideoFrameRenderer` implementation class
-3. A `when` branch in `VideoExportPipeline`
+3. A `when` branch in `VideoExportPipeline.createRenderer()`
+4. A `when` branch in `VideoExportPipeline.buildDisplayName()`
+5. A `when` branch in `VideoExportPipeline.computeHoldFrameCount()`
 
-No registry system, no ServiceLoader, no DI module for renderers. The `when` branch is the extension point.
+No registry system, no ServiceLoader, no DI module for renderers. The `when` branches are the extension point.
 
 ### 20.5 Pipeline Threading
 
@@ -1009,7 +1112,7 @@ User-facing UI labels, section headings, buttons, and screen titles use **Senten
 Exceptions — the following are permitted to deviate from Sentence case:
 
 - Product and app names: **SameView**
-- Mode names used as product labels: **Compare Slider**, **Before & After**
+- Mode names used as product labels: **Slider**, **Fade**, **Flash**
 - Brand hashtags: **#MadeWithSameView**
 
 This rule applies to all new string resources in this feature and supersedes any Title Case usage in earlier versions of this document.
@@ -1021,8 +1124,9 @@ This rule applies to all new string resources in this feature and supersedes any
 | Key | Usage |
 |---|---|
 | `create_video_screen_title` | Top app bar title: "Create video" |
-| `create_video_mode_compare_slider` | Mode option: "Compare Slider" |
-| `create_video_mode_before_after` | Mode option: "Before & After" |
+| `create_video_mode_compare_slider` | Mode option: "Slider" |
+| `create_video_mode_before_after` | Mode option: "Fade" |
+| `create_video_mode_flash` | Mode option: "Flash" |
 | `create_video_format_label` | Section label: "Format" |
 | `create_video_format_original` | Format option: "Original" |
 | `create_video_format_portrait` | Format option: "Portrait 9:16" |

@@ -152,6 +152,11 @@ fun VideoModePreview(
                     } else {
                         BeforeAfterAnimated(sessionDir, progress)
                     }
+                    VideoMode.FLASH -> if (reduceMotion) {
+                        FlashStatic(sessionDir)
+                    } else {
+                        FlashAnimated(sessionDir, progress)
+                    }
                 }
             }
 
@@ -303,4 +308,42 @@ private fun alphasFromProgress(progress: Float): Pair<Float, Float> = when {
         (1f - cf) to cf
     }
     else -> 0f to 1f
+}
+
+// ── Flash ────────────────────────────────────────────────────────────────────────
+
+/** Static fallback for Flash: both images at 0.5 alpha overlaid (Reduce Motion). */
+@Composable
+private fun FlashStatic(sessionDir: File) {
+    BeforeAfterFrame(sessionDir = sessionDir, alphaRef = 0.5f, alphaCap = 0.5f)
+}
+
+/**
+ * Renders the Flash animation for the given loop [progress].
+ * Phase 1 (0–15 %): Reference hold. Phase 2 (15–100 %): rapid hard-cut alternation.
+ * Uses the same [BeforeAfterFrame] with ContentScale.Crop (fill semantics).
+ */
+@Composable
+private fun FlashAnimated(sessionDir: File, progress: Float) {
+    val showCapture = flashShowCaptureFromProgress(progress)
+    BeforeAfterFrame(
+        sessionDir = sessionDir,
+        alphaRef = if (showCapture) 0f else 1f,
+        alphaCap = if (showCapture) 1f else 0f
+    )
+}
+
+// 4 preview cycles in the mode preview (visual selection aid — not tied to export cycle counts).
+private const val FL_PREVIEW_CYCLES = 4
+
+/**
+ * Returns true when [progress] is in Phase 2 and the current flash frame is Capture.
+ * Hard-cut: no crossfade, integer quantisation only.
+ */
+private fun flashShowCaptureFromProgress(progress: Float): Boolean {
+    if (progress < CS_HOLD_REF_END) return false
+    val flashProgress = (progress - CS_HOLD_REF_END) / (1f - CS_HOLD_REF_END)
+    val flashFrameIndex = (flashProgress * (FL_PREVIEW_CYCLES * 2))
+        .toInt().coerceIn(0, FL_PREVIEW_CYCLES * 2 - 1)
+    return flashFrameIndex % 2 == 1
 }

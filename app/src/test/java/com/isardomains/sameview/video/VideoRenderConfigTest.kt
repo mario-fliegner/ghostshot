@@ -16,9 +16,9 @@ class VideoRenderConfigTest {
             durationMs = 4000,
             brandingEnabled = true
         )
-        // Animation: (4000 - 1500) * 30 / 1000 = 75 frames; endcard: 45 frames; total: 120.
+        // New branding model: animation = 4000 * 30 / 1000 = 120 frames; endcard: 45; total: 165.
         assertEquals(config.animationFrameCount + VideoRenderConfig.BRANDING_FRAME_COUNT, config.totalFrameCount)
-        assertEquals(75 + 45, config.totalFrameCount)
+        assertEquals(120 + 45, config.totalFrameCount)
     }
 
     @Test fun totalFrameCount_brandingOn_6s_animationPlusFortyFive() {
@@ -29,9 +29,9 @@ class VideoRenderConfigTest {
             durationMs = 6000,
             brandingEnabled = true
         )
-        // Animation: (6000 - 1500) * 30 / 1000 = 135 frames; endcard: 45 frames; total: 180.
+        // New branding model: animation = 6000 * 30 / 1000 = 180 frames; endcard: 45; total: 225.
         assertEquals(config.animationFrameCount + VideoRenderConfig.BRANDING_FRAME_COUNT, config.totalFrameCount)
-        assertEquals(135 + 45, config.totalFrameCount)
+        assertEquals(180 + 45, config.totalFrameCount)
     }
 
     @Test fun totalFrameCount_brandingOn_8s_animationPlusFortyFive() {
@@ -42,9 +42,9 @@ class VideoRenderConfigTest {
             durationMs = 8000,
             brandingEnabled = true
         )
-        // Animation: (8000 - 1500) * 30 / 1000 = 195 frames; endcard: 45 frames; total: 240.
+        // New branding model: animation = 8000 * 30 / 1000 = 240 frames; endcard: 45; total: 285.
         assertEquals(config.animationFrameCount + VideoRenderConfig.BRANDING_FRAME_COUNT, config.totalFrameCount)
-        assertEquals(195 + 45, config.totalFrameCount)
+        assertEquals(240 + 45, config.totalFrameCount)
     }
 
     // T-U-10 — branding OFF: totalFrameCount = animationFrameCount
