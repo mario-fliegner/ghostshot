@@ -873,6 +873,64 @@ ContentScale-Fix (2026-06-17): `BeforeAfterFrame` in `VideoModePreview.kt` verwe
 
 ---
 
+### Rendering-State Loading Preview — Post-Block-8.1 Addition (2026-06-17)
+
+#### Purpose
+
+Den Rendering-State des Create Video Flows mit einer formattreuen, animierten Vorschaukarte aufwerten. Ziel: der Nutzer sieht das entstehende Video, nicht nur einen Fortschrittsbalken.
+
+#### Scope
+
+- Neue `VideoLoadingPreview.kt` in `com.isardomains.sameview.ui.video`
+- `CreateVideoViewModel.kt` — `CreateVideoState.Rendering` erhält 4 neue Felder (`mode`, `format`, `overlayEnabled`, `locationEnabled`); neuer `sessionViewportRatio: StateFlow<Float>`; `OverlayMetadataSnapshot` erhält `viewportRatio: Float`; `startExport()` propagiert Configuring-Felder in Rendering-State
+- `CreateVideoScreen.kt` — `RenderingContent` komplett neu auf Basis von `BoxWithConstraints`; `CircularProgressIndicator` entfernt; `VideoLoadingPreview` integriert; `sessionViewportRatio` gecollected
+- `strings.xml` / `values-de/strings.xml` — neuer Key `create_video_rendering_status`
+- `CreateVideoViewModelTest.kt` — 4 neue Tests für Rendering-State-Propagierung
+- `VIDEO_EXPORT_V1.md` §7.4 — Rendering State Layout aktualisiert
+
+#### Geänderte Dateien
+
+| Datei | Art |
+|---|---|
+| `app/src/main/java/com/isardomains/sameview/ui/video/VideoLoadingPreview.kt` | Neu |
+| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoViewModel.kt` | Geändert |
+| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoScreen.kt` | Geändert |
+| `app/src/test/java/com/isardomains/sameview/ui/video/CreateVideoViewModelTest.kt` | Geändert |
+| `app/src/main/res/values/strings.xml` | Geändert |
+| `app/src/main/res/values-de/strings.xml` | Geändert |
+| `docs/VIDEO_EXPORT_V1.md` | Geändert |
+| `docs/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Geändert |
+
+#### Nicht geändert
+
+`VideoModePreview.kt`, alle Renderer, `VideoExportPipeline`, `VideoEncoder`, `MediaStoreVideoWriter`, `CompareScreen`, `MainActivity`, `SettingsRepository`, Manifest, Navigation.
+
+#### Technische Entscheidungen
+
+| Entscheidung | Begründung |
+|---|---|
+| Neue Datei statt VideoModePreview erweitern | Andere Verantwortung: format-aware Sizing, ContentScale.Fit für B&A, andere Größenlogik, Modus fix während Export |
+| `ContentScale.Fit` für Before & After | Entspricht `BeforeAfterRenderEngine.drawBitmapFit()` — minOf() Semantik; Letterboxing sichtbar |
+| `ContentScale.Crop` für Compare Slider | Entspricht `CompareSliderRenderEngine.drawBitmapFill()` — maxOf() Semantik; Canvas vollständig gedeckt |
+| 6000ms Loop | Ruhige Geschwindigkeit; Default-Export-Dauer (Medium); unabhängig von Export-Konfiguration |
+| `BoxWithConstraints` in `RenderingContent` | Erlaubt height-fraction-basierte Kartengröße (maxHeight × 0.62f) |
+| 62 % Höhenlimit für Karte | Lässt ausreichend Platz für Progress-Bereich auch auf kleinen Geräten |
+| `CircularProgressIndicator` entfernt | Animierte Preview-Karte liefert ausreichend Aktivitätsfeedback |
+| Branding-Endcard nicht im Loop | Im Loop überrepräsentiert; Endcard bleibt dem fertigen Video vorbehalten |
+| `sessionViewportRatio` als StateFlow | Original-Format braucht Session-Ratio; aus bestehender metadata.json-Lesestelle abgeleitet |
+
+#### Test Status (2026-06-17)
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` (gesamt) | PASSED |
+| `CreateVideoViewModelTest` (neue Tests) | PASSED (4/4) |
+| `assembleDebug` | BUILD SUCCESSFUL |
+
+Manuelle Verifikation offen: Portrait 9:16 Export auf Portrait-Telefon (Kartengröße, Progress sichtbar), Landscape 16:9, Original Format, Before & After Letterboxing, Extras Hold-Phase, Reduce Motion, Rotation während Rendering.
+
+---
+
 ### Block 8 — Show Title, Date and Location Overlay (with Block 8.1 UX Polish)
 
 #### Purpose

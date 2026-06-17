@@ -171,7 +171,8 @@
     <string name="create_video_action_create">Video erstellen</string>
 
     <!-- Video erstellen — Rendering -->
-    <string name="create_video_rendering_title">Video wird erstellt …</string>
+    <string name="create_video_rendering_title">Dein Video wird erstellt …</string>
+    <string name="create_video_rendering_status">Fast geschafft …</string>
     <string name="create_video_rendering_progress">Frame %1$d von %2$d wird gerendert</string>
 
     <!-- Video erstellen — Vorschau -->

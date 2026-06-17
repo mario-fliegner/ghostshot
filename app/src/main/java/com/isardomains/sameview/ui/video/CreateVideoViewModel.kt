@@ -51,7 +51,11 @@ sealed class CreateVideoState {
 
     data class Rendering(
         val totalFrames: Int,
-        val currentFrame: Int = 0
+        val currentFrame: Int = 0,
+        val mode: VideoMode,
+        val format: VideoExportFormat,
+        val overlayEnabled: Boolean,
+        val locationEnabled: Boolean
     ) : CreateVideoState()
 
     data class Preview(val videoUri: Uri) : CreateVideoState()
@@ -71,7 +75,9 @@ internal data class OverlayMetadataSnapshot(
     val captureTimestampMs: Long,
     val locationCity: String?,
     val locationCountry: String?,
-    val locationDisplayName: String? = null
+    val locationDisplayName: String? = null,
+    /** Width-to-height ratio of the session viewport; 4/3 default when unavailable. */
+    val viewportRatio: Float = 4f / 3f
 )
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -113,6 +119,10 @@ class CreateVideoViewModel @Inject constructor(
 
     private val _overlayDateText = MutableStateFlow<String?>(null)
     val overlayDateText: StateFlow<String?> = _overlayDateText.asStateFlow()
+
+    /** Width-to-height ratio of the session viewport; used for Original format preview sizing. */
+    private val _sessionViewportRatio = MutableStateFlow(4f / 3f)
+    val sessionViewportRatio: StateFlow<Float> = _sessionViewportRatio.asStateFlow()
 
     // Stored separately for VideoOverlay construction in startExport()
     private var computedTitle: String? = null
@@ -173,6 +183,7 @@ class CreateVideoViewModel @Inject constructor(
 
             computedTitle = title
             computedDateLine = dateLine
+            _sessionViewportRatio.value = snapshot.viewportRatio
 
             _overlayTitleText.value = title
             _overlayDateText.value = dateLine
@@ -259,7 +270,13 @@ class CreateVideoViewModel @Inject constructor(
         val sessionDir = File(context.filesDir, "sessions/$sessionId")
         val totalFrames = config.totalFrameCount
 
-        _state.value = CreateVideoState.Rendering(totalFrames = totalFrames)
+        _state.value = CreateVideoState.Rendering(
+            totalFrames = totalFrames,
+            mode = configState.mode,
+            format = configState.format,
+            overlayEnabled = configState.overlayEnabled,
+            locationEnabled = configState.locationEnabled
+        )
         _progress.value = 0f
 
         exportJob = viewModelScope.launch {
@@ -379,7 +396,10 @@ class CreateVideoViewModel @Inject constructor(
                 ?.trim()?.takeIf { it.isNotEmpty() }
             val locationCountry = json.optJSONObject("location")?.optString("country", null)
                 ?.trim()?.takeIf { it.isNotEmpty() }
-            OverlayMetadataSnapshot(title, referenceDate, captureTimestampMs, locationCity, locationCountry, locationDisplayName)
+            val vw = json.optJSONObject("viewport")?.optInt("width", 0) ?: 0
+            val vh = json.optJSONObject("viewport")?.optInt("height", 0) ?: 0
+            val viewportRatio = if (vw > 0 && vh > 0) vw.toFloat() / vh.toFloat() else 4f / 3f
+            OverlayMetadataSnapshot(title, referenceDate, captureTimestampMs, locationCity, locationCountry, locationDisplayName, viewportRatio)
         } catch (_: Exception) {
             OverlayMetadataSnapshot(null, null, 0L, null, null)
         }

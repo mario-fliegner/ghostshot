@@ -571,4 +571,64 @@ class CreateVideoViewModelTest {
         assertNull(vm.overlayTitleText.value)
         assertEquals("2008 → 2026", vm.overlayDateText.value)
     }
+
+    // ── Rendering state field propagation (Loading Preview) ───────────────────
+
+    @Test
+    fun startExport_renderingStateContainsMode() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        viewModel.pipelineRunner = { _, _, _, _ -> gate.await(); Result.success(fakeUri) }
+
+        viewModel.updateMode(VideoMode.BEFORE_AFTER)
+        viewModel.startExport()
+
+        val state = viewModel.state.value as? CreateVideoState.Rendering
+        assertEquals("Rendering should carry the selected mode",
+            VideoMode.BEFORE_AFTER, state?.mode)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun startExport_renderingStateContainsFormat() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        viewModel.pipelineRunner = { _, _, _, _ -> gate.await(); Result.success(fakeUri) }
+
+        viewModel.updateFormat(VideoExportFormat.PORTRAIT_9_16)
+        viewModel.startExport()
+
+        val state = viewModel.state.value as? CreateVideoState.Rendering
+        assertEquals("Rendering should carry the selected format",
+            VideoExportFormat.PORTRAIT_9_16, state?.format)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun startExport_renderingStateContainsExtrasToggles() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        viewModel.pipelineRunner = { _, _, _, _ -> gate.await(); Result.success(fakeUri) }
+
+        viewModel.updateOverlayEnabled(true)
+        viewModel.updateLocationEnabled(true)
+        viewModel.startExport()
+
+        val state = viewModel.state.value as? CreateVideoState.Rendering
+        assertTrue("Rendering should carry overlayEnabled = true", state?.overlayEnabled == true)
+        assertTrue("Rendering should carry locationEnabled = true", state?.locationEnabled == true)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun sessionViewportRatio_hasPositiveDefault() = runTest {
+        advanceUntilIdle()
+        assertTrue(
+            "sessionViewportRatio should be positive, got ${viewModel.sessionViewportRatio.value}",
+            viewModel.sessionViewportRatio.value > 0f
+        )
+    }
 }

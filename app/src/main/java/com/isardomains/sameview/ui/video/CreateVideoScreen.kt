@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,7 +23,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -93,6 +94,7 @@ fun CreateVideoScreen(
     val locationPreviewText by viewModel.locationPreviewText.collectAsStateWithLifecycle()
     val overlayTitleText by viewModel.overlayTitleText.collectAsStateWithLifecycle()
     val overlayDateText by viewModel.overlayDateText.collectAsStateWithLifecycle()
+    val sessionViewportRatio by viewModel.sessionViewportRatio.collectAsStateWithLifecycle()
 
     // Cancel dialog state (visible when user presses Back during Rendering)
     var showCancelDialog by remember { mutableStateOf(false) }
@@ -211,6 +213,13 @@ fun CreateVideoScreen(
             is CreateVideoState.Rendering -> RenderingContent(
                 state = s,
                 progress = progress,
+                sessionDir = sessionDir,
+                sessionViewportRatio = sessionViewportRatio,
+                overlayTitleText = overlayTitleText,
+                overlayDateText = overlayDateText,
+                locationPreviewText = locationPreviewText,
+                isOverlayAvailable = isOverlayAvailable,
+                isLocationAvailable = isLocationAvailable,
                 modifier = Modifier.padding(paddingValues)
             )
             is CreateVideoState.Preview -> PreviewContent(
@@ -391,32 +400,79 @@ private fun ConfiguringContent(
 private fun RenderingContent(
     state: CreateVideoState.Rendering,
     progress: Float,
+    sessionDir: File,
+    sessionViewportRatio: Float,
+    overlayTitleText: String?,
+    overlayDateText: String?,
+    locationPreviewText: String?,
+    isOverlayAvailable: Boolean,
+    isLocationAvailable: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    // BoxWithConstraints provides bounded maxWidth/maxHeight so card dimensions
+    // can be computed as a fraction of the available Scaffold content area.
+    BoxWithConstraints(
         contentAlignment = Alignment.Center,
         modifier = modifier.fillMaxSize()
     ) {
+        val safeViewportRatio = sessionViewportRatio.takeIf { it > 0f } ?: (4f / 3f)
+        val cardAspectRatioW2H = when (state.format) {
+            VideoExportFormat.PORTRAIT_9_16 -> 9f / 16f
+            VideoExportFormat.LANDSCAPE_16_9 -> 16f / 9f
+            VideoExportFormat.ORIGINAL -> safeViewportRatio
+        }
+        val horizontalPadding = 16.dp
+        val cardContainerWidth = maxWidth - horizontalPadding * 2
+        // Cap card height at 62 % of the available content area so progress remains visible.
+        val maxCardHeight = maxHeight * 0.62f
+        val cardHeightFromWidth = cardContainerWidth / cardAspectRatioW2H
+        val effectiveCardHeight = cardHeightFromWidth.coerceAtMost(maxCardHeight)
+        val effectiveCardWidth = effectiveCardHeight * cardAspectRatioW2H
+
+        val previewLines = buildList {
+            if (state.overlayEnabled && isOverlayAvailable) {
+                overlayTitleText?.let { add(it) }
+                overlayDateText?.let { add(it) }
+            }
+            if (state.locationEnabled && isLocationAvailable) {
+                locationPreviewText?.let { add(it) }
+            }
+        }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 32.dp)
+                .padding(horizontal = horizontalPadding)
         ) {
-            CircularProgressIndicator()
-            Spacer(Modifier.height(24.dp))
+            VideoLoadingPreview(
+                mode = state.mode,
+                sessionDir = sessionDir,
+                previewLines = previewLines,
+                modifier = Modifier.size(
+                    width = effectiveCardWidth,
+                    height = effectiveCardHeight
+                )
+            )
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.create_video_rendering_status),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = stringResource(
                     R.string.create_video_rendering_progress,
                     state.currentFrame,
                     state.totalFrames
                 ),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

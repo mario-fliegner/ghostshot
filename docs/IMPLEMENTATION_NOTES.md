@@ -626,6 +626,14 @@ This section tracks UX questions that are deliberately left open — not committ
 
 ## Localization
 
+### English Sentence Case Rule
+
+User-facing English strings (labels, screen titles, buttons, section headings) use **Sentence case**: first word capitalised, all others lowercase unless they are proper nouns or product names.
+
+Exceptions: **SameView**, **Compare Slider**, **Before & After**, **#MadeWithSameView**.
+
+This rule applies to all new strings added to `values/strings.xml`. It does not affect non-visible strings (content descriptions, format strings, test tags, error keys).
+
 ### German Tone Rule
 
 German localization uses informal user address consistently.

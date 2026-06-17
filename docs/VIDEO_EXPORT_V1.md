@@ -225,12 +225,33 @@ When "Show title and date" or "Show location" is enabled, the active text lines 
 ```
 TopAppBar: "Creating video…"
 
-CircularProgressIndicator
+[ VideoLoadingPreview — format-correct animated card ]
+  ↳ aspect ratio matches chosen export format (Portrait 9:16 / Landscape 16:9 / Original)
+  ↳ Compare Slider: ContentScale.Crop (Fill semantics — canvas fully covered)
+  ↳ Before & After: ContentScale.Fit (full image visible, #17202F letterboxing/pillarboxing)
+  ↳ active Extras (title/date, location) visible during initial hold phase, fade before sweep
+  ↳ branding endcard NOT included in the preview loop
+  ↳ 6-second looping animation, independent of actual export duration
+  ↳ card height capped at ~62 % of the available content area
+
+"Rendering MP4…"
 LinearProgressIndicator (frame-based, 0.0..1.0)
 "Rendering frame X of Y"
 ```
 
+No CircularProgressIndicator — the animated preview card provides sufficient activity feedback.
+
 No other user interaction during rendering except optional cancel.
+
+**VideoLoadingPreview design rules:**
+
+- Format-correct aspect ratio: 9:16 (Portrait), 16:9 (Landscape), or session viewport ratio (Original)
+- ContentScale must match the corresponding export engine semantics (see §17.2, §17.4, §17.5)
+- No pixel-accurate export simulation — this is a UX preview representing the video being created
+- No background image, no blur, no pulsing placeholder, no fake progress
+- Extras overlay text (if active) appears bottom-left during the hold phase and fades out before the animation begins, matching the export overlay timing (§31.6, §32.6)
+- Branding endcard is excluded from the loop — it remains the reward of the finished video
+- Reduce Motion: static 50 % split (Compare Slider) or both images at 0.5 alpha (Before & After); active Extras at full opacity
 
 ### 7.5 Preview State Layout
 
@@ -981,13 +1002,25 @@ No new compliance requirements are introduced by this feature.
 
 All user-facing text must use string resources. No hardcoded visible strings.
 
+### 24.0 Capitalization Rule
+
+User-facing UI labels, section headings, buttons, and screen titles use **Sentence case** (first word capitalised, remaining words lowercase unless they are proper nouns or product names).
+
+Exceptions — the following are permitted to deviate from Sentence case:
+
+- Product and app names: **SameView**
+- Mode names used as product labels: **Compare Slider**, **Before & After**
+- Brand hashtags: **#MadeWithSameView**
+
+This rule applies to all new string resources in this feature and supersedes any Title Case usage in earlier versions of this document.
+
 ### 24.1 Required String Resource Keys
 
 **Wizard — Configuring State:**
 
 | Key | Usage |
 |---|---|
-| `create_video_screen_title` | Top app bar title: "Create Video" |
+| `create_video_screen_title` | Top app bar title: "Create video" |
 | `create_video_mode_compare_slider` | Mode option: "Compare Slider" |
 | `create_video_mode_before_after` | Mode option: "Before & After" |
 | `create_video_format_label` | Section label: "Format" |
@@ -1000,25 +1033,25 @@ All user-facing text must use string resources. No hardcoded visible strings.
 | `create_video_duration_long` | Duration option: "8s" |
 | `create_video_quality_label` | Section label: "Quality" |
 | `create_video_quality_standard` | Quality option: "Standard" |
-| `create_video_quality_high` | Quality option: "High Quality" |
+| `create_video_quality_high` | Quality option: "High quality" |
 | `create_video_quality_high_note` | Quality sub-label: "Creates larger files and takes longer" |
 | `create_video_branding_label` | Toggle label: "Add #MadeWithSameView card" |
-| `create_video_action_create` | Primary CTA button: "Create Video" |
+| `create_video_action_create` | Primary CTA button: "Create video" |
 
 **Wizard — Rendering State:**
 
 | Key | Usage |
 |---|---|
-| `create_video_rendering_title` | Top app bar title: "Creating video…" |
+| `create_video_rendering_title` | Top app bar title: "Creating your video…" |
 | `create_video_rendering_progress` | Progress label: "Rendering frame %1$d of %2$d" |
 
 **Wizard — Preview State:**
 
 | Key | Usage |
 |---|---|
-| `create_video_preview_title` | Top app bar title: "Video Created" |
+| `create_video_preview_title` | Top app bar title: "Video created" |
 | `create_video_action_share` | Action button: "Share" |
-| `create_video_action_delete` | Action button: "Delete" |
+| `create_video_action_delete` | Action button: "Delete video" |
 | `create_video_action_done` | Action button: "Done" |
 
 **Top App Bar — CompareScreen:**

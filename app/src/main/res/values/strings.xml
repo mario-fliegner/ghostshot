@@ -162,8 +162,8 @@
     <string name="session_backup_filename_multi" translatable="false">SameView_Backup_%s.zip</string>
 
     <!-- Create Video — Configuring state -->
-    <string name="create_video_screen_title">Create Video</string>
-    <string name="create_video_mode_label">Video Type</string>
+    <string name="create_video_screen_title">Create video</string>
+    <string name="create_video_mode_label">Video type</string>
     <string name="create_video_mode_compare_slider">Compare Slider</string>
     <string name="create_video_mode_before_after">Before &amp; After</string>
     <string name="create_video_format_label">Format</string>
@@ -176,20 +176,21 @@
     <string name="create_video_duration_long">8s</string>
     <string name="create_video_quality_label">Quality</string>
     <string name="create_video_quality_standard">Standard</string>
-    <string name="create_video_quality_high">High Quality</string>
+    <string name="create_video_quality_high">High quality</string>
     <string name="create_video_quality_high_note">Creates larger files and takes longer</string>
     <string name="create_video_branding_label">Add #MadeWithSameView card</string>
-    <string name="create_video_action_create">Create Video</string>
+    <string name="create_video_action_create">Create video</string>
 
     <!-- Create Video — Rendering state -->
-    <string name="create_video_rendering_title">Creating video…</string>
+    <string name="create_video_rendering_title">Creating your video…</string>
+    <string name="create_video_rendering_status">Almost there…</string>
     <string name="create_video_rendering_progress">Rendering frame %1$d of %2$d</string>
 
     <!-- Create Video — Preview state -->
     <string name="create_video_preview_title">Video created</string>
     <string name="create_video_action_done">Done</string>
     <string name="create_video_action_share">Share</string>
-    <string name="create_video_action_delete">Delete Video</string>
+    <string name="create_video_action_delete">Delete video</string>
 
     <!-- Create Video — Entry point (CompareScreen top app bar) -->
     <string name="create_video_entry_content_description">Create video</string>
@@ -202,7 +203,7 @@
     <!-- Create Video — Delete video confirmation dialog -->
     <string name="create_video_delete_dialog_title">Delete video?</string>
     <string name="create_video_delete_dialog_message">This removes the exported video from your device. Your compare session stays unchanged.</string>
-    <string name="create_video_delete_dialog_confirm">Delete Video</string>
+    <string name="create_video_delete_dialog_confirm">Delete video</string>
     <string name="create_video_delete_dialog_cancel">Cancel</string>
 
     <!-- Create Video — error / info snackbars -->
