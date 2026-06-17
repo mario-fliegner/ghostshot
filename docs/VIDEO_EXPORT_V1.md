@@ -66,7 +66,7 @@ These decisions are final and must not be re-evaluated during implementation.
 | FD-06 | No platform picker in the app. No TikTok, Instagram, WhatsApp, or YouTube buttons. |
 | FD-07 | Android Share Sheet opens only on explicit user tap on `[Share]`. Never opens automatically. |
 | FD-08 | Frame rate: **30 FPS** for all modes, presets, quality levels, and export formats. No FPS option in wizard. |
-| FD-09 | Session title is not included in the video. Title is excluded from V1. |
+| FD-09 | Session title and metadata are not included in the video in V1. V1 exclusion; superseded for V2 by §31 (Show Title and Date overlay). |
 | FD-10 | Videos are fully independent after export. No export history, no session-video link, no re-share from app. |
 | FD-11 | No FileProvider required. MediaStore-URI is used directly for sharing. |
 | FD-12 | No new Manifest permissions required for this feature. |
@@ -173,10 +173,16 @@ Quality:
   [ Standard ]  [ High Quality ]
   (note under High Quality: "Creates larger files and takes longer")
 
-[ ] Add #MadeWithSameView card   ← Branding toggle (see Section 13 for default)
+Extras:
+  [ ] Show title and date        ← V2; default OFF; see §31
+      My grandparents · 2008 → 2026   ← dynamic preview of actual video content
+
+  [ ] Add #MadeWithSameView card   ← Branding toggle (see Section 13 for default)
 
 [ Create Video ]   ← primary CTA, bottom
 ```
+
+The Extras section groups all optional video additions (§30). The dynamic preview line below "Show title and date" is always visible regardless of toggle state and shows exactly the text that will appear in the exported video.
 
 ### 7.4 Mode Preview
 
@@ -448,6 +454,8 @@ The persisted value is a simple boolean preference. Its key follows the project'
 ### 13.6 No Permanent Watermark
 
 No branding element is ever rendered onto individual video frames during the animation. Branding is exclusively an appended endcard segment.
+
+Note: The V2 title and date overlay (§31) is not a branding element. It is user-authored session context rendered during the initial Hold phase only. §13.6 applies exclusively to branding elements (`#MadeWithSameView`, the SameView logo, and related endcard content).
 
 ---
 
@@ -1083,8 +1091,10 @@ Every implementation block must deliver a stable, testable, fully functional out
 | Specification | Relationship |
 |---|---|
 | `COMPARE_SESSION_RENDERING_V1.md` | Defines `reference.jpg` and `capture.jpg` as the authoritative, deterministically rendered session files. Video export uses these files as input without modification. |
-| `COMPARE_FLOW_V1.md` | Defines `CompareScreen`. This spec adds the `Create Video` icon to the top app bar and introduces `CreateVideoScreen` as a new navigation destination. No change to compare mechanics, slider, or session state. |
+| `COMPARE_FLOW_V1.md` | Defines `CompareScreen`. This spec adds the `Create Video` icon to the top app bar and introduces `CreateVideoScreen` as a new navigation destination. No change to compare mechanics, slider, or session state. `CompareLabelLogic.computeCompareLabels()` defined in §41.4 is reused by §31 for the date pair overlay. |
 | `SESSION_BACKUP_EXPORT_V1.md` | Defines the planned future top app bar structure (`← Back | [Create Video] | [Delete Session] | ⋮`). This structure is implemented as part of this spec's scope. Overflow menu entries (Edit Title, Remove Title, Backup Session) are unchanged. |
+| `SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md` | Defines the v4 metadata schema and all write functions. §31 reads `content.title`, `reference.date`, and `capture.timestampMs` from `metadata.json` at video creation time. No new metadata fields are introduced by this spec. |
+| `SESSION_METADATA_EDITOR_V1.md` | Users edit `content.title` and `reference.date` via Edit Session. Changes are immediately reflected in the "Show title and date" preview in `CreateVideoScreen` (derived from `savedSessions` StateFlow). |
 | `CLAUDE_PROJECT_INSTRUCTION.md` | The "Storage: MediaStore ONLY" and "No video support" constraints in the original V1 instruction refer to the camera capture pipeline and camera preview. Video export is a session post-processing feature that explicitly extends the product scope per the 2026-06-01 addendum. "Share flow" in OUT OF SCOPE refers to social sharing as a primary feature, not to the optional Share Sheet access from the video preview. |
 | `RELEASE_HARDENING_AUDIT_V1.md` | Finding S-02 (FileProvider) is NOT a prerequisite for this feature. MediaStore-URI sharing does not require FileProvider. Block D remains open for future ZIP-sharing only. |
 | `CAMERA_WORKFLOW_UX_V1.md` | Not affected. Video export is not a camera workflow feature. |
@@ -1098,7 +1108,7 @@ Every implementation block must deliver a stable, testable, fully functional out
 The following are explicitly excluded from V1 and must not be pre-implemented:
 
 - Audio track of any kind
-- Session title in video (V1 exclusion; V2 candidate)
+- Session title in video without overlay — V1 exclusion; superseded by §31 for V2
 - Blurred background padding (V2 candidate)
 - Ken-Burns / pan / zoom effects
 - Auto-crop to social media format
@@ -1228,3 +1238,278 @@ Each block delivers a stable, testable, fully functional state. No dummy UI, no 
 
 **Touches:** Any minor corrections from integration issues in previous blocks.
 **Result:** Feature is release-ready. No regressions.
+
+---
+
+## 30. Video Extras Section (V2+)
+
+### 30.1 Purpose
+
+The Extras section groups all optional additions to the exported video. These elements are independent of the core animation and do not affect rendering parameters, ContentScale, or canvas dimensions.
+
+### 30.2 Wizard Layout
+
+In the Configuring state, the Extras section appears between the Quality card and the Create Video button. It is implemented as a `SettingsCard` with the title "Extras":
+
+```
+Extras
+
+  [ ] Show title and date
+      My grandparents · 2008 → 2026
+
+  [ ] Add #MadeWithSameView card
+```
+
+When Show location is introduced in V3, it appears between "Show title and date" and "Add #MadeWithSameView card":
+
+```
+Extras
+
+  [ ] Show title and date
+      My grandparents · 2008 → 2026
+
+  [ ] Show location
+      Munich, Germany
+
+  [ ] Add #MadeWithSameView card
+```
+
+The Extras section is introduced in V2. No structural changes are needed to accommodate V3 additions — new items are appended within the existing card.
+
+### 30.3 Item Order
+
+Within the Extras section, items appear in this fixed order:
+
+1. Show title and date (V2)
+2. Show location (V3, planned — see §32)
+3. Add #MadeWithSameView card
+
+Rationale: user-authored session content precedes app branding. This order is permanent and must not be dynamically reordered.
+
+### 30.4 Branding Toggle Migration
+
+The existing "Add #MadeWithSameView card" toggle moves from its current standalone position into the Extras section. Its behavior, persistence, default state, and DataStore key are unchanged (§13).
+
+---
+
+## 31. Show Title and Date Overlay (V2)
+
+### 31.1 Purpose
+
+When enabled, a brief text overlay appears during the initial Hold phase of the animation, identifying the session with user-authored context (title and/or date pair). The overlay disappears before the main animation begins. The comparison remains the central element of the video.
+
+This overlay is not a branding element and does not conflict with §13.6.
+
+### 31.2 Toggle Label
+
+**"Show title and date"**
+
+### 31.3 Dynamic Preview Line
+
+A preview line appears directly below the toggle, always visible regardless of whether the toggle is enabled or disabled. It shows exactly the text that will appear in the exported video.
+
+**Priority logic for the preview and the video content are identical:**
+
+| Available data | Preview + video content |
+|---|---|
+| Title + date pair (Levels 1–4) | `My grandparents · 2008 → 2026` |
+| Date pair only (Levels 1–4, no title) | `2008 → 2026` |
+| Title only (no `reference.date`) | `My grandparents` |
+| Neither title nor date | Toggle disabled — see §31.4 |
+
+The date pair is computed using the same 5-level priority chain as `CompareLabelLogic.computeCompareLabels()` (defined in `COMPARE_FLOW_V1.md §41.4`), using `reference.date` and `capture.timestampMs`.
+
+**Level 5 exclusion:** When `reference.date` is absent, `computeCompareLabels()` returns Level 5 labels ("Reference" / "Current"). These are role descriptors, not temporal context. Level 5 results in no date line in the overlay. Only the title is shown (if present).
+
+**Separator:** When both title and date pair are present, they are combined with a middle dot (·): `Title · DatePair`. The middle dot is reserved for this separator; the arrow (→) is reserved for the date pair itself.
+
+The preview line is always visible. It does not disappear when the toggle is switched off. Its content reflects the session's current metadata state.
+
+**Long title handling:** The preview line is truncated to a single line with ellipsis if the title exceeds the available width. The same truncation applies in the video.
+
+### 31.4 Disabled State
+
+When neither `content.title` nor a computable date pair (Levels 1–4) is available:
+
+- Toggle remains **visible** (discoverability: the user must be able to discover the feature exists)
+- Toggle is **disabled** (grayed out, not tappable)
+- Preview line shows: **"Add a title or date in Edit Session"**
+
+The toggle is never hidden regardless of metadata state.
+
+### 31.5 Persistence
+
+The toggle state persists across video exports using the existing app DataStore (`sameview_settings`). A new boolean key is added analogous to `brandingEnabled`.
+
+**Default: OFF.**
+
+Rationale: unlike branding (ON default for organic app discovery), the title/date overlay contains personal session content. The user must actively choose to include personal context in the video.
+
+### 31.6 Video Overlay Behavior
+
+**Trigger:** Toggle enabled AND at least one of (title, date pair at Levels 1–4) is available.
+
+**Phase:**
+- Compare Slider mode: Hold Reference phase (0–15 % of animation duration `T`)
+- Before & After mode: Hold Before phase (initial hold before the crossfade)
+
+**Appear:** The overlay is visible from frame 0 of the animation (no leading delay). A 6-frame (200 ms at 30 FPS) fade-in may be applied for visual polish. If the total Hold phase is shorter than 12 frames (400 ms), the fade-in is skipped and the overlay appears immediately at full opacity.
+
+**Fade-out:** Begins at 80 % of the Hold phase frame count. Completes at the last frame of the Hold phase. By the first Sweep frame (Compare Slider) or first Crossfade frame (Before & After), the overlay alpha is 0.
+
+**Visibility outside the Hold phase:** The overlay is not rendered on any frame outside the initial Hold phase. It does not reappear during the Sweep, Hold Capture, Crossfade, Hold After, or endcard phases.
+
+**Short hold phase (4s + branding ON):** The Hold Reference phase at 4s with branding ON is approximately 0.375s (≈ 11 frames). The fade-in is skipped; the overlay is visible for the full 11 frames then fades out in the final frames. This is the minimum viable display duration. The video loops in the Gallery, providing additional viewing opportunities.
+
+### 31.7 Content Hierarchy and Line Layout
+
+Maximum 2 lines in V2 (3 lines when location is added in V3 — see §32):
+
+| Line | Content | Condition |
+|---|---|---|
+| Line 1 | Session title (`content.title`) | Non-empty after trim |
+| Line 2 | Date pair (Levels 1–4 of `computeCompareLabels()`) | `reference.date` is available |
+
+Line 1 precedes Line 2. When only one element is available, it occupies Line 1 only.
+
+**Examples (V2):**
+
+```
+My grandparents
+2008 → 2026
+```
+
+```
+2008 → 2026
+```
+
+```
+My grandparents
+```
+
+When location is added in V3 (§32), a third line appears below the date pair:
+
+```
+My grandparents
+2008 → 2026
+Munich, Germany
+```
+
+### 31.8 Position in the Canvas
+
+**Bottom-left, left-aligned.**
+
+Padding from canvas edge:
+- Left: approximately 4 % of canvas width
+- Bottom: approximately 4 % of canvas height
+
+Both paddings scale proportionally with canvas resolution (Standard 1080p, High Quality 4K).
+
+**Known behavior — Before & After mode with format mismatch:** When a portrait session image is exported in the Landscape 16:9 canvas format with ContentScale.Fit, the image occupies a centered column with `#17202F` side margins. The overlay in this case appears over the left side margin rather than over image content. This is accepted behavior: the dark background provides strong contrast for white text. This does not affect Compare Slider mode, which always uses fill semantics.
+
+### 31.9 Typography and Visual Design
+
+**Date pair (Line 2 when title is present; Line 1 when no title):**
+- Weight: Bold
+- Size: approximately 4.5 % of `min(canvasWidth, canvasHeight)` in pixels
+
+**Title (Line 1 when present):**
+- Weight: Regular
+- Size: approximately 3.5 % of `min(canvasWidth, canvasHeight)` in pixels
+
+**Location (Line 3, V3 — see §32):**
+- Weight: Regular
+- Size: approximately 3.5 % of `min(canvasWidth, canvasHeight)` in pixels
+
+**Color:** White (#FFFFFF)
+
+**Shadow:** Black at approximately 75 % opacity, 1 px offset, blur radius approximately 3–5 px at 1080p (scales proportionally). Rendered via Bitmap Canvas text shadow (not View `setShadowLayer()` — the restriction in §16.2 applies only to the divider rendering path, not to text rendering on a Bitmap Canvas).
+
+**No background plate, no chip, no badge, no outline, no blur, no Material component.** The design is intentionally minimal and timeless — not Social Media template–like.
+
+**Line spacing:** approximately 20 % of the text size.
+
+### 31.10 Data Sources
+
+| Overlay element | Source | Notes |
+|---|---|---|
+| Title (Line 1) | `content.title` from `metadata.json` | Trimmed; blank treated as absent; long titles truncated with ellipsis |
+| Date pair (Line 2) | `reference.date` + `capture.timestampMs` via `computeCompareLabels()` | Levels 1–4 only; Level 5 ("Reference/Current") → no date line |
+
+No other metadata fields are read for the overlay. `reference.dateSource`, `reference.userEdited`, `location.*`, `additional.*`, EXIF data, and GPS coordinates are not accessed by the overlay rendering path.
+
+### 31.11 VideoRenderConfig Extension
+
+`VideoRenderConfig` is extended with an optional `VideoOverlay` parameter:
+
+```kotlin
+data class VideoOverlay(
+    val title: String?,     // null if no title to show
+    val dateLine: String?   // null if no date pair (Level 5 or absent); e.g. "2008 → 2026"
+)
+
+// Added to VideoRenderConfig:
+val overlay: VideoOverlay? = null  // null = no overlay rendered
+```
+
+`CreateVideoViewModel` computes `VideoOverlay` from the session's `metadata.json` before constructing `VideoRenderConfig`. The renderers receive pre-computed display strings; no metadata parsing occurs inside `VideoFrameRenderer` or `VideoExportPipeline`.
+
+When `overlay` is null (toggle disabled, or no eligible content): no overlay frames are rendered. No change to frame count, timing, or canvas dimensions.
+
+### 31.12 Interaction with Branding Endcard
+
+The title/date overlay and the branding endcard are temporally independent:
+
+- Overlay: during the initial Hold phase (animation start)
+- Branding endcard: appended after animation (animation end)
+
+Both toggles may be enabled simultaneously. Enabling one does not affect the behavior of the other. The overlay is never rendered on endcard frames.
+
+### 31.13 New i18n Keys (V2)
+
+All user-facing text uses string resources. New keys required for this feature:
+
+| Key | Usage |
+|---|---|
+| `create_video_extras_section_title` | SettingsCard title: "Extras" |
+| `create_video_overlay_title_date_label` | Toggle label: "Show title and date" |
+| `create_video_overlay_no_data_hint` | Disabled state preview: "Add a title or date in Edit Session" |
+| `create_video_overlay_enabled_key` | DataStore key for toggle persistence (not user-facing) |
+
+---
+
+## 32. Show Location (V3 — Planned)
+
+### 32.1 Forward Reference
+
+The Show location toggle is a planned V3 addition to the Extras section. It is not fully specified in this document. This section records only the product decisions that are final and must constrain the V3 implementation.
+
+### 32.2 Final Data Source Decision
+
+When implemented in V3, the video overlay for location must use only:
+- `location.city`
+- `location.country`
+
+**`location.displayName` must never be included in the video**, regardless of availability, regardless of which toggles are enabled.
+
+Rationale: `location.displayName` is a free-text field that may contain private information — street addresses, property names, private place identifiers. Restricting the video to city and country level limits exposure to non-identifying geographic context, consistent with the GPS exclusion policy in §23.2.
+
+### 32.3 Display Format
+
+City and country are displayed on the third line of the overlay (below title and date pair). Format: `City, Country`. When only one is present: show that field alone.
+
+Examples: `Munich, Germany` / `Munich` / `Germany`
+
+### 32.4 Privacy and Toggle
+
+Show location must be a **separate, independent toggle** from "Show title and date". Location must never be automatically included when "Show title and date" is enabled. The user must make an explicit, separate choice to include location.
+
+The V3 toggle preview shows exactly the city/country text that will appear in the video. `location.displayName` is not shown in the preview (it is never shown in the video).
+
+### 32.5 Position and Design
+
+Location (V3 Line 3) follows the same position, typography, and design rules as Lines 1 and 2 (§31.8 and §31.9). Maximum 3 total lines when all elements are present.
+
+### 32.6 Out of Scope for V3 Location
+
+`location.displayName` in any form, reverse geocoding, GPS-based auto-fill, location search, or any network operation. These are forbidden by `GPS_RECREATION_SYSTEM_V1.md §12`.
