@@ -248,6 +248,7 @@ Feedback:
 - Session writes are best-effort and do not invalidate the main MediaStore save; if `SessionStorage.saveSession` returns null after a successful MediaStore save, the user receives `capture_saved_compare_failed` instead of the generic `capture_saved`
 - Session deletion only removes internal session folders
 - Session operations accept only direct child session IDs; nested or traversal-like IDs are rejected with controlled failure
+- User-authored text metadata (title, description, location fields) is sanitized on save via `MetadataTextSanitizer`: single-line fields (title, display name, city, country) do not persist pasted line breaks (replaced with space); description keeps line breaks; zero-width and Bidi override characters are removed; international characters, emojis, and normal punctuation are preserved; no length limits are introduced
 
 ### Shot Titles
 - Optional session title stored in `metadata.json`

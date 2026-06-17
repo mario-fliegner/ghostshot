@@ -548,8 +548,8 @@ Boolean flag. Set to `true` when any location field has been explicitly entered 
 ### 9.5 Display Rules
 
 - Location text is displayed as user-entered
-- No formatting, normalization, or translation is applied by the app
-- The app stores and returns exactly what the user typed
+- No formatting, normalization, or translation is applied by the app beyond minimal sanitization on save
+- On save, location fields are trimmed; zero-width and Bidi override characters are removed; pasted line breaks are replaced with a space; normal international characters, emojis, and punctuation are preserved unchanged; no length limits are applied
 - Locale of the viewer (website, export) does not alter stored location text
 
 ### 9.6 What Location is NOT
@@ -654,9 +654,9 @@ When a website upload feature is implemented, `visibility` expresses the default
 ### 11.2 Content Constraints
 
 - Plain text only; no HTML, no Markdown for v4
-- Trimmed; a blank or whitespace-only string is treated as absent
-- No enforced maximum length in the schema; practical limits are a UX decision
-- Plain text including line breaks is acceptable
+- Sanitized and trimmed on save: zero-width and Bidi override characters are removed; tabs are replaced with a space; blank result is treated as absent; no length limits are applied
+- Line breaks in `content.description` are preserved (multi-line field); line breaks in `content.title` are replaced with a space (single-line field)
+- International characters, emojis, and normal punctuation are preserved unchanged
 
 ### 11.3 Tags — `content.tags`
 

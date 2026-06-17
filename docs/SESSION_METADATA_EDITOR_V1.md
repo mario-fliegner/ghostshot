@@ -374,10 +374,15 @@ Filling one field does not require filling the others. No field is required by t
 
 A field left blank or containing only whitespace is treated as absent. Blank values are never stored.
 
-At Save time:
-- Each location field is trimmed
-- A trimmed-empty string is treated as null (absent)
-- Only non-empty trimmed values are written
+At Save time, each location field is sanitized:
+- Trimmed (leading/trailing whitespace removed)
+- Pasted line breaks replaced with a single space (single-line fields)
+- Tabs replaced with a single space
+- Zero-width characters (U+200B, U+200C, U+200D, U+FEFF, U+2060) removed
+- Bidi / Directional Override characters (U+202A–U+202E, U+2066–U+2069) removed
+- Result trimmed again; a result that is empty is treated as null (absent)
+- International characters, emojis, and normal punctuation are preserved unchanged
+- No length limits are applied
 
 ### Removing Location Data
 

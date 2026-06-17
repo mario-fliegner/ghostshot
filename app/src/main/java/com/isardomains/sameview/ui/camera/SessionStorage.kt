@@ -153,8 +153,8 @@ internal object SessionStorage {
     fun updateContent(sessionsRoot: File, sessionId: String, title: String?, description: String?): Boolean {
         return try {
             val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
-            val normalizedTitle = title?.trim()?.ifEmpty { null }
-            val normalizedDescription = description?.trim()?.ifEmpty { null }
+            val normalizedTitle = title?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
+            val normalizedDescription = description?.let { MetadataTextSanitizer.sanitizeMultiLine(it) }
 
             val metadataFile = File(sessionDir, "metadata.json")
             if (!metadataFile.exists()) return false
@@ -256,9 +256,9 @@ internal object SessionStorage {
         return try {
             val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
 
-            val normalizedDisplayName = displayName?.trim()?.ifEmpty { null }
-            val normalizedCity = city?.trim()?.ifEmpty { null }
-            val normalizedCountry = country?.trim()?.ifEmpty { null }
+            val normalizedDisplayName = displayName?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
+            val normalizedCity = city?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
+            val normalizedCountry = country?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
 
             val metadataFile = File(sessionDir, "metadata.json")
             if (!metadataFile.exists()) return false
