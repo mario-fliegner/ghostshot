@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
@@ -396,7 +397,7 @@ fun EditSessionScreen(
                     label = { Text(stringResource(R.string.edit_session_field_place_name)) },
                     placeholder = { Text(stringResource(R.string.edit_session_placeholder_place_name)) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     modifier = Modifier.fillMaxWidth().testTag("edit_session_place_name_field")
                 )
@@ -407,7 +408,7 @@ fun EditSessionScreen(
                     label = { Text(stringResource(R.string.edit_session_field_city)) },
                     placeholder = { Text(stringResource(R.string.edit_session_placeholder_city)) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     modifier = Modifier.fillMaxWidth().testTag("edit_session_city_field")
                 )
@@ -418,7 +419,7 @@ fun EditSessionScreen(
                     label = { Text(stringResource(R.string.edit_session_field_country)) },
                     placeholder = { Text(stringResource(R.string.edit_session_placeholder_country)) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth().testTag("edit_session_country_field")
                 )
