@@ -266,23 +266,43 @@ Three export format options are offered in the Wizard:
 | **Portrait 9:16** | 9:16 | Standard portrait for Reels, Stories, Shorts |
 | **Landscape 16:9** | 16:9 | Standard landscape for YouTube, desktop |
 
-### 8.2 No-Crop Rule
+### 8.2 Aspect Ratio Mismatch Handling
 
-The export format selection **does not crop** the session images. It does not reframe, pan, or zoom. The content of `reference.jpg` and `capture.jpg` is always fully visible.
+The export format selection does not silently reframe, pan, or intelligently reinterpret session image content. Aspect ratio mismatch between the session and the chosen canvas is handled differently depending on the video mode.
 
-When the session's native aspect ratio does not match the chosen canvas ratio, the images are scaled proportionally (ContentScale.Fit) to fit within the canvas. Free areas are filled with `#17202F`. This is padding, not crop.
+#### Before & After — Fit semantics (no crop)
 
-**Example — Landscape session in Portrait 9:16 canvas:**
+Both images are scaled proportionally (ContentScale.Fit) to fit entirely within the canvas. The entire content of `reference.jpg` and `capture.jpg` is always fully visible. Areas not covered by the image are filled with `#17202F`. This is padding, not crop. See §17.5.
+
+**Example — Landscape session in Portrait 9:16 canvas (Before & After):**
 - Canvas: 1080 × 1920 px (at Standard quality)
 - Session images are scaled to fit the 1080px width
 - Resulting image height is less than 1920px
 - Empty space at top and bottom: `#17202F`
 
-**Example — Portrait session in Landscape 16:9 canvas:**
+**Example — Portrait session in Landscape 16:9 canvas (Before & After):**
 - Canvas: 1920 × 1080 px (at Standard quality)
 - Session images are scaled to fit the 1080px height
 - Resulting image width is less than 1920px
 - Empty space at left and right: `#17202F`
+
+#### Compare Slider — Fill semantics (proportional crop at aspect ratio mismatch)
+
+Both images are scaled so that each one fully covers the canvas at all times (ContentScale.Fill). The images are centered; portions outside the canvas boundary are not rendered. When the session aspect ratio does not match the canvas ratio, this produces a proportional, centred crop.
+
+This is architecturally necessary: the slider divider must sweep across fully image-covered canvas at every position. Fit semantics would cause the divider to pass through `#17202F` padding areas when session and canvas aspect ratios differ, breaking the core comparison visual. See §15.3, §17.2, §17.4.
+
+**Example — Landscape session in Portrait 9:16 canvas (Compare Slider):**
+- Canvas: 1080 × 1920 px (at Standard quality)
+- Session images are scaled to fill the 1920px canvas height
+- The central 1080px (width) of each scaled image is visible; left and right regions fall outside canvas bounds
+- No free areas; the divider sweeps over fully image-covered canvas at all positions
+
+**Example — Portrait session in Landscape 16:9 canvas (Compare Slider):**
+- Canvas: 1920 × 1080 px (at Standard quality)
+- Session images are scaled to fill the 1920px canvas width
+- The central 1080px (height) of each scaled image is visible; top and bottom regions fall outside canvas bounds
+- No free areas; the divider sweeps over fully image-covered canvas at all positions
 
 ### 8.3 Canvas Dimensions by Format and Quality
 
