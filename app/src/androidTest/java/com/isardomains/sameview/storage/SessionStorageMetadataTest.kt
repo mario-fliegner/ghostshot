@@ -430,6 +430,21 @@ class SessionStorageMetadataTest {
         assertFalse(SessionStorage.updateTitle(testRoot, "..", "Title"))
     }
 
+    @Test
+    fun updateTitle_newline_replacedWithSpace() {
+        val sessionDir = createV2Session()
+        SessionStorage.updateTitle(testRoot, sessionDir.name, "München\nHauptstadt")
+        assertEquals("München Hauptstadt", readMetadata(sessionDir).getJSONObject("content").getString("title"))
+    }
+
+    @Test
+    fun updateTitle_zeroWidthChar_removed() {
+        val sessionDir = createV2Session()
+        val zws = Char(0x200B)
+        SessionStorage.updateTitle(testRoot, sessionDir.name, "Mün${zws}chen")
+        assertEquals("München", readMetadata(sessionDir).getJSONObject("content").getString("title"))
+    }
+
     // ── Block D: reference.date EXIF auto-population ──────────────────────────
 
     private fun saveTestSessionWithDate(exifDate: String): File {

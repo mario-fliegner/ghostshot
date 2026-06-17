@@ -110,7 +110,7 @@ internal object SessionStorage {
     fun updateTitle(sessionsRoot: File, sessionId: String, title: String?): Boolean {
         return try {
             val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
-            val normalizedTitle = title?.trim()?.ifEmpty { null }
+            val normalizedTitle = title?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
 
             val metadataFile = File(sessionDir, "metadata.json")
             if (!metadataFile.exists()) return false
