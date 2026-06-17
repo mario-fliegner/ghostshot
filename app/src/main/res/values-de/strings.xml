@@ -204,7 +204,7 @@
     <string name="create_video_overlay_title_date_label">Titel und Datum anzeigen</string>
     <string name="create_video_overlay_no_data_hint">Füge in „Session bearbeiten" einen Titel oder ein Datum hinzu</string>
     <string name="create_video_overlay_location_label">Ort anzeigen</string>
-    <string name="create_video_overlay_location_no_data_hint">Füge in „Session bearbeiten" eine Stadt oder ein Land hinzu</string>
+    <string name="create_video_overlay_location_no_data_hint">Füge in „Session bearbeiten" Ortsinformationen hinzu</string>
 
     <!-- Session bearbeiten — Überlaufmenü, Screen, TopAppBar -->
     <string name="edit_session_overflow_item">Session bearbeiten</string>

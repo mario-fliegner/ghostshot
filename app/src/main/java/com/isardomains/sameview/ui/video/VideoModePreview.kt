@@ -13,9 +13,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -30,11 +33,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.isardomains.sameview.video.VideoMode
 import java.io.File
@@ -52,16 +58,25 @@ private const val BA_HOLD_REF_END = 0.15f
 private const val BA_CROSSFADE_FRACTION = 0.125f
 private val BA_CROSSFADE_END = BA_HOLD_REF_END + BA_CROSSFADE_FRACTION
 
+// Preview overlay text timing — more generous than the export spec to give users
+// time to read the text. [0, 0.20) = 800 ms full opacity; [0.20, 0.25) = 200 ms fade-out.
+private const val PREVIEW_OVERLAY_FULL_END = 0.20f
+private const val PREVIEW_OVERLAY_FADE_END = 0.25f
+
 /**
  * Animated 16:9 preview frame shown inside the Video Type settings card, directly below the
  * mode segment control. Demonstrates the selected [mode] by loading real session images from
  * [sessionDir] (reference.jpg / capture.jpg) and playing a looping Compose animation.
  *
- * This is a decorative selection aid — it is excluded from the accessibility tree via
- * [clearAndSetSemantics] and carries no semantic information.
+ * When [previewLines] is non-empty, overlay text lines are shown at the very start of each
+ * loop cycle using a compact readable size, then fade out before the main animation begins.
+ * This is a UX preview — not a pixel-accurate export simulation.
  *
- * Respects the system Animator Duration Scale: when the scale is 0 (Reduce Motion enabled),
- * a static fallback is rendered instead of the looping animation.
+ * A single [InfiniteTransition] drives both the mode animation and the overlay so they are
+ * always in sync regardless of mode switches or toggle state changes.
+ *
+ * This is a decorative selection aid — excluded from the accessibility tree via
+ * [clearAndSetSemantics] and carries no semantic information.
  *
  * Layout: 16:9 aspect, max height 200 dp, horizontally centred within the available width.
  */
@@ -69,6 +84,7 @@ private val BA_CROSSFADE_END = BA_HOLD_REF_END + BA_CROSSFADE_FRACTION
 fun VideoModePreview(
     mode: VideoMode,
     sessionDir: File,
+    previewLines: List<String> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -78,6 +94,30 @@ fun VideoModePreview(
             Settings.Global.ANIMATOR_DURATION_SCALE,
             1f
         ) == 0f
+    }
+
+    // Single shared InfiniteTransition — drives both the mode animation and the overlay text,
+    // keeping them permanently in sync. Eliminates phase drift from independent transitions.
+    val mainTransition = rememberInfiniteTransition(label = "previewAnim")
+    val progress by mainTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = LOOP_DURATION_MS, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "previewProgress"
+    )
+
+    // Overlay alpha: visible from frame 0, fades before the sweep begins.
+    val overlayAlpha = when {
+        previewLines.isEmpty() -> 0f
+        reduceMotion -> 1f
+        progress < PREVIEW_OVERLAY_FULL_END -> 1f
+        progress < PREVIEW_OVERLAY_FADE_END -> {
+            1f - (progress - PREVIEW_OVERLAY_FULL_END) / (PREVIEW_OVERLAY_FADE_END - PREVIEW_OVERLAY_FULL_END)
+        }
+        else -> 0f
     }
 
     BoxWithConstraints(
@@ -105,12 +145,41 @@ fun VideoModePreview(
                     VideoMode.COMPARE_SLIDER -> if (reduceMotion) {
                         CompareSliderStatic(sessionDir)
                     } else {
-                        CompareSliderAnimated(sessionDir)
+                        CompareSliderAnimated(sessionDir, progress)
                     }
                     VideoMode.BEFORE_AFTER -> if (reduceMotion) {
                         BeforeAfterStatic(sessionDir)
                     } else {
-                        BeforeAfterAnimated(sessionDir)
+                        BeforeAfterAnimated(sessionDir, progress)
+                    }
+                }
+            }
+
+            // Overlay text: UX preview of active Extras — fixed readable size, compact spacing.
+            if (previewLines.isNotEmpty() && overlayAlpha > 0f) {
+                Box(
+                    modifier = Modifier
+                        .size(width = effectiveWidth, height = effectiveHeight)
+                        .alpha(overlayAlpha),
+                    contentAlignment = Alignment.BottomStart
+                ) {
+                    Column(
+                        modifier = Modifier.padding(
+                            start = effectiveWidth * 0.04f,
+                            bottom = effectiveHeight * 0.04f
+                        )
+                    ) {
+                        previewLines.forEach { line ->
+                            Text(
+                                text = line,
+                                fontSize = 11.sp,
+                                lineHeight = 13.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -126,19 +195,12 @@ private fun CompareSliderStatic(sessionDir: File) {
     CompareSliderFrame(sessionDir = sessionDir, sliderPos = 0.5f)
 }
 
-/** Animated looping Compare Slider: hold → sweep left-to-right → hold → restart. */
+/**
+ * Renders the Compare Slider animation for the given loop [progress].
+ * [progress] is provided by [VideoModePreview]'s single shared InfiniteTransition.
+ */
 @Composable
-private fun CompareSliderAnimated(sessionDir: File) {
-    val transition = rememberInfiniteTransition(label = "compareSliderAnim")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = LOOP_DURATION_MS, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "sliderProgress"
-    )
+private fun CompareSliderAnimated(sessionDir: File, progress: Float) {
     CompareSliderFrame(sessionDir = sessionDir, sliderPos = sliderPosFromProgress(progress))
 }
 
@@ -170,7 +232,6 @@ private fun CompareSliderFrame(sessionDir: File, sliderPos: Float) {
                     .clip(SliderClipShape(sliderPos))
             )
         }
-        // Divider line at slider position (always visible when sliderPos > 0)
         if (sliderPos > 0f) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val x = size.width * sliderPos
@@ -203,26 +264,18 @@ private fun BeforeAfterStatic(sessionDir: File) {
     BeforeAfterFrame(sessionDir = sessionDir, alphaRef = 0.5f, alphaCap = 0.5f)
 }
 
-/** Animated looping Before & After: hold reference → crossfade → hold capture → restart. */
+/**
+ * Renders the Before & After animation for the given loop [progress].
+ * [progress] is provided by [VideoModePreview]'s single shared InfiniteTransition.
+ */
 @Composable
-private fun BeforeAfterAnimated(sessionDir: File) {
-    val transition = rememberInfiniteTransition(label = "beforeAfterAnim")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = LOOP_DURATION_MS, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "crossfadeProgress"
-    )
+private fun BeforeAfterAnimated(sessionDir: File, progress: Float) {
     val (alphaRef, alphaCap) = alphasFromProgress(progress)
     BeforeAfterFrame(sessionDir = sessionDir, alphaRef = alphaRef, alphaCap = alphaCap)
 }
 
 /**
  * Renders a single Before & After frame with the given alpha values.
- * Both images use ContentScale.Fit so neither is cropped.
  */
 @Composable
 private fun BeforeAfterFrame(sessionDir: File, alphaRef: Float, alphaCap: Float) {

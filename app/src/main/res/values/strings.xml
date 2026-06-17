@@ -215,7 +215,7 @@
     <string name="create_video_overlay_title_date_label">Show title and date</string>
     <string name="create_video_overlay_no_data_hint">Add a title or date in Edit Session</string>
     <string name="create_video_overlay_location_label">Show location</string>
-    <string name="create_video_overlay_location_no_data_hint">Add a city or country in Edit Session</string>
+    <string name="create_video_overlay_location_no_data_hint">Add location details in Edit Session</string>
 
     <!-- GPS fallback dialog (shown when photo picker result has no GPS and recreation guidance is active) -->
     <string name="gps_fallback_dialog_title">Location data unavailable</string>

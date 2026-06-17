@@ -159,9 +159,19 @@ Back navigation from `Preview`: equivalent to `[Done]` — screen closes, video 
 ```
 TopAppBar:  ← Back   "Create Video"
 
+Video Type
 [ Compare Slider ]  [ Before & After ]   ← Mode selection (segmented or card-based)
 ─────────────────────────────────────────  ← internal divider (same card)
 [ Animated mode preview — 16:9, max 200 dp height ]
+
+Extras:
+  [ ] Show title and date        ← default OFF; local export state; see §31
+      My grandparents · 2008 → 2026   ← dynamic preview of actual video content
+
+  [ ] Show location              ← default OFF; local export state; see §32
+      Munich, Germany            ← dynamic preview of city/country
+
+  [ ] Add #MadeWithSameView card   ← Branding toggle (DataStore-persisted; see Section 13 for default)
 
 Format:
   [ Original ]  [ Portrait 9:16 ]  [ Landscape 16:9 ]
@@ -172,15 +182,6 @@ Duration:
 Quality:
   [ Standard ]  [ High Quality ]
   (note under High Quality: "Creates larger files and takes longer")
-
-Extras:
-  [ ] Show title and date        ← default OFF; local export state; see §31
-      My grandparents · 2008 → 2026   ← dynamic preview of actual video content
-
-  [ ] Show location              ← default OFF; local export state; see §32
-      Munich, Germany            ← dynamic preview of city/country
-
-  [ ] Add #MadeWithSameView card   ← Branding toggle (DataStore-persisted; see Section 13 for default)
 
 [ Create Video ]   ← primary CTA, bottom
 ```
@@ -215,6 +216,9 @@ The animated mode preview is a Compose-only, looping animation placed inside the
 - No `InfiniteTransition`.
 - Compare Slider: static 50 % split with visible divider line.
 - Before & After: both images at 0.5 alpha overlaid.
+
+**Overlay text (when Extras active):**
+When "Show title and date" or "Show location" is enabled, the active text lines appear in the preview at a fixed readable size (not proportional to export scale) positioned bottom-left during the Hold phase. Text fades out before the animation sweep begins. Reduce Motion: text displayed statically at full opacity.
 
 ### 7.4 Rendering State Layout
 
@@ -1419,7 +1423,7 @@ Both paddings scale proportionally with canvas resolution (Standard 1080p, High 
 
 **No background plate, no chip, no badge, no outline, no blur, no Material component.** The design is intentionally minimal and timeless — not Social Media template–like.
 
-**Line spacing:** approximately 20 % of the text size.
+**Line spacing:** baseline-to-baseline distance = `maxOf(currentLine.textSize, adjacentLine.textSize) × 1.20`, ensuring consistent visual spacing regardless of adjacent line size differences.
 
 ### 31.10 Data Sources
 
@@ -1490,26 +1494,30 @@ This overlay is not a branding element and does not conflict with §13.6.
 
 A preview line appears directly below the toggle, always visible regardless of whether the toggle is enabled or disabled. It shows exactly the location text that will appear in the exported video.
 
-**Data source:** `location.city` and `location.country` from `metadata.json`.
+**Data source:** `location.displayName`, `location.city`, and `location.country` from `metadata.json`.
 
-**`location.displayName` must never appear in the preview or in the video**, regardless of availability. Rationale: `location.displayName` is a free-text field that may contain private information — street addresses, property names, private place identifiers. Restricting the video to city and country level limits exposure to non-identifying geographic context, consistent with the GPS exclusion policy in §23.2.
+`location.displayName` is included as a prefix when available, using the middle dot (·) separator. Priority: `displayName · city, country` when all present; falls back gracefully when any field is absent.
 
 **Priority logic for the preview and the video content are identical:**
 
 | Available data | Preview + video content |
 |---|---|
-| City + Country | `Munich, Germany` |
-| City only | `Munich` |
-| Country only | `Germany` |
-| Neither city nor country | Toggle disabled — see §32.4 |
+| displayName + city + country | `Am Schwarzsee · Kitzbühel, Österreich` |
+| displayName + city | `Am Schwarzsee · Kitzbühel` |
+| displayName + country | `Am Schwarzsee · Österreich` |
+| displayName only | `Am Schwarzsee` |
+| city + country | `Kitzbühel, Österreich` |
+| city only | `Kitzbühel` |
+| country only | `Österreich` |
+| none | Toggle disabled — see §32.4 |
 
 ### 32.4 Disabled State
 
-When neither `location.city` nor `location.country` is available:
+When none of `location.displayName`, `location.city`, or `location.country` is available:
 
 - Toggle remains **visible** (discoverability: the user must be able to discover the feature exists)
 - Toggle is **disabled** (grayed out, not tappable)
-- Preview line shows: **"Add a city or country in Edit Session"**
+- Preview line shows: **"Add location details in Edit Session"**
 
 The toggle is never hidden regardless of metadata state.
 
@@ -1570,9 +1578,10 @@ Line spacing between all overlay lines: approximately 20 % of the text size.
 
 | Overlay element | Source | Notes |
 |---|---|---|
-| Location (Line 3) | `location.city` + `location.country` from `metadata.json` | Format: "City, Country" / "City" / "Country"; `location.displayName` is never used |
+| Location prefix | `location.displayName` from `metadata.json` | Trimmed; blank treated as absent; used as prefix: `displayName · city, country` |
+| Location suffix | `location.city` + `location.country` from `metadata.json` | Format: "City, Country" / "City" / "Country"; combined with displayName if present |
 
-`reference.dateSource`, `reference.userEdited`, `location.displayName`, `location.userEdited`, `additional.*`, EXIF data, and GPS coordinates are not accessed by the location overlay rendering path.
+`reference.dateSource`, `reference.userEdited`, `location.userEdited`, `additional.*`, EXIF data, and GPS coordinates are not accessed by the location overlay rendering path.
 
 ### 32.11 VideoRenderConfig
 
@@ -1596,4 +1605,4 @@ All user-facing text uses string resources. New keys required for this feature:
 
 ### 32.14 Out of Scope
 
-`location.displayName` in any form, reverse geocoding, GPS-based auto-fill, location search, or any network operation. These are forbidden by `GPS_RECREATION_SYSTEM_V1.md §12`.
+Reverse geocoding, GPS-based auto-fill, location search, or any network operation. These are forbidden by `GPS_RECREATION_SYSTEM_V1.md §12`.

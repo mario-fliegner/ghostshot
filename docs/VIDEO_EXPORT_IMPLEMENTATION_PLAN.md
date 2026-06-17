@@ -873,7 +873,7 @@ ContentScale-Fix (2026-06-17): `BeforeAfterFrame` in `VideoModePreview.kt` verwe
 
 ---
 
-### Block 8 — Show Title, Date and Location Overlay
+### Block 8 — Show Title, Date and Location Overlay (with Block 8.1 UX Polish)
 
 #### Purpose
 
@@ -985,7 +985,46 @@ Spec: `VIDEO_EXPORT_V1.md §30–§32`.
 
 #### Out of Scope
 
-`location.displayName` in irgendeiner Form, Intro-Card, Metadaten-Endcard, permanente Overlays, Description, Tags.
+Intro-Card, Metadaten-Endcard, permanente Overlays, Description, Tags.
+
+---
+
+### Block 8.1 — UX Polish
+
+Post-Block-8 UX polish for the video export Extras feature. All changes scoped exclusively to the Video Export / CreateVideo feature.
+
+**Changes:**
+
+- **Spacing fix in TitleDateOverlayRenderer:** Line-spacing calculation updated to use `maxOf(currentLine.textSize, adjacentLine.textSize) × lineSpacingMultiplier` instead of the upper line's text size alone. Fixes unequal visual gaps when lines have different text sizes (Title 3.5 % vs. Date 4.5 %).
+- **Text ellipsis in TitleDateOverlayRenderer:** Added `maxTextWidth` and `clippedText()` helper to truncate overflowing text with ellipsis before drawing on the Bitmap Canvas.
+- **`location.displayName` support:** `computeLocationLine()` updated to accept and use `location.displayName` as a prefix: `displayName · city, country`. `readOverlayMetadata()` reads the field from `metadata.json`. `OverlayMetadataSnapshot` gains `locationDisplayName: String? = null` parameter (default preserves existing call sites).
+- **Separate `overlayTitleText` / `overlayDateText` StateFlows:** Two new public `StateFlow<String?>` fields in `CreateVideoViewModel` expose title and date lines independently for VideoModePreview consumption.
+- **Extras before Format reorder:** In `ConfiguringContent`, the Extras card is now positioned directly after the Mode card (before Format, Duration, Quality). Matches updated §7.3 layout.
+- **Preview shows active Extras text:** `VideoModePreview` gains a `previewLines: List<String>` parameter. When non-empty, text lines are displayed bottom-left during the Hold phase of the animation at a fixed readable size, fading out before the sweep begins. Reduce Motion: text shown statically.
+- **Strings updated:** `create_video_overlay_location_no_data_hint` changed to "Add location details in Edit Session" (EN) / "Füge in „Session bearbeiten" Ortsinformationen hinzu" (DE).
+
+**File changes:**
+
+| Datei | Art der Änderung |
+|---|---|
+| `app/src/main/java/com/isardomains/sameview/video/TitleDateOverlayRenderer.kt` | Spacing fix; text ellipsis via `clippedText()` |
+| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoViewModel.kt` | `locationDisplayName` in snapshot; `computeLocationLine()` updated; `_overlayTitleText` / `_overlayDateText` StateFlows added; `loadOverlayMetadata()` populates new flows |
+| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoScreen.kt` | New StateFlows collected; `ConfiguringContent` signature extended; Extras card moved before Format; `VideoModePreview` called with `previewLines` |
+| `app/src/main/java/com/isardomains/sameview/ui/video/VideoModePreview.kt` | `previewLines` parameter; overlay text animation; Column + Text composables added |
+| `app/src/main/res/values/strings.xml` | `create_video_overlay_location_no_data_hint` updated |
+| `app/src/main/res/values-de/strings.xml` | `create_video_overlay_location_no_data_hint` updated |
+| `app/src/test/java/com/isardomains/sameview/ui/video/CreateVideoViewModelTest.kt` | Block 8.1 tests added (displayName combinations, overlayTitleText, overlayDateText) |
+
+**Tests added (Block 8.1):**
+
+| Test | Verifies |
+|---|---|
+| `locationPreviewText_displayNameAndCityAndCountry_showsFullFormat` | `"Am Schwarzsee · Kitzbühel, Österreich"` |
+| `locationPreviewText_displayNameAndCityOnly_showsDisplayNameDotCity` | `"Am Schwarzsee · Kitzbühel"` |
+| `locationPreviewText_displayNameOnly_showsDisplayName` | `"Am Schwarzsee"` |
+| `isLocationAvailable_displayNameOnly_isTrue` | Toggle enabled when only displayName present |
+| `overlayTitleText_whenTitlePresent_returnsTitle` | `overlayTitleText` = title; `overlayDateText` = null |
+| `overlayDateText_whenDatePresent_returnsDateLine` | `overlayTitleText` = null; `overlayDateText` = "2008 → 2026" |
 
 ---
 

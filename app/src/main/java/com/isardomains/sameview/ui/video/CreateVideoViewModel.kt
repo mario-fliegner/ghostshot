@@ -70,7 +70,8 @@ internal data class OverlayMetadataSnapshot(
     val referenceDate: String?,
     val captureTimestampMs: Long,
     val locationCity: String?,
-    val locationCountry: String?
+    val locationCountry: String?,
+    val locationDisplayName: String? = null
 )
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -106,6 +107,12 @@ class CreateVideoViewModel @Inject constructor(
 
     private val _isLocationAvailable = MutableStateFlow(false)
     val isLocationAvailable: StateFlow<Boolean> = _isLocationAvailable.asStateFlow()
+
+    private val _overlayTitleText = MutableStateFlow<String?>(null)
+    val overlayTitleText: StateFlow<String?> = _overlayTitleText.asStateFlow()
+
+    private val _overlayDateText = MutableStateFlow<String?>(null)
+    val overlayDateText: StateFlow<String?> = _overlayDateText.asStateFlow()
 
     // Stored separately for VideoOverlay construction in startExport()
     private var computedTitle: String? = null
@@ -162,10 +169,13 @@ class CreateVideoViewModel @Inject constructor(
             val snapshot = overlayMetadataReader(sessionDir)
             val title = snapshot.title?.trim()?.takeIf { it.isNotEmpty() }
             val dateLine = computeDateLine(snapshot.referenceDate, snapshot.captureTimestampMs)
-            val locationLine = computeLocationLine(snapshot.locationCity, snapshot.locationCountry)
+            val locationLine = computeLocationLine(snapshot.locationDisplayName, snapshot.locationCity, snapshot.locationCountry)
 
             computedTitle = title
             computedDateLine = dateLine
+
+            _overlayTitleText.value = title
+            _overlayDateText.value = dateLine
 
             val combinedPreview = when {
                 title != null && dateLine != null -> "$title · $dateLine"
@@ -335,13 +345,20 @@ class CreateVideoViewModel @Inject constructor(
         return "${labels.left} → ${labels.right}"
     }
 
-    private fun computeLocationLine(city: String?, country: String?): String? {
+    private fun computeLocationLine(displayName: String?, city: String?, country: String?): String? {
+        val dn = displayName?.trim()?.takeIf { it.isNotEmpty() }
         val c = city?.trim()?.takeIf { it.isNotEmpty() }
         val cn = country?.trim()?.takeIf { it.isNotEmpty() }
-        return when {
+        val cityCountry = when {
             c != null && cn != null -> "$c, $cn"
             c != null -> c
             cn != null -> cn
+            else -> null
+        }
+        return when {
+            dn != null && cityCountry != null -> "$dn · $cityCountry"
+            dn != null -> dn
+            cityCountry != null -> cityCountry
             else -> null
         }
     }
@@ -356,11 +373,13 @@ class CreateVideoViewModel @Inject constructor(
             val referenceDate = json.optJSONObject("reference")?.optString("date", null)
                 ?.trim()?.takeIf { it.isNotEmpty() }
             val captureTimestampMs = json.optJSONObject("capture")?.optLong("timestampMs", 0L) ?: 0L
+            val locationDisplayName = json.optJSONObject("location")?.optString("displayName", null)
+                ?.trim()?.takeIf { it.isNotEmpty() }
             val locationCity = json.optJSONObject("location")?.optString("city", null)
                 ?.trim()?.takeIf { it.isNotEmpty() }
             val locationCountry = json.optJSONObject("location")?.optString("country", null)
                 ?.trim()?.takeIf { it.isNotEmpty() }
-            OverlayMetadataSnapshot(title, referenceDate, captureTimestampMs, locationCity, locationCountry)
+            OverlayMetadataSnapshot(title, referenceDate, captureTimestampMs, locationCity, locationCountry, locationDisplayName)
         } catch (_: Exception) {
             OverlayMetadataSnapshot(null, null, 0L, null, null)
         }

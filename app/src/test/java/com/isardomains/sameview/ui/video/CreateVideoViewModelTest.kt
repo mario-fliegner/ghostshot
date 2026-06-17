@@ -507,4 +507,68 @@ class CreateVideoViewModelTest {
         advanceUntilIdle()
         assertFalse("Expected isLocationAvailable=false when no location data", vm.isLocationAvailable.value)
     }
+
+    // ── Block 8.1 tests — displayName + separate title/date ──────────────────
+
+    // displayName + city + country
+    @Test
+    fun locationPreviewText_displayNameAndCityAndCountry_showsFullFormat() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, "Kitzbühel", "Österreich", "Am Schwarzsee")
+        )
+        advanceUntilIdle()
+        assertEquals("Am Schwarzsee · Kitzbühel, Österreich", vm.locationPreviewText.value)
+    }
+
+    // displayName + city only
+    @Test
+    fun locationPreviewText_displayNameAndCityOnly_showsDisplayNameDotCity() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, "Kitzbühel", null, "Am Schwarzsee")
+        )
+        advanceUntilIdle()
+        assertEquals("Am Schwarzsee · Kitzbühel", vm.locationPreviewText.value)
+    }
+
+    // displayName only (no city, no country)
+    @Test
+    fun locationPreviewText_displayNameOnly_showsDisplayName() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, null, null, "Am Schwarzsee")
+        )
+        advanceUntilIdle()
+        assertEquals("Am Schwarzsee", vm.locationPreviewText.value)
+    }
+
+    // Toggle available when only displayName present
+    @Test
+    fun isLocationAvailable_displayNameOnly_isTrue() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, null, null, "Am Schwarzsee")
+        )
+        advanceUntilIdle()
+        assertTrue("Expected isLocationAvailable=true when displayName present", vm.isLocationAvailable.value)
+    }
+
+    // overlayTitleText and overlayDateText exposed separately
+    @Test
+    fun overlayTitleText_whenTitlePresent_returnsTitle() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot("My grandparents", null, 0L, null, null)
+        )
+        advanceUntilIdle()
+        assertEquals("My grandparents", vm.overlayTitleText.value)
+        assertNull(vm.overlayDateText.value)
+    }
+
+    @Test
+    fun overlayDateText_whenDatePresent_returnsDateLine() = runTest {
+        val captureTs = 1780272000000L
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, "2008", captureTs, null, null)
+        )
+        advanceUntilIdle()
+        assertNull(vm.overlayTitleText.value)
+        assertEquals("2008 → 2026", vm.overlayDateText.value)
+    }
 }

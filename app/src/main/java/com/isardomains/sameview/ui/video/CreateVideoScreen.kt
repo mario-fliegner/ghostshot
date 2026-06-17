@@ -91,6 +91,8 @@ fun CreateVideoScreen(
     val overlayPreviewText by viewModel.overlayPreviewText.collectAsStateWithLifecycle()
     val isLocationAvailable by viewModel.isLocationAvailable.collectAsStateWithLifecycle()
     val locationPreviewText by viewModel.locationPreviewText.collectAsStateWithLifecycle()
+    val overlayTitleText by viewModel.overlayTitleText.collectAsStateWithLifecycle()
+    val overlayDateText by viewModel.overlayDateText.collectAsStateWithLifecycle()
 
     // Cancel dialog state (visible when user presses Back during Rendering)
     var showCancelDialog by remember { mutableStateOf(false) }
@@ -201,6 +203,8 @@ fun CreateVideoScreen(
                 overlayPreviewText = overlayPreviewText,
                 isLocationAvailable = isLocationAvailable,
                 locationPreviewText = locationPreviewText,
+                overlayTitleText = overlayTitleText,
+                overlayDateText = overlayDateText,
                 onCreateVideo = viewModel::startExport,
                 modifier = Modifier.padding(paddingValues)
             )
@@ -236,6 +240,8 @@ private fun ConfiguringContent(
     overlayPreviewText: String?,
     isLocationAvailable: Boolean,
     locationPreviewText: String?,
+    overlayTitleText: String?,
+    overlayDateText: String?,
     onCreateVideo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -260,9 +266,49 @@ private fun ConfiguringContent(
                 onItemSelected = { onModeChange(modes[it]) }
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            val previewLines = buildList {
+                if (state.overlayEnabled && isOverlayAvailable) {
+                    overlayTitleText?.let { add(it) }
+                    overlayDateText?.let { add(it) }
+                }
+                if (state.locationEnabled && isLocationAvailable) {
+                    locationPreviewText?.let { add(it) }
+                }
+            }
             VideoModePreview(
                 mode = state.mode,
-                sessionDir = sessionDir
+                sessionDir = sessionDir,
+                previewLines = previewLines
+            )
+        }
+
+        // ── Extras ───────────────────────────────────────────────────────
+        SettingsCard(title = stringResource(R.string.create_video_extras_section_title)) {
+            // 1. Show title and date
+            OverlayToggleItem(
+                label = stringResource(R.string.create_video_overlay_title_date_label),
+                checked = state.overlayEnabled && isOverlayAvailable,
+                enabled = isOverlayAvailable,
+                onCheckedChange = onOverlayChange,
+                previewText = overlayPreviewText,
+                hintText = stringResource(R.string.create_video_overlay_no_data_hint)
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            // 2. Show location
+            OverlayToggleItem(
+                label = stringResource(R.string.create_video_overlay_location_label),
+                checked = state.locationEnabled && isLocationAvailable,
+                enabled = isLocationAvailable,
+                onCheckedChange = onLocationChange,
+                previewText = locationPreviewText,
+                hintText = stringResource(R.string.create_video_overlay_location_no_data_hint)
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            // 3. Add #MadeWithSameView card
+            SettingsSwitchRow(
+                label = stringResource(R.string.create_video_branding_label),
+                checked = state.brandingEnabled,
+                onCheckedChange = onBrandingChange
             )
         }
 
@@ -322,36 +368,6 @@ private fun ConfiguringContent(
                     color = SameViewSettingsSecondaryText
                 )
             }
-        }
-
-        // ── Extras ───────────────────────────────────────────────────────
-        SettingsCard(title = stringResource(R.string.create_video_extras_section_title)) {
-            // 1. Show title and date
-            OverlayToggleItem(
-                label = stringResource(R.string.create_video_overlay_title_date_label),
-                checked = state.overlayEnabled && isOverlayAvailable,
-                enabled = isOverlayAvailable,
-                onCheckedChange = onOverlayChange,
-                previewText = overlayPreviewText,
-                hintText = stringResource(R.string.create_video_overlay_no_data_hint)
-            )
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            // 2. Show location
-            OverlayToggleItem(
-                label = stringResource(R.string.create_video_overlay_location_label),
-                checked = state.locationEnabled && isLocationAvailable,
-                enabled = isLocationAvailable,
-                onCheckedChange = onLocationChange,
-                previewText = locationPreviewText,
-                hintText = stringResource(R.string.create_video_overlay_location_no_data_hint)
-            )
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            // 3. Add #MadeWithSameView card
-            SettingsSwitchRow(
-                label = stringResource(R.string.create_video_branding_label),
-                checked = state.brandingEnabled,
-                onCheckedChange = onBrandingChange
-            )
         }
 
         // ── Create Video CTA ──────────────────────────────────────────────

@@ -18,6 +18,7 @@ class TitleDateOverlayRenderer(
     private val leftPaddingPx = canvasWidth * 0.04f
     private val bottomPaddingPx = canvasHeight * 0.04f
     private val shadowRadius = (baseDim * 0.004f).coerceAtLeast(2f)
+    private val maxTextWidth = (canvasWidth - leftPaddingPx) * 0.92f
 
     private inner class Line(val text: String, val textSize: Float, val paint: Paint)
 
@@ -43,6 +44,16 @@ class TitleDateOverlayRenderer(
         paint.setShadowLayer(shadowRadius, 1f, 1f, Color.argb(shadowAlpha, 0, 0, 0))
     }
 
+    private fun clippedText(text: String, paint: Paint): String {
+        if (paint.measureText(text) <= maxTextWidth) return text
+        return android.text.TextUtils.ellipsize(
+            text,
+            android.text.TextPaint(paint),
+            maxTextWidth,
+            android.text.TextUtils.TruncateAt.END
+        ).toString()
+    }
+
     fun renderOnCanvas(frameIndex: Int, holdFrameCount: Int, canvas: Canvas) {
         if (lines.isEmpty()) return
         if (holdFrameCount <= 0 || frameIndex >= holdFrameCount) return
@@ -55,9 +66,9 @@ class TitleDateOverlayRenderer(
         var yBase = canvasHeight.toFloat() - bottomPaddingPx
         for (i in lines.indices.reversed()) {
             val line = lines[i]
-            canvas.drawText(line.text, leftPaddingPx, yBase, line.paint)
+            canvas.drawText(clippedText(line.text, line.paint), leftPaddingPx, yBase, line.paint)
             if (i > 0) {
-                yBase -= lines[i - 1].textSize * lineSpacingMultiplier
+                yBase -= maxOf(line.textSize, lines[i - 1].textSize) * lineSpacingMultiplier
             }
         }
     }
