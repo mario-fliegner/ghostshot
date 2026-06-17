@@ -77,12 +77,12 @@ Diese Features sind explizit von V1 ausgeschlossen und dürfen nicht pre-impleme
 
 ```
 VideoExportPipeline
-├── VideoRenderConfig        (data class; alle Render-Parameter inkl. VideoOverlay? für §31)
-├── VideoOverlay             (data class; title: String?, dateLine: String? — V2 §31.11)
+├── VideoRenderConfig        (data class; alle Render-Parameter inkl. VideoOverlay? für §31/§32)
+├── VideoOverlay             (data class; title: String?, dateLine: String?, locationLine: String? — §31.11, §32.12)
 ├── VideoFrameRenderer       (interface; rendert einen einzelnen Frame)
 │   ├── CompareSliderRenderEngine   (VideoFrameRenderer; Timing §14, Easing, Divider §16)
 │   └── BeforeAfterRenderEngine     (VideoFrameRenderer; Timing §15, Crossfade)
-├── TitleDateOverlayRenderer (standalone; rendert Overlay-Text auf Hold-Phase-Frames — V2 §31)
+├── TitleDateOverlayRenderer (standalone; rendert Title-, Datums- und Location-Text auf Hold-Phase-Frames — §31, §32)
 ├── BrandingEndcardRenderer  (standalone; rendert 45 Endcard-Frames)
 ├── VideoEncoder             (MediaCodec-Wrapper; Bitmap-Frames → encoded Video)
 └── MediaStoreVideoWriter    (MediaStore-Insertion, IS_PENDING-Lifecycle)
@@ -873,29 +873,28 @@ ContentScale-Fix (2026-06-17): `BeforeAfterFrame` in `VideoModePreview.kt` verwe
 
 ---
 
-### Block 8 — Show Title and Date Overlay (V2)
+### Block 8 — Show Title, Date and Location Overlay
 
 #### Purpose
 
-Optionale Text-Overlay-Funktion im CreateVideoScreen: Nutzer können Titel und/oder Datumspaar der Session in der ersten Hold-Phase des Videos einblenden. Das Overlay erscheint kurz, blendet sich danach aus, und die eigentliche Animation läuft unverändert weiter.
+Optionale Text-Overlay-Funktion im CreateVideoScreen: Nutzer können Titel, Datumspaar und/oder Location der Session in der ersten Hold-Phase des Videos einblenden. Drei unabhängige Toggles in der Extras-Card. Das Overlay erscheint ab Frame 0 der Hold-Phase sofort mit voller Opacity, blendet sich am Ende der Hold-Phase aus (Fade-out), und die eigentliche Animation läuft unverändert weiter.
 
-Spec: `VIDEO_EXPORT_V1.md §30–§31`.
+Spec: `VIDEO_EXPORT_V1.md §30–§32`.
 
 #### Scope
 
-- `VideoOverlay` data class (`title: String?`, `dateLine: String?`) — neues optionales Feld in `VideoRenderConfig` (`val overlay: VideoOverlay? = null`)
-- `TitleDateOverlayRenderer` — neuer standalone Renderer; zeichnet Overlay-Text auf Hold-Phase-Frames; weiß, Schlagschatten; no-op wenn `overlay == null`; Bitmap-Canvas-basiert (kein View, kein Compose)
-- `CreateVideoViewModel` — liest `metadata.json` der Session; berechnet `title`, `dateLine` via `CompareLabelLogic.computeCompareLabels()` (Level 1–4 → dateLine; Level 5 → dateLine = null); konstruiert `VideoOverlay?`; stellt `overlayPreviewText: StateFlow<String?>` bereit für dynamische Vorschau
-- `SettingsRepository.kt` — neuer DataStore-Key `titleDateOverlayEnabled` (Boolean, Default `false`)
-- `CreateVideoScreen.kt` — Extras-SettingsCard mit "Show title and date"-Toggle + dynamischer Vorschauzeile; "Add #MadeWithSameView card"-Toggle in die Extras-Card integriert (von standalone-Position); Disabled-State wenn weder Titel noch Datumspaar verfügbar
-- `VideoExportPipeline` — `TitleDateOverlayRenderer` für Hold-Phase-Frames aufrufen wenn `config.overlay != null`
-- `strings.xml` — neue Keys: `create_video_extras_section_title`, `create_video_overlay_title_date_label`, `create_video_overlay_no_data_hint`
-- Unit-Tests: T-U-21 bis T-U-25 (siehe Required Tests)
-- Keine Änderung an `CompareSliderRenderEngine`, `BeforeAfterRenderEngine`, `BrandingEndcardRenderer`, `VideoEncoder`, `MediaStoreVideoWriter`
+- `VideoOverlay` data class (`title: String?`, `dateLine: String?`, `locationLine: String?`) — neues optionales Feld in `VideoRenderConfig` (`val overlay: VideoOverlay? = null`)
+- `TitleDateOverlayRenderer` — neuer standalone Renderer; zeichnet Title-, Datums- und Location-Text auf Hold-Phase-Frames; weiß, Schlagschatten; kein Fade-In (Overlay ab Frame 0 volle Opacity); Fade-Out bei 80 % der Hold-Phase; no-op wenn `overlay == null`; Bitmap-Canvas-basiert (kein View, kein Compose)
+- `CreateVideoViewModel` — liest `metadata.json` der Session; berechnet `title`, `dateLine` via `CompareLabelLogic.computeCompareLabels()` (Level 1–4 → dateLine; Level 5 → dateLine = null); berechnet `locationLine` aus `location.city` + `location.country` (niemals `location.displayName`); konstruiert `VideoOverlay?`; stellt `overlayPreviewText: StateFlow<String?>` und `locationPreviewText: StateFlow<String?>` bereit für dynamische Vorschau; alle Toggle-Zustände als lokaler Wizard-State (`MutableStateFlow<Boolean>`, Default `false`, kein DataStore)
+- `CreateVideoScreen.kt` — Extras-SettingsCard mit drei Items in Reihenfolge: (1) "Show title and date"-Toggle + dynamische Vorschauzeile; (2) "Show location"-Toggle + dynamische Vorschauzeile; (3) "Add #MadeWithSameView card"-Toggle (von standalone migriert, DataStore-Persistenz unverändert); Disabled-State für jeden Toggle wenn keine Daten verfügbar
+- `VideoExportPipeline` — `TitleDateOverlayRenderer` für Hold-Phase-Frames aufrufen wenn `config.overlay != null` und mindestens ein Feld non-null
+- `strings.xml` — neue Keys: `create_video_extras_section_title`, `create_video_overlay_title_date_label`, `create_video_overlay_no_data_hint`, `create_video_overlay_location_label`, `create_video_overlay_location_no_data_hint`
+- Unit-Tests: T-U-21 bis T-U-32 (siehe Required Tests)
+- Keine Änderung an `CompareSliderRenderEngine`, `BeforeAfterRenderEngine`, `BrandingEndcardRenderer`, `VideoEncoder`, `MediaStoreVideoWriter`, `SettingsRepository.kt`
 
 #### Explicit Non-Changes
 
-`CompareScreen.kt`, `SessionStorage.kt`, `SessionScanner.kt`, `SessionDeleter.kt`, `SessionBackupExporter.kt`, `CameraScreen.kt`, `CameraViewModel.kt`, GPS-Klassen, `CompareLibraryScreen.kt`, `MainActivity.kt` (nur falls kein neues ViewModel-Wiring nötig — prüfen).
+`CompareScreen.kt`, `SessionStorage.kt`, `SessionScanner.kt`, `SessionDeleter.kt`, `SessionBackupExporter.kt`, `CameraScreen.kt`, `CameraViewModel.kt`, GPS-Klassen, `CompareLibraryScreen.kt`, `MainActivity.kt` (nur falls kein neues ViewModel-Wiring nötig — prüfen), `SettingsRepository.kt` (kein DataStore-Key für Overlay-Toggles).
 
 #### Expected File Changes
 
@@ -903,67 +902,90 @@ Spec: `VIDEO_EXPORT_V1.md §30–§31`.
 
 | Datei | Inhalt |
 |---|---|
-| `app/src/main/java/com/isardomains/sameview/video/VideoOverlay.kt` | `VideoOverlay` data class |
-| `app/src/main/java/com/isardomains/sameview/video/TitleDateOverlayRenderer.kt` | Hold-Phase-Text-Rendering; Bitmap-Canvas; weiß + Schlagschatten; korrekte Fade-Logik |
+| `app/src/main/java/com/isardomains/sameview/video/VideoOverlay.kt` | `VideoOverlay` data class (`title`, `dateLine`, `locationLine`) |
+| `app/src/main/java/com/isardomains/sameview/video/TitleDateOverlayRenderer.kt` | Hold-Phase-Text-Rendering; Bitmap-Canvas; weiß + Schlagschatten; kein Fade-In; Fade-Out ab 80 % Hold-Phase |
 
 **Geänderte Produktionsdateien:**
 
 | Datei | Art der Änderung |
 |---|---|
-| `app/src/main/java/com/isardomains/sameview/video/VideoRenderConfig.kt` | `VideoOverlay?`-Feld; neues `titleDateOverlayEnabled`-Feld oder `overlay: VideoOverlay?` direkt |
-| `app/src/main/java/com/isardomains/sameview/video/VideoExportPipeline.kt` | `TitleDateOverlayRenderer` in Hold-Phase integrieren |
-| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoViewModel.kt` | Metadaten lesen; `VideoOverlay` berechnen; `overlayPreviewText` StateFlow; DataStore-Key lesen |
-| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoScreen.kt` | Extras-SettingsCard; Toggle + Vorschauzeile; Branding-Toggle in Extras integrieren |
-| `app/src/main/java/com/isardomains/sameview/ui/settings/SettingsRepository.kt` | `titleDateOverlayEnabled` DataStore-Key |
-| `app/src/main/res/values/strings.xml` | 3 neue Keys |
+| `app/src/main/java/com/isardomains/sameview/video/VideoRenderConfig.kt` | `overlay: VideoOverlay?`-Feld (Default null) |
+| `app/src/main/java/com/isardomains/sameview/video/VideoExportPipeline.kt` | `TitleDateOverlayRenderer` in Hold-Phase integrieren wenn `config.overlay != null` |
+| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoViewModel.kt` | Metadaten lesen; `VideoOverlay` berechnen (title + dateLine + locationLine); Preview-StateFlows; alle Overlay-Toggles als lokaler MutableStateFlow |
+| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoScreen.kt` | Extras-SettingsCard mit drei Items; Branding-Toggle von standalone migriert |
+| `app/src/main/res/values/strings.xml` | 5 neue Keys (title/date + location Toggles + Hints + Extras-Titel) |
 
 #### Risks
 
-- **CompareLabelLogic auf nicht-UI-Thread (Mittel):** `computeCompareLabels()` wurde für Compose (UI-Thread) entwickelt. In `CreateVideoViewModel` auf IO-Dispatcher aufrufen und Locale korrekt übergeben. Kein Compose-Context verfügbar im ViewModel → `java.text.SimpleDateFormat` direkt verwenden analog zu `CompareLabelLogic.kt`.
+- **CompareLabelLogic auf nicht-UI-Thread (Mittel):** `computeCompareLabels()` wurde für Compose (UI-Thread) entwickelt. In `CreateVideoViewModel` auf IO-Dispatcher aufrufen und Locale korrekt übergeben. Kein Compose-Context verfügbar im ViewModel → `java.text.SimpleDateFormat` direkt verwenden analog zu `CompareLabelLogic.kt`. `SimpleDateFormat` ist nicht thread-safe: pro Aufruf neue Instanz.
 - **TitleDateOverlayRenderer mit Paint.setShadowLayer() (Niedrig):** §16.2 verbietet `setShadowLayer()` nur für den Divider-Rendering-Pfad (View-Rendering-Kontext). Auf einem Bitmap-Canvas ist `Paint.setShadowLayer()` für Text zulässig und funktional. Falls Unsicherheit: manuelle Shadow-Implementierung via zweifaches `drawText()` mit Offset.
 - **Extras-Card-Layout-Migration (Niedrig):** "Add #MadeWithSameView card"-Toggle wird von standalone in SettingsCard verschoben. Bestehende `CreateVideoViewModelTest`-Tests für `brandingEnabled` bleiben unverändert — nur Layout-Change im Screen, keine Logik-Änderung.
-- **Overlay bei sehr kurzer Hold-Phase (Niedrig):** 4s + Branding ON → Hold ≈ 11 Frames. Bekannte Limitierung, in §31.6 dokumentiert. Kein Blocker.
+- **Overlay bei sehr kurzer Hold-Phase (Niedrig):** 4s + Branding ON → Hold ≈ 11 Frames. Kein Fade-In; Overlay erscheint sofort und blendet sich am Ende der Hold-Phase aus. Bekannte Limitierung, in §31.6 dokumentiert. Kein Blocker.
+- **location.displayName darf nie im Video erscheinen (Mittel):** `CreateVideoViewModel` darf ausschließlich `location.city` und `location.country` für `locationLine` verwenden. `location.displayName` ist explizit verboten — auch wenn vorhanden. Muss durch Unit-Test abgesichert werden.
+- **Bestehende Exporte unverändert (Niedrig):** `VideoRenderConfig.overlay = null` als Default stellt sicher, dass alle bestehenden Pipeline-Aufrufe ohne `overlay`-Parameter vollständig rückwärtskompatibel sind. T-I-01 bis T-I-04 dürfen keine Änderungen benötigen.
 
 #### Required Tests
+
+**Show title and date:**
 
 | ID | Test |
 |---|---|
 | T-U-21 | `CreateVideoViewModel`: `overlayPreviewText` ist `"Title · 2008 → 2026"` wenn Titel und Level-1-Datum vorhanden |
 | T-U-22 | `CreateVideoViewModel`: `overlayPreviewText` ist `"2008 → 2026"` wenn kein Titel, aber Level-1-Datum vorhanden |
 | T-U-23 | `CreateVideoViewModel`: `overlayPreviewText` ist `"My grandparents"` wenn Titel vorhanden, aber kein `reference.date` |
-| T-U-24 | `CreateVideoViewModel`: `overlay` in `VideoRenderConfig` ist `null` wenn Toggle deaktiviert |
-| T-U-25 | `CreateVideoViewModel`: Toggle ist disabled (`overlayEnabled`-StateFlow false) wenn weder Titel noch Datum vorhanden |
+| T-U-24 | `CreateVideoViewModel`: `title` und `dateLine` in `VideoOverlay` sind `null` wenn "Show title and date"-Toggle deaktiviert |
+| T-U-25 | `CreateVideoViewModel`: "Show title and date"-Toggle disabled wenn weder Titel noch Datumspaar (Level 1–4) vorhanden |
 | T-U-26 | `TitleDateOverlayRenderer`: rendert keine Pixel wenn `overlay == null` (no-op) |
-| T-U-27 | `TitleDateOverlayRenderer`: Alpha = 0 auf Sweep-Frame 0 (Hold-Phase komplett abgeklungen) |
+| T-U-27 | `TitleDateOverlayRenderer`: Alpha = 0 auf erstem Sweep-Frame (Hold-Phase vollständig abgeklungen) |
 | T-U-28 | `CreateVideoViewModel`: `dateLine` ist `null` wenn `computeCompareLabels()` Level 5 zurückgibt |
+
+**Show location:**
+
+| ID | Test |
+|---|---|
+| T-U-29 | `CreateVideoViewModel`: `locationLine` ist `"Munich, Germany"` wenn city und country vorhanden und Toggle aktiviert |
+| T-U-30 | `CreateVideoViewModel`: `locationLine` ist `"Munich"` wenn nur city vorhanden und Toggle aktiviert |
+| T-U-31 | `CreateVideoViewModel`: `locationLine` ist `null` wenn "Show location"-Toggle deaktiviert (unabhängig von Datenlage) |
+| T-U-32 | `CreateVideoViewModel`: "Show location"-Toggle disabled wenn weder `location.city` noch `location.country` vorhanden |
 
 #### Definition of Done
 
-- T-U-21 bis T-U-28 grün
+- T-U-21 bis T-U-32 grün
 - `testDebugUnitTest` grün
 - `assembleDebug` erfolgreich
-- Extras-Card im CreateVideoScreen korrekt strukturiert: "Show title and date" → "Add #MadeWithSameView card"
-- Vorschauzeile zeigt korrekt `"Title · DatePair"`, `"DatePair"`, `"Title"` oder Hint-Text je nach Datenlage
-- Video mit aktiviertem Overlay enthält Text in der Hold-Phase; kein Text auf Sweep/Capture/Endcard-Frames
-- Video ohne Overlay unverändert (keine Frame-Änderungen)
+- Extras-Card im CreateVideoScreen korrekt strukturiert: "Show title and date" → "Show location" → "Add #MadeWithSameView card"
+- "Show title and date"-Vorschauzeile zeigt korrekt `"Title · DatePair"`, `"DatePair"`, `"Title"` oder Hint-Text je nach Datenlage
+- "Show location"-Vorschauzeile zeigt korrekt `"City, Country"`, `"City"`, `"Country"` oder Hint-Text je nach Datenlage
+- Video mit aktivierten Overlays enthält Text in der Hold-Phase (sofort sichtbar, kein Fade-In); kein Text auf Sweep/Capture/Endcard-Frames
+- Video ohne Overlay unverändert (keine Frame-Änderungen, Rückwärtskompatibilität bestehender T-I-Tests sichergestellt)
+- `location.displayName` erscheint weder in der Vorschau noch im Video (unabhängig von Datenlage)
 - Alle bestehenden `CreateVideoViewModelTest`- und `CreateVideoScreen`-Tests grün
 - Manuelle Verifikation auf Gerät (siehe unten)
 
 #### Manual Verification (offen nach Implementierung)
 
-- Portrait-Session mit Titel + Referenzdatum: Overlay mit 2 Zeilen erscheint und verschwindet korrekt
+**Show title and date:**
+- Portrait-Session mit Titel + Referenzdatum: Overlay mit 2 Zeilen erscheint sofort (kein Fade-In), verschwindet korrekt vor Sweep
 - Portrait-Session ohne Referenzdatum: Overlay zeigt nur Titel; kein Level-5-Datumspaar
-- Session ohne Titel und ohne Referenzdatum: Toggle disabled; Hint-Text sichtbar
-- Toggle OFF: kein Overlay im exportierten Video
-- Toggle ON, Branding OFF: Overlay sichtbar; kein Endcard
-- Toggle ON, Branding ON: Overlay sichtbar; Endcard am Ende
-- 4s + Branding ON: Overlay erscheint trotz kurzer Hold-Phase (0.375s)
-- Extras-Card: "Show title and date" steht über "Add #MadeWithSameView card"
-- DataStore-Persistenz: Toggle-Zustand überlebt App-Neustart
+- Session ohne Titel und ohne Referenzdatum: Toggle disabled; Hint-Text "Add a title or date in Edit Session" sichtbar
+- Toggle OFF: kein Titel/Datum-Text im exportierten Video
+
+**Show location:**
+- Session mit city + country: Overlay zeigt "Munich, Germany"
+- Session mit city only: Overlay zeigt "Munich"
+- Session ohne city und country: Toggle disabled; Hint-Text "Add a city or country in Edit Session" sichtbar
+- location.displayName nicht im Video auch wenn vorhanden
+- Toggle OFF: kein Location-Text im exportierten Video
+
+**Kombiniert:**
+- Alle drei Overlays ON + Branding ON: 3 Zeilen in Hold-Phase sichtbar; Endcard am Ende
+- 4s + Branding ON: Overlay erscheint trotz kurzer Hold-Phase (~11 Frames) sofort mit voller Opacity
+- Extras-Card Reihenfolge: "Show title and date" → "Show location" → "Add #MadeWithSameView card"
+- Kein DataStore-Toggle für title/date oder location: Toggle-Zustände setzen sich nach App-Neustart zurück auf OFF
 
 #### Out of Scope
 
-Location-Toggle (V3 — §32), `location.displayName` in irgendeiner Form, Intro-Card, Metadaten-Endcard, permanente Overlays, Description, Tags.
+`location.displayName` in irgendeiner Form, Intro-Card, Metadaten-Endcard, permanente Overlays, Description, Tags.
 
 ---
 
@@ -979,6 +1001,8 @@ Alle JVM-Tests unter `app/src/test/...`:
 | T-U-05–T-U-08 | `video/BeforeAfterRenderEngineTest.kt` | Frame Count, Alpha-Werte bei Key-Frames |
 | T-U-09–T-U-14 | `video/VideoRenderConfigTest.kt` | Branding Frame Count, Canvas-Dimensionen, Even-Enforcement |
 | T-U-15–T-U-20 | `ui/video/CreateVideoViewModelTest.kt` | State Machine, Snackbar-Events, Fallback |
+| T-U-21–T-U-28 | `ui/video/CreateVideoViewModelTest.kt` | Overlay-Vorschau Title/Date, VideoOverlay-Berechnung, Level-5-Ausschluss |
+| T-U-29–T-U-32 | `ui/video/CreateVideoViewModelTest.kt` | Overlay-Vorschau Location, locationLine-Berechnung, displayName-Ausschluss |
 
 ### Instrumentation Tests
 
@@ -1135,7 +1159,7 @@ Release-APK auf realem Gerät installieren: Video-Export vollständig funktional
 | Block 6 | Branding Endcard | **Completed** | 2026-06-04 | Endcard 1.5 s / 45 frames; fade-in/out; logo + "Made with ❤️" + "#MadeWithSameView"; T-U-09–T-U-10 grün; T-I-02 PASSED on SM-S911B; manuelle Verifikation abgeschlossen |
 | Block 7 | Final Verification | **Completed** | 2026-06-10 | T-I-01–T-I-04 PASSED on SM-S911B (Android 16); `ReferenceImageMetadataReaderTest` 19/19 PASSED nach Test-Infrastruktur-Fix; full suite zweimal ausgeführt — keine Video-Export-Fehler; zwei unzusammenhängende Flaky-Failures (`AboutScreenTest`, `MediaStoreWriterGpsTest`) außerhalb Video-Export nachverfolgt; Manueller Smoke-Test abgeschlossen auf SM-S911B (2026-06-10) |
 | Animated Mode Preview | Animated Mode Preview in Configuring Card | **Pending** | — | `VideoModePreview.kt` neu; `CreateVideoScreen.kt` geändert; ContentScale-Fix (Crop für Before & After Preview, 2026-06-17); uncommitted; tests pending |
-| Block 8 | Show Title and Date Overlay (V2) | **Pending** | — | Spec: VIDEO_EXPORT_V1.md §30–§31; T-U-21–T-U-28 definiert |
+| Block 8 | Show Title, Date and Location Overlay | **Pending** | — | Spec: VIDEO_EXPORT_V1.md §30–§32; T-U-21–T-U-32 definiert; kein DataStore für Overlay-Toggles; kein Fade-In |
 
 ---
 
@@ -1147,7 +1171,7 @@ Folgende Features sind dokumentiert, aber explizit **nicht** Bestandteil von V1:
 |---|---|
 | Weitere Video-Modi (Overlay Opacity, Zoom/Pan) | V2 Candidate; `VideoFrameRenderer`-Interface ist Erweiterungspunkt |
 | Blur-Background-Reformatierung | V2 Candidate; §8.2: nur `#17202F`-Padding in V1 |
-| Titelkarten / Session-Titel als eigenständige Karte | FD-09 V1-Ausschluss; V2-Overlay in Block 8 spezifiziert (§30–§31) |
+| Titelkarten / Session-Titel als eigenständige Karte | FD-09 V1-Ausschluss; Overlay (Title, Date, Location) in Block 8 spezifiziert (§30–§32) |
 | Animierte Endcard (Fade-In/Fade-Out) | §28 explizit ausgeschlossen |
 | GIF-Export | §28 explizit ausgeschlossen |
 | Exporthistorie / Video-Neu-Teilen | FD-10 explizit ausgeschlossen |

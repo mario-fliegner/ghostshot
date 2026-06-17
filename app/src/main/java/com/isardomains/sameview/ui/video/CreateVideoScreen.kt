@@ -3,9 +3,11 @@ package com.isardomains.sameview.ui.video
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +32,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,6 +62,7 @@ import com.isardomains.sameview.ui.settings.SameViewSegmentControl
 import com.isardomains.sameview.ui.settings.SameViewSegmentItem
 import com.isardomains.sameview.ui.settings.SettingsCard
 import com.isardomains.sameview.ui.settings.SettingsSwitchRow
+import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
 import com.isardomains.sameview.video.VideoExportFormat
 import com.isardomains.sameview.video.VideoMode
@@ -82,6 +87,10 @@ fun CreateVideoScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val sessionDir = remember { File(context.filesDir, "sessions/${viewModel.sessionId}") }
+    val isOverlayAvailable by viewModel.isOverlayAvailable.collectAsStateWithLifecycle()
+    val overlayPreviewText by viewModel.overlayPreviewText.collectAsStateWithLifecycle()
+    val isLocationAvailable by viewModel.isLocationAvailable.collectAsStateWithLifecycle()
+    val locationPreviewText by viewModel.locationPreviewText.collectAsStateWithLifecycle()
 
     // Cancel dialog state (visible when user presses Back during Rendering)
     var showCancelDialog by remember { mutableStateOf(false) }
@@ -186,6 +195,12 @@ fun CreateVideoScreen(
                 onDurationChange = viewModel::updateDurationMs,
                 onQualityChange = viewModel::updateQuality,
                 onBrandingChange = viewModel::updateBrandingEnabled,
+                onOverlayChange = viewModel::updateOverlayEnabled,
+                onLocationChange = viewModel::updateLocationEnabled,
+                isOverlayAvailable = isOverlayAvailable,
+                overlayPreviewText = overlayPreviewText,
+                isLocationAvailable = isLocationAvailable,
+                locationPreviewText = locationPreviewText,
                 onCreateVideo = viewModel::startExport,
                 modifier = Modifier.padding(paddingValues)
             )
@@ -215,6 +230,12 @@ private fun ConfiguringContent(
     onDurationChange: (Int) -> Unit,
     onQualityChange: (VideoQuality) -> Unit,
     onBrandingChange: (Boolean) -> Unit,
+    onOverlayChange: (Boolean) -> Unit,
+    onLocationChange: (Boolean) -> Unit,
+    isOverlayAvailable: Boolean,
+    overlayPreviewText: String?,
+    isLocationAvailable: Boolean,
+    locationPreviewText: String?,
     onCreateVideo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -303,8 +324,29 @@ private fun ConfiguringContent(
             }
         }
 
-        // ── Branding ──────────────────────────────────────────────────────
-        SettingsCard {
+        // ── Extras ───────────────────────────────────────────────────────
+        SettingsCard(title = stringResource(R.string.create_video_extras_section_title)) {
+            // 1. Show title and date
+            OverlayToggleItem(
+                label = stringResource(R.string.create_video_overlay_title_date_label),
+                checked = state.overlayEnabled && isOverlayAvailable,
+                enabled = isOverlayAvailable,
+                onCheckedChange = onOverlayChange,
+                previewText = overlayPreviewText,
+                hintText = stringResource(R.string.create_video_overlay_no_data_hint)
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            // 2. Show location
+            OverlayToggleItem(
+                label = stringResource(R.string.create_video_overlay_location_label),
+                checked = state.locationEnabled && isLocationAvailable,
+                enabled = isLocationAvailable,
+                onCheckedChange = onLocationChange,
+                previewText = locationPreviewText,
+                hintText = stringResource(R.string.create_video_overlay_location_no_data_hint)
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            // 3. Add #MadeWithSameView card
             SettingsSwitchRow(
                 label = stringResource(R.string.create_video_branding_label),
                 checked = state.brandingEnabled,
@@ -479,4 +521,48 @@ private fun PreviewContent(
             }
         }
     }
+}
+
+@Composable
+private fun OverlayToggleItem(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    previewText: String?,
+    hintText: String,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (enabled) Modifier.clickable { onCheckedChange(!checked) }
+                else Modifier
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (enabled) SameViewSettingsLabelText
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = if (enabled) onCheckedChange else null,
+            enabled = enabled
+        )
+    }
+    Text(
+        text = previewText ?: hintText,
+        style = MaterialTheme.typography.bodySmall,
+        color = SameViewSettingsSecondaryText,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
 }

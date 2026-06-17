@@ -22,7 +22,8 @@ data class VideoRenderConfig(
     val quality: VideoQuality,
     val durationMs: Int,
     val brandingEnabled: Boolean,
-    val frameRate: Int = 30
+    val frameRate: Int = 30,
+    val overlay: VideoOverlay? = null
 ) {
     /** Frames for the main animation; endcard frames are excluded. */
     val animationFrameCount: Int

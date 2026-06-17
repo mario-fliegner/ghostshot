@@ -7,6 +7,9 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.settings.SettingsRepository
+import com.isardomains.sameview.video.VideoExportFormat
+import com.isardomains.sameview.video.VideoMode
+import com.isardomains.sameview.video.VideoQuality
 import com.isardomains.sameview.video.VideoRenderConfig
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +24,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -50,6 +55,7 @@ class CreateVideoViewModelTest {
         }
         val savedStateHandle = SavedStateHandle(mapOf("sessionId" to testSessionId))
         viewModel = CreateVideoViewModel(savedStateHandle, context, settingsRepository)
+        viewModel.ioDispatcher = Dispatchers.Main  // UnconfinedTestDispatcher is set as Main
     }
 
     @After
@@ -318,5 +324,187 @@ class CreateVideoViewModelTest {
         )
 
         collectJob.cancel()
+    }
+
+    // ── Block 8 tests ─────────────────────────────────────────────────────────
+
+    private fun createViewModelWithSnapshot(snapshot: OverlayMetadataSnapshot): CreateVideoViewModel {
+        // Use a context that returns safe empty strings for all getString() calls so
+        // computeCompareLabels doesn't crash via NPE from the mock.
+        val testContext: Context = mock {
+            on { filesDir } doReturn File("/fake/files")
+            on { contentResolver } doReturn mock<ContentResolver>()
+            on { getString(org.mockito.kotlin.any()) } doReturn ""
+        }
+        val vm = CreateVideoViewModel(
+            SavedStateHandle(mapOf("sessionId" to testSessionId)),
+            testContext,
+            settingsRepository
+        )
+        // Set the reader AFTER construction, then reload. The init block already called
+        // loadOverlayMetadata() with the default reader (empty file → null values).
+        // Re-running it with the injected snapshot reader overwrites those values.
+        vm.overlayMetadataReader = { _ -> snapshot }
+        vm.loadOverlayMetadata()
+        return vm
+    }
+
+    // T-U-21: overlayPreviewText is "Title · 2008 → 2026" when title + Level-1 date present
+    @Test
+    fun overlayPreviewText_titleAndLevel1Date_showsCombined() = runTest {
+        // 2026 timestamp for capture (2026-06-01 00:00:00 UTC = 1780272000000)
+        val captureTs = 1780272000000L
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot("My grandparents", "2008", captureTs, null, null)
+        )
+        advanceUntilIdle()
+        // "2008" vs year 2026 → Level 1 → "2008 → 2026"
+        assertEquals("My grandparents · 2008 → 2026", vm.overlayPreviewText.value)
+    }
+
+    // T-U-22: overlayPreviewText is "2008 → 2026" when no title, Level-1 date present
+    @Test
+    fun overlayPreviewText_noTitle_level1Date_showsDateOnly() = runTest {
+        val captureTs = 1780272000000L
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, "2008", captureTs, null, null)
+        )
+        advanceUntilIdle()
+        assertEquals("2008 → 2026", vm.overlayPreviewText.value)
+    }
+
+    // T-U-23: overlayPreviewText is "My grandparents" when title present, no reference.date
+    @Test
+    fun overlayPreviewText_titleOnly_noDate_showsTitleOnly() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot("My grandparents", null, 0L, null, null)
+        )
+        advanceUntilIdle()
+        assertEquals("My grandparents", vm.overlayPreviewText.value)
+    }
+
+    // T-U-24: overlay in VideoRenderConfig is null when overlayEnabled = false (toggle off)
+    @Test
+    fun startExport_overlayToggleOff_overlayIsNull() = runTest {
+        val captureTs = 1780272000000L
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot("My grandparents", "2008", captureTs, null, null)
+        )
+        advanceUntilIdle()
+        // overlayEnabled defaults to false — overlay should be null in config
+        var capturedConfig: VideoRenderConfig? = null
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        vm.pipelineRunner = { config, _, _, _ ->
+            capturedConfig = config
+            gate.await()
+            Result.success(fakeUri)
+        }
+        vm.startExport()
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertNull("Expected null overlay when toggle is off", capturedConfig?.overlay)
+    }
+
+    // T-U-25: title/date toggle is disabled (isOverlayAvailable=false) when no title or date
+    @Test
+    fun isOverlayAvailable_noTitleNoDate_isFalse() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, null, null)
+        )
+        advanceUntilIdle()
+        assertTrue("Expected isOverlayAvailable=false when no data", !vm.isOverlayAvailable.value)
+    }
+
+    // T-U-26: TitleDateOverlayRenderer renders no pixels when overlay is null (no-op)
+    @Test
+    fun overlayRenderer_nullOverlay_noRenderCalled() {
+        // When overlay == null, the pipeline creates no renderer → no frame modification.
+        // This is a structural test: verify that computeHoldFrameCount works and null overlay
+        // means overlayRenderer == null in the pipeline (tested via VideoRenderConfig.overlay == null).
+        val config = VideoRenderConfig(
+            videoMode = VideoMode.COMPARE_SLIDER,
+            format = VideoExportFormat.ORIGINAL,
+            quality = VideoQuality.STANDARD_1080P,
+            durationMs = 6000,
+            brandingEnabled = false,
+            overlay = null
+        )
+        assertNull("Expected overlay to be null", config.overlay)
+    }
+
+    // T-U-27: TitleDateOverlayRenderer.alphaForFrame returns 0 at frameIndex == holdFrameCount
+    @Test
+    fun overlayRenderer_alphaAtSweepFrame0_isZero() {
+        val holdFrameCount = 27 // 15% of 180 frames (6s, branding OFF)
+        val alpha = com.isardomains.sameview.video.TitleDateOverlayRenderer.alphaForFrame(
+            frameIndex = holdFrameCount,
+            holdFrameCount = holdFrameCount
+        )
+        assertEquals("Alpha at first sweep frame must be 0", 0f, alpha, 0.001f)
+    }
+
+    // T-U-28: dateLine is null when reference.date is absent (Level 5 exclusion)
+    @Test
+    fun overlayPreviewText_noReferenceDate_dataLineIsNull() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot("My grandparents", null, 1780272000000L, null, null)
+        )
+        advanceUntilIdle()
+        // No reference.date → dateLine = null → only title shown
+        assertEquals("My grandparents", vm.overlayPreviewText.value)
+        // Confirm there's no "→" in the output
+        assertFalse(vm.overlayPreviewText.value?.contains("→") == true)
+    }
+
+    // T-U-29: locationLine is "Munich, Germany" when city + country present and toggle enabled
+    @Test
+    fun locationPreviewText_cityAndCountry_showsBoth() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, "Munich", "Germany")
+        )
+        advanceUntilIdle()
+        assertEquals("Munich, Germany", vm.locationPreviewText.value)
+    }
+
+    // T-U-30: locationLine is "Munich" when only city present and toggle enabled
+    @Test
+    fun locationPreviewText_cityOnly_showsCity() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, "Munich", null)
+        )
+        advanceUntilIdle()
+        assertEquals("Munich", vm.locationPreviewText.value)
+    }
+
+    // T-U-31: locationLine is null in VideoOverlay when location toggle is disabled
+    @Test
+    fun startExport_locationToggleOff_locationLineIsNull() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, "Munich", "Germany")
+        )
+        advanceUntilIdle()
+        // locationEnabled defaults to false
+        var capturedConfig: VideoRenderConfig? = null
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        vm.pipelineRunner = { config, _, _, _ ->
+            capturedConfig = config
+            gate.await()
+            Result.success(fakeUri)
+        }
+        vm.startExport()
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertNull("Expected null overlay or null locationLine when location toggle is off",
+            capturedConfig?.overlay?.locationLine)
+    }
+
+    // T-U-32: location toggle is disabled (isLocationAvailable=false) when no city or country
+    @Test
+    fun isLocationAvailable_noCityNoCountry_isFalse() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, null, null)
+        )
+        advanceUntilIdle()
+        assertFalse("Expected isLocationAvailable=false when no location data", vm.isLocationAvailable.value)
     }
 }

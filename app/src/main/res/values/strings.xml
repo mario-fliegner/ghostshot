@@ -210,6 +210,13 @@
     <string name="create_video_quality_fallback_notice">High quality not supported on this device</string>
     <string name="create_video_delete_failed">Could not delete video</string>
 
+    <!-- Video extras (Block 8) -->
+    <string name="create_video_extras_section_title">Extras</string>
+    <string name="create_video_overlay_title_date_label">Show title and date</string>
+    <string name="create_video_overlay_no_data_hint">Add a title or date in Edit Session</string>
+    <string name="create_video_overlay_location_label">Show location</string>
+    <string name="create_video_overlay_location_no_data_hint">Add a city or country in Edit Session</string>
+
     <!-- GPS fallback dialog (shown when photo picker result has no GPS and recreation guidance is active) -->
     <string name="gps_fallback_dialog_title">Location data unavailable</string>
     <string name="gps_fallback_dialog_message">SameView couldn\'t read location data from this selection. Try choosing the original file to enable GPS guidance.</string>

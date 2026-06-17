@@ -79,6 +79,11 @@ class VideoExportPipeline(private val context: Context) {
                 brandingRenderer = BrandingEndcardRenderer(context, canvasW, canvasH)
             }
 
+            val overlayRenderer: TitleDateOverlayRenderer? = config.overlay?.let { overlay ->
+                TitleDateOverlayRenderer(canvasW, canvasH, overlay)
+            }
+            val holdFrameCount = computeHoldFrameCount(config)
+
             // ── Phase 4: MediaStore insert (IO) ──────────────────────────────────────
             val displayName = buildDisplayName(config, sessionDir)
             val entry = withContext(Dispatchers.IO) {
@@ -104,6 +109,9 @@ class VideoExportPipeline(private val context: Context) {
                     for (i in 0 until animationFrames) {
                         ensureActive()
                         renderer.renderFrame(i, frameCanvas)
+                        if (overlayRenderer != null && i < holdFrameCount) {
+                            overlayRenderer.renderOnCanvas(i, holdFrameCount, frameCanvas)
+                        }
                         encoder.encodeFrame(frameBitmap!!)
                         onProgress(i.toFloat() / totalFrames)
                     }
@@ -235,6 +243,14 @@ class VideoExportPipeline(private val context: Context) {
         // Resolution not supported: fall back to Standard 1080p dimensions and notify the caller.
         val (fallbackW, fallbackH) = computeCanvasDimensions(format, VideoQuality.STANDARD_1080P, vpW, vpH)
         return EncoderParams(fallbackW, fallbackH, mimeType, BITRATE_STANDARD_BPS, qualityFallbackApplied = true)
+    }
+
+    private fun computeHoldFrameCount(config: VideoRenderConfig): Int = when (config.videoMode) {
+        VideoMode.COMPARE_SLIDER -> (config.animationFrameCount * 0.15f).toInt()
+        VideoMode.BEFORE_AFTER -> {
+            val crossfade = config.frameRate / 2
+            (config.animationFrameCount - crossfade) / 2
+        }
     }
 
     companion object {

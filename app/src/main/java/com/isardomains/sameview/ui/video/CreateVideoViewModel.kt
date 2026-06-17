@@ -8,51 +8,52 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.sameview.R
+import com.isardomains.sameview.ui.compare.computeCompareLabels
 import com.isardomains.sameview.ui.settings.SettingsRepository
 import com.isardomains.sameview.video.VideoExportFormat
 import com.isardomains.sameview.video.VideoExportPipeline
 import com.isardomains.sameview.video.VideoMode
+import com.isardomains.sameview.video.VideoOverlay
 import com.isardomains.sameview.video.VideoQuality
 import com.isardomains.sameview.video.VideoRenderConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.io.File
+import java.util.Locale
 import javax.inject.Inject
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
 sealed class CreateVideoState {
 
-    /** User is configuring mode, format, duration, quality, and branding. */
     data class Configuring(
         val mode: VideoMode = VideoMode.COMPARE_SLIDER,
         val format: VideoExportFormat = VideoExportFormat.ORIGINAL,
         val durationMs: Int = 6000,
         val quality: VideoQuality = VideoQuality.STANDARD_1080P,
-        val brandingEnabled: Boolean = true
+        val brandingEnabled: Boolean = true,
+        val overlayEnabled: Boolean = false,
+        val locationEnabled: Boolean = false
     ) : CreateVideoState()
 
-    /**
-     * Export is in progress.
-     * [currentFrame] is updated on each rendered frame; [totalFrames] is fixed for the export.
-     */
     data class Rendering(
         val totalFrames: Int,
         val currentFrame: Int = 0
     ) : CreateVideoState()
 
-    /** Export completed. [videoUri] is the MediaStore URI of the created MP4. */
     data class Preview(val videoUri: Uri) : CreateVideoState()
 }
 
@@ -62,17 +63,18 @@ sealed class CreateVideoEvent {
     data class ShowSnackbar(@StringRes val messageResId: Int) : CreateVideoEvent()
 }
 
+// ── Metadata snapshot (internal; injectable for tests) ────────────────────────
+
+internal data class OverlayMetadataSnapshot(
+    val title: String?,
+    val referenceDate: String?,
+    val captureTimestampMs: Long,
+    val locationCity: String?,
+    val locationCountry: String?
+)
+
 // ── ViewModel ─────────────────────────────────────────────────────────────────
 
-/**
- * Manages the state machine for [CreateVideoScreen].
- *
- * State flow: Configuring → Rendering → Preview.
- * Error during rendering returns to Configuring and emits a [CreateVideoEvent.ShowSnackbar].
- *
- * [sessionId] is read from [SavedStateHandle] via the Navigation Compose nav argument.
- * [pipelineRunner] is replaceable for unit tests; defaults to [VideoExportPipeline.run].
- */
 @HiltViewModel
 class CreateVideoViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -91,24 +93,51 @@ class CreateVideoViewModel @Inject constructor(
     private val _progress = MutableStateFlow(0f)
     val progress: StateFlow<Float> = _progress.asStateFlow()
 
-    private var exportJob: Job? = null
+    // ── Overlay metadata StateFlows ────────────────────────────────────────────
 
-    /** Last Configuring state; restored on export failure or cancel. */
+    private val _overlayPreviewText = MutableStateFlow<String?>(null)
+    val overlayPreviewText: StateFlow<String?> = _overlayPreviewText.asStateFlow()
+
+    private val _locationPreviewText = MutableStateFlow<String?>(null)
+    val locationPreviewText: StateFlow<String?> = _locationPreviewText.asStateFlow()
+
+    private val _isOverlayAvailable = MutableStateFlow(false)
+    val isOverlayAvailable: StateFlow<Boolean> = _isOverlayAvailable.asStateFlow()
+
+    private val _isLocationAvailable = MutableStateFlow(false)
+    val isLocationAvailable: StateFlow<Boolean> = _isLocationAvailable.asStateFlow()
+
+    // Stored separately for VideoOverlay construction in startExport()
+    private var computedTitle: String? = null
+    private var computedDateLine: String? = null
+
+    private var exportJob: Job? = null
     private var lastConfiguringState = CreateVideoState.Configuring()
 
     /**
      * Replaceable pipeline runner for unit tests.
-     * Production code delegates to [VideoExportPipeline.run].
-     * The fourth parameter [onQualityFallback] is invoked when the export silently falls back
-     * to Standard 1080p because the device cannot encode the requested High Quality resolution.
      */
     internal var pipelineRunner: suspend (VideoRenderConfig, File, (Float) -> Unit, suspend () -> Unit) -> Result<Uri> =
         { config, sessionDir, onProgress, onQualityFallback ->
             VideoExportPipeline(context).run(config, sessionDir, onProgress, onQualityFallback)
         }
 
+    /**
+     * Replaceable metadata reader for unit tests.
+     * The default implementation reads metadata.json synchronously.
+     * Tests override this with a simple lambda returning a fixed snapshot.
+     * Note: [loadOverlayMetadata] is called from a [viewModelScope] coroutine; callers
+     * should ensure the coroutine runs on a suitable dispatcher for file IO.
+     */
+    internal var overlayMetadataReader: suspend (File) -> OverlayMetadataSnapshot = { sessionDir ->
+        readOverlayMetadata(sessionDir)
+    }
+
+    /** Injectable dispatcher for the overlay metadata IO read; override in tests. */
+    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
     init {
-        // Seed initial brandingEnabled from persisted DataStore preference.
+        // Seed brandingEnabled from persisted DataStore preference.
         viewModelScope.launch {
             settingsRepository.brandingEnabled.collect { enabled ->
                 val current = _state.value
@@ -118,6 +147,36 @@ class CreateVideoViewModel @Inject constructor(
                     lastConfiguringState = updated
                 }
             }
+        }
+        loadOverlayMetadata()
+    }
+
+    /**
+     * Loads overlay metadata from disk and populates the overlay StateFlows.
+     * Separated from init so tests can set [overlayMetadataReader] before calling this.
+     * Called automatically from [init] in production; tests call it explicitly after setup.
+     */
+    internal fun loadOverlayMetadata() {
+        viewModelScope.launch {
+            val sessionDir = File(context.filesDir, "sessions/$sessionId")
+            val snapshot = overlayMetadataReader(sessionDir)
+            val title = snapshot.title?.trim()?.takeIf { it.isNotEmpty() }
+            val dateLine = computeDateLine(snapshot.referenceDate, snapshot.captureTimestampMs)
+            val locationLine = computeLocationLine(snapshot.locationCity, snapshot.locationCountry)
+
+            computedTitle = title
+            computedDateLine = dateLine
+
+            val combinedPreview = when {
+                title != null && dateLine != null -> "$title · $dateLine"
+                dateLine != null -> dateLine
+                title != null -> title
+                else -> null
+            }
+            _overlayPreviewText.value = combinedPreview
+            _locationPreviewText.value = locationLine
+            _isOverlayAvailable.value = combinedPreview != null
+            _isLocationAvailable.value = locationLine != null
         }
     }
 
@@ -151,7 +210,6 @@ class CreateVideoViewModel @Inject constructor(
         lastConfiguringState = updated
     }
 
-    /** Updates branding toggle and persists the choice to DataStore. */
     fun updateBrandingEnabled(enabled: Boolean) {
         val current = _state.value as? CreateVideoState.Configuring ?: return
         val updated = current.copy(brandingEnabled = enabled)
@@ -160,13 +218,22 @@ class CreateVideoViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setBrandingEnabled(enabled) }
     }
 
+    fun updateOverlayEnabled(enabled: Boolean) {
+        val current = _state.value as? CreateVideoState.Configuring ?: return
+        val updated = current.copy(overlayEnabled = enabled)
+        _state.value = updated
+        lastConfiguringState = updated
+    }
+
+    fun updateLocationEnabled(enabled: Boolean) {
+        val current = _state.value as? CreateVideoState.Configuring ?: return
+        val updated = current.copy(locationEnabled = enabled)
+        _state.value = updated
+        lastConfiguringState = updated
+    }
+
     // ── Export ────────────────────────────────────────────────────────────────
 
-    /**
-     * Starts the video export.
-     * Transitions state to [CreateVideoState.Rendering], then to [CreateVideoState.Preview]
-     * on success, or back to [CreateVideoState.Configuring] with an error event on failure.
-     */
     fun startExport() {
         val configState = _state.value as? CreateVideoState.Configuring ?: return
         lastConfiguringState = configState
@@ -176,7 +243,8 @@ class CreateVideoViewModel @Inject constructor(
             format = configState.format,
             quality = configState.quality,
             durationMs = configState.durationMs,
-            brandingEnabled = configState.brandingEnabled
+            brandingEnabled = configState.brandingEnabled,
+            overlay = buildVideoOverlay(configState)
         )
         val sessionDir = File(context.filesDir, "sessions/$sessionId")
         val totalFrames = config.totalFrameCount
@@ -201,7 +269,6 @@ class CreateVideoViewModel @Inject constructor(
                 }
             )
 
-            // If the job was cancelled, do not treat it as a render failure.
             if (!isActive) return@launch
 
             if (result.isSuccess) {
@@ -213,21 +280,12 @@ class CreateVideoViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Cancels an in-progress export and returns to [CreateVideoState.Configuring].
-     * Called from the cancel dialog's "Stop export" action.
-     */
     fun cancelExport() {
         exportJob?.cancel()
         exportJob = null
         _state.value = lastConfiguringState
     }
 
-    /**
-     * Replaceable delete runner for unit tests.
-     * Default: calls [ContentResolver.delete] on the IO dispatcher.
-     * Returns true if at least one MediaStore row was deleted.
-     */
     internal var videoDeleteRunner: suspend (android.net.Uri) -> Boolean = { uri ->
         withContext(Dispatchers.IO) {
             runCatching {
@@ -236,10 +294,6 @@ class CreateVideoViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Deletes the video from MediaStore and returns to [CreateVideoState.Configuring].
-     * On failure emits [CreateVideoEvent.ShowSnackbar] with [R.string.create_video_delete_failed].
-     */
     fun deleteVideo() {
         val preview = _state.value as? CreateVideoState.Preview ?: return
         viewModelScope.launch {
@@ -255,5 +309,60 @@ class CreateVideoViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         exportJob?.cancel()
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private fun buildVideoOverlay(state: CreateVideoState.Configuring): VideoOverlay? {
+        val title = if (state.overlayEnabled) computedTitle else null
+        val dateLine = if (state.overlayEnabled) computedDateLine else null
+        val locationLine = if (state.locationEnabled) _locationPreviewText.value else null
+        if (title == null && dateLine == null && locationLine == null) return null
+        return VideoOverlay(title, dateLine, locationLine)
+    }
+
+    private fun computeDateLine(referenceDate: String?, captureTimestampMs: Long): String? {
+        if (referenceDate == null) return null
+        val labels = computeCompareLabels(
+            referenceDate = referenceDate,
+            captureTimestampMs = captureTimestampMs,
+            locale = Locale.getDefault(),
+            labelPast = context.getString(R.string.compare_label_past),
+            labelPresent = context.getString(R.string.compare_label_present),
+            labelReference = context.getString(R.string.compare_label_reference),
+            labelCurrent = context.getString(R.string.compare_label_current)
+        )
+        return "${labels.left} → ${labels.right}"
+    }
+
+    private fun computeLocationLine(city: String?, country: String?): String? {
+        val c = city?.trim()?.takeIf { it.isNotEmpty() }
+        val cn = country?.trim()?.takeIf { it.isNotEmpty() }
+        return when {
+            c != null && cn != null -> "$c, $cn"
+            c != null -> c
+            cn != null -> cn
+            else -> null
+        }
+    }
+
+    private fun readOverlayMetadata(sessionDir: File): OverlayMetadataSnapshot {
+        val file = File(sessionDir, "metadata.json")
+        if (!file.exists()) return OverlayMetadataSnapshot(null, null, 0L, null, null)
+        return try {
+            val json = JSONObject(file.readText())
+            val title = json.optJSONObject("content")?.optString("title", null)
+                ?.trim()?.takeIf { it.isNotEmpty() }
+            val referenceDate = json.optJSONObject("reference")?.optString("date", null)
+                ?.trim()?.takeIf { it.isNotEmpty() }
+            val captureTimestampMs = json.optJSONObject("capture")?.optLong("timestampMs", 0L) ?: 0L
+            val locationCity = json.optJSONObject("location")?.optString("city", null)
+                ?.trim()?.takeIf { it.isNotEmpty() }
+            val locationCountry = json.optJSONObject("location")?.optString("country", null)
+                ?.trim()?.takeIf { it.isNotEmpty() }
+            OverlayMetadataSnapshot(title, referenceDate, captureTimestampMs, locationCity, locationCountry)
+        } catch (_: Exception) {
+            OverlayMetadataSnapshot(null, null, 0L, null, null)
+        }
     }
 }
