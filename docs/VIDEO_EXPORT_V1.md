@@ -160,6 +160,8 @@ Back navigation from `Preview`: equivalent to `[Done]` — screen closes, video 
 TopAppBar:  ← Back   "Create Video"
 
 [ Compare Slider ]  [ Before & After ]   ← Mode selection (segmented or card-based)
+─────────────────────────────────────────  ← internal divider (same card)
+[ Animated mode preview — 16:9, max 200 dp height ]
 
 Format:
   [ Original ]  [ Portrait 9:16 ]  [ Landscape 16:9 ]
@@ -175,6 +177,35 @@ Quality:
 
 [ Create Video ]   ← primary CTA, bottom
 ```
+
+### 7.4 Mode Preview
+
+The animated mode preview is a Compose-only, looping animation placed inside the Video Type settings card, directly below the mode segment control and separated by an internal divider.
+
+**Purpose:** Visual selection aid only. It is not an exact rendering of the exported video.
+
+**Technical implementation:**
+- Pure Compose animation via `InfiniteTransition`. No `ExoPlayer`, no MP4, no export pipeline.
+- Loads `reference.jpg` and `capture.jpg` from the compare session directory via Coil.
+- Frame: 16:9 aspect ratio, `#17202F` background. Height = `min(containerWidth × 9/16, 200 dp)`. Horizontally centred; in portrait it fills the full card width.
+- Mode switch: ~175 ms crossfade via `Crossfade`; new animation starts immediately.
+- Decorative — excluded from the accessibility tree via `clearAndSetSemantics {}`.
+- No label, no pause/tap interaction.
+
+**Compare Slider animation (4 s loop):**
+- 0–15 %: Hold Reference (slider = 0)
+- 15–60 %: Sweep left → right with cubic smoothstep easing (slider 0 → 1)
+- 60–100 %: Hold Capture (slider = 1) + brief pause, then restart
+
+**Before & After animation (4 s loop):**
+- 0–15 %: Hold Reference (alpha ref = 1, alpha cap = 0)
+- 15–27.5 %: Crossfade 500 ms (linear)
+- 27.5–100 %: Hold Capture (alpha ref = 0, alpha cap = 1) + brief pause, then restart
+
+**Reduce Motion (Animator Duration Scale == 0):**
+- No `InfiniteTransition`.
+- Compare Slider: static 50 % split with visible divider line.
+- Before & After: both images at 0.5 alpha overlaid.
 
 ### 7.4 Rendering State Layout
 

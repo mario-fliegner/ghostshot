@@ -800,6 +800,35 @@ No remaining Video Export blocker. Block 7 fully complete.
 
 No open Video Export Block 7 tasks remain.
 
+---
+
+### Animated Mode Preview (2026-06-12)
+
+Post-Block-7 addition. Implements the animated mode preview inside the Configuring state of `CreateVideoScreen`.
+
+**Neue Datei:** `VideoModePreview.kt` in `com.isardomains.sameview.ui.video`
+
+- Composable `VideoModePreview(mode, sessionDir)` — 16:9 Frame, max 200 dp Höhe, horizontal zentriert via `BoxWithConstraints`
+- Lädt `reference.jpg` / `capture.jpg` aus `sessionDir` via Coil `AsyncImage`
+- **Compare Slider:** Hold-Reference → Sweep links→rechts (Cubic Smoothstep) → Hold-Capture → Pause → Restart; 4 s Loop via `InfiniteTransition`
+- **Before & After:** Hold-Reference → Crossfade 500 ms → Hold-Capture → Pause → Restart; 4 s Loop via `InfiniteTransition`
+- Moduswechsel: 175 ms `Crossfade`; neue Animation startet sofort
+- Reduce Motion (`ANIMATOR_DURATION_SCALE == 0`): keine `InfiniteTransition`; Slider-Modus statisch mit 50 %-Split + Divider-Linie; B&A-Modus statisch beide Bilder bei 0.5 Alpha überlagert
+- Accessibility: `Modifier.clearAndSetSemantics {}` — nur Preview-Frame ausgeblendet, nicht Card oder Segment-Control
+
+**Geändert:** `CreateVideoScreen.kt`
+
+- `sessionDir` lokal berechnet: `File(context.filesDir, "sessions/${viewModel.sessionId}")`; kein neues ViewModel-Feld
+- `HorizontalDivider` + `VideoModePreview` in Video-Type-`SettingsCard` nach Segment-Control eingefügt
+- Neuer Parameter `sessionDir: File` in `ConfiguringContent`
+- Neuer Import: `HorizontalDivider`, `java.io.File`
+
+**Nicht geändert:** `CreateVideoViewModel`, Export-Pipeline, `CompareScreen`, `MainActivity`, `SettingsRepository`, `strings.xml`, Gradle, Manifest, Navigation, Tests
+
+**Test-Status:** `testDebugUnitTest` + `assembleDebug` + `assembleRelease` — siehe aktuellen Build-Status
+
+**Manuelle Verifikation offen:** CreateVideoScreen Portrait, CreateVideoScreen Landscape, Compare Slider Preview, Before & After Preview, Reduce Motion ON, Tablet/großes Layout (falls nicht verfügbar)
+
 T-I-04 (`t_i_04_deleteVideo_removesEntryFromMediaStore`) added to `VideoExportPipelineTest.kt` in Block 7. No production code changes.
 
 Test infrastructure fix (Block 7): `PhotoPickerMimicContentProvider` and `SafMimicContentProvider` moved from `app/src/androidTest/` to `app/src/debug/` so their classes live in the app APK's classloader. Root cause: the classes landed in DEX shard 11 of the test APK; `Application.getClassLoader()` in the app process cannot reach secondary DEX shards at ContentProvider instantiation time. Moving to `src/debug/` places them in the app APK's own primary DEX. Additionally, `require_original=1` is now pre-embedded in `PhotoPickerMimicContentProvider.uriFor()` because `MediaStore.setRequireOriginal()` on Android 16 rejects non-MediaStore authorities (throws `IllegalArgumentException`), which was silently caught by `resolveSourceUri()` and prevented the original file from being served. No changes to production code or test logic.

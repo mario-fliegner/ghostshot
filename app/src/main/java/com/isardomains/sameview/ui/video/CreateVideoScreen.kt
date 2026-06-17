@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -61,6 +62,7 @@ import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
 import com.isardomains.sameview.video.VideoExportFormat
 import com.isardomains.sameview.video.VideoMode
 import com.isardomains.sameview.video.VideoQuality
+import java.io.File
 
 /**
  * Fullscreen wizard screen for creating a video from a compare session.
@@ -79,6 +81,7 @@ fun CreateVideoScreen(
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val sessionDir = remember { File(context.filesDir, "sessions/${viewModel.sessionId}") }
 
     // Cancel dialog state (visible when user presses Back during Rendering)
     var showCancelDialog by remember { mutableStateOf(false) }
@@ -177,6 +180,7 @@ fun CreateVideoScreen(
         when (val s = state) {
             is CreateVideoState.Configuring -> ConfiguringContent(
                 state = s,
+                sessionDir = sessionDir,
                 onModeChange = viewModel::updateMode,
                 onFormatChange = viewModel::updateFormat,
                 onDurationChange = viewModel::updateDurationMs,
@@ -205,6 +209,7 @@ fun CreateVideoScreen(
 @Composable
 private fun ConfiguringContent(
     state: CreateVideoState.Configuring,
+    sessionDir: File,
     onModeChange: (VideoMode) -> Unit,
     onFormatChange: (VideoExportFormat) -> Unit,
     onDurationChange: (Int) -> Unit,
@@ -232,6 +237,11 @@ private fun ConfiguringContent(
                 items = modeItems,
                 selectedIndex = modes.indexOf(state.mode),
                 onItemSelected = { onModeChange(modes[it]) }
+            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            VideoModePreview(
+                mode = state.mode,
+                sessionDir = sessionDir
             )
         }
 

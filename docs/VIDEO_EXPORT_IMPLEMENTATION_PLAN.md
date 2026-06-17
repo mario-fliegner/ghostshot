@@ -814,6 +814,59 @@ Full-Suite-Status: beide Läufe zeigten je einen unzusammenhängenden Flaky-Fehl
 
 ---
 
+---
+
+### Animated Mode Preview — Post-Block-7 Addition (2026-06-12)
+
+#### Purpose
+
+Animierte Modus-Vorschau in der Configuring-State-Card implementieren: Compose-only, kein Encoder, kein ExoPlayer.
+
+#### Scope
+
+- Neues `VideoModePreview.kt` in `com.isardomains.sameview.ui.video`
+- `CreateVideoScreen.kt` — `sessionDir` lokal berechnen; `VideoModePreview` in Video-Type-Card integrieren
+- Dokumentation: `VIDEO_EXPORT_V1.md` §7.4, `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`, `IMPLEMENTATION_NOTES.md`
+
+#### File Changes
+
+| Datei | Art |
+|---|---|
+| `app/src/main/java/com/isardomains/sameview/ui/video/VideoModePreview.kt` | Neu |
+| `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoScreen.kt` | Geändert |
+| `docs/VIDEO_EXPORT_V1.md` | Geändert |
+| `docs/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Geändert |
+| `docs/IMPLEMENTATION_NOTES.md` | Geändert |
+
+#### Explicit Non-Changes
+
+`CreateVideoViewModel.kt`, `VideoExportPipeline`, Encoder, Renderer, `CompareScreen`, `MainActivity`, `SettingsRepository`, `strings.xml`, Gradle, Manifest, Navigation, Tests.
+
+#### Technical Decisions
+
+| Entscheidung | Begründung |
+|---|---|
+| Reines Compose, `InfiniteTransition` | Kein MP4, kein ExoPlayer, kein Export |
+| `sessionDir` lokal in `CreateVideoScreen` | Kein neues öffentliches ViewModel-Feld |
+| Coil `AsyncImage` für Bildladen | Konsistent mit CompareLibraryScreen |
+| `clearAndSetSemantics {}` | Dekorativ; nur Preview-Frame ausgeblendet |
+| `ANIMATOR_DURATION_SCALE == 0` → statisch | Systemweites Reduce-Motion-Signal |
+| `Crossfade(tween(175))` bei Moduswechsel | Spec: ~150–200 ms |
+| `BoxWithConstraints`, max 200 dp Höhe | Robustes Layout Portrait + Landscape/Tablet |
+| `GenericShape` für Slider-Clip | Sauberstes Compose-API für Rechteck-Clip |
+
+#### Test Status (2026-06-12)
+
+| Test | Status |
+|---|---|
+| `testDebugUnitTest` | Pending |
+| `assembleDebug` | Pending |
+| `assembleRelease` | Pending |
+
+Manuelle Verifikation offen: CreateVideoScreen Portrait, Landscape, Compare Slider Preview, Before & After Preview, Reduce Motion ON, Tablet.
+
+---
+
 ## 6. Testing Strategy
 
 ### Unit Tests
