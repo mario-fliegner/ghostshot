@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -80,7 +82,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun CompareLibraryScreen(
     sessions: List<ScannedSession>,
@@ -91,6 +93,7 @@ fun CompareLibraryScreen(
     onBackupSessions: (sessionIds: List<String>, destinationUri: Uri) -> Unit = { _, _ -> },
     isBackupInProgress: Boolean = false,
     isDeletionInProgress: Boolean = false,
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -308,8 +311,13 @@ fun CompareLibraryScreen(
                 }
             }
         } else {
+            val columnCount = when (windowWidthSizeClass) {
+                WindowWidthSizeClass.Medium -> 3
+                WindowWidthSizeClass.Expanded -> 4
+                else -> 2
+            }
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(columnCount),
                 contentPadding = PaddingValues(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),

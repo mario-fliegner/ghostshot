@@ -754,3 +754,93 @@ AI coding systems working from this document must:
 - Verify that existing tests remain green after each block
 - Consult the screen-specific specification before implementing any screen's responsive behavior
 - Record any required spec amendment before, not after, implementation
+
+---
+
+## Addendum (2026-06-18) — Block 3 Refined Scope
+
+### A1. Block 3 Split into 3A and 3B
+
+The original §10.3 description treats Block 3 as a single block covering four screens. Based on pre-implementation analysis, Block 3 has been split:
+
+**Block 3A** (completed 2026-06-18):
+
+- `SettingsScreen`: max-width 680 dp, centered, Expanded only. Implemented.
+- `CreateVideoScreen` Configuring state: max-width 680 dp, centered, Expanded only. Implemented.
+
+**Block 3B** (not yet started):
+
+- `EditSessionScreen`: max-width 680 dp, centered, Expanded only.
+- Deferred from Block 3A because `EditSessionScreen` has a `Scaffold.bottomBar` Save button with `navigationBarsPadding()` and `imePadding()` that requires separate handling and verification. This is an isolated complexity that does not affect the simpler screens in Block 3A.
+
+The per-screen sections §7.4, §7.5, and §7.8 are unchanged in their original content. Their "Action: Block 3" entries now map to Block 3B (§7.4) and Block 3A (§7.5, §7.8) respectively.
+
+### A2. AboutScreen Removed from Block 3
+
+`AboutScreen` (§7.9) has been removed from the Block 3 implementation scope.
+
+The `AboutScreenContent` composable already contains `widthIn(max=520.dp)` applied unconditionally to the inner content column, combined with `horizontalAlignment = Alignment.CenterHorizontally` on the outer column. This satisfies the "centered, max-width bounded content" requirement stated in `ABOUT_SCREEN.md §10` and confirmed by §7.9 of this document.
+
+No `WindowWidthSizeClass` parameter is required for `AboutScreen`. No further action is needed.
+
+### A3. Max-Width Decision: Expanded Only
+
+Following analysis of the Medium width range (600–839 dp), the 680 dp max-width constraint is applied **on `WindowWidthSizeClass.Expanded` only** for all Block 3 screens.
+
+Rationale: §7.8 and §7.5 explicitly specify "Medium | Current. No change." The Medium range (600–839 dp) includes phones in landscape and small foldables where a full-width settings or wizard screen is acceptable. The max-width constraint produces a meaningful, visible improvement only on Expanded (≥ 840 dp). No spec change is required; this addendum records the confirmed alignment with the existing per-screen matrix.
+
+---
+
+### A4. Block 3B Completed (2026-06-18)
+
+`EditSessionScreen` (§7.4) has been implemented as Block 3B.
+
+- Max content width: **680 dp**, centered horizontally, on `WindowWidthSizeClass.Expanded` only
+- Compact and Medium: current behavior unchanged
+- The `Scaffold.bottomBar` Save button is visually constrained to the same 680 dp width as the form content on Expanded. `navigationBarsPadding()` and `imePadding()` remain on the outermost `fillMaxWidth()` container; Scaffold's bottomBar height measurement and IME-above-keyboard behavior are unaffected.
+
+**Block 3 completion status:**
+
+| Block | Screen(s) | Status |
+| --- | --- | --- |
+| Block 3A | SettingsScreen, CreateVideoScreen (Configuring) | Completed 2026-06-18 |
+| Block 3B | EditSessionScreen | Completed 2026-06-18 |
+| AboutScreen | No action — already responsive (widthIn 520 dp) | — |
+
+All Block 3 work is complete. No open Block 3 tasks remain.
+
+---
+
+### A5. Block 4 Completed (2026-06-18)
+
+`CompareScreen` (§7.2) has been implemented as Block 4.
+
+- Max content width: **900 dp**, centered horizontally, on `WindowWidthSizeClass.Expanded` only
+- Compact and Medium: current behavior unchanged
+- A single `Box`/`Column` wrapper encloses both `CompareMetadataHeader` and the compare viewport (portrait and landscape branches); the `TopAppBar` remains full-width outside the container
+- Fullscreen mode: `TopAppBar` and `CompareMetadataHeader` are hidden as before; the 900 dp container remains active for the compare viewport
+- No changes to compare rendering, slider, divider, handle, labels, edge-hiding, `computeFitBounds`, `isLandscape` branching, `CompareMetadataHeader` internal structure, or session data
+
+**Responsive layout block completion status:**
+
+| Block | Screen(s) | Status |
+| --- | --- | --- |
+| Block 2 | CompareLibraryScreen | Completed 2026-06-18 |
+| Block 3A | SettingsScreen, CreateVideoScreen (Configuring) | Completed 2026-06-18 |
+| Block 3B | EditSessionScreen | Completed 2026-06-18 |
+| Block 4 | CompareScreen | Completed 2026-06-18 |
+| Block 5 | CreateVideoScreen (Preview) | Completed 2026-06-18 |
+| Block 6 | CameraScreen | Deferred — high risk |
+
+---
+
+### A6. Block 5 Completed (2026-06-18)
+
+`CreateVideoScreen` Preview State (§7.7) has been implemented as Block 5.
+
+- Max content width: **800 dp**, centered horizontally, on `WindowWidthSizeClass.Expanded` only
+- Compact and Medium: current behavior unchanged
+- A single `Box`/`Column` wrapper encloses both the `PlayerView` and the actions group (Share / Done / Delete Video); they share the same 800 dp column
+- `TopAppBar` remains full-width outside the container
+- No changes to ExoPlayer configuration, playback, Share intent, Delete dialog, Done navigation, `RenderingContent`, `ConfiguringContent`, or export pipeline
+- Isolated verification passed after one unrelated full-suite `CameraControlsOverlayTest` Compose hierarchy flake (pre-existing; passes in isolation)

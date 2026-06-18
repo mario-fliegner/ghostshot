@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,6 +40,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +59,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
@@ -87,12 +91,13 @@ import java.util.TimeZone
  * @param onBack Called when the user navigates back.
  * @param viewModel Created by MainActivity; owns all form state and save logic.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun EditSessionScreen(
     sessionId: String,
     onBack: () -> Unit,
     viewModel: EditSessionViewModel,
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     modifier: Modifier = Modifier,
 ) {
     // ── Collect state ──────────────────────────────────────────────────────────
@@ -240,19 +245,26 @@ fun EditSessionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .imePadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .imePadding(),
+                contentAlignment = Alignment.Center
             ) {
-                Button(
-                    onClick = viewModel::onSave,
-                    enabled = isDirty && !isSaving,
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(contentColor = Color.White),
+                Box(
                     modifier = Modifier
+                        .widthIn(max = if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) 680.dp else Dp.Unspecified)
                         .fillMaxWidth()
-                        .testTag("edit_session_save_button")
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Text(stringResource(R.string.edit_session_save_changes))
+                    Button(
+                        onClick = viewModel::onSave,
+                        enabled = isDirty && !isSaving,
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(contentColor = Color.White),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("edit_session_save_button")
+                    ) {
+                        Text(stringResource(R.string.edit_session_save_changes))
+                    }
                 }
             }
         }
@@ -261,10 +273,16 @@ fun EditSessionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) 680.dp else Dp.Unspecified)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
             // ── Session card ──────────────────────────────────────────────────
             SettingsCard(
                 title = if (captureDateWithTime.isNotEmpty())
@@ -424,6 +442,7 @@ fun EditSessionScreen(
                     modifier = Modifier.fillMaxWidth().testTag("edit_session_country_field")
                 )
             }
-        }
+            } // inner Column
+        } // outer Column
     }
 }

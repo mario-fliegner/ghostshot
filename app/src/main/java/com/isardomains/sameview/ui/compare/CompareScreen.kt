@@ -51,6 +51,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -137,6 +139,7 @@ private val CompareHandleLabelGap = 8.dp
  * Uses a single shared viewport for both images so reference and capture always
  * render with the same container, alignment, and scaling logic.
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun CompareScreen(
     referenceImageUri: Uri?,
@@ -155,6 +158,7 @@ fun CompareScreen(
     locationDisplayName: String? = null,
     locationCity: String? = null,
     locationCountry: String? = null,
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     modifier: Modifier = Modifier
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
@@ -302,43 +306,101 @@ fun CompareScreen(
                         }
                     }
                 }
-                CompareMetadataHeader(
-                    isLandscape = isLandscape,
-                    title = sessionTitle,
-                    locationDisplayName = locationDisplayName,
-                    locationCity = locationCity,
-                    locationCountry = locationCountry,
-                    timestamp = timestamp
-                )
             }
 
-            if (isLandscape) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Column(
+                    modifier = if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) {
+                        Modifier
+                            .widthIn(max = 900.dp)
+                            .fillMaxHeight()
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight()
+                    }
                 ) {
-                    val density = LocalDensity.current
-                    val maxWPx = with(density) { maxWidth.toPx() }
-                    val maxHPx = with(density) { maxHeight.toPx() }
-                    // Header is above BoxWithConstraints; no footer reserved inside.
-                    val targetWidthPx = minOf(maxWPx, maxHPx * (16f / 9f))
-                    val targetHeightPx = targetWidthPx * (9f / 16f)
-                    val targetWidth = with(density) { targetWidthPx.toDp() }
-                    val targetHeight = with(density) { targetHeightPx.toDp() }
+                    if (!isFullscreen) {
+                        CompareMetadataHeader(
+                            isLandscape = isLandscape,
+                            title = sessionTitle,
+                            locationDisplayName = locationDisplayName,
+                            locationCity = locationCity,
+                            locationCountry = locationCountry,
+                            timestamp = timestamp
+                        )
+                    }
 
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    if (isLandscape) {
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        ) {
+                            val density = LocalDensity.current
+                            val maxWPx = with(density) { maxWidth.toPx() }
+                            val maxHPx = with(density) { maxHeight.toPx() }
+                            // Header is above BoxWithConstraints; no footer reserved inside.
+                            val targetWidthPx = minOf(maxWPx, maxHPx * (16f / 9f))
+                            val targetHeightPx = targetWidthPx * (9f / 16f)
+                            val targetWidth = with(density) { targetWidthPx.toDp() }
+                            val targetHeight = with(density) { targetHeightPx.toDp() }
+
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = targetWidth, height = targetHeight)
+                                        .then(
+                                            if (hasValidInput) Modifier.pointerInput(Unit) {
+                                                detectTapGestures { isFullscreen = !isFullscreen }
+                                            } else Modifier
+                                        )
+                                ) {
+                                    when {
+                                        !hasValidInput -> CompareMessageFallback(
+                                            title = stringResource(R.string.compare_error_missing_images),
+                                            body = stringResource(R.string.compare_error_missing_images_body),
+                                            testTag = "compare_missing_input_fallback"
+                                        )
+                                        else -> CompareSliderViewport(
+                                            referenceImageUri = referenceImageUri!!,
+                                            captureImageUri = captureImageUri!!,
+                                            contentScale = compareContentScale,
+                                            referenceDate = referenceDate,
+                                            captureTimestampMs = timestamp ?: 0L,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .testTag("compare_screen_shell_content")
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
                         Box(
                             modifier = Modifier
-                                .size(width = targetWidth, height = targetHeight)
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(
+                                    start = if (isFullscreen) 0.dp else 24.dp,
+                                    end = if (isFullscreen) 0.dp else 24.dp,
+                                    top = if (isFullscreen) 0.dp else 24.dp,
+                                    bottom = if (isFullscreen) 0.dp else 24.dp
+                                )
                                 .then(
                                     if (hasValidInput) Modifier.pointerInput(Unit) {
                                         detectTapGestures { isFullscreen = !isFullscreen }
                                     } else Modifier
-                                )
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
                             when {
                                 !hasValidInput -> CompareMessageFallback(
@@ -346,6 +408,7 @@ fun CompareScreen(
                                     body = stringResource(R.string.compare_error_missing_images_body),
                                     testTag = "compare_missing_input_fallback"
                                 )
+
                                 else -> CompareSliderViewport(
                                     referenceImageUri = referenceImageUri!!,
                                     captureImageUri = captureImageUri!!,
@@ -358,43 +421,6 @@ fun CompareScreen(
                                 )
                             }
                         }
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(
-                            start = if (isFullscreen) 0.dp else 24.dp,
-                            end = if (isFullscreen) 0.dp else 24.dp,
-                            top = if (isFullscreen) 0.dp else 24.dp,
-                            bottom = if (isFullscreen) 0.dp else 24.dp
-                        )
-                        .then(
-                            if (hasValidInput) Modifier.pointerInput(Unit) {
-                                detectTapGestures { isFullscreen = !isFullscreen }
-                            } else Modifier
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when {
-                        !hasValidInput -> CompareMessageFallback(
-                            title = stringResource(R.string.compare_error_missing_images),
-                            body = stringResource(R.string.compare_error_missing_images_body),
-                            testTag = "compare_missing_input_fallback"
-                        )
-
-                        else -> CompareSliderViewport(
-                            referenceImageUri = referenceImageUri!!,
-                            captureImageUri = captureImageUri!!,
-                            contentScale = compareContentScale,
-                            referenceDate = referenceDate,
-                            captureTimestampMs = timestamp ?: 0L,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .testTag("compare_screen_shell_content")
-                        )
                     }
                 }
             }

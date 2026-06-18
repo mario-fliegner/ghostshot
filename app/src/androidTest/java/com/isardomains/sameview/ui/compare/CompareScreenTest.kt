@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.theme.SameViewTheme
 import org.junit.After
@@ -46,6 +47,7 @@ import java.io.File
 import java.text.DateFormat
 import java.util.Date
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @RunWith(AndroidJUnit4::class)
 class CompareScreenTest {
 

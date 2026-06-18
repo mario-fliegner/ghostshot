@@ -298,6 +298,10 @@ TopAppBar:  ← Back   "Video Created"
 `[Delete Video]`: shows a confirmation dialog before deleting. On confirmation: deletes video from MediaStore, returns to `Configuring` state.
 `[Done]` / Back: video remains saved, `CreateVideoScreen` closes. Back behaves identically to Done.
 
+**Expanded layout (≥ 840 dp):**
+
+On `WindowWidthSizeClass.Expanded`, the video player and all three action buttons are placed together in a centered max-width container (800 dp). The TopAppBar remains full-width. Compact and Medium behavior is unchanged. Navigation, Share flow, Delete flow, and playback behavior are unaffected by this layout constraint.
+
 ### 7.6 Wizard State Persistence
 
 Wizard configuration state (mode, format, duration, quality, branding toggle) may survive normal rotation within the active wizard session. It must not persist across app restarts.

@@ -948,6 +948,151 @@ Manuelle Verifikation offen: Portrait (360dp), Landscape, Font Scale 1.3×, Font
 
 ---
 
+### Responsive Layout System — Block 2: CompareLibrary Grid Scaling (2026-06-18)
+
+Full specification: `RESPONSIVE_LAYOUT_SYSTEM_V1.md`
+
+`RESPONSIVE_LAYOUT_SYSTEM_V1.md` is the authoritative specification for the responsive layout system of the SameView Android app. Block 1 of that document is the spec itself. Block 2 is the first implementation block and is now complete.
+
+**Implemented:**
+
+- `CompareLibraryScreen` uses `WindowWidthSizeClass` to determine grid column count:
+  - Compact → 2 columns (previous fixed behavior, preserved as default)
+  - Medium → 3 columns
+  - Expanded → 4 columns
+- `calculateWindowSizeClass(this)` is computed once in `MainActivity` inside the `setContent` composable scope
+- `windowWidthSizeClass` is passed exclusively to `CompareLibraryScreen`; no other screen is affected
+- `material3-window-size-class` artifact added as a BOM-managed dependency (alias `androidx-compose-material3-windowsizeclass`; alias `…-window-size-class` is a Gradle reserved name and was rejected)
+- `@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)` applied to `MainActivity.onCreate`, `CompareLibraryScreen`, and `CompareLibraryScreenTest`
+
+**Not changed:** CameraScreen, CompareScreen, EditSessionScreen, CreateVideoScreen, SettingsScreen, AboutScreen, CameraViewModel, SessionScanner, SessionStorage, Backup/Delete logic, Navigation graph structure, Manifest, Permissions, Strings, metadata.json, Video Export pipeline.
+
+**Verified test state (Block 2 — Completed 2026-06-18):**
+
+| Test | Status |
+|---|---|
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `testDebugUnitTest` | BUILD SUCCESSFUL |
+| `CompareLibraryScreenTest` (40 tests) | 40/40 PASSED on SM-S911B (Android 16) |
+| `connectedDebugAndroidTest` (511 tests) | 511/511 PASSED on SM-S911B (Android 16) |
+
+No open Block 2 tasks remain.
+
+---
+
+### Responsive Layout System — Block 3A: Max-Width Constraints (2026-06-18)
+
+Full specification: `RESPONSIVE_LAYOUT_SYSTEM_V1.md` (see addendum for Block 3A/3B split)
+
+**Implemented:**
+
+- `SettingsScreen` and `CreateVideoScreen` (Configuring state only) receive a centered max-width container on `WindowWidthSizeClass.Expanded`:
+  - Max content width: **680 dp**, centered horizontally
+  - Compact and Medium: current behavior unchanged
+- `windowWidthSizeClass` is passed from `MainActivity` to both screens; the value is already computed by `calculateWindowSizeClass(this)` since Block 2
+- `AboutScreen`: no change; already has `widthIn(max=520.dp)` and is fully responsive per `ABOUT_SCREEN.md §10`
+- `EditSessionScreen`: intentionally deferred to **Block 3B** due to `Scaffold.bottomBar` Save button requiring separate `navigationBarsPadding()` / `imePadding()` handling
+
+**Not changed:** CameraScreen, CompareScreen, CompareLibraryScreen, EditSessionScreen, Video Export Pipeline, `SettingsComponents.kt`, `SettingsViewModel`, `SettingsRepository`, DataStore, Permission flows, Session Storage, Backup/Delete logic, Manifest, Permissions, Strings, metadata.json, rendering pipeline.
+
+**Verified test state (Block 3A — Completed 2026-06-18):**
+
+| Test | Status |
+|---|---|
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `testDebugUnitTest` | BUILD SUCCESSFUL |
+| `SettingsScreenTest` (20 tests) | 20/20 PASSED on SM-S911B (Android 16) |
+| `connectedDebugAndroidTest` (511 tests) | 511/511 PASSED on SM-S911B (Android 16) |
+
+No open Block 3A tasks remain.
+
+---
+
+### Responsive Layout System — Block 3B: EditSessionScreen Max-Width (2026-06-18)
+
+Full specification: `RESPONSIVE_LAYOUT_SYSTEM_V1.md` (see addendum A4)
+
+**Implemented:**
+
+- `EditSessionScreen` receives a centered max-width container on `WindowWidthSizeClass.Expanded`:
+  - Max content width: **680 dp**, centered horizontally
+  - Compact and Medium: current behavior unchanged
+- Save button (in `Scaffold.bottomBar`) is visually constrained to the same 680 dp width as the form content on Expanded
+- `navigationBarsPadding()` and `imePadding()` remain on the outermost `fillMaxWidth()` bottomBar container; only the visual inner container is constrained — Scaffold bottomBar height measurement and keyboard-above behavior are unaffected
+
+**Not changed:** `EditSessionViewModel`, `SessionStorage`, `SessionScanner`, `metadata.json`, Save/Discard/Saving-in-progress dialog logic, reference date validation, field pre-population, `BackHandler`, image thumbnail display, navigation contracts, Manifest, Permissions, Strings.
+
+**Verified test state (Block 3B — Completed 2026-06-18):**
+
+| Test | Status |
+|---|---|
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `testDebugUnitTest` | BUILD SUCCESSFUL |
+| `EditSessionScreenTest` (22 tests) | 22/22 PASSED on SM-S911B (Android 16) |
+| `connectedDebugAndroidTest` (511 tests) | 511/511 PASSED on SM-S911B (Android 16) |
+
+No open Block 3B tasks remain.
+
+---
+
+### Responsive Layout System — Block 4: CompareScreen Max-Width (2026-06-18)
+
+Full specification: `RESPONSIVE_LAYOUT_SYSTEM_V1.md` (see addendum A5)
+
+**Implemented:**
+
+- `CompareScreen` receives a centered 900 dp max-width container on `WindowWidthSizeClass.Expanded`:
+  - A `Box(fillMaxWidth, weight(1f), contentAlignment=TopCenter)` replaces the direct Column children; inside it, a `Column(widthIn(max=900.dp), fillMaxHeight)` encloses both `CompareMetadataHeader` and the compare viewport (portrait and landscape branches)
+  - On Compact and Medium: current behavior unchanged — inner `Column` uses `fillMaxWidth()`
+- `TopAppBar` (custom `Row`) remains full-width outside the container; it is a direct Column child before the wrapper `Box`
+- Fullscreen mode: `TopAppBar` and `CompareMetadataHeader` are hidden as before; the 900 dp container remains active for the compare viewport
+- `windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact` parameter added to `CompareScreen`; default `Compact` preserves all existing test call sites without change
+- `windowWidthSizeClass = windowSizeClass.widthSizeClass` wired in `MainActivity` at the `CompareScreen` call site
+- `@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)` added to `CompareScreen` and `CompareScreenTest`
+
+**Not changed:** Compare rendering, `ContentScale`, `computeFitBounds`, slider, divider, handle, labels, edge-hiding logic, `isLandscape` branching, `CompareMetadataHeader` internal structure, §42 maxLines / smart-reduction, `PortraitLocationRow` / `BoxWithConstraints` text-measurement, session data, navigation, `CameraViewModel`, `SessionStorage`, `SessionScanner`, Manifest, Permissions, Strings, Gradle.
+
+**Verified test state (Block 4 — Completed 2026-06-18):**
+
+| Test | Status |
+| --- | --- |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `testDebugUnitTest` | BUILD SUCCESSFUL |
+| `connectedDebugAndroidTest` (full suite) | PASSED on SM-S911B (Android 16) |
+
+No open Block 4 tasks remain.
+
+---
+
+### Responsive Layout System — Block 5: CreateVideoScreen Preview State (2026-06-18)
+
+Full specification: `RESPONSIVE_LAYOUT_SYSTEM_V1.md` (see addendum A6); `VIDEO_EXPORT_V1.md §7.5` (see Expanded layout note)
+
+**Implemented:**
+
+- `PreviewContent` in `CreateVideoScreen` receives a centered 800 dp max-width container on `WindowWidthSizeClass.Expanded`:
+  - A `Box(fillMaxWidth, weight(1f), contentAlignment=TopCenter)` wraps an inner `Column(widthIn(max=800.dp), fillMaxHeight)` that encloses both the `AndroidView`(PlayerView) and the actions `Column` (Share / Done / Delete Video)
+  - On Compact and Medium: current behavior unchanged — inner `Column` uses `fillMaxWidth()`
+- `PlayerView` and all three action buttons share the same 800 dp container — no separate widths
+- `TopAppBar` remains full-width (Material3 standard behavior, outside the container)
+- `navigationBarsPadding()` on the actions `Column` continues to work correctly inside the constrained container
+- `windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact` parameter added to `PreviewContent`; forwarded from `CreateVideoScreen` call site
+- `import androidx.compose.foundation.layout.fillMaxHeight` added (only new import)
+
+**Not changed:** ExoPlayer creation, `PlayerView` configuration, playback, `repeatMode`, `volume`, `DisposableEffect` (player release), Share intent, Done navigation, Delete dialog and delete logic, `CreateVideoViewModel`, state machine, `RenderingContent`, `ConfiguringContent`, `VideoLoadingPreview`, `VideoModePreview`, export pipeline, navigation, strings, Manifest, Permissions, Gradle.
+
+**Verified test state (Block 5 — Completed 2026-06-18):**
+
+| Test | Status |
+| --- | --- |
+| `assembleDebug` | BUILD SUCCESSFUL |
+| `testDebugUnitTest` | BUILD SUCCESSFUL |
+| `connectedDebugAndroidTest` (full suite) | One unrelated `CameraControlsOverlayTest` failure: `No compose hierarchies found in the app` — pre-existing Compose hierarchy flake; isolated rerun PASSED; not a Block 5 regression |
+
+No open Block 5 tasks remain.
+
+---
+
 ### Block 9d — Video Mode Label Rename + Icon Revert (2026-06-17)
 
 **Geänderte Dateien:**

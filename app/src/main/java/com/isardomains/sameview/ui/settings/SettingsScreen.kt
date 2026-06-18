@@ -10,6 +10,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,9 +45,11 @@ import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.camera.GridType
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     onBack: () -> Unit
 ) {
     val gridType by viewModel.gridType.collectAsStateWithLifecycle()
@@ -125,11 +132,12 @@ fun SettingsScreen(
         recreationGuidance = recreationGuidance,
         onRecreationGuidanceChanged = viewModel::onRecreationGuidanceChanged,
         showLocationPermissionDeniedHint = showPermissionDeniedHint,
+        windowWidthSizeClass = windowWidthSizeClass,
         onBack = onBack
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 internal fun SettingsScreenContent(
     gridType: GridType,
@@ -143,6 +151,7 @@ internal fun SettingsScreenContent(
     recreationGuidance: Boolean,
     onRecreationGuidanceChanged: (Boolean) -> Unit,
     showLocationPermissionDeniedHint: Boolean = false,
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -163,10 +172,17 @@ internal fun SettingsScreenContent(
         Column(
             modifier = Modifier
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) 680.dp else Dp.Unspecified)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
             SettingsCard(title = stringResource(R.string.settings_camera_title)) {
                 KeepScreenOnRow(
                     checked = keepScreenOn,
@@ -225,7 +241,8 @@ internal fun SettingsScreenContent(
                     )
                 }
             }
-        }
+            } // inner Column
+        } // outer Column
     }
 }
 

@@ -5,6 +5,8 @@ import android.os.Build
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -23,12 +25,14 @@ import com.isardomains.sameview.ui.camera.ScannedSession
 import com.isardomains.sameview.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.text.DateFormat
 import java.util.Date
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @RunWith(AndroidJUnit4::class)
 class CompareLibraryScreenTest {
 
@@ -388,7 +392,8 @@ class CompareLibraryScreenTest {
         onDeleteSessions: (List<String>) -> Unit = {},
         onBackupSessions: (List<String>, Uri) -> Unit = { _, _ -> },
         isBackupInProgress: Boolean = false,
-        isDeletionInProgress: Boolean = false
+        isDeletionInProgress: Boolean = false,
+        windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -408,7 +413,8 @@ class CompareLibraryScreenTest {
                         onDeleteSessions = onDeleteSessions,
                         onBackupSessions = onBackupSessions,
                         isBackupInProgress = isBackupInProgress,
-                        isDeletionInProgress = isDeletionInProgress
+                        isDeletionInProgress = isDeletionInProgress,
+                        windowWidthSizeClass = windowWidthSizeClass
                     )
                 }
             }
@@ -526,6 +532,66 @@ class CompareLibraryScreenTest {
         setLibraryContent(sessions = listOf(createFakeSession()))
 
         composeRule.onNodeWithText("X", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun grid_hasTwoColumns_whenWindowSizeCompact() {
+        val sessions = (0..2).map { createFakeSession(id = "compact_col_$it") }
+        setLibraryContent(sessions = sessions, windowWidthSizeClass = WindowWidthSizeClass.Compact)
+
+        val top0 = composeRule.onNodeWithTag("compare_library_session_tile_compact_col_0")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top1 = composeRule.onNodeWithTag("compare_library_session_tile_compact_col_1")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top2 = composeRule.onNodeWithTag("compare_library_session_tile_compact_col_2")
+            .fetchSemanticsNode().boundsInRoot.top
+
+        // tiles 0 and 1 share row 1; tile 2 is in row 2
+        assertTrue("Tiles 0 and 1 should be in the same row", kotlin.math.abs(top0 - top1) < 2f)
+        assertTrue("Tile 2 should be in a different row than tile 0", kotlin.math.abs(top0 - top2) > 50f)
+    }
+
+    @Test
+    fun grid_hasThreeColumns_whenWindowSizeMedium() {
+        val sessions = (0..3).map { createFakeSession(id = "medium_col_$it") }
+        setLibraryContent(sessions = sessions, windowWidthSizeClass = WindowWidthSizeClass.Medium)
+
+        val top0 = composeRule.onNodeWithTag("compare_library_session_tile_medium_col_0")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top1 = composeRule.onNodeWithTag("compare_library_session_tile_medium_col_1")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top2 = composeRule.onNodeWithTag("compare_library_session_tile_medium_col_2")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top3 = composeRule.onNodeWithTag("compare_library_session_tile_medium_col_3")
+            .fetchSemanticsNode().boundsInRoot.top
+
+        // tiles 0, 1, 2 share row 1; tile 3 is in row 2
+        assertTrue("Tiles 0 and 1 should be in the same row", kotlin.math.abs(top0 - top1) < 2f)
+        assertTrue("Tiles 0 and 2 should be in the same row", kotlin.math.abs(top0 - top2) < 2f)
+        assertTrue("Tile 3 should be in a different row than tile 0", kotlin.math.abs(top0 - top3) > 50f)
+    }
+
+    @Test
+    fun grid_hasFourColumns_whenWindowSizeExpanded() {
+        val sessions = (0..4).map { createFakeSession(id = "expanded_col_$it") }
+        setLibraryContent(sessions = sessions, windowWidthSizeClass = WindowWidthSizeClass.Expanded)
+
+        val top0 = composeRule.onNodeWithTag("compare_library_session_tile_expanded_col_0")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top1 = composeRule.onNodeWithTag("compare_library_session_tile_expanded_col_1")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top2 = composeRule.onNodeWithTag("compare_library_session_tile_expanded_col_2")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top3 = composeRule.onNodeWithTag("compare_library_session_tile_expanded_col_3")
+            .fetchSemanticsNode().boundsInRoot.top
+        val top4 = composeRule.onNodeWithTag("compare_library_session_tile_expanded_col_4")
+            .fetchSemanticsNode().boundsInRoot.top
+
+        // tiles 0, 1, 2, 3 share row 1; tile 4 is in row 2
+        assertTrue("Tiles 0 and 1 should be in the same row", kotlin.math.abs(top0 - top1) < 2f)
+        assertTrue("Tiles 0 and 2 should be in the same row", kotlin.math.abs(top0 - top2) < 2f)
+        assertTrue("Tiles 0 and 3 should be in the same row", kotlin.math.abs(top0 - top3) < 2f)
+        assertTrue("Tile 4 should be in a different row than tile 0", kotlin.math.abs(top0 - top4) > 50f)
     }
 
     private fun createFakeSession(id: String = fakeSessionId, title: String? = null) = ScannedSession(

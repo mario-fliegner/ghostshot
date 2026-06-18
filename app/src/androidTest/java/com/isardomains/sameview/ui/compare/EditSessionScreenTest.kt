@@ -6,6 +6,7 @@ import android.os.Build
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -31,6 +32,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @RunWith(AndroidJUnit4::class)
 class EditSessionScreenTest {
 

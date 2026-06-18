@@ -10,12 +10,17 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -77,11 +82,12 @@ import java.io.File
  *
  * @param onBack called when the user navigates back (Configuring back or Preview Done/Back).
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun CreateVideoScreen(
     onBack: () -> Unit,
-    viewModel: CreateVideoViewModel = hiltViewModel()
+    viewModel: CreateVideoViewModel = hiltViewModel(),
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val progress by viewModel.progress.collectAsStateWithLifecycle()
@@ -208,6 +214,7 @@ fun CreateVideoScreen(
                 overlayTitleText = overlayTitleText,
                 overlayDateText = overlayDateText,
                 onCreateVideo = viewModel::startExport,
+                windowWidthSizeClass = windowWidthSizeClass,
                 modifier = Modifier.padding(paddingValues)
             )
             is CreateVideoState.Rendering -> RenderingContent(
@@ -226,6 +233,7 @@ fun CreateVideoScreen(
                 state = s,
                 onDelete = viewModel::deleteVideo,
                 onDone = onBack,
+                windowWidthSizeClass = windowWidthSizeClass,
                 modifier = Modifier.padding(paddingValues)
             )
         }
@@ -234,6 +242,7 @@ fun CreateVideoScreen(
 
 // ── Configuring ───────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun ConfiguringContent(
     state: CreateVideoState.Configuring,
@@ -252,16 +261,23 @@ private fun ConfiguringContent(
     overlayTitleText: String?,
     overlayDateText: String?,
     onCreateVideo: () -> Unit,
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) 680.dp else Dp.Unspecified)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
         // ── Mode ──────────────────────────────────────────────────────────
         val modes = listOf(VideoMode.COMPARE_SLIDER, VideoMode.BEFORE_AFTER, VideoMode.FLASH)
         val modeItems = listOf(
@@ -392,7 +408,8 @@ private fun ConfiguringContent(
         ) {
             Text(stringResource(R.string.create_video_action_create))
         }
-    }
+        } // inner Column
+    } // outer Column
 }
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
@@ -494,6 +511,7 @@ private fun PreviewContent(
     state: CreateVideoState.Preview,
     onDelete: () -> Unit,
     onDone: () -> Unit,
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -537,59 +555,78 @@ private fun PreviewContent(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Video player occupies all remaining space above the buttons
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                }
-            },
-            update = { playerView ->
-                playerView.player = player
-            },
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-        )
-
-        // Action buttons at the bottom
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .weight(1f),
+            contentAlignment = Alignment.TopCenter
         ) {
-            // Primary action — same visual style as Create Video button
-            Button(
-                onClick = {
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "video/mp4"
-                        putExtra(Intent.EXTRA_STREAM, state.videoUri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            Column(
+                modifier = if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) {
+                    Modifier
+                        .widthIn(max = 800.dp)
+                        .fillMaxHeight()
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                }
+            ) {
+                // Video player occupies all remaining space above the buttons
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            useController = false
+                        }
+                    },
+                    update = { playerView ->
+                        playerView.player = player
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+
+                // Action buttons at the bottom
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Primary action — same visual style as Create Video button
+                    Button(
+                        onClick = {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "video/mp4"
+                                putExtra(Intent.EXTRA_STREAM, state.videoUri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            runCatching { context.startActivity(Intent.createChooser(shareIntent, null)) }
+                        },
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(contentColor = Color.White),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.create_video_action_share))
                     }
-                    runCatching { context.startActivity(Intent.createChooser(shareIntent, null)) }
-                },
-                shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(contentColor = Color.White),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.create_video_action_share))
-            }
-            // Secondary action — full-width outlined, clearly below Share in hierarchy
-            OutlinedButton(
-                onClick = onDone,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.create_video_action_done))
-            }
-            // Destructive / tertiary — text-only, right-aligned; tap opens confirmation dialog
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                TextButton(onClick = { showDeleteDialog = true }) {
-                    Text(stringResource(R.string.create_video_action_delete))
+                    // Secondary action — full-width outlined, clearly below Share in hierarchy
+                    OutlinedButton(
+                        onClick = onDone,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.create_video_action_done))
+                    }
+                    // Destructive / tertiary — text-only, right-aligned; tap opens confirmation dialog
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        TextButton(onClick = { showDeleteDialog = true }) {
+                            Text(stringResource(R.string.create_video_action_delete))
+                        }
+                    }
                 }
             }
         }

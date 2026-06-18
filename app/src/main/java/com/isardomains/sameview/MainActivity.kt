@@ -27,6 +27,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import com.isardomains.sameview.ui.camera.CameraScreen
 import com.isardomains.sameview.ui.camera.CameraViewModel
 import com.isardomains.sameview.ui.camera.UiEvent
@@ -71,6 +73,7 @@ private const val ROUTE_COMPARE_WITH_ARGS =
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -79,6 +82,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             SameViewTheme {
                 val navController = rememberNavController()
+                val windowSizeClass = calculateWindowSizeClass(this)
                 NavHost(
                     navController = navController,
                     startDestination = ROUTE_CAMERA
@@ -118,7 +122,10 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable(ROUTE_SETTINGS) {
-                        SettingsScreen(onBack = { navController.popBackStack() })
+                        SettingsScreen(
+                            windowWidthSizeClass = windowSizeClass.widthSizeClass,
+                            onBack = { navController.popBackStack() }
+                        )
                     }
                     composable(ROUTE_ABOUT) {
                         AboutScreenRoute(onBack = { navController.popBackStack() })
@@ -152,6 +159,7 @@ class MainActivity : ComponentActivity() {
                             CompareLibraryScreen(
                                 sessions = uiState.savedSessions,
                                 onRefresh = viewModel::refreshSavedSessions,
+                                windowWidthSizeClass = windowSizeClass.widthSizeClass,
                                 onSessionClick = { session ->
                                     navController.navigate(
                                         compareRoute(
@@ -278,6 +286,7 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 timestamp = timestamp,
                                 referenceDate = referenceDate,
+                                windowWidthSizeClass = windowSizeClass.widthSizeClass,
                                 onDelete = if (sessionId != null) {
                                     {
                                         coroutineScope.launch {
@@ -322,7 +331,10 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     ) {
-                        CreateVideoScreen(onBack = { navController.popBackStack() })
+                        CreateVideoScreen(
+                            onBack = { navController.popBackStack() },
+                            windowWidthSizeClass = windowSizeClass.widthSizeClass
+                        )
                     }
                     composable(
                         route = ROUTE_EDIT_SESSION_WITH_ARGS,
@@ -358,7 +370,8 @@ class MainActivity : ComponentActivity() {
                             EditSessionScreen(
                                 sessionId = sessionId,
                                 onBack = { navController.popBackStack() },
-                                viewModel = editSessionViewModel
+                                viewModel = editSessionViewModel,
+                                windowWidthSizeClass = windowSizeClass.widthSizeClass
                             )
                             SnackbarHost(
                                 hostState = snackbarHostState,
