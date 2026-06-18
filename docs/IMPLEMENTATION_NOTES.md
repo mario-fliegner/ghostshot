@@ -154,7 +154,7 @@ GPS is architecturally separate from the Compare rendering pipeline. `GpsSnapsho
 - `CompareScreen` is implemented as a separate fullscreen slider-based comparison screen
 - Tap-based fullscreen viewing mode is implemented
 - Back exits fullscreen before leaving the screen
-- Compare supports timestamp, delete, and optional shot title display
+- Compare shows a metadata header above the slider: title, location (`📍 displayName · city, country`), or `Created <date>` fallback; hidden in fullscreen (spec: §42)
 - Compare image load failures show a fallback UI and allow back navigation
 
 Active compare session lifecycle — fully implemented:

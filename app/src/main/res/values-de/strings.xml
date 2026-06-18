@@ -253,4 +253,6 @@
     <string name="edit_session_saving_dialog_title">Änderungen werden gespeichert</string>
     <string name="edit_session_saving_dialog_body">Bitte warte, bis das Speichern abgeschlossen ist.</string>
     <string name="edit_session_saving_dialog_confirm">OK</string>
+    <!-- Compare Screen Metadata Header -->
+    <string name="compare_screen_metadata_created">Erstellt am %s</string>
 </resources>

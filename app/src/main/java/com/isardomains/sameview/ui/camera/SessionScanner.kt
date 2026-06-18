@@ -15,7 +15,10 @@ data class ScannedSession(
     val referenceFileUri: Uri,
     val captureFileUri: Uri,
     val title: String? = null,
-    val referenceDate: String? = null
+    val referenceDate: String? = null,
+    val locationDisplayName: String? = null,
+    val locationCity: String? = null,
+    val locationCountry: String? = null
 )
 
 internal object SessionScanner {
@@ -152,13 +155,21 @@ internal object SessionScanner {
 
         val referenceDate = json.optJSONObject("reference")?.optString("date", "")?.takeIf { it.isNotEmpty() }
 
+        val locationObj: JSONObject? = json.optJSONObject("location")
+        val locationDisplayName = locationObj?.optString("displayName", "")?.takeIf { it.isNotEmpty() }
+        val locationCity = locationObj?.optString("city", "")?.takeIf { it.isNotEmpty() }
+        val locationCountry = locationObj?.optString("country", "")?.takeIf { it.isNotEmpty() }
+
         return ScannedSession(
             sessionId = id,
             timestamp = timestamp,
             referenceFileUri = Uri.fromFile(refFile),
             captureFileUri = Uri.fromFile(capFile),
             title = title,
-            referenceDate = referenceDate
+            referenceDate = referenceDate,
+            locationDisplayName = locationDisplayName,
+            locationCity = locationCity,
+            locationCountry = locationCountry
         )
     }
 

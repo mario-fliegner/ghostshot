@@ -35,7 +35,7 @@ If a future task conflicts with this addendum, the user must make an explicit pr
 - Reference image on the left, capture image on the right
 - Single horizontally draggable vertical divider, starting at 50%
 - Back navigation returns to the caller
-- When session context is present (`sessionId` + `timestamp`), displays a formatted timestamp below the viewport
+- When session context is present (`sessionId` + `timestamp`), displays a metadata header above the slider: title, location, or `Created <date>` fallback
 - When session context is present, displays a delete button in the top bar
 - Delete from `CompareScreen` removes only the internal session folder and never deletes the MediaStore photo
 
@@ -45,7 +45,7 @@ If a future task conflicts with this addendum, the user must make an explicit pr
 
 Normal mode:
 - Top bar is visible
-- Timestamp is visible when session context is present
+- Metadata header is visible above the slider when session context is present
 - Images use `ContentScale.Fit`
 - Full images remain visible and may show empty margins when image aspect ratios do not match the viewport
 
@@ -53,7 +53,7 @@ Fullscreen mode:
 - Tap on the compare viewport toggles fullscreen on and off
 - Back exits fullscreen before leaving the compare screen
 - Top bar is hidden
-- Timestamp is hidden
+- Metadata header is hidden
 - Outer `systemBarsPadding` is not applied
 - Portrait fullscreen removes the normal viewport padding
 - The compare viewport uses the maximum available screen space
@@ -568,10 +568,8 @@ If uncertain:
 
 Compare Screen:
 - Sessions may include an optional title
-- When present, title is displayed above the timestamp
-- Title can be edited via overflow menu (⋮ → Edit title)
-- Title can be removed via overflow menu (⋮ → Remove title)
-- Title removal does not require confirmation
+- When present, title is displayed in the metadata header above the compare slider
+- Title can be edited via overflow menu (⋮ → Edit Session)
 - Title changes must update immediately in UI
 
 Compare Library:

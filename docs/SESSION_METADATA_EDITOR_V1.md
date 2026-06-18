@@ -586,10 +586,12 @@ The editor must not rely on a full `SessionScanner` re-scan of all sessions to u
 
 ### What CompareScreen Displays from Metadata
 
-`CompareScreen` currently displays:
-- Session title (from `content.title`) — shown above the timestamp when present
+`CompareScreen` displays a metadata header above the compare slider (see `COMPARE_FLOW_V1.md §42`):
+- `content.title` — shown as the primary line when present
+- `location.displayName`, `location.city`, `location.country` — shown as a compact location line when present
+- `Created <date>` fallback — shown when no user-authored metadata is present and a timestamp is available
 
-After the editor is implemented, `CompareScreen` continues to display the title. No new metadata fields need to be displayed in `CompareScreen` in V1 (reference date and location are not displayed in `CompareScreen`).
+The header is hidden in fullscreen mode.
 
 ### Title Update on Return
 

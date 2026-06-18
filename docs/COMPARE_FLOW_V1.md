@@ -1062,7 +1062,7 @@ The compare screen now includes the V1 fullscreen viewing behavior described in 
 Implemented behavior:
 - Tap on the compare viewport toggles fullscreen
 - Back exits fullscreen before leaving the compare screen
-- Top bar and timestamp are hidden in fullscreen
+- Top bar and metadata header are hidden in fullscreen
 - Outer `systemBarsPadding` is disabled in fullscreen
 - Portrait fullscreen removes the normal viewport padding
 - Normal mode uses `ContentScale.Fit`
@@ -1524,3 +1524,57 @@ The following are explicitly out of scope for this feature and must not be imple
 - Label content influencing compare rendering, `ContentScale`, or divider position
 - Adding `additional.originalDate` or any new metadata field for this feature
 - Label color customization or theming beyond the standard contrast aid
+
+---
+
+## 42. COMPARE SCREEN METADATA HEADER (2026-06-18)
+
+`CompareScreen` now displays session metadata **above** the compare slider, between the top app bar and the slider viewport. This replaces the previous footer (timestamp + title below the viewport).
+
+### Metadata header purpose
+
+The metadata header establishes session identity before the user engages with the comparison. Reading flow: "What is this? Where? → then compare."
+
+### Portrait layout
+
+Two rows maximum, followed by the slider:
+
+| Content available | Row 1 | Row 2 |
+| --- | --- | --- |
+| Title + Location | `content.title` | `📍 displayName · city, country` |
+| Title only | `content.title` | — |
+| Location only | `📍 displayName · city, country` | — |
+| Neither | `Created <date>` | — |
+| Neither + no timestamp | (empty, no header) | — |
+
+Title: `maxLines = 2`, `TextOverflow.Ellipsis`.
+Location line: smart reduction — tries `displayName · city, country` → `displayName · city` → `displayName` (then city/country fallback) until the string fits the available width without mid-word ellipsis.
+Fallback date format: `DateFormat.getDateInstance(MEDIUM)` (date only, no time). String resource `compare_screen_metadata_created` = `"Created %s"`.
+
+### Landscape layout
+
+Two rows maximum, same information hierarchy as portrait:
+
+- Title (if present) — `maxLines = 1`, `TextOverflow.Ellipsis`
+- Location (if present) — `📍 displayName · city, country`; same smart-reduction logic as portrait
+- `Created <date>` fallback — only when no user-authored metadata is present
+- Empty — when no title, no location, no timestamp
+
+Both title and location are shown simultaneously when both are present. No exclusive priority between title and location.
+
+### Fullscreen
+
+The metadata header is hidden in fullscreen, identically to the top app bar. Implemented as `if (!isFullscreen)` gating at the call site.
+
+### Data sources
+
+`location.displayName`, `location.city`, `location.country` are read from `metadata.json` via `SessionScanner` (added to `ScannedSession`) and passed to `CompareScreen` via `MainActivity`, following the same pattern as `sessionTitle`.
+
+`CompareInput`, `SavedSessionRef`, and `SessionStorage` are unchanged — location fields are user-authored metadata, never set at capture time.
+
+### What is NOT shown
+
+- `reference.date` and the date pair (Reference ↔ Capture) — already present in the slider handle labels (§41)
+- Capture time (only date in fallback, no time component)
+- `content.description`
+- Session ID

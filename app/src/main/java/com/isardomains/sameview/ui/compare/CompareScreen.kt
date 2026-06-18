@@ -39,6 +39,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material3.AlertDialog
@@ -86,6 +87,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -149,6 +152,9 @@ fun CompareScreen(
     onCreateVideo: (() -> Unit)? = null,
     isCreateVideoAvailable: Boolean = false,
     referenceDate: String? = null,
+    locationDisplayName: String? = null,
+    locationCity: String? = null,
+    locationCountry: String? = null,
     modifier: Modifier = Modifier
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
@@ -296,6 +302,14 @@ fun CompareScreen(
                         }
                     }
                 }
+                CompareMetadataHeader(
+                    isLandscape = isLandscape,
+                    title = sessionTitle,
+                    locationDisplayName = locationDisplayName,
+                    locationCity = locationCity,
+                    locationCountry = locationCountry,
+                    timestamp = timestamp
+                )
             }
 
             if (isLandscape) {
@@ -307,9 +321,8 @@ fun CompareScreen(
                     val density = LocalDensity.current
                     val maxWPx = with(density) { maxWidth.toPx() }
                     val maxHPx = with(density) { maxHeight.toPx() }
-                    val reservedHeightPx = if (!isFullscreen && timestamp != null) with(density) { 48.dp.toPx() } else 0f
-                    val effectiveMaxH = maxHPx - reservedHeightPx
-                    val targetWidthPx = minOf(maxWPx, effectiveMaxH * (16f / 9f))
+                    // Header is above BoxWithConstraints; no footer reserved inside.
+                    val targetWidthPx = minOf(maxWPx, maxHPx * (16f / 9f))
                     val targetHeightPx = targetWidthPx * (9f / 16f)
                     val targetWidth = with(density) { targetWidthPx.toDp() }
                     val targetHeight = with(density) { targetHeightPx.toDp() }
@@ -318,67 +331,31 @@ fun CompareScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            modifier = Modifier.width(targetWidth)
+                        Box(
+                            modifier = Modifier
+                                .size(width = targetWidth, height = targetHeight)
+                                .then(
+                                    if (hasValidInput) Modifier.pointerInput(Unit) {
+                                        detectTapGestures { isFullscreen = !isFullscreen }
+                                    } else Modifier
+                                )
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = targetWidth, height = targetHeight)
-                                    .then(
-                                        if (hasValidInput) Modifier.pointerInput(Unit) {
-                                            detectTapGestures { isFullscreen = !isFullscreen }
-                                        } else Modifier
-                                    )
-                            ) {
-                                when {
-                                    !hasValidInput -> CompareMessageFallback(
-                                        title = stringResource(R.string.compare_error_missing_images),
-                                        body = stringResource(R.string.compare_error_missing_images_body),
-                                        testTag = "compare_missing_input_fallback"
-                                    )
-                                    else -> CompareSliderViewport(
-                                        referenceImageUri = referenceImageUri!!,
-                                        captureImageUri = captureImageUri!!,
-                                        contentScale = compareContentScale,
-                                        referenceDate = referenceDate,
-                                        captureTimestampMs = timestamp ?: 0L,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .testTag("compare_screen_shell_content")
-                                    )
-                                }
-                            }
-                            if (!isFullscreen && timestamp != null) {
-                                val formatted = remember(timestamp) {
-                                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                                        .format(Date(timestamp))
-                                }
-                                Column(
+                            when {
+                                !hasValidInput -> CompareMessageFallback(
+                                    title = stringResource(R.string.compare_error_missing_images),
+                                    body = stringResource(R.string.compare_error_missing_images_body),
+                                    testTag = "compare_missing_input_fallback"
+                                )
+                                else -> CompareSliderViewport(
+                                    referenceImageUri = referenceImageUri!!,
+                                    captureImageUri = captureImageUri!!,
+                                    contentScale = compareContentScale,
+                                    referenceDate = referenceDate,
+                                    captureTimestampMs = timestamp ?: 0L,
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp)
-                                ) {
-                                    if (!sessionTitle.isNullOrEmpty()) {
-                                        Text(
-                                            text = sessionTitle,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = TextAlign.Start,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .testTag("compare_screen_session_title")
-                                        )
-                                    }
-                                    Text(
-                                        text = formatted,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Start,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("compare_screen_timestamp")
-                                    )
-                                }
+                                        .fillMaxSize()
+                                        .testTag("compare_screen_shell_content")
+                                )
                             }
                         }
                     }
@@ -392,7 +369,7 @@ fun CompareScreen(
                             start = if (isFullscreen) 0.dp else 24.dp,
                             end = if (isFullscreen) 0.dp else 24.dp,
                             top = if (isFullscreen) 0.dp else 24.dp,
-                            bottom = if (isFullscreen) 0.dp else if (timestamp != null) 0.dp else 24.dp
+                            bottom = if (isFullscreen) 0.dp else 24.dp
                         )
                         .then(
                             if (hasValidInput) Modifier.pointerInput(Unit) {
@@ -420,34 +397,226 @@ fun CompareScreen(
                         )
                     }
                 }
-
-                if (!isFullscreen && timestamp != null) {
-                    val formatted = remember(timestamp) {
-                        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                            .format(Date(timestamp))
-                    }
-                    Column(
-                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)
-                    ) {
-                        if (!sessionTitle.isNullOrEmpty()) {
-                            Text(
-                                text = sessionTitle,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.testTag("compare_screen_session_title")
-                            )
-                        }
-                        Text(
-                            text = formatted,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.testTag("compare_screen_timestamp")
-                        )
-                    }
-                }
             }
         }
     }
+}
+
+/**
+ * Displays session metadata above the compare slider.
+ *
+ * Portrait: title (up to 2 lines) + location line; or "Created <date>" fallback.
+ * Landscape: single line — title, or location, or "Created <date>" fallback.
+ * Returns immediately with no layout contribution when there is nothing to show.
+ */
+@Composable
+private fun CompareMetadataHeader(
+    isLandscape: Boolean,
+    title: String?,
+    locationDisplayName: String?,
+    locationCity: String?,
+    locationCountry: String?,
+    timestamp: Long?,
+    modifier: Modifier = Modifier
+) {
+    val hasTitle = !title.isNullOrEmpty()
+    val hasLocation = locationDisplayName != null || locationCity != null || locationCountry != null
+    val showFallback = !hasTitle && !hasLocation && timestamp != null
+    if (!hasTitle && !hasLocation && !showFallback) return
+
+    val onBackground = MaterialTheme.colorScheme.onBackground
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val titleStyle = MaterialTheme.typography.bodyLarge
+    val secondaryStyle = MaterialTheme.typography.bodySmall
+
+    val createdTemplate = stringResource(R.string.compare_screen_metadata_created)
+    val formattedDate = remember(timestamp) {
+        if (timestamp != null) DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(timestamp)) else ""
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 0.dp)
+            .testTag("compare_screen_metadata_header")
+    ) {
+        if (isLandscape) {
+            if (hasTitle) {
+                Text(
+                    text = title!!,
+                    style = titleStyle,
+                    color = onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("compare_screen_metadata_title")
+                )
+            }
+            if (hasLocation) {
+                PortraitLocationRow(
+                    displayName = locationDisplayName,
+                    city = locationCity,
+                    country = locationCountry,
+                    style = secondaryStyle,
+                    color = onSurfaceVariant,
+                    modifier = Modifier.padding(top = if (hasTitle) 2.dp else 0.dp)
+                )
+            }
+            if (!hasTitle && !hasLocation && showFallback) {
+                Text(
+                    text = createdTemplate.format(formattedDate),
+                    style = secondaryStyle,
+                    color = onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("compare_screen_metadata_fallback")
+                )
+            }
+        } else {
+            if (hasTitle) {
+                Text(
+                    text = title!!,
+                    style = titleStyle,
+                    color = onBackground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("compare_screen_metadata_title")
+                )
+            }
+            if (hasLocation) {
+                PortraitLocationRow(
+                    displayName = locationDisplayName,
+                    city = locationCity,
+                    country = locationCountry,
+                    style = secondaryStyle,
+                    color = onSurfaceVariant,
+                    modifier = Modifier.padding(top = if (hasTitle) 2.dp else 0.dp)
+                )
+            }
+            if (!hasTitle && !hasLocation && showFallback) {
+                Text(
+                    text = createdTemplate.format(formattedDate),
+                    style = secondaryStyle,
+                    color = onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("compare_screen_metadata_fallback")
+                )
+            }
+        }
+    }
+}
+
+/** Portrait location line with smart reduction: tries combinations in priority order,
+ *  picks the first that fits the available width to avoid mid-word ellipsis. */
+@Composable
+private fun PortraitLocationRow(
+    displayName: String?,
+    city: String?,
+    country: String?,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val textMeasurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val density = LocalDensity.current
+        // Reserve 20dp for icon (16dp) + gap (4dp)
+        val iconReservePx = with(density) { 20.dp.toPx() }
+        val availableForTextPx = with(density) { maxWidth.toPx() } - iconReservePx
+        val chosenText = remember(displayName, city, country, availableForTextPx, style) {
+            pickBestLocationText(displayName, city, country, availableForTextPx, textMeasurer, style)
+        }
+        if (chosenText.isNotEmpty()) {
+            MetadataLocationRow(
+                text = chosenText,
+                style = style,
+                color = color,
+                maxLines = 1,
+                overflow = TextOverflow.Clip
+            )
+        }
+    }
+}
+
+/** Renders a location icon + text row. */
+@Composable
+private fun MetadataLocationRow(
+    text: String,
+    style: TextStyle,
+    color: Color,
+    maxLines: Int = 1,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("compare_screen_metadata_location")
+    ) {
+        Icon(
+            imageVector = Icons.Default.LocationOn,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = text,
+            style = style,
+            color = color,
+            maxLines = maxLines,
+            overflow = overflow,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/**
+ * Returns location candidates in priority order (most informative first).
+ * Used by [PortraitLocationRow] to pick the best-fitting string.
+ */
+private fun buildLocationCandidates(
+    displayName: String?,
+    city: String?,
+    country: String?
+): List<String> {
+    val result = mutableListOf<String>()
+    if (displayName != null) {
+        if (city != null && country != null) result.add("$displayName · $city, $country")
+        if (city != null) result.add("$displayName · $city")
+        if (country != null && city == null) result.add("$displayName · $country")
+        result.add(displayName)
+    } else {
+        if (city != null && country != null) result.add("$city, $country")
+        if (city != null) result.add(city)
+        if (country != null) result.add(country)
+    }
+    return result
+}
+
+/** Picks the first candidate whose rendered width fits within [availableWidthPx]. */
+private fun pickBestLocationText(
+    displayName: String?,
+    city: String?,
+    country: String?,
+    availableWidthPx: Float,
+    textMeasurer: TextMeasurer,
+    style: TextStyle
+): String {
+    val candidates = buildLocationCandidates(displayName, city, country)
+    if (candidates.isEmpty()) return ""
+    return candidates.firstOrNull { candidate ->
+        textMeasurer.measure(candidate, style).size.width.toFloat() <= availableWidthPx
+    } ?: candidates.last()
 }
 
 @Composable

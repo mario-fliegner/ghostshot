@@ -49,7 +49,10 @@ class SessionScannerTest {
         referenceFile: String = "reference.jpg",
         captureFile: String = "capture.jpg",
         title: String? = null,
-        referenceDate: String? = null
+        referenceDate: String? = null,
+        locationDisplayName: String? = null,
+        locationCity: String? = null,
+        locationCountry: String? = null
     ) {
         val json = JSONObject().apply {
             put("version", version)
@@ -63,6 +66,13 @@ class SessionScannerTest {
             }
             if (referenceDate != null) {
                 put("reference", JSONObject().apply { put("date", referenceDate) })
+            }
+            if (locationDisplayName != null || locationCity != null || locationCountry != null) {
+                put("location", JSONObject().apply {
+                    if (locationDisplayName != null) put("displayName", locationDisplayName)
+                    if (locationCity != null) put("city", locationCity)
+                    if (locationCountry != null) put("country", locationCountry)
+                })
             }
         }
         File(sessionDir, "metadata.json").writeText(json.toString())
@@ -520,5 +530,40 @@ class SessionScannerTest {
 
         assertEquals(1, result.size)
         assertNull(result[0].referenceDate)
+    }
+
+    // ── location tests ────────────────────────────────────────────────────────
+
+    @Test
+    fun session_withLocationFields_allThreeRead() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(
+            dir,
+            timestamp = 5_000L,
+            locationDisplayName = "Zugspitzgipfel",
+            locationCity = "Garmisch-Partenkirchen",
+            locationCountry = "Deutschland"
+        )
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertEquals("Zugspitzgipfel", result[0].locationDisplayName)
+        assertEquals("Garmisch-Partenkirchen", result[0].locationCity)
+        assertEquals("Deutschland", result[0].locationCountry)
+    }
+
+    @Test
+    fun session_withoutLocationBlock_locationFieldsAreNull() {
+        fullSession("2026-04-24_10-00-00", timestamp = 5_000L)
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertNull(result[0].locationDisplayName)
+        assertNull(result[0].locationCity)
+        assertNull(result[0].locationCountry)
     }
 }

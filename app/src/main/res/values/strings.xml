@@ -152,6 +152,9 @@
     <string name="overlay_visibility_warning_description">Reference barely visible</string>
     <string name="overlay_visibility_warning_bubble">Reference is barely visible. You can still capture, but the comparison may be poor.</string>
 
+    <!-- Compare screen metadata header -->
+    <string name="compare_screen_metadata_created">Created %s</string>
+
     <!-- Session Backup Export -->
     <string name="compare_screen_overflow_backup_session">Backup session</string>
     <string name="compare_library_action_backup">Backup selected</string>

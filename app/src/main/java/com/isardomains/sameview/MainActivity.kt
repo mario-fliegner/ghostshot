@@ -222,6 +222,15 @@ class MainActivity : ComponentActivity() {
                         val sessionTitle = uiState.savedSessions
                             .find { it.sessionId == sessionId }
                             ?.title
+                        val locationDisplayName = uiState.savedSessions
+                            .find { it.sessionId == sessionId }
+                            ?.locationDisplayName
+                        val locationCity = uiState.savedSessions
+                            .find { it.sessionId == sessionId }
+                            ?.locationCity
+                        val locationCountry = uiState.savedSessions
+                            .find { it.sessionId == sessionId }
+                            ?.locationCountry
 
                         // Availability check for Create Video: session must have both images.
                         val filesDir = applicationContext.filesDir
@@ -280,6 +289,9 @@ class MainActivity : ComponentActivity() {
                                     }
                                 } else null,
                                 sessionTitle = sessionTitle,
+                                locationDisplayName = locationDisplayName,
+                                locationCity = locationCity,
+                                locationCountry = locationCountry,
                                 onEditSession = if (sessionId != null) {
                                     { navController.navigate(editSessionRoute(sessionId)) }
                                 } else null,

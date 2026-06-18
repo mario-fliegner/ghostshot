@@ -1,6 +1,7 @@
 package com.isardomains.sameview.ui.compare
 
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
@@ -9,10 +10,12 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -673,33 +676,34 @@ class CompareScreenTest {
         assertTrue(after.left > before.left)
     }
 
-    // --- Timestamp tests ---
+    // --- Metadata header tests (replaces old timestamp/session-title tests) ---
 
     @Test
-    fun timestamp_notDisplayedWhenNull() {
+    fun metadataFallback_notDisplayedWhenNoTimestampAndNoMetadata() {
         setCompareContent(referenceImageUri = null, captureImageUri = null, timestamp = null)
 
-        composeRule.onNodeWithTag("compare_screen_timestamp").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertDoesNotExist()
     }
 
     @Test
-    fun timestamp_tagDisplayedWhenProvided() {
+    fun metadataFallback_displayedWhenTimestampProvidedAndNoOtherMetadata() {
         setCompareContent(referenceImageUri = null, captureImageUri = null, timestamp = fakeTimestamp)
 
-        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertIsDisplayed()
     }
 
     @Test
-    fun timestamp_formattedTextMatchesExpected() {
+    fun metadataFallback_formattedTextMatchesCreatedPrefix() {
         setCompareContent(referenceImageUri = null, captureImageUri = null, timestamp = fakeTimestamp)
 
-        val expected = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-            .format(Date(fakeTimestamp))
-        composeRule.onNodeWithText(expected).assertIsDisplayed()
+        val expectedDate = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(fakeTimestamp))
+        // Verify the date-only format is present (no time component); exact prefix tested via tag.
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertIsDisplayed()
+        composeRule.onAllNodesWithText(expectedDate, substring = true)[0].assertIsDisplayed()
     }
 
     @Test
-    fun compareScreen_belowContent_isDisplayedWithViewport() {
+    fun metadataHeader_aboveViewport_whenTimestampPresent() {
         val compareInput = createCompareInput()
         setCompareContent(
             referenceImageUri = compareInput.referenceUri,
@@ -709,13 +713,11 @@ class CompareScreenTest {
 
         waitForSliderViewport()
         composeRule.onNodeWithTag("compare_screen_shell_content").assertIsDisplayed()
-        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_header").assertIsDisplayed()
     }
 
-    // --- Session title tests ---
-
     @Test
-    fun sessionTitle_displayedWhenSet() {
+    fun metadataTitle_displayedWhenSet() {
         setCompareContent(
             referenceImageUri = null,
             captureImageUri = null,
@@ -723,12 +725,12 @@ class CompareScreenTest {
             sessionTitle = "My Shot"
         )
 
-        composeRule.onNodeWithTag("compare_screen_session_title").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_title").assertIsDisplayed()
         composeRule.onNodeWithText("My Shot").assertIsDisplayed()
     }
 
     @Test
-    fun sessionTitle_timestampStillDisplayedWithTitle() {
+    fun metadataTitle_suppressesFallbackDate() {
         setCompareContent(
             referenceImageUri = null,
             captureImageUri = null,
@@ -736,11 +738,12 @@ class CompareScreenTest {
             sessionTitle = "My Shot"
         )
 
-        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_title").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertDoesNotExist()
     }
 
     @Test
-    fun sessionTitle_notDisplayedWhenEmpty() {
+    fun metadataTitle_notDisplayedWhenNull() {
         setCompareContent(
             referenceImageUri = null,
             captureImageUri = null,
@@ -748,7 +751,7 @@ class CompareScreenTest {
             sessionTitle = null
         )
 
-        composeRule.onNodeWithTag("compare_screen_session_title").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_metadata_title").assertDoesNotExist()
     }
 
     // --- Delete button tests ---
@@ -848,7 +851,7 @@ class CompareScreenTest {
         )
 
         composeRule.onNodeWithTag("compare_screen_top_bar").assertIsDisplayed()
-        composeRule.onNodeWithTag("compare_screen_timestamp").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_header").assertIsDisplayed()
     }
 
     @Test
@@ -865,7 +868,7 @@ class CompareScreenTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("compare_screen_top_bar").assertDoesNotExist()
-        composeRule.onNodeWithTag("compare_screen_timestamp").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_metadata_header").assertDoesNotExist()
         composeRule.onNodeWithTag("compare_screen_shell_content").assertIsDisplayed()
     }
 
@@ -1464,6 +1467,182 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_handle_label_right").assertIsDisplayed()
     }
 
+    // --- New metadata header tests ---
+
+    @Test
+    fun metadataHeader_showsTitleAboveSlider() {
+        val compareInput = createCompareInput()
+        setCompareContent(
+            referenceImageUri = compareInput.referenceUri,
+            captureImageUri = compareInput.captureUri,
+            timestamp = fakeTimestamp,
+            sessionTitle = "Zugspitze"
+        )
+        waitForSliderViewport()
+
+        val headerBounds = composeRule.onNodeWithTag("compare_screen_metadata_header").getUnclippedBoundsInRoot()
+        val viewportBounds = composeRule.onNodeWithTag("compare_viewport").getUnclippedBoundsInRoot()
+        assertTrue("Metadata header must be above the compare viewport", headerBounds.bottom <= viewportBounds.top)
+        composeRule.onNodeWithTag("compare_screen_metadata_title").assertIsDisplayed()
+    }
+
+    @Test
+    fun metadataHeader_showsLocationWhenProvided() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            locationCity = "München",
+            locationCountry = "Deutschland"
+        )
+
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertDoesNotExist()
+    }
+
+    @Test
+    fun metadataHeader_showsCreatedFallback_whenNoTitleAndNoLocation() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp
+        )
+
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_title").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertDoesNotExist()
+    }
+
+    @Test
+    fun metadataHeader_locationSuppressesFallback() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            locationCity = "Berlin"
+        )
+
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertDoesNotExist()
+    }
+
+    @Test
+    fun metadataHeader_noContentWhenNoTimestampAndNoMetadata() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = null
+        )
+
+        composeRule.onNodeWithTag("compare_screen_metadata_header").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_metadata_title").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertDoesNotExist()
+    }
+
+    @Test
+    fun metadataHeader_hiddenInFullscreen() {
+        val compareInput = createCompareInput()
+        setCompareContent(
+            referenceImageUri = compareInput.referenceUri,
+            captureImageUri = compareInput.captureUri,
+            timestamp = fakeTimestamp,
+            sessionTitle = "My Session"
+        )
+        waitForSliderViewport()
+
+        composeRule.onNodeWithTag("compare_screen_shell_content").performTouchInput { down(center); up() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_metadata_header").assertDoesNotExist()
+    }
+
+    @Test
+    fun metadataHeader_longTitleDoesNotOverflow() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            sessionTitle = "My grandparents in front of their first house before moving away to another city"
+        )
+
+        val headerBounds = composeRule.onNodeWithTag("compare_screen_metadata_header").getUnclippedBoundsInRoot()
+        val rootBounds = composeRule.onNodeWithTag("compare_screen_root").getUnclippedBoundsInRoot()
+        assertTrue("Title must not overflow screen right edge", headerBounds.right <= rootBounds.right)
+    }
+
+    @Test
+    fun metadataHeader_locationLineDoesNotOverflow() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            locationDisplayName = "Am Zugspitzgipfel",
+            locationCity = "Garmisch-Partenkirchen",
+            locationCountry = "Deutschland"
+        )
+
+        val headerBounds = composeRule.onNodeWithTag("compare_screen_metadata_header").getUnclippedBoundsInRoot()
+        val rootBounds = composeRule.onNodeWithTag("compare_screen_root").getUnclippedBoundsInRoot()
+        assertTrue("Location line must not overflow screen right edge", headerBounds.right <= rootBounds.right)
+    }
+
+    @Test
+    fun metadataHeader_landscape_showsTitleAndLocation() {
+        val landscapeConfig = Configuration().apply { orientation = Configuration.ORIENTATION_LANDSCAPE }
+        setHostContent {
+            CompositionLocalProvider(LocalConfiguration provides landscapeConfig) {
+                CompareScreen(
+                    referenceImageUri = null,
+                    captureImageUri = null,
+                    onBack = {},
+                    timestamp = fakeTimestamp,
+                    sessionTitle = "Zugspitze",
+                    locationCity = "Garmisch-Partenkirchen"
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("compare_screen_metadata_title").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertIsDisplayed()
+    }
+
+    @Test
+    fun metadataHeader_landscape_showsLocationWhenNoTitle() {
+        val landscapeConfig = Configuration().apply { orientation = Configuration.ORIENTATION_LANDSCAPE }
+        setHostContent {
+            CompositionLocalProvider(LocalConfiguration provides landscapeConfig) {
+                CompareScreen(
+                    referenceImageUri = null,
+                    captureImageUri = null,
+                    onBack = {},
+                    timestamp = fakeTimestamp,
+                    locationDisplayName = "Zugspitzgipfel"
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertDoesNotExist()
+    }
+
+    @Test
+    fun metadataHeader_landscape_showsCreatedFallback_whenNoMetadata() {
+        val landscapeConfig = Configuration().apply { orientation = Configuration.ORIENTATION_LANDSCAPE }
+        setHostContent {
+            CompositionLocalProvider(LocalConfiguration provides landscapeConfig) {
+                CompareScreen(
+                    referenceImageUri = null,
+                    captureImageUri = null,
+                    onBack = {},
+                    timestamp = fakeTimestamp
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertIsDisplayed()
+    }
+
     private fun setCompareContent(
         referenceImageUri: Uri?,
         captureImageUri: Uri?,
@@ -1471,7 +1650,10 @@ class CompareScreenTest {
         timestamp: Long? = null,
         onDelete: (() -> Unit)? = null,
         sessionTitle: String? = null,
-        onEditSession: (() -> Unit)? = null
+        onEditSession: (() -> Unit)? = null,
+        locationDisplayName: String? = null,
+        locationCity: String? = null,
+        locationCountry: String? = null
     ) {
         setHostContent {
             CompareScreen(
@@ -1481,7 +1663,10 @@ class CompareScreenTest {
                 timestamp = timestamp,
                 onDelete = onDelete,
                 sessionTitle = sessionTitle,
-                onEditSession = onEditSession
+                onEditSession = onEditSession,
+                locationDisplayName = locationDisplayName,
+                locationCity = locationCity,
+                locationCountry = locationCountry
             )
         }
     }
