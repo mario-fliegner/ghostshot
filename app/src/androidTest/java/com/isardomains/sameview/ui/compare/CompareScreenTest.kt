@@ -1642,7 +1642,29 @@ class CompareScreenTest {
             }
         }
 
+        composeRule.onNodeWithText(context.getString(R.string.compare_screen_title)).assertIsDisplayed()
         composeRule.onNodeWithTag("compare_screen_metadata_fallback").assertIsDisplayed()
+    }
+
+    @Test
+    fun metadataHeader_landscape_noSeparateHeaderComponent() {
+        val landscapeConfig = Configuration().apply { orientation = Configuration.ORIENTATION_LANDSCAPE }
+        setHostContent {
+            CompositionLocalProvider(LocalConfiguration provides landscapeConfig) {
+                CompareScreen(
+                    referenceImageUri = null,
+                    captureImageUri = null,
+                    onBack = {},
+                    timestamp = fakeTimestamp,
+                    sessionTitle = "Zugspitze",
+                    locationCity = "Garmisch-Partenkirchen"
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("compare_screen_metadata_header").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_metadata_title").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertIsDisplayed()
     }
 
     private fun setCompareContent(

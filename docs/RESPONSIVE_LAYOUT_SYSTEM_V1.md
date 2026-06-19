@@ -247,7 +247,7 @@ No change until Block 6. Block 6 is a standalone, isolated work block.
 Current vertical layout: TopAppBar → MetadataHeader → Slider Viewport. `ContentScale.Fit` in normal mode, `ContentScale.Crop` in fullscreen mode. Existing behavior. No change.
 
 **Medium behavior:**
-Landscape metadata header as defined in `COMPARE_FLOW_V1.md §42`: title maxLines=1, location with smart reduction, same two-row structure. Slider viewport is wider; slider comparison improves naturally. Existing behavior. No change.
+Landscape metadata behavior as defined in `COMPARE_FLOW_V1.md §42` (amended 2026-06-19, see §A7): session metadata is integrated inline into the TopAppBar center slot; no separate `CompareMetadataHeader` is rendered below the TopAppBar. When user-authored metadata is present, title (maxLines=1) and/or location are shown. When absent, "Compare" + "Created `<date>`" are shown as a two-line fallback. The compare viewport has 8 dp bottom padding in normal mode. The viewport is wider than before due to the reclaimed header height (~85 dp more for 16:9 sessions). Portrait sessions in landscape remain geometrically narrow under `ContentScale.Fit` — this is intentionally accepted.
 
 **Expanded behavior:**
 CompareScreen is and remains a focused, single-viewport compare screen. The vertical layout structure is preserved. No side-panel, no two-column layout, no dashboard structure. This is the current product decision for CompareScreen responsive behavior.
@@ -817,9 +817,10 @@ All Block 3 work is complete. No open Block 3 tasks remain.
 
 - Max content width: **900 dp**, centered horizontally, on `WindowWidthSizeClass.Expanded` only
 - Compact and Medium: current behavior unchanged
-- A single `Box`/`Column` wrapper encloses both `CompareMetadataHeader` and the compare viewport (portrait and landscape branches); the `TopAppBar` remains full-width outside the container
+- A single `Box`/`Column` wrapper encloses the compare viewport (and `CompareMetadataHeader` in portrait); the `TopAppBar` remains full-width outside the container
 - Fullscreen mode: `TopAppBar` and `CompareMetadataHeader` are hidden as before; the 900 dp container remains active for the compare viewport
-- No changes to compare rendering, slider, divider, handle, labels, edge-hiding, `computeFitBounds`, `isLandscape` branching, `CompareMetadataHeader` internal structure, or session data
+- No changes to compare rendering, slider, divider, handle, labels, edge-hiding, `computeFitBounds`, or session data
+- Note: landscape metadata placement was subsequently updated per §A7; the landscape `CompareMetadataHeader` branch described here is no longer rendered
 
 **Responsive layout block completion status:**
 
@@ -844,3 +845,22 @@ All Block 3 work is complete. No open Block 3 tasks remain.
 - `TopAppBar` remains full-width outside the container
 - No changes to ExoPlayer configuration, playback, Share intent, Delete dialog, Done navigation, `RenderingContent`, `ConfiguringContent`, or export pipeline
 - Isolated verification passed after one unrelated full-suite `CameraControlsOverlayTest` Compose hierarchy flake (pre-existing; passes in isolation)
+
+---
+
+### A7. CompareScreen Landscape Metadata and Viewport Refinements (2026-06-19)
+
+`CompareScreen` §7.2 Medium behavior reflects amendments to `COMPARE_FLOW_V1.md §42` (2026-06-19):
+
+**Metadata placement:**
+In landscape mode, session metadata is no longer rendered as a separate `CompareMetadataHeader` component below the TopAppBar. Instead, it is integrated inline into the TopAppBar center slot via `Modifier.weight(1f)`. This reclaims the vertical space previously consumed by the header (~48 dp), increasing the compare viewport width for 16:9 sessions by approximately 85 dp.
+
+When user-authored metadata (title and/or location) is present, it is shown in the TopAppBar center slot. When no user-authored metadata is present, the center slot shows two lines: (1) the screen title "Compare" (`titleLarge`, primary), and (2) "Created `<date>`" (`bodySmall`, secondary) when a timestamp is available. This matches the created-date fallback rule applied in portrait mode, while keeping the screen title visible and prominent.
+
+**Viewport bottom padding:**
+In landscape normal mode, the compare viewport has 8 dp bottom padding (`padding(bottom = if (isFullscreen) 0.dp else 8.dp)`), preventing the viewport from touching the screen edge. In fullscreen this padding is 0 dp and the viewport uses the maximum available screen space.
+
+**Portrait sessions in landscape — accepted geometry:**
+When the reference image has a portrait aspect ratio and the device is in landscape orientation, `ContentScale.Fit` produces a narrow vertical viewport. The remaining horizontal space shows the app background color. This geometry is intentionally accepted. No zoom, crop, or alternative compare mode compensates for it. Any future change requires an explicit product decision.
+
+Portrait mode and fullscreen mode are otherwise unchanged. The §7.2 statement "Existing behavior. No change." for Medium landscape behavior at the time of Block 4 completion no longer applies. All compare rendering, ContentScale logic, slider behavior, and session data are unchanged.

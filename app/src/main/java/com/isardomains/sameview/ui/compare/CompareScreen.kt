@@ -229,14 +229,27 @@ fun CompareScreen(
                             contentDescription = stringResource(R.string.compare_back)
                         )
                     }
-                    Text(
-                        text = stringResource(R.string.compare_screen_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                    if (onCreateVideo != null || onEditSession != null || sessionId != null || onDelete != null) {
-                        Spacer(modifier = Modifier.weight(1f))
+                    if (isLandscape) {
+                        LandscapeTopBarMetadata(
+                            title = sessionTitle,
+                            locationDisplayName = locationDisplayName,
+                            locationCity = locationCity,
+                            locationCountry = locationCountry,
+                            timestamp = timestamp,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 4.dp)
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.compare_screen_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                        if (onCreateVideo != null || onEditSession != null || sessionId != null || onDelete != null) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                     // Create Video button — only when sessionId context is present (onCreateVideo != null)
                     if (onCreateVideo != null) {
@@ -325,7 +338,7 @@ fun CompareScreen(
                             .fillMaxHeight()
                     }
                 ) {
-                    if (!isFullscreen) {
+                    if (!isFullscreen && !isLandscape) {
                         CompareMetadataHeader(
                             isLandscape = isLandscape,
                             title = sessionTitle,
@@ -341,6 +354,7 @@ fun CompareScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
+                                .padding(bottom = if (isFullscreen) 0.dp else 8.dp)
                         ) {
                             val density = LocalDensity.current
                             val maxWPx = with(density) { maxWidth.toPx() }
@@ -534,6 +548,84 @@ private fun CompareMetadataHeader(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("compare_screen_metadata_fallback")
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Renders session metadata inline in the TopAppBar center slot for landscape mode.
+ *
+ * In landscape the separate [CompareMetadataHeader] is not rendered; this composable
+ * occupies the TopAppBar center slot via [Modifier.weight], returning the header's
+ * vertical space to the compare viewport. When user-authored metadata is present
+ * (title and/or location), it is displayed. When absent, shows the screen title
+ * "Compare" (titleLarge) as the primary line and "Created <date>" (bodySmall) as
+ * a secondary line below it, preserving session context without displacing the title.
+ */
+@Composable
+private fun LandscapeTopBarMetadata(
+    title: String?,
+    locationDisplayName: String?,
+    locationCity: String?,
+    locationCountry: String?,
+    timestamp: Long?,
+    modifier: Modifier = Modifier
+) {
+    val hasTitle = !title.isNullOrEmpty()
+    val hasLocation = locationDisplayName != null || locationCity != null || locationCountry != null
+    val onBackground = MaterialTheme.colorScheme.onBackground
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val secondaryStyle = MaterialTheme.typography.bodySmall
+    val createdTemplate = stringResource(R.string.compare_screen_metadata_created)
+    val formattedDate = remember(timestamp) {
+        if (timestamp != null) DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(timestamp)) else ""
+    }
+
+    Column(modifier = modifier) {
+        if (!hasTitle && !hasLocation) {
+            Text(
+                text = stringResource(R.string.compare_screen_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (timestamp != null) {
+                Text(
+                    text = createdTemplate.format(formattedDate),
+                    style = secondaryStyle,
+                    color = onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("compare_screen_metadata_fallback")
+                )
+            }
+        } else {
+            if (hasTitle) {
+                Text(
+                    text = title!!,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("compare_screen_metadata_title")
+                )
+            }
+            if (hasLocation) {
+                PortraitLocationRow(
+                    displayName = locationDisplayName,
+                    city = locationCity,
+                    country = locationCountry,
+                    style = secondaryStyle,
+                    color = onSurfaceVariant,
+                    modifier = Modifier.padding(top = if (hasTitle) 2.dp else 0.dp)
                 )
             }
         }

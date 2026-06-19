@@ -1529,11 +1529,11 @@ The following are explicitly out of scope for this feature and must not be imple
 
 ## 42. COMPARE SCREEN METADATA HEADER (2026-06-18)
 
-`CompareScreen` now displays session metadata **above** the compare slider, between the top app bar and the slider viewport. This replaces the previous footer (timestamp + title below the viewport).
+`CompareScreen` displays session metadata above the compare slider. In **portrait mode**, a dedicated `CompareMetadataHeader` component renders between the top app bar and the slider viewport. In **landscape mode**, metadata is integrated inline into the TopAppBar center slot; no separate header component is rendered below the TopAppBar. This replaced the previous footer (timestamp + title below the viewport).
 
 ### Metadata header purpose
 
-The metadata header establishes session identity before the user engages with the comparison. Reading flow: "What is this? Where? → then compare."
+The metadata header establishes session identity before the user engages with the comparison. Reading flow: "What is this? Where? → then compare." This purpose applies in both portrait (separate header) and landscape (TopAppBar center slot).
 
 ### Portrait layout
 
@@ -1553,18 +1553,29 @@ Fallback date format: `DateFormat.getDateInstance(MEDIUM)` (date only, no time).
 
 ### Landscape layout
 
-Two rows maximum, same information hierarchy as portrait:
+Session metadata is rendered inline in the TopAppBar center slot. No separate `CompareMetadataHeader` component is rendered below the TopAppBar in landscape mode. The reclaimed vertical space is returned to the compare viewport (~48 dp on a standard phone in landscape).
 
-- Title (if present) — `maxLines = 1`, `TextOverflow.Ellipsis`
-- Location (if present) — `📍 displayName · city, country`; same smart-reduction logic as portrait
-- `Created <date>` fallback — only when no user-authored metadata is present
-- Empty — when no title, no location, no timestamp
+The TopAppBar center slot follows this priority:
 
-Both title and location are shown simultaneously when both are present. No exclusive priority between title and location.
+| Content available | TopAppBar center slot |
+| --- | --- |
+| Title + Location | Line 1: `content.title` (`bodyLarge`, `maxLines = 1`, `Ellipsis`) |
+| | Line 2: `📍 displayName · city, country` (`bodySmall`, smart-reduction) |
+| Title only | Line 1: `content.title` (`bodyLarge`, `maxLines = 1`, `Ellipsis`) |
+| Location only | Line 1: `📍 displayName · city, country` (`bodySmall`, smart-reduction) |
+| Neither, timestamp present | Line 1: `"Compare"` (`titleLarge`, screen title, primary) |
+| | Line 2: `Created <date>` (`bodySmall`, `onSurfaceVariant`, secondary) |
+| Neither, no timestamp | `"Compare"` (`titleLarge`) only |
+
+Both title and location are shown simultaneously when both are present. Location smart-reduction applies identically to portrait. The testTags `compare_screen_metadata_title`, `compare_screen_metadata_location`, and `compare_screen_metadata_fallback` remain on the respective inline elements.
+
+**Compare viewport bottom padding:** In landscape normal mode the compare viewport has 8 dp bottom padding, preventing it from touching the screen edge. In fullscreen this padding is 0 dp.
+
+**Portrait sessions in landscape — accepted geometry:** When the reference image has a portrait aspect ratio and the device is in landscape orientation, `ContentScale.Fit` produces a narrow vertical viewport within the wider landscape area. The remaining horizontal space appears as the app background color. This geometry is intentionally accepted. No zoom, crop, or alternative compare mode is introduced to compensate. Any future change requires an explicit product decision.
 
 ### Fullscreen
 
-The metadata header is hidden in fullscreen, identically to the top app bar. Implemented as `if (!isFullscreen)` gating at the call site.
+The portrait `CompareMetadataHeader` and the landscape TopAppBar metadata are both hidden in fullscreen, identically to the top app bar — implemented as `if (!isFullscreen)` gating at the call site. The landscape 8 dp bottom padding on the compare viewport is also disabled in fullscreen (`padding(bottom = if (isFullscreen) 0.dp else 8.dp)`), so the viewport uses the maximum available screen space without padding.
 
 ### Data sources
 
