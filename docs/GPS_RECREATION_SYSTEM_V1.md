@@ -257,46 +257,50 @@ Once written to `metadata.json` and EXIF, GPS data for a session is immutable. N
 
 A small, minimalist chip element on CameraScreen. When active and informative, it contains:
 
-- A small static bearing arrow (see Bearing Model below)
 - Distance to the reference location
 - Color accent reflecting proximity status
-- A small "N" label indicating the North-up orientation model
+- A directional bearing arrow (only when Live direction arrow is ON and bearing is available — see Bearing Model below)
 
-## Bearing Model: Static Geographic Bearing Arrow
+## Bearing Model
 
-**Final decision: Static geographic bearing arrow, North-up model. No magnetometer. No device-orientation dependency.**
+### Default (Live direction arrow OFF): distance-only
 
-The arrow points in the geographic direction from the user's current position toward the reference location, with geographic North at the top of the indicator. The arrow is computed purely from the GPS bearing between two coordinate pairs. It does not respond to device rotation, tilt, or orientation changes.
+When Live direction arrow is OFF, no bearing arrow is shown. The chip displays distance and proximity color only. This is the honest default: distance tells the user approximately how far away the reference location is; the direction is left to the user's judgment.
 
-### Why Not a Device-Oriented Rotating Arrow
+The North-up bearing arrow from the original V1 implementation has been removed from the default experience. It required users to mentally translate "the arrow points East on screen" into "I need to walk East" — a non-obvious step identified as a usability gap. Distance-only is cleaner and less misleading.
 
-A device-oriented rotating arrow based on `TYPE_ROTATION_VECTOR` would appear more immediately intuitive — the mental model being "hold the phone and walk toward the arrow." However this approach has fundamental reliability problems:
+### Live direction arrow ON: device-relative bearing arrow
 
-**Android hardware heterogeneity:** `TYPE_ROTATION_VECTOR` is a software-fused sensor built on accelerometer, magnetometer, and gyroscope. Magnetometer quality varies enormously across the Android device ecosystem. Budget and mid-range devices frequently have poor magnetometer hardware causing visible jitter and drift. A feature that works well on a Pixel device can be nearly unusable on a Samsung Galaxy A-series.
+When Live direction arrow is ON, a device-relative bearing arrow is shown in the chip, pointing toward the reference location relative to the direction the device camera is facing. The arrow is computed as:
 
-**Environmental interference:** Magnetometer is disrupted by cars, metal buildings, metal furniture, power cables, and other common outdoor shooting environments. This interference is not solvable in software.
+```text
+displayBearing = (geographicBearing − deviceHeading + 360°) % 360°
+```
 
-**Trust erosion:** When an arrow visibly rotates incorrectly or jitters, the user's first reaction is "this app is broken." A stable arrow that requires a small orientation mental step preserves more trust than an unstable arrow that appears more intuitive.
+Where:
 
-**Navigation association:** A continuously rotating device-oriented arrow is visually identical to navigation apps (Maps, hiking apps). SameView should not look or feel like a navigation tool.
+- `geographicBearing`: the Haversine bearing from the current GPS fix to the reference location (0° = North, 90° = East)
+- `deviceHeading`: the azimuth derived from `TYPE_ROTATION_VECTOR` (fused accelerometer, magnetometer, and gyroscope), remapped for display orientation via `SensorManager.remapCoordinateSystem()`
 
-**No additional sensors needed:** The static geographic bearing arrow requires only GPS, which is already necessary for distance computation. No extra sensor lifecycle management, no calibration requirements, no magnetometer permission concerns.
+Arrow meaning: 0° = the device camera is pointing toward the reference location; 90° = the target is 90° to the right of the current camera direction.
 
-Stability, trustworthiness, and cross-device consistency are prioritized over maximum immediate intuitiveness.
+### Sensor dependency and fallback
 
-### Future Enhancement Path
+`TYPE_ROTATION_VECTOR` requires magnetometer hardware. On devices where `getDefaultSensor(TYPE_ROTATION_VECTOR)` returns null, the arrow is not shown even when Live direction arrow is ON. The chip falls back to distance-only display (same appearance as Live direction arrow OFF). No error is shown to the user.
 
-A device-oriented rotating arrow using `TYPE_ROTATION_VECTOR` with appropriate exponential smoothing is a valid future enhancement. It must not be added without:
-- An explicit product decision
-- Testing on a representative range of real Android devices
-- Defined smoothing parameters that result in visually stable behavior
-- Evaluation of all affected UX states (device rotation, portrait/landscape, near-interference conditions)
+Magnetometer quality varies across the Android device ecosystem and is affected by environmental interference (metal structures, vehicles, power infrastructure). The Live direction arrow setting description communicates this limitation to the user.
+
+### Future: sensor accuracy feedback
+
+When `onAccuracyChanged()` reports `SENSOR_STATUS_UNRELIABLE`, suppressing the arrow until accuracy recovers is a valid future enhancement. This requires an explicit product decision before implementation.
 
 ## Bearing Display Suppression at Close Range
 
-When distance falls below approximately 15–20m, the bearing arrow is suppressed. Only the distance value and Green proximity status are shown.
+When Live direction arrow is ON but distance falls below approximately 15–20m, the bearing arrow is suppressed. Only the distance value and Green proximity status are shown.
 
 **Reason:** At very small distances, GPS position noise of ±3–10m causes large bearing angle changes — a 5m position error at 8m distance can shift the bearing by 30–45°. Showing an unstable bearing arrow at close range creates confusion. At close range, the relevant feedback is proximity confirmation (green status), not direction.
+
+When Live direction arrow is OFF, no arrow is shown at any distance.
 
 ## Distance Display
 
@@ -433,34 +437,76 @@ GPS updates stop when any of the following occurs:
 
 # 10. Settings Architecture
 
-## Single Setting: "Recreation guidance"
+## Settings: Recreation guidance and Live direction arrow
 
-The entire GPS Recreation System is controlled by a single boolean setting. There are no sub-settings for GPS metadata saving or guidance display visibility as separate controls.
+The GPS Recreation System is controlled by two settings.
+
+### Recreation guidance (main toggle)
+
+**Default:** OFF
 
 **When OFF:**
+
 - No active GPS/location updates
 - Location permission is not used
 - No GPS EXIF written to new captures
 - No `captureLocation` in `metadata.json`
 - No guidance chip on CameraScreen
 - No location-related behavior of any kind
+- Live direction arrow sub-toggle is shown but disabled
 
 **When ON:**
+
 - GPS activates when all lifecycle conditions are met (see section 9)
 - New captures receive GPS EXIF when a fix is available at capture time
 - `metadata.json` receives `captureLocation` when a fix is available
 - Guidance chip is available on CameraScreen when reference GPS exists and current fix is available
+- Live direction arrow sub-toggle becomes active
+
+### Live direction arrow (sub-toggle)
+
+**Label:** Live direction arrow
+
+**Description shown to user:** Uses device sensors to point toward the reference location. Accuracy may vary indoors or near metal.
 
 **Default:** OFF
 
-## Why One Setting, Not Two
+**Enabled only when:** Recreation guidance is ON
 
-Two separate settings ("Save GPS" and "Show guidance") would create four logical states. Two of those states have no meaningful use case in SameView:
+**Storage behavior:** Live direction arrow is stored independently in DataStore. When Recreation guidance is switched OFF, the Live direction arrow value is preserved. Re-enabling Recreation guidance restores the previously stored value without resetting it.
 
-- Saving GPS without ever showing guidance: GPS data accumulates in files the user never benefits from in the app
-- Showing guidance without saving GPS to captures: the recreation system shows guidance for the current session but the resulting photo has no location metadata for future re-use
+**Scope:** The Live direction arrow setting affects only chip presentation and sensor-assisted orientation. It does not influence GPS capture, EXIF writing, metadata.json contents, or location collection behavior. These remain exclusively controlled by Recreation guidance.
 
-In SameView both behaviors serve one purpose: enabling location-aware recreation. They are two expressions of one feature, not two independent features. A single toggle is clearer for users, eliminates inconsistent intermediate states, and simplifies implementation.
+**When OFF (and Recreation guidance ON):**
+
+- Chip shows distance and proximity color only; no bearing arrow is shown
+- No device sensors (magnetometer, gyroscope, accelerometer) are used
+
+**When ON (and Recreation guidance ON):**
+
+- Chip shows a device-relative bearing arrow + distance + proximity color
+- Arrow is suppressed below the bearing suppression distance (≈ 15–20 m)
+- Arrow is suppressed when `TYPE_ROTATION_VECTOR` sensor is unavailable on the device
+- Device sensors are active while all of the following are true: CameraScreen is active, Recreation guidance is ON, Live direction arrow is ON, reference image has GPS data, location permission is granted
+
+### Chip behavior summary
+
+| Recreation guidance | Live direction arrow | Chip content |
+| --- | --- | --- |
+| OFF | any | No chip (Hidden state) |
+| ON | OFF | Distance + proximity color |
+| ON | ON, dist ≥ 15–20m | Bearing arrow + distance + proximity color |
+| ON | ON, dist < 15–20m | Distance + proximity color (arrow suppressed) |
+| ON | ON, no sensor | Distance + proximity color (arrow unavailable) |
+
+### Why GPS capture and display are not separated
+
+GPS capture (writing location data to EXIF and `metadata.json`) and guidance display are intentionally controlled by a single toggle (Recreation guidance). Two separate settings for "Save GPS" and "Show guidance" would create logical states with no useful purpose in SameView:
+
+- Saving GPS without guidance: location accumulates in files the user never benefits from in the app
+- Showing guidance without saving GPS: the session has no location metadata for future re-use
+
+Live direction arrow is not a third dimension of this separation. It controls only whether the chip uses device sensors to show a direction indicator. It does not affect whether GPS data is collected, saved, or used for proximity calculation.
 
 ## Settings Placement
 
@@ -470,8 +516,9 @@ Settings → GPS Guidance category (Category 4 as reserved in `SETTINGS_UX_V1.md
 
 - GPS accuracy threshold — too technical, hidden in color model logic
 - GPS update interval — too technical, defined in implementation
-- Distance unit (m vs ft) — system locale is sufficient for V1
-- Bearing model selection (static vs device-oriented) — static is the V1 decision; the rotating-arrow variant is not implemented
+- Distance unit (m vs ft) — system locale is sufficient
+- Sensor smoothing parameters — too technical, defined in implementation
+- Sensor accuracy feedback (magnetometer calibration warning) — reserved for future explicit product decision
 
 ---
 
@@ -513,7 +560,6 @@ The following must never be implemented, regardless of future feature requests:
 
 The current architecture preserves compatibility for future work without requiring changes to the Compare rendering pipeline:
 
-- A device-oriented rotating bearing arrow (TYPE_ROTATION_VECTOR + exponential smoothing) as a UX enhancement, requiring explicit product decision and device validation
 - Re-alignment workflows using `referenceLocation` from `metadata.json` to locate the original shooting position
 - Export workflows that embed `captureLocation` GPS data — the V1 session backup export is the first implementation of this. `captureLocation`, `referenceLocation`, and all GPS EXIF tags in `capture.jpg` and `reference-original.jpg` are included unchanged in every session backup. See `SESSION_BACKUP_EXPORT_V1.md` for the complete specification.
 - Optional local-only grouping of sessions by approximate capture location within the Compare Library

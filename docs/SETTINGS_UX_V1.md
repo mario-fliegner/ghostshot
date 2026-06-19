@@ -116,6 +116,7 @@ Current implemented settings:
 - Reset Overlay After Capture
 - Auto-Open Compare After Capture
 - Recreation Guidance (GPS; Category 4)
+- Live direction arrow (GPS sub-toggle; Category 4; planned — depends on Recreation Guidance; defined in `GPS_RECREATION_SYSTEM_V1.md`)
 
 Reserved but not yet implemented settings/features:
 - Hide Reference Peek Hint
@@ -347,7 +348,13 @@ About should remain lightweight.
 
 # 10. GPS Guidance
 
-GPS Recreation Guidance is implemented. The "Recreation guidance" toggle is in Category 4. Its full specification — including permission strategy, data model, lifecycle rules, UI design, and product boundaries — is defined in `GPS_RECREATION_SYSTEM_V1.md`.
+GPS Recreation Guidance is implemented. Category 4 contains two settings:
+
+1. **Recreation guidance** (main toggle, implemented) — controls all GPS functionality and acts as the parent for the sub-toggle below.
+
+2. **Live direction arrow** (sub-toggle, planned) — enabled only when Recreation guidance is ON. Shows a device-relative bearing arrow in the guidance chip. Default OFF. Sub-toggle value is preserved when Recreation guidance is toggled.
+
+Full specification for both settings — including permission strategy, data model, lifecycle rules, UI design, bearing model, sensor dependencies, and product boundaries — is defined in `GPS_RECREATION_SYSTEM_V1.md`.
 
 GPS functionality must never affect Compare rendering or overlay geometry. See `GPS_RECREATION_SYSTEM_V1.md` for all architectural constraints.
 

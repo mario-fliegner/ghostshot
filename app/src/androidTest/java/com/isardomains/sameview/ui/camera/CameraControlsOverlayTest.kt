@@ -1581,6 +1581,47 @@ class CameraControlsOverlayTest {
         assert(chipBounds.top >= rootBounds.top)
     }
 
+    @Test
+    fun gpsChip_showsNorthLabel_whenStateIsInformativeWithBearing() {
+        val northLabel = context.getString(R.string.gps_north_indicator)
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Informative(
+                distanceMeters = 47f,
+                bearingDegrees = 90f,
+                proximityColor = ProximityColor.ORANGE
+            )
+        )
+        composeRule.onAllNodesWithText(northLabel, useUnmergedTree = true).assertCountEquals(1)
+    }
+
+    @Test
+    fun gpsChip_hidesNorthLabel_whenBearingIsSuppressed() {
+        val northLabel = context.getString(R.string.gps_north_indicator)
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Informative(
+                distanceMeters = 10f,
+                bearingDegrees = null,
+                proximityColor = ProximityColor.GREEN
+            )
+        )
+        composeRule.onAllNodesWithText(northLabel, useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun gpsChip_hidesNorthLabel_whenStateIsNeutral() {
+        val northLabel = context.getString(R.string.gps_north_indicator)
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Neutral
+        )
+        composeRule.onAllNodesWithText(northLabel, useUnmergedTree = true).assertCountEquals(0)
+    }
+
     private fun wakeTestDevice() {
         InstrumentationRegistry.getInstrumentation()
             .uiAutomation

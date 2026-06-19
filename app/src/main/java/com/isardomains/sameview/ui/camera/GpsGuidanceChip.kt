@@ -111,6 +111,11 @@ private fun GpsChipInformativeContent(state: GpsGuidanceState.Informative) {
                     drawDirectionChevron(color = SameViewTextPrimary)
                 }
             }
+            Text(
+                text = stringResource(R.string.gps_north_indicator),
+                style = MaterialTheme.typography.labelSmall,
+                color = SameViewTextSecondary.copy(alpha = 0.6f)
+            )
         }
         Text(
             text = GuidanceComputer.formatDistance(state.distanceMeters),
