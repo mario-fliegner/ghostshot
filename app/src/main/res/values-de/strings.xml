@@ -30,7 +30,7 @@
     <string name="compare_library_session_selected">Ausgewählt</string>
     <string name="compare_library_session_not_selected">Nicht ausgewählt</string>
     <string name="compare_library_delete_dialog_title">Vergleiche löschen?</string>
-    <string name="compare_library_delete_dialog_message">Die ausgewählten Vergleiche werden gelöscht.</string>
+    <string name="compare_library_delete_dialog_message">Die ausgewählten Vergleiche werden unwideruflich gelöscht.</string>
     <string name="compare_library_delete_confirm">Löschen</string>
     <string name="compare_library_delete_cancel">Abbrechen</string>
 
@@ -53,7 +53,7 @@
 
     <string name="compare_screen_delete">Vergleich löschen</string>
     <string name="compare_screen_delete_dialog_title">Vergleich löschen?</string>
-    <string name="compare_screen_delete_dialog_message">Der Vergleich wird gelöscht</string>
+    <string name="compare_screen_delete_dialog_message">Diese Aktion kann nicht rückgängig gemacht werden.</string>
     <string name="compare_screen_more_options">Optionen</string>
     <string name="compare_original_reference">ORIGINAL</string>
     <string name="compare_show_original_reference">Originalreferenz anzeigen</string>
@@ -67,29 +67,29 @@
     <string name="compare_screen_title_save_failed">Titel konnte nicht gespeichert werden</string>
     <string name="delete_failed">Vergleich konnte nicht gelöscht werden</string>
 
-    <string name="select_reference_image">Referenzbild auswählen</string>
-    <string name="select_reference_image_label">Referenzbild</string>
-    <string name="overlay_content_description">Referenzbild</string>
+    <string name="select_reference_image">Referenzfoto auswählen</string>
+    <string name="select_reference_image_label">Referenzfoto</string>
+    <string name="overlay_content_description">Referenzfoto</string>
     <string name="overlay_opacity_label">Deckkraft</string>
     <string name="reset_overlay_label">Zurücksetzen</string>
-    <string name="remove_reference_image">Referenzbild entfernen</string>
-    <string name="remove_reference_image_dialog_title">Referenzbild entfernen?</string>
-    <string name="remove_reference_image_dialog_message">Das Referenzbild wird entfernt</string>
+    <string name="remove_reference_image">Referenzfoto entfernen</string>
+    <string name="remove_reference_image_dialog_title">Referenzfoto entfernen?</string>
+    <string name="remove_reference_image_dialog_message">Das Referenzfoto wird entfernt</string>
     <string name="remove_reference_image_confirm">Entfernen</string>
     <string name="remove_reference_image_cancel">Abbrechen</string>
     <string name="toggle_reference_display_mode">Ansicht der Referenz wechseln</string>
-    <string name="reference_viewport_mismatch">Referenzbild kann leicht abweichen</string>
-    <string name="reference_format_mismatch_description">Referenzbild passt evtl. nicht exakt</string>
-    <string name="reference_format_mismatch_bubble">Referenzbild leicht versetzt</string>
-    <string name="reference_image_load_failed">Referenzbild konnte nicht geladen werden</string>
-    <string name="reference_removed_snackbar">Referenzbild entfernt</string>
+    <string name="reference_viewport_mismatch">Referenzfoto kann leicht abweichen</string>
+    <string name="reference_format_mismatch_description">Referenzfoto passt evtl. nicht exakt</string>
+    <string name="reference_format_mismatch_bubble">Referenzfoto und Kamerabild haben unterschiedliche Formate</string>
+    <string name="reference_image_load_failed">Referenzfoto konnte nicht geladen werden</string>
+    <string name="reference_removed_snackbar">Referenzfoto entfernt</string>
     <string name="reference_removed_undo">Rückgängig</string>
-    <string name="reference_options_badge">Referenzbild-Optionen</string>
+    <string name="reference_options_badge">Referenzfoto-Optionen</string>
     <string name="reference_options_badge_text">•••</string>
     <string name="action_stack_reset_label">Zurücksetzen</string>
     <string name="action_stack_display_mode_compare_label">Vergleichsmodus</string>
     <string name="action_stack_display_mode_fit_label">Einpassen</string>
-    <string name="replace_reference_image">Referenzbild ersetzen</string>
+    <string name="replace_reference_image">Referenzfoto ersetzen</string>
     <string name="action_stack_replace_label">Ersetzen</string>
     <string name="action_stack_remove_label">Entfernen</string>
 
@@ -97,37 +97,37 @@
     <string name="settings_screen_title">Einstellungen</string>
     <string name="settings_back">Zurück</string>
     <string name="settings_camera_title">Kamera</string>
-    <string name="settings_keep_screen_on">Display aktiv halten</string>
-    <string name="settings_grid_type_title">Rastertyp</string>
+    <string name="settings_keep_screen_on">Display nicht ausschalten</string>
+    <string name="settings_grid_type_title">Hilfslinien</string>
     <string name="settings_grid_type_none">Aus</string>
-    <string name="settings_grid_type_rule_of_thirds">Drittel-Raster</string>
-    <string name="settings_grid_type_quarters">Viertel-Raster</string>
+    <string name="settings_grid_type_rule_of_thirds">3x3-Raster</string>
+    <string name="settings_grid_type_quarters">4x4-Raster</string>
     <string name="settings_grid_type_none_short">Aus</string>
-    <string name="settings_grid_type_rule_of_thirds_short">Drittel</string>
-    <string name="settings_grid_type_quarters_short">Viertel</string>
-    <string name="settings_overlay_compare_title">Overlay &amp; Vergleich</string>
-    <string name="settings_reset_overlay_after_capture">Referenz nach Aufnahme zurücksetzen</string>
+    <string name="settings_grid_type_rule_of_thirds_short">3x3</string>
+    <string name="settings_grid_type_quarters_short">4x4</string>
+    <string name="settings_overlay_compare_title">Referenz &amp; Vergleich</string>
+    <string name="settings_reset_overlay_after_capture">Referenzfoto nach Aufnahme entfernen</string>
     <string name="settings_auto_open_compare_after_capture">Vergleich nach Aufnahme automatisch öffnen</string>
     <string name="settings_gps_guidance_title">GPS-Navigation</string>
-    <string name="settings_recreation_guidance">Standortführung</string>
+    <string name="settings_recreation_guidance">Entfernung zum Aufnahmeort anzeigen</string>
     <string name="settings_recreation_guidance_rationale_title">Standortzugriff</string>
-    <string name="settings_recreation_guidance_rationale_message">SameView nutzt deinen aktuellen Standort, um dich zum Aufnahmeort des Originalfotos zu führen, und liest den im Referenzbild gespeicherten Standort. Deine Standortdaten werden niemals geteilt oder hochgeladen.</string>
+    <string name="settings_recreation_guidance_rationale_message">SameView nutzt deinen aktuellen Standort, um dich zum Aufnahmeort des Referenzfotos zu führen. Die im Referenzfoto gespeicherte Position wird, sofern vorhanden, ausschließlich lokal verwendet. Deine Standortdaten werden niemals geteilt oder hochgeladen.</string>
     <string name="settings_recreation_guidance_rationale_confirm">Weiter</string>
     <string name="settings_recreation_guidance_rationale_cancel">Abbrechen</string>
     <string name="settings_recreation_guidance_permission_denied">Genauer Standortzugriff erforderlich. Bitte in den Systemeinstellungen erteilen.</string>
-    <string name="settings_live_direction_arrow">Live-Richtungspfeil</string>
+    <string name="settings_live_direction_arrow">Richtungspfeil anzeigen</string>
     <string name="settings_live_direction_arrow_description">Zeigt mithilfe der Gerätesensoren die Richtung zum Referenzstandort an. Die Genauigkeit kann je nach Umgebung variieren.</string>
-    <string name="gps_guidance_chip_description">GPS-Führung</string>
+    <string name="gps_guidance_chip_description">GPS-Navigation</string>
 
     <!-- About -->
-    <string name="about_screen_title">&#220;ber</string>
-    <string name="about_back">Zur&#252;ck</string>
+    <string name="about_screen_title">Über SameView</string>
+    <string name="about_back">Zurück</string>
     <string name="about_app_name">SameView</string>
-    <string name="about_description">Fotos neu aufnehmen.</string>
-    <string name="about_local_device">Echte Fotos. Echte Erinnerungen.</string>
+    <string name="about_description">Dieselbe Perspektive erneut fotografieren.</string>
+    <string name="about_local_device">Zwei Aufnahmen. Ein Vergleich.</string>
     <string name="about_no_account_required">Keine KI-generierten Bilder.</string>
     <string name="about_version">Version %1$s (%2$d)</string>
-    <string name="about_visit_website">sameview.app besuchen</string>
+    <string name="about_visit_website">Zur Website</string>
     <string name="about_no_browser_app">Kein Browser gefunden</string>
     <string name="about_send_feedback">Feedback senden</string>
     <string name="about_feedback_subject">SameView Feedback</string>
@@ -137,25 +137,25 @@
     <string name="camera_history_content_description">Verlauf öffnen</string>
     <string name="camera_overflow_content_description">Weitere Optionen</string>
     <string name="camera_overflow_settings">Einstellungen</string>
-    <string name="camera_overflow_about">Über</string>
+    <string name="camera_overflow_about">Über SameView</string>
 
     <!-- Compare button disabled states -->
-    <string name="compare_disabled_no_reference">Füge zuerst ein Referenzbild hinzu</string>
+    <string name="compare_disabled_no_reference">Füge zuerst ein Referenzfoto hinzu</string>
     <string name="compare_disabled_no_capture">Nimm zuerst ein Foto auf</string>
 
     <!-- Overlay visibility warning -->
-    <string name="overlay_visibility_warning_description">Referenz kaum sichtbar</string>
-    <string name="overlay_visibility_warning_bubble">Die Referenz ist kaum sichtbar. Du kannst trotzdem aufnehmen, aber der Vergleich kann ungenau werden.</string>
+    <string name="overlay_visibility_warning_description">Referenzfoto kaum sichtbar</string>
+    <string name="overlay_visibility_warning_bubble">Referenzfoto kaum sichtbar. Vergleich kann ungenau werden.</string>
 
     <!-- GPS-Fallback-Dialog (erscheint wenn Photo-Picker-Ergebnis kein GPS hat und Standortführung aktiv ist) -->
     <string name="gps_fallback_dialog_title">Standortdaten nicht verfügbar</string>
-    <string name="gps_fallback_dialog_message">SameView konnte aus dieser Auswahl keine Standortdaten lesen. Wähle die Originaldatei aus, um die GPS-Navigation zu nutzen.</string>
-    <string name="gps_fallback_dialog_choose_file_manager">Originaldatei wählen</string>
+    <string name="gps_fallback_dialog_message">SameView konnte aus dieser Auswahl keine Standortdaten lesen. Wähle das Originalfoto aus, um die GPS-Navigation zu nutzen.</string>
+    <string name="gps_fallback_dialog_choose_file_manager">Originalfoto wählen</string>
     <string name="gps_fallback_dialog_continue_without_gps">Ohne GPS fortfahren</string>
 
     <!-- Video erstellen — Konfiguration -->
     <string name="create_video_screen_title">Video erstellen</string>
-    <string name="create_video_mode_label">Videotyp</string>
+    <string name="create_video_mode_label">Animation</string>
     <string name="create_video_mode_compare_slider">Slider</string>
     <string name="create_video_mode_before_after">Fade</string>
     <string name="create_video_mode_flash">Flash</string>
@@ -170,8 +170,8 @@
     <string name="create_video_quality_label">Qualität</string>
     <string name="create_video_quality_standard">Standard</string>
     <string name="create_video_quality_high">Hohe Qualität</string>
-    <string name="create_video_quality_high_note">Erstellt größere Dateien und dauert länger</string>
-    <string name="create_video_branding_label">#MadeWithSameView-Karte hinzufügen</string>
+    <string name="create_video_quality_high_note">Erstellung kann ggf. länger dauern</string>
+    <string name="create_video_branding_label">#MadeWithSameView-Karte am Ende hinzufügen</string>
     <string name="create_video_action_create">Video erstellen</string>
 
     <!-- Video erstellen — Rendering -->
@@ -195,7 +195,7 @@
 
     <!-- Video erstellen — Lösch-Bestätigungsdialog -->
     <string name="create_video_delete_dialog_title">Video löschen?</string>
-    <string name="create_video_delete_dialog_message">Das exportierte Video wird von deinem Gerät entfernt. Deine Vergleichs-Session bleibt unverändert.</string>
+    <string name="create_video_delete_dialog_message">Die Aktion kann nicht rückgängig gemacht werden. Die Vergleichsbilder werden nicht gelöscht.</string>
     <string name="create_video_delete_dialog_confirm">Video löschen</string>
     <string name="create_video_delete_dialog_cancel">Abbrechen</string>
 
@@ -205,24 +205,24 @@
     <string name="create_video_delete_failed">Video konnte nicht gelöscht werden</string>
 
     <!-- Video Extras (Block 8) -->
-    <string name="create_video_extras_section_title">Extras</string>
+    <string name="create_video_extras_section_title">Zusätzliche Einblendungen</string>
     <string name="create_video_overlay_title_date_label">Titel und Datum anzeigen</string>
-    <string name="create_video_overlay_no_data_hint">Füge in „Session bearbeiten" einen Titel oder ein Datum hinzu</string>
+        <string name="create_video_overlay_no_data_hint">Über „Vergleich bearbeiten“ hinzufügen.</string>
     <string name="create_video_overlay_location_label">Ort anzeigen</string>
-    <string name="create_video_overlay_location_no_data_hint">Füge in „Session bearbeiten" Ortsinformationen hinzu</string>
+    <string name="create_video_overlay_location_no_data_hint">Über „Vergleich bearbeiten“ hinzufügen.</string>
 
     <!-- Session bearbeiten — Überlaufmenü, Screen, TopAppBar -->
-    <string name="edit_session_overflow_item">Session bearbeiten</string>
-    <string name="edit_session_screen_title">Session bearbeiten</string>
-    <string name="edit_session_subtitle">Informationen zu diesem Vergleich aktualisieren</string>
+    <string name="edit_session_overflow_item">Vergleich bearbeiten</string>
+    <string name="edit_session_screen_title">Vergleich bearbeiten</string>
+    <string name="edit_session_subtitle">Informationen zu diesem Vergleich</string>
     <string name="edit_session_save">Speichern</string>
     <string name="edit_session_save_changes">Änderungen speichern</string>
     <string name="edit_session_back_content_description">Zurück</string>
     <!-- Session bearbeiten — Card-Titel -->
-    <string name="edit_session_card_session">Session</string>
+    <string name="edit_session_card_session">Vergleiche</string>
     <string name="edit_session_card_reference_photo">Referenzfoto</string>
     <string name="edit_session_card_current_photo">Aktuelles Foto</string>
-    <string name="edit_session_card_location">Ort</string>
+    <string name="edit_session_card_location">Aufnahmeort</string>
     <!-- Session bearbeiten — Formularfelder -->
     <string name="edit_session_field_title">Titel</string>
     <string name="edit_session_placeholder_title">z. B. Familienausflug</string>
@@ -231,16 +231,16 @@
     <string name="edit_session_field_reference_date">Referenzdatum</string>
     <string name="edit_session_placeholder_reference_date">z. B. 2008 oder 2008-06</string>
     <string name="edit_session_reference_date_hint">z. B. 2008 oder 2008-06</string>
-    <string name="edit_session_reference_date_help">Wann das Referenzfoto aufgenommen wurde.\nBeispiele: 2008, 2008-06 oder 2008-06-15.</string>
+    <string name="edit_session_reference_date_help">Wann wurde das Referenzfoto aufgenommen?\nBeispiele: 2008, 2008-06 oder 2008-06-15.</string>
     <string name="edit_session_reference_date_error">Gib ein Jahr (z. B. 2008), Jahr-Monat (z. B. 2008-06) oder ein vollständiges Datum (z. B. 2008-06-15) ein.</string>
     <string name="edit_session_label_session_date">Aufnahmedatum</string>
     <string name="edit_session_label_captured_on">Aufgenommen am</string>
     <string name="edit_session_captured_on">Aufgenommen am %s</string>
     <string name="edit_session_created">Erstellt am %s</string>
     <string name="edit_session_pick_date_content_description">Datum auswählen</string>
-    <string name="edit_session_field_place_name">Ortsname</string>
+    <string name="edit_session_field_place_name">Name des Ortes</string>
     <string name="edit_session_placeholder_place_name">z. B. Marienplatz</string>
-    <string name="edit_session_field_location_display_name">Ort</string>
+    <string name="edit_session_field_location_display_name">Aufnahmeort</string>
     <string name="edit_session_field_city">Stadt</string>
     <string name="edit_session_placeholder_city">z. B. München</string>
     <string name="edit_session_field_country">Land</string>
@@ -260,9 +260,9 @@
     <string name="compare_screen_metadata_created">Erstellt am %s</string>
 
     <!-- Session-Backup-Export -->
-    <string name="compare_screen_overflow_backup_session">Session sichern</string>
+    <string name="compare_screen_overflow_backup_session">Vergleich sichern</string>
     <string name="compare_library_action_backup">Auswahl sichern</string>
-    <string name="session_backup_success_single">Session gesichert</string>
-    <string name="session_backup_success_multi">%d Sessions gesichert</string>
-    <string name="session_backup_error">Backup konnte nicht erstellt werden</string>
+    <string name="session_backup_success_single">Vergleich gesichert</string>
+    <string name="session_backup_success_multi">%d Vergleiche gesichert</string>
+    <string name="session_backup_error">Vergleich konnte nicht gesichert werden</string>
 </resources>
