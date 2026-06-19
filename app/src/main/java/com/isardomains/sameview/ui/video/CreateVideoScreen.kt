@@ -505,7 +505,7 @@ private fun RenderingContent(
  * Player lifecycle is tied to composition via [DisposableEffect] — released on exit.
  * Rotation is safe: [state.videoUri] lives in ViewModel and survives configuration change.
  */
-@OptIn(UnstableApi::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 private fun PreviewContent(
     state: CreateVideoState.Preview,
