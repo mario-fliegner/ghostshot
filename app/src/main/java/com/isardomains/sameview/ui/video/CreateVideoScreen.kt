@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -93,6 +94,7 @@ fun CreateVideoScreen(
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val sessionDir = remember { File(context.filesDir, "sessions/${viewModel.sessionId}") }
     val isOverlayAvailable by viewModel.isOverlayAvailable.collectAsStateWithLifecycle()
     val overlayPreviewText by viewModel.overlayPreviewText.collectAsStateWithLifecycle()
@@ -126,7 +128,7 @@ fun CreateVideoScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is CreateVideoEvent.ShowSnackbar ->
-                    snackbarHostState.showSnackbar(context.getString(event.messageResId))
+                    snackbarHostState.showSnackbar(resources.getString(event.messageResId))
             }
         }
     }

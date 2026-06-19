@@ -60,8 +60,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -96,7 +96,7 @@ fun CompareLibraryScreen(
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     var selectionMode by remember { mutableStateOf(false) }
     var selectedSessionIds by remember { mutableStateOf(emptySet<String>()) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -200,11 +200,11 @@ fun CompareLibraryScreen(
                             onClick = {
                                 val ids = selectedSessionIds.toList()
                                 val suggestedFilename = if (ids.size == 1) {
-                                    context.getString(R.string.session_backup_filename_single, ids[0])
+                                    resources.getString(R.string.session_backup_filename_single, ids[0])
                                 } else {
                                     val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US)
                                         .format(Date())
-                                    context.getString(R.string.session_backup_filename_multi, timestamp)
+                                    resources.getString(R.string.session_backup_filename_multi, timestamp)
                                 }
                                 createDocumentLauncher.launch(suggestedFilename)
                             },
