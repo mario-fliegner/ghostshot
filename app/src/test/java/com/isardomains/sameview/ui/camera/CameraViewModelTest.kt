@@ -52,6 +52,7 @@ class CameraViewModelTest {
         on { resetOverlayAfterCapture } doReturn flowOf(false)
         on { autoOpenCompareAfterCapture } doReturn flowOf(false)
         on { recreationGuidance } doReturn flowOf(false)
+        on { liveDirectionArrow } doReturn flowOf(false)
     }
 
     @Before
@@ -2162,6 +2163,7 @@ class CameraViewModelTest {
             on { resetOverlayAfterCapture } doReturn flowOf(false)
             on { autoOpenCompareAfterCapture } doReturn flowOf(false)
             on { recreationGuidance } doReturn flowOf(false)
+            on { liveDirectionArrow } doReturn flowOf(false)
         }
         val testViewModel = CameraViewModel(mock(), settingsRepo)
         assertEquals(GridType.QUARTERS, testViewModel.uiState.value.gridType)
@@ -2272,6 +2274,7 @@ class CameraViewModelTest {
             on { resetOverlayAfterCapture } doReturn flowOf(resetEnabled)
             on { autoOpenCompareAfterCapture } doReturn flowOf(false)
             on { recreationGuidance } doReturn flowOf(false)
+            on { liveDirectionArrow } doReturn flowOf(false)
         }
         return CameraViewModel(
             mock(),
@@ -2288,6 +2291,7 @@ class CameraViewModelTest {
             on { resetOverlayAfterCapture } doReturn flowOf(false)
             on { autoOpenCompareAfterCapture } doReturn flowOf(autoOpenEnabled)
             on { recreationGuidance } doReturn flowOf(false)
+            on { liveDirectionArrow } doReturn flowOf(false)
         }
         return CameraViewModel(
             mock(),
@@ -2305,6 +2309,19 @@ class CameraViewModelTest {
         on { resetOverlayAfterCapture } doReturn flowOf(false)
         on { autoOpenCompareAfterCapture } doReturn flowOf(false)
         on { this.recreationGuidance } doReturn flowOf(recreationGuidance)
+        on { liveDirectionArrow } doReturn flowOf(false)
+    }
+
+    private fun settingsRepoWithSensor(
+        recreationGuidance: Boolean,
+        liveDirectionArrow: Boolean
+    ): SettingsRepository = mock {
+        on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+        on { keepScreenOn } doReturn flowOf(true)
+        on { resetOverlayAfterCapture } doReturn flowOf(false)
+        on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+        on { this.recreationGuidance } doReturn flowOf(recreationGuidance)
+        on { this.liveDirectionArrow } doReturn flowOf(liveDirectionArrow)
     }
 
     private fun gpsViewModel(
@@ -2425,6 +2442,7 @@ class CameraViewModelTest {
             on { resetOverlayAfterCapture } doReturn flowOf(false)
             on { autoOpenCompareAfterCapture } doReturn flowOf(false)
             on { recreationGuidance } doReturn flowOf(true)
+            on { liveDirectionArrow } doReturn flowOf(false)
         }
         val metadata = ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0)
         val vm = CameraViewModel(
@@ -2571,6 +2589,295 @@ class CameraViewModelTest {
 
         vm.onReferenceImageRemoveUndo()
         assertTrue(vm.isGpsActive)
+    }
+
+    // --- Sensor (Live Direction Arrow) Activation ---
+
+    private class TestCompassProvider(
+        private val available: Boolean = true
+    ) : CompassProvider(null as android.hardware.SensorManager?) {
+        var started = false
+        var stopped = false
+        private var callback: ((Float) -> Unit)? = null
+
+        override fun isAvailable(): Boolean = available
+
+        override fun startUpdates(displayRotationProvider: () -> Int, onAzimuthChanged: (Float) -> Unit) {
+            started = true
+            stopped = false
+            callback = onAzimuthChanged
+        }
+
+        override fun stopUpdates() {
+            stopped = true
+            started = false
+            callback = null
+        }
+
+        fun simulateAzimuth(azimuth: Float) {
+            callback?.invoke(azimuth)
+        }
+    }
+
+    private fun sensorViewModel(
+        recreationGuidance: Boolean = true,
+        liveDirectionArrow: Boolean = true,
+        permissionGranted: Boolean = true,
+        referenceHasGps: Boolean = true,
+        compassProvider: TestCompassProvider = TestCompassProvider(available = true)
+    ): Pair<CameraViewModel, TestCompassProvider> {
+        val metadata = if (referenceHasGps) {
+            ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0)
+        } else {
+            ReferenceImageMetadata(1080, 1920, 1080, 1920, null)
+        }
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepoWithSensor(recreationGuidance, liveDirectionArrow),
+            locationProvider = mock(),
+            locationPermissionChecker = { permissionGranted },
+            compassProvider = compassProvider,
+            displayRotationProvider = { android.view.Surface.ROTATION_0 }
+        )
+        return Pair(vm, compassProvider)
+    }
+
+    @Test
+    fun sensor_notStarted_initially_whenCameraInactive() = runTest {
+        val (vm, fakeCompass) = sensorViewModel()
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        // cameraScreenActive = false → sensor must not start
+        assertFalse(vm.isSensorActive)
+        assertFalse(fakeCompass.started)
+    }
+
+    @Test
+    fun sensor_started_whenAllConditionsMet() = runTest {
+        val (vm, fakeCompass) = sensorViewModel()
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(vm.isSensorActive)
+        assertTrue(fakeCompass.started)
+    }
+
+    @Test
+    fun sensor_notStarted_whenLiveDirectionArrowOff() = runTest {
+        val (vm, fakeCompass) = sensorViewModel(liveDirectionArrow = false)
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertFalse(vm.isSensorActive)
+        assertFalse(fakeCompass.started)
+    }
+
+    @Test
+    fun sensor_notStarted_whenRecreationGuidanceOff() = runTest {
+        val (vm, fakeCompass) = sensorViewModel(recreationGuidance = false)
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertFalse(vm.isSensorActive)
+        assertFalse(fakeCompass.started)
+    }
+
+    @Test
+    fun sensor_notStarted_whenPermissionNotGranted() = runTest {
+        val (vm, fakeCompass) = sensorViewModel(permissionGranted = false)
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertFalse(vm.isSensorActive)
+        assertFalse(fakeCompass.started)
+    }
+
+    @Test
+    fun sensor_notStarted_whenReferenceHasNoGps() = runTest {
+        val (vm, fakeCompass) = sensorViewModel(referenceHasGps = false)
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertFalse(vm.isSensorActive)
+        assertFalse(fakeCompass.started)
+    }
+
+    @Test
+    fun sensor_notStarted_whenSensorUnavailable() = runTest {
+        val unavailableCompass = TestCompassProvider(available = false)
+        val (vm, _) = sensorViewModel(compassProvider = unavailableCompass)
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertFalse(vm.isSensorActive)
+    }
+
+    @Test
+    fun sensor_stopped_whenCameraScreenBecomesInactive() = runTest {
+        val (vm, fakeCompass) = sensorViewModel()
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(vm.isSensorActive)
+
+        vm.onCameraScreenInactive()
+
+        assertFalse(vm.isSensorActive)
+        assertTrue(fakeCompass.stopped)
+    }
+
+    @Test
+    fun sensor_stopped_whenReferenceRemoved() = runTest {
+        val (vm, fakeCompass) = sensorViewModel()
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        assertTrue(vm.isSensorActive)
+
+        vm.onReferenceImageRemoveConfirmed()
+
+        assertFalse(vm.isSensorActive)
+        assertTrue(fakeCompass.stopped)
+    }
+
+    @Test
+    fun currentAzimuth_updatedByCompassCallback() = runTest {
+        val (vm, fakeCompass) = sensorViewModel()
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        fakeCompass.simulateAzimuth(90f)
+
+        assertNotNull(vm.currentAzimuth)
+    }
+
+    @Test
+    fun currentAzimuth_clearedWhenSensorStopped() = runTest {
+        val (vm, fakeCompass) = sensorViewModel()
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+        fakeCompass.simulateAzimuth(90f)
+        assertNotNull(vm.currentAzimuth)
+
+        vm.onCameraScreenInactive()
+
+        assertNull(vm.currentAzimuth)
+    }
+
+    @Test
+    fun bearingDegrees_isNull_whenSensorNotActive() = runTest {
+        val (vm, _) = sensorViewModel(liveDirectionArrow = false)
+        val metadata = ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0)
+        val fakeProvider = object : LocationProvider(null as android.location.LocationManager?) {
+            override fun startUpdates(listener: android.location.LocationListener) {}
+            override fun stopUpdates(listener: android.location.LocationListener) {}
+            override fun getLastKnown(): android.location.Location? = null
+        }
+        // With live direction arrow OFF, bearing should always be null in chip state
+        val vm2 = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepoWithSensor(recreationGuidance = true, liveDirectionArrow = false),
+            locationProvider = fakeProvider,
+            locationPermissionChecker = { true },
+            compassProvider = TestCompassProvider(available = false),
+            displayRotationProvider = { android.view.Surface.ROTATION_0 }
+        )
+        vm2.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm2.onCameraScreenActive()
+
+        val state = vm2.uiState.value.gpsGuidanceState
+        if (state is GpsGuidanceState.Informative) {
+            assertNull(state.bearingDegrees)
+        }
+    }
+
+    @Test
+    fun bearingDegrees_isDeviceRelative_whenSensorAndGpsActive() = runTest {
+        val fakeCompass = TestCompassProvider(available = true)
+        val capturedListeners = mutableListOf<android.location.LocationListener>()
+        val fakeLocationProvider = object : LocationProvider(null as android.location.LocationManager?) {
+            override fun startUpdates(listener: android.location.LocationListener) {
+                capturedListeners.add(listener)
+            }
+            override fun stopUpdates(listener: android.location.LocationListener) {}
+            override fun getLastKnown(): android.location.Location? = null
+        }
+        val metadata = ReferenceImageMetadata(
+            1080, 1920, 1080, 1920, null,
+            gpsLatitude = 48.001, gpsLongitude = 11.0
+        )
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepoWithSensor(recreationGuidance = true, liveDirectionArrow = true),
+            locationProvider = fakeLocationProvider,
+            locationPermissionChecker = { true },
+            compassProvider = fakeCompass,
+            displayRotationProvider = { android.view.Surface.ROTATION_0 }
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        // Simulate GPS location south of reference → geoBearing ≈ 0° (north)
+        val fakeLocation = mock<android.location.Location>()
+        whenever(fakeLocation.latitude).thenReturn(48.0)
+        whenever(fakeLocation.longitude).thenReturn(11.0)
+        whenever(fakeLocation.accuracy).thenReturn(10f)
+        whenever(fakeLocation.time).thenReturn(System.currentTimeMillis())
+        capturedListeners.single().onLocationChanged(fakeLocation)
+
+        // Simulate sensor azimuth 0° (facing North)
+        fakeCompass.simulateAzimuth(0f)
+
+        val state = vm.uiState.value.gpsGuidanceState
+        assertTrue(state is GpsGuidanceState.Informative)
+        assertNotNull((state as GpsGuidanceState.Informative).bearingDegrees)
+    }
+
+    @Test
+    fun stopSensor_nullsBearingInState() = runTest {
+        val fakeCompass = TestCompassProvider(available = true)
+        val capturedListeners = mutableListOf<android.location.LocationListener>()
+        val fakeLocationProvider = object : LocationProvider(null as android.location.LocationManager?) {
+            override fun startUpdates(listener: android.location.LocationListener) {
+                capturedListeners.add(listener)
+            }
+            override fun stopUpdates(listener: android.location.LocationListener) {}
+            override fun getLastKnown(): android.location.Location? = null
+        }
+        val metadata = ReferenceImageMetadata(
+            1080, 1920, 1080, 1920, null,
+            gpsLatitude = 48.001, gpsLongitude = 11.0
+        )
+        val vm = CameraViewModel(
+            mock(), UnconfinedTestDispatcher(), { metadata },
+            settingsRepoWithSensor(recreationGuidance = true, liveDirectionArrow = true),
+            locationProvider = fakeLocationProvider,
+            locationPermissionChecker = { true },
+            compassProvider = fakeCompass,
+            displayRotationProvider = { android.view.Surface.ROTATION_0 }
+        )
+        vm.onReferenceImageSelected(mock())
+        advanceUntilIdle()
+        vm.onCameraScreenActive()
+
+        val fakeLocation = mock<android.location.Location>()
+        whenever(fakeLocation.latitude).thenReturn(48.0)
+        whenever(fakeLocation.longitude).thenReturn(11.0)
+        whenever(fakeLocation.accuracy).thenReturn(10f)
+        whenever(fakeLocation.time).thenReturn(System.currentTimeMillis())
+        capturedListeners.single().onLocationChanged(fakeLocation)
+        fakeCompass.simulateAzimuth(45f)
+
+        vm.onCameraScreenInactive()
+
+        val state = vm.uiState.value.gpsGuidanceState
+        if (state is GpsGuidanceState.Informative) {
+            assertNull(state.bearingDegrees)
+        }
     }
 
     // --- GPS Fallback Dialog ---

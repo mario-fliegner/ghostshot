@@ -266,6 +266,7 @@ class CameraViewModel @Inject constructor(
 
     // GPS state — foreground-only, active only when all four conditions are met
     private var recreationGuidanceEnabled = false
+    private var liveDirectionArrowEnabled = false
     private var cameraScreenActive = false
     private var hysteresisPendingColor: ProximityColor? = null
     private var hysteresisPendingCount: Int = 0
@@ -280,6 +281,28 @@ class CameraViewModel @Inject constructor(
         private set
 
     private var locationProvider: LocationProvider = LocationProvider(context)
+
+    // Compass sensor state — active only when all six conditions are met (see updateSensorActivation)
+    private var compassProvider: CompassProvider = CompassProvider(context)
+
+    @Suppress("DEPRECATION")
+    private var displayRotationProvider: () -> Int = {
+        (context.getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager)
+            ?.defaultDisplay?.rotation ?: android.view.Surface.ROTATION_0
+    }
+
+    // Visible for testing — true when compass sensor is currently active
+    internal var isSensorActive = false
+        private set
+
+    // Visible for testing — most recent smoothed azimuth from sensor, null when sensor is inactive
+    @Volatile
+    internal var currentAzimuth: Float? = null
+        private set
+
+    // Geographic bearing from GuidanceComputer; null when distance < suppression threshold
+    private var currentGeoBearing: Float? = null
+    private var smoothedAzimuth: Float? = null
 
     // LocationManager updates require only ACCESS_FINE_LOCATION. ACCESS_MEDIA_LOCATION is
     // separately required by the Settings permission flow to unredact GPS from MediaStore photos.
@@ -331,7 +354,9 @@ class CameraViewModel @Inject constructor(
         sessionDeleter: ((File, String) -> Boolean)? = null,
         locationProvider: LocationProvider? = null,
         locationPermissionChecker: (() -> Boolean)? = null,
-        sessionBackupExporter: ((File, List<String>, Uri, ContentResolver?) -> SessionBackupExporter.BackupResult)? = null
+        sessionBackupExporter: ((File, List<String>, Uri, ContentResolver?) -> SessionBackupExporter.BackupResult)? = null,
+        compassProvider: CompassProvider? = null,
+        displayRotationProvider: (() -> Int)? = null
     ) : this(context, settingsRepository) {
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
@@ -350,6 +375,12 @@ class CameraViewModel @Inject constructor(
         }
         if (sessionBackupExporter != null) {
             this.sessionBackupExporter = sessionBackupExporter
+        }
+        if (compassProvider != null) {
+            this.compassProvider = compassProvider
+        }
+        if (displayRotationProvider != null) {
+            this.displayRotationProvider = displayRotationProvider
         }
     }
 
@@ -380,6 +411,13 @@ class CameraViewModel @Inject constructor(
             settingsRepository.recreationGuidance.collect { enabled ->
                 recreationGuidanceEnabled = enabled
                 updateGpsActivation()
+                updateSensorActivation()
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.liveDirectionArrow.collect { enabled ->
+                liveDirectionArrowEnabled = enabled
+                updateSensorActivation()
             }
         }
     }
@@ -402,6 +440,17 @@ class CameraViewModel @Inject constructor(
 
         private const val LOG_TAG = "SameView"
         private const val NO_CAPTURE_TOKEN_ID = 0L
+
+        // Low-pass filter alpha for azimuth smoothing: fraction of new value to apply each update.
+        // Value 0.15 retains 85% of previous reading, resulting in ~1s convergence at ~10 Hz.
+        private const val SENSOR_AZIMUTH_SMOOTHING_ALPHA = 0.15f
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        if (isSensorActive) {
+            compassProvider.stopUpdates()
+        }
     }
 
     /**
@@ -476,6 +525,7 @@ class CameraViewModel @Inject constructor(
                 updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
             }
             updateGpsActivation()
+            updateSensorActivation()
             if (emitGpsFallbackDialog && recreationGuidanceEnabled && !referenceHasGps()) {
                 _uiEvent.emit(UiEvent.ShowGpsFallbackDialog)
             }
@@ -528,6 +578,7 @@ class CameraViewModel @Inject constructor(
             )
         }
         updateGpsActivation()
+        updateSensorActivation()
         if (hasReference) {
             if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Overlay removed") }
             undoTimeoutJob = viewModelScope.launch {
@@ -565,6 +616,7 @@ class CameraViewModel @Inject constructor(
             updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
         }
         updateGpsActivation()
+        updateSensorActivation()
         if (BuildConfig.DEBUG) { Log.d(LOG_TAG, "Undo triggered") }
     }
 
@@ -909,12 +961,14 @@ class CameraViewModel @Inject constructor(
     fun onCameraScreenActive() {
         cameraScreenActive = true
         updateGpsActivation()
+        updateSensorActivation()
     }
 
     // Called by CameraScreen on ON_PAUSE and on dispose to stop GPS when screen is not visible.
     fun onCameraScreenInactive() {
         cameraScreenActive = false
         updateGpsActivation()
+        updateSensorActivation()
     }
 
     private fun referenceHasGps(): Boolean =
@@ -966,6 +1020,72 @@ class CameraViewModel @Inject constructor(
         _uiState.update { it.copy(gpsGuidanceState = GpsGuidanceState.Hidden) }
     }
 
+    private fun updateSensorActivation() {
+        val shouldBeActive = recreationGuidanceEnabled
+            && liveDirectionArrowEnabled
+            && locationPermissionChecker()
+            && referenceHasGps()
+            && cameraScreenActive
+            && compassProvider.isAvailable()
+        if (shouldBeActive && !isSensorActive) {
+            startSensor()
+        } else if (!shouldBeActive && isSensorActive) {
+            stopSensor()
+        }
+    }
+
+    private fun startSensor() {
+        isSensorActive = true
+        smoothedAzimuth = null
+        compassProvider.startUpdates(displayRotationProvider) { rawAzimuth ->
+            val smoothed = smoothAzimuth(rawAzimuth)
+            currentAzimuth = smoothed
+            updateBearingInState(smoothed)
+        }
+    }
+
+    private fun stopSensor() {
+        isSensorActive = false
+        compassProvider.stopUpdates()
+        currentAzimuth = null
+        smoothedAzimuth = null
+        currentGeoBearing = null
+        _uiState.update { state ->
+            val gps = state.gpsGuidanceState
+            if (gps is GpsGuidanceState.Informative) {
+                state.copy(gpsGuidanceState = gps.copy(bearingDegrees = null))
+            } else state
+        }
+    }
+
+    /**
+     * Applies a low-pass filter with shortest-path interpolation to avoid the 359°↔1° boundary
+     * artifact that a naive LERP would produce.
+     */
+    private fun smoothAzimuth(raw: Float): Float {
+        val prev = smoothedAzimuth
+        if (prev == null) {
+            smoothedAzimuth = raw
+            return raw
+        }
+        val delta = ((raw - prev + 540f) % 360f) - 180f
+        val smoothed = (prev + delta * SENSOR_AZIMUTH_SMOOTHING_ALPHA + 360f) % 360f
+        smoothedAzimuth = smoothed
+        return smoothed
+    }
+
+    private fun updateBearingInState(azimuth: Float) {
+        val geoBearing = currentGeoBearing ?: return
+        if (!liveDirectionArrowEnabled) return
+        val displayBearing = DirectionArrowCalculator.computeDisplayBearing(geoBearing, azimuth)
+        _uiState.update { state ->
+            val gps = state.gpsGuidanceState
+            if (gps is GpsGuidanceState.Informative) {
+                state.copy(gpsGuidanceState = gps.copy(bearingDegrees = displayBearing))
+            } else state
+        }
+    }
+
     private fun recomputeGuidanceState(location: Location) {
         val metadata = _uiState.value.referenceImageMetadata ?: return
         val refLat = metadata.gpsLatitude ?: return
@@ -993,7 +1113,24 @@ class CameraViewModel @Inject constructor(
         }
         hysteresisPendingColor = result.pendingColor
         hysteresisPendingCount = result.pendingCount
-        _uiState.update { it.copy(gpsGuidanceState = result.state) }
+
+        // Extract geographic bearing. Note: prevState.bearingDegrees may carry a device-relative
+        // value from a prior update, so the bearing threshold in GuidanceComputer is effectively
+        // inactive. This is an accepted trade-off for keeping GuidanceComputer unchanged.
+        val geoBearing = (result.state as? GpsGuidanceState.Informative)?.bearingDegrees
+        currentGeoBearing = geoBearing
+
+        val displayBearing = if (liveDirectionArrowEnabled && geoBearing != null) {
+            currentAzimuth?.let { azimuth ->
+                DirectionArrowCalculator.computeDisplayBearing(geoBearing, azimuth)
+            }
+        } else null
+
+        val displayState = when (val s = result.state) {
+            is GpsGuidanceState.Informative -> s.copy(bearingDegrees = displayBearing)
+            else -> s
+        }
+        _uiState.update { it.copy(gpsGuidanceState = displayState) }
     }
 
     private fun finishCapture() {

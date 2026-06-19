@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -103,6 +104,18 @@ private fun GpsChipInformativeContent(state: GpsGuidanceState.Informative) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        if (state.bearingDegrees != null) {
+            val bearing = state.bearingDegrees
+            Canvas(
+                modifier = Modifier
+                    .size(14.dp)
+                    .testTag("gps_bearing_arrow")
+            ) {
+                rotate(degrees = bearing, pivot = center) {
+                    drawDirectionChevron(color = SameViewTextPrimary)
+                }
+            }
+        }
         Text(
             text = GuidanceComputer.formatDistance(state.distanceMeters),
             style = MaterialTheme.typography.labelSmall,

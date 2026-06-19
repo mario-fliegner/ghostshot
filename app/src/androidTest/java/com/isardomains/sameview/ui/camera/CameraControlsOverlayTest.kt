@@ -1560,6 +1560,34 @@ class CameraControlsOverlayTest {
     }
 
     @Test
+    fun gpsChip_showsBearingArrow_whenStateIsInformativeWithBearing() {
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Informative(
+                distanceMeters = 47f,
+                bearingDegrees = 90f,
+                proximityColor = ProximityColor.ORANGE
+            )
+        )
+        composeRule.onNodeWithTag("gps_bearing_arrow", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun gpsChip_hidesBearingArrow_whenBearingIsNull() {
+        setControlsContent(
+            referenceUri = null,
+            isLandscape = false,
+            gpsGuidanceState = GpsGuidanceState.Informative(
+                distanceMeters = 47f,
+                bearingDegrees = null,
+                proximityColor = ProximityColor.GREEN
+            )
+        )
+        composeRule.onAllNodesWithTag("gps_bearing_arrow", useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
     fun gpsChip_inPortrait_staysWithinRootBounds() {
         setControlsContent(
             referenceUri = null,
