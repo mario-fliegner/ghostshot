@@ -467,7 +467,7 @@ The GPS Recreation System is controlled by two settings.
 
 **Label:** Live direction arrow
 
-**Description shown to user:** Uses device sensors to point toward the reference location. Accuracy may vary indoors or near metal.
+**Description shown to user:** Uses device sensors to point toward the reference location. Always stay aware of your surroundings.
 
 **Default:** OFF
 
