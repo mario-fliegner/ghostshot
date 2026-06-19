@@ -73,11 +73,12 @@ fun SettingsSwitchRow(
     label: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    testTag: String? = null
+    testTag: String? = null,
+    enabled: Boolean = true
 ) {
     val rowModifier = Modifier
         .fillMaxWidth()
-        .clickable { onCheckedChange(!checked) }
+        .clickable(enabled = enabled) { onCheckedChange(!checked) }
         .padding(vertical = 8.dp)
     Row(
         modifier = if (testTag != null) rowModifier.testTag(testTag) else rowModifier,
@@ -91,7 +92,8 @@ fun SettingsSwitchRow(
         )
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            enabled = enabled
         )
     }
 }

@@ -23,6 +23,7 @@ class SettingsRepository @Inject constructor(
         val RESET_OVERLAY_AFTER_CAPTURE = booleanPreferencesKey("reset_overlay_after_capture")
         val AUTO_OPEN_COMPARE_AFTER_CAPTURE = booleanPreferencesKey("auto_open_compare_after_capture")
         val RECREATION_GUIDANCE = booleanPreferencesKey("recreation_guidance")
+        val LIVE_DIRECTION_ARROW = booleanPreferencesKey("live_direction_arrow")
         val BRANDING_ENABLED = booleanPreferencesKey("branding_enabled")
     }
 
@@ -82,6 +83,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setRecreationGuidance(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.RECREATION_GUIDANCE] = enabled
+        }
+    }
+
+    val liveDirectionArrow: Flow<Boolean> = preferences.map { prefs ->
+        prefs[Keys.LIVE_DIRECTION_ARROW] ?: false
+    }
+
+    suspend fun setLiveDirectionArrow(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LIVE_DIRECTION_ARROW] = enabled
         }
     }
 

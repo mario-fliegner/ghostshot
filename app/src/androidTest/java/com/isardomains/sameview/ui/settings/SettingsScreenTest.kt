@@ -50,6 +50,8 @@ class SettingsScreenTest {
         onAutoOpenCompareAfterCaptureChanged: (Boolean) -> Unit = {},
         recreationGuidance: Boolean = false,
         onRecreationGuidanceChanged: (Boolean) -> Unit = {},
+        liveDirectionArrow: Boolean = false,
+        onLiveDirectionArrowChanged: (Boolean) -> Unit = {},
         showLocationPermissionDeniedHint: Boolean = false,
         onBack: () -> Unit = {}
     ) {
@@ -74,6 +76,8 @@ class SettingsScreenTest {
                         onAutoOpenCompareAfterCaptureChanged = onAutoOpenCompareAfterCaptureChanged,
                         recreationGuidance = recreationGuidance,
                         onRecreationGuidanceChanged = onRecreationGuidanceChanged,
+                        liveDirectionArrow = liveDirectionArrow,
+                        onLiveDirectionArrowChanged = onLiveDirectionArrowChanged,
                         showLocationPermissionDeniedHint = showLocationPermissionDeniedHint,
                         onBack = onBack
                     )
@@ -273,6 +277,73 @@ class SettingsScreenTest {
         setContent(recreationGuidance = false, onRecreationGuidanceChanged = { received = it })
 
         composeRule.onNodeWithTag("settings_recreation_guidance").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, received)
+    }
+
+    @Test
+    fun liveDirectionArrowToggle_isVisible_inGpsGuidanceCard() {
+        setContent()
+
+        composeRule.onNodeWithTag("settings_live_direction_arrow").assertIsDisplayed()
+    }
+
+    @Test
+    fun liveDirectionArrowToggle_defaultIsOff_tapInvokesCallbackWithTrue() {
+        var received: Boolean? = null
+        setContent(
+            recreationGuidance = true,
+            liveDirectionArrow = false,
+            onLiveDirectionArrowChanged = { received = it }
+        )
+
+        composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, received)
+    }
+
+    @Test
+    fun liveDirectionArrowToggle_whenOn_tapInvokesCallbackWithFalse() {
+        var received: Boolean? = null
+        setContent(
+            recreationGuidance = true,
+            liveDirectionArrow = true,
+            onLiveDirectionArrowChanged = { received = it }
+        )
+
+        composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(false, received)
+    }
+
+    @Test
+    fun liveDirectionArrowToggle_isDisabled_whenRecreationGuidanceOff_doesNotInvokeCallback() {
+        var received: Boolean? = null
+        setContent(
+            recreationGuidance = false,
+            liveDirectionArrow = false,
+            onLiveDirectionArrowChanged = { received = it }
+        )
+
+        composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(null, received)
+    }
+
+    @Test
+    fun liveDirectionArrowToggle_isEnabled_whenRecreationGuidanceOn() {
+        var received: Boolean? = null
+        setContent(
+            recreationGuidance = true,
+            liveDirectionArrow = false,
+            onLiveDirectionArrowChanged = { received = it }
+        )
+
+        composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
         composeRule.waitForIdle()
 
         assertEquals(true, received)

@@ -66,6 +66,15 @@ class SettingsViewModel @Inject constructor(
     val recreationGuidance: StateFlow<Boolean> = repository.recreationGuidance
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val liveDirectionArrow: StateFlow<Boolean> = repository.liveDirectionArrow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun onLiveDirectionArrowChanged(enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { repository.setLiveDirectionArrow(enabled) }
+        }
+    }
+
     private val _uiEvents = MutableSharedFlow<SettingsUiEvent>(extraBufferCapacity = 1)
     val uiEvents: SharedFlow<SettingsUiEvent> = _uiEvents.asSharedFlow()
 

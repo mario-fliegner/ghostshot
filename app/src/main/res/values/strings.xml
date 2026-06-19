@@ -120,8 +120,9 @@
     <string name="settings_recreation_guidance_rationale_confirm">Continue</string>
     <string name="settings_recreation_guidance_rationale_cancel">Cancel</string>
     <string name="settings_recreation_guidance_permission_denied">Location access required. Grant access in system Settings.</string>
-    <string name="gps_guidance_chip_description">GPS guidance, North-up</string>
-    <string name="gps_north_indicator">N</string>
+    <string name="settings_live_direction_arrow">Live direction arrow</string>
+    <string name="settings_live_direction_arrow_description">Uses device sensors to point toward the reference location. Accuracy may vary indoors or near metal.</string>
+    <string name="gps_guidance_chip_description">GPS guidance</string>
 
     <!-- About -->
     <string name="about_screen_title">About</string>

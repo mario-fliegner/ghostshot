@@ -57,6 +57,7 @@ fun SettingsScreen(
     val resetOverlayAfterCapture by viewModel.resetOverlayAfterCapture.collectAsStateWithLifecycle()
     val autoOpenCompareAfterCapture by viewModel.autoOpenCompareAfterCapture.collectAsStateWithLifecycle()
     val recreationGuidance by viewModel.recreationGuidance.collectAsStateWithLifecycle()
+    val liveDirectionArrow by viewModel.liveDirectionArrow.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     var showRationaleDialog by remember { mutableStateOf(false) }
@@ -131,6 +132,8 @@ fun SettingsScreen(
         onAutoOpenCompareAfterCaptureChanged = viewModel::onAutoOpenCompareAfterCaptureChanged,
         recreationGuidance = recreationGuidance,
         onRecreationGuidanceChanged = viewModel::onRecreationGuidanceChanged,
+        liveDirectionArrow = liveDirectionArrow,
+        onLiveDirectionArrowChanged = viewModel::onLiveDirectionArrowChanged,
         showLocationPermissionDeniedHint = showPermissionDeniedHint,
         windowWidthSizeClass = windowWidthSizeClass,
         onBack = onBack
@@ -150,6 +153,8 @@ internal fun SettingsScreenContent(
     onAutoOpenCompareAfterCaptureChanged: (Boolean) -> Unit,
     recreationGuidance: Boolean,
     onRecreationGuidanceChanged: (Boolean) -> Unit,
+    liveDirectionArrow: Boolean,
+    onLiveDirectionArrowChanged: (Boolean) -> Unit,
     showLocationPermissionDeniedHint: Boolean = false,
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     onBack: () -> Unit
@@ -240,6 +245,19 @@ internal fun SettingsScreenContent(
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
+                Spacer(modifier = Modifier.height(14.dp))
+                LiveDirectionArrowRow(
+                    checked = liveDirectionArrow,
+                    enabled = recreationGuidance,
+                    onCheckedChange = onLiveDirectionArrowChanged
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_live_direction_arrow_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SameViewSettingsSecondaryText,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
             }
             } // inner Column
         } // outer Column
@@ -295,5 +313,20 @@ private fun RecreationGuidanceRow(
         checked = checked,
         onCheckedChange = onCheckedChange,
         testTag = "settings_recreation_guidance"
+    )
+}
+
+@Composable
+private fun LiveDirectionArrowRow(
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_live_direction_arrow),
+        checked = checked,
+        enabled = enabled,
+        onCheckedChange = onCheckedChange,
+        testTag = "settings_live_direction_arrow"
     )
 }
