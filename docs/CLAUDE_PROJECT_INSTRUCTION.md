@@ -166,6 +166,7 @@ Use modern Android best practices appropriate for a new app targeting current An
 Allowed:
 - CAMERA
 - ACCESS_FINE_LOCATION (GPS Recreation System; foreground-only; lazy request triggered by Settings toggle)
+- ACCESS_COARSE_LOCATION (Android 12+ platform companion to ACCESS_FINE_LOCATION; required so the system permission dialog correctly offers the "Precise" vs "Approximate" location choice; declared in manifest and included in the runtime request alongside ACCESS_FINE_LOCATION; SameView does not treat approximate location as sufficient — Recreation Guidance remains OFF unless ACCESS_FINE_LOCATION is granted)
 - ACCESS_MEDIA_LOCATION (companion permission enabling Photo Picker to return unredacted GPS EXIF; not a dangerous permission)
 
 Required selection mechanism:

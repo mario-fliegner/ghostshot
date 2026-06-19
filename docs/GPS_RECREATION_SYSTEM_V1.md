@@ -101,6 +101,11 @@ At capture time, the GPS fix is frozen and written to EXIF and `metadata.json`. 
 **Why FINE and not COARSE:**
 `ACCESS_COARSE_LOCATION` provides approximately 100–500m accuracy via network/WiFi triangulation. This is not useful for recreation guidance where meaningful proximity is within 5–20m. `ACCESS_FINE_LOCATION` delivers 3–15m GPS accuracy in good outdoor conditions, which is appropriate for this use case.
 
+**Android 12+ platform requirement — COARSE companion declaration:**
+Since Android 12 (API 31), the system requires that `ACCESS_COARSE_LOCATION` is declared in the manifest and included in the runtime permission request alongside `ACCESS_FINE_LOCATION`. This enables the system dialog to offer the "Precise location" vs "Approximate location" user choice. Without this companion declaration, the system dialog on Android 12+ is degraded and the user cannot make a meaningful precision choice.
+
+`ACCESS_COARSE_LOCATION` is therefore declared in the manifest and included in the `permissionLauncher.launch()` call for this reason only. SameView does not use approximate location for any purpose: the `LocationPermissionChecker` requires `ACCESS_FINE_LOCATION` to be granted. If the user selects "Approximate location only", `ACCESS_FINE_LOCATION` is denied, the permission result is treated as not granted, and Recreation Guidance remains OFF.
+
 **Why LocationManager, not FusedLocationProviderClient:**
 SameView has no INTERNET permission and no Google Play Services dependency. `LocationManager` with `GPS_PROVIDER` as primary and `NETWORK_PROVIDER` as fallback is fully sufficient. This keeps the app offline-first with no external service dependency and no Play Services requirement.
 
@@ -114,8 +119,8 @@ Permission is requested when the user first enables "Recreation guidance" in Set
 1. User taps "Recreation guidance" toggle → ON
 2. Pre-rationale dialog is shown before the system permission dialog:
    *"SameView uses your location to help you find where the original photo was taken. Your location is never shared or uploaded."*
-3. System permission dialog follows
-4. On permanent denial: feature is silently unavailable; a brief non-modal explanation in the Settings entry communicates that location access is required
+3. System permission dialog follows (on Android 12+: "Precise location" vs "Approximate location" choice is shown)
+4. On permanent denial or "Approximate location only" selection: feature is silently unavailable; a brief non-modal explanation in the Settings entry communicates that precise location access is required
 
 **Why lazy permission matters:**
 Requesting location on first launch triggers Play Store policy scrutiny, creates user mistrust ("why does a camera app need GPS already?"), and risks permanent denial before the user understands the feature.

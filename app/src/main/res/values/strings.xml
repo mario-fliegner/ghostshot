@@ -119,7 +119,7 @@
     <string name="settings_recreation_guidance_rationale_message">SameView uses your current location to guide you back to where the original photo was taken, and reads the location stored in your reference photo. Your location data is never shared or uploaded.</string>
     <string name="settings_recreation_guidance_rationale_confirm">Continue</string>
     <string name="settings_recreation_guidance_rationale_cancel">Cancel</string>
-    <string name="settings_recreation_guidance_permission_denied">Location access required. Grant access in system Settings.</string>
+    <string name="settings_recreation_guidance_permission_denied">Precise location access required. Grant access in system Settings.</string>
     <string name="settings_live_direction_arrow">Live direction arrow</string>
     <string name="settings_live_direction_arrow_description">Uses device sensors to point toward the reference location. Always stay aware of your surroundings.</string>
     <string name="gps_guidance_chip_description">GPS guidance</string>

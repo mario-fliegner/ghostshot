@@ -113,7 +113,7 @@
     <string name="settings_recreation_guidance_rationale_message">SameView nutzt deinen aktuellen Standort, um dich zum Aufnahmeort des Originalfotos zu führen, und liest den im Referenzbild gespeicherten Standort. Deine Standortdaten werden niemals geteilt oder hochgeladen.</string>
     <string name="settings_recreation_guidance_rationale_confirm">Weiter</string>
     <string name="settings_recreation_guidance_rationale_cancel">Abbrechen</string>
-    <string name="settings_recreation_guidance_permission_denied">Standortzugriff erforderlich. Bitte in den Systemeinstellungen erteilen.</string>
+    <string name="settings_recreation_guidance_permission_denied">Genauer Standortzugriff erforderlich. Bitte in den Systemeinstellungen erteilen.</string>
     <string name="gps_guidance_chip_description">GPS-Führung</string>
 
     <!-- About -->
