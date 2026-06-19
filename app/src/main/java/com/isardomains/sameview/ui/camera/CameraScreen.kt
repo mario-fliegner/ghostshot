@@ -1706,8 +1706,8 @@ private fun OverlayVisibilityWarning(
 
     Box(
         modifier = modifier
-            .width(180.dp)
-            .height(92.dp)
+            .width(220.dp)
+            .wrapContentHeight()
             .testTag("overlay_visibility_warning_container")
     ) {
         Box(
@@ -1758,7 +1758,7 @@ private fun OverlayVisibilityWarning(
                     text = bubbleText,
                     style = MaterialTheme.typography.labelSmall,
                     color = SameViewTextPrimary,
-                    maxLines = 1
+                    maxLines = 2
                 )
             }
         }
@@ -1786,8 +1786,8 @@ private fun FormatMismatchHint(
 
     Box(
         modifier = modifier
-            .width(180.dp)
-            .height(92.dp)
+            .width(220.dp)
+            .wrapContentHeight()
             .testTag("format_mismatch_hint_container")
     ) {
         Box(
@@ -1838,7 +1838,7 @@ private fun FormatMismatchHint(
                     text = bubbleText,
                     style = MaterialTheme.typography.labelSmall,
                     color = SameViewTextPrimary,
-                    maxLines = 1
+                    maxLines = 2
                 )
             }
         }
