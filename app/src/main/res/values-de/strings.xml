@@ -2,6 +2,7 @@
     <string name="app_name">SameView</string>
     <string name="app_launcher_name">SameView</string>
 
+    <string name="camera_permission_rationale_title">Kamerazugriff erlauben</string>
     <string name="camera_permission_rationale">SameView braucht Zugriff auf die Kamera, um Fotos aufzunehmen.</string>
     <string name="grant_permission">Kamera erlauben</string>
     <string name="camera_permission_blocked_title">Kamerazugriff erforderlich</string>
@@ -114,6 +115,8 @@
     <string name="settings_recreation_guidance_rationale_confirm">Weiter</string>
     <string name="settings_recreation_guidance_rationale_cancel">Abbrechen</string>
     <string name="settings_recreation_guidance_permission_denied">Genauer Standortzugriff erforderlich. Bitte in den Systemeinstellungen erteilen.</string>
+    <string name="settings_live_direction_arrow">Live-Richtungspfeil</string>
+    <string name="settings_live_direction_arrow_description">Zeigt mithilfe der Gerätesensoren die Richtung zum Referenzstandort an. Die Genauigkeit kann je nach Umgebung variieren.</string>
     <string name="gps_guidance_chip_description">GPS-Führung</string>
 
     <!-- About -->
@@ -255,4 +258,11 @@
     <string name="edit_session_saving_dialog_confirm">OK</string>
     <!-- Compare Screen Metadata Header -->
     <string name="compare_screen_metadata_created">Erstellt am %s</string>
+
+    <!-- Session-Backup-Export -->
+    <string name="compare_screen_overflow_backup_session">Session sichern</string>
+    <string name="compare_library_action_backup">Auswahl sichern</string>
+    <string name="session_backup_success_single">Session gesichert</string>
+    <string name="session_backup_success_multi">%d Sessions gesichert</string>
+    <string name="session_backup_error">Backup konnte nicht erstellt werden</string>
 </resources>
