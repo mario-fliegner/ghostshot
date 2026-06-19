@@ -8,12 +8,12 @@ class CameraSnackbarPaddingTest {
 
     @Test
     fun landscape_withOverlay_paddingClearsSlider() {
-        assertEquals(226.dp, cameraSnackbarBottomPadding(isLandscape = true, hasOverlay = true))
+        assertEquals(170.dp, cameraSnackbarBottomPadding(isLandscape = true, hasOverlay = true))
     }
 
     @Test
     fun landscape_withoutOverlay_paddingClearsButtonRow() {
-        assertEquals(130.dp, cameraSnackbarBottomPadding(isLandscape = true, hasOverlay = false))
+        assertEquals(122.dp, cameraSnackbarBottomPadding(isLandscape = true, hasOverlay = false))
     }
 
     @Test

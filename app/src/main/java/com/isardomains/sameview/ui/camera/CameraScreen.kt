@@ -173,7 +173,7 @@ private const val TAG = "SameView"
 private val CameraShutterButtonSize = 96.dp
 private val CameraSecondaryActionMinWidth = 96.dp
 private val CameraBottomControlGap = 16.dp
-private val CameraSliderButtonGap = 8.dp
+private val CameraSliderButtonGap = 4.dp
 private val CameraOpacitySliderPortraitBottom = 128.dp
 private val CameraOpacitySliderHeight = 56.dp
 private val CameraOpacitySliderLandscapeMaxWidth = 320.dp
@@ -1121,11 +1121,11 @@ internal fun CaptureSuccessSnackbarEffect(
 }
 
 private fun cameraBottomPadding(isLandscape: Boolean): Dp =
-    if (isLandscape) 18.dp else 24.dp
+    if (isLandscape) 10.dp else 24.dp
 
 internal fun cameraSnackbarBottomPadding(isLandscape: Boolean, hasOverlay: Boolean): Dp =
     if (isLandscape && hasOverlay)
-        cameraBottomPadding(true) + CameraShutterButtonSize + CameraSliderButtonGap + CameraShutterButtonSize + CameraSliderButtonGap
+        cameraBottomPadding(true) + CameraShutterButtonSize + CameraSliderButtonGap + CameraOpacitySliderHeight + CameraSliderButtonGap
     else if (isLandscape)
         cameraBottomPadding(true) + CameraShutterButtonSize + CameraBottomControlGap
     else if (hasOverlay)
@@ -1252,7 +1252,7 @@ internal fun CameraControlsOverlay(
         if (isLandscape) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val controlGap = 16.dp
-                val sliderButtonGap = 8.dp
+                val sliderButtonGap = CameraSliderButtonGap
                 val sideControlsPadding = maxWidth / 2 + CameraShutterButtonSize / 2 + controlGap
                 val sliderGroupWidth = CameraSecondaryActionMinWidth +
                     controlGap +
@@ -1329,7 +1329,7 @@ internal fun CameraControlsOverlay(
                                 bottom = effectiveBottomPadding + CameraShutterButtonSize + sliderButtonGap
                             )
                             .width(sliderGroupWidth.coerceAtMost(CameraOpacitySliderLandscapeMaxWidth))
-                            .height(CameraShutterButtonSize),
+                            .height(CameraOpacitySliderHeight),
                         contentAlignment = Alignment.Center
                     ) {
                         FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
