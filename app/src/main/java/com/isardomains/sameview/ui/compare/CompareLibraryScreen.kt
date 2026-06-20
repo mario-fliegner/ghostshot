@@ -370,10 +370,29 @@ private fun CompareSessionTile(
     modifier: Modifier = Modifier
 ) {
     val timestamp = formatTimestamp(session.timestamp)
-    val tileDescription = stringResource(
-        R.string.compare_library_session_content_description,
-        timestamp
+    val locationText = formatLibraryLocation(
+        session.locationDisplayName,
+        session.locationCity,
+        session.locationCountry
     )
+    val hasTitle = !session.title.isNullOrEmpty()
+    val hasLocation = locationText != null
+
+    val metaForDescription = buildString {
+        if (hasTitle) append(session.title)
+        if (hasTitle && hasLocation) append(", ")
+        if (hasLocation) append(locationText)
+    }
+    val tileDescription = if (metaForDescription.isNotEmpty()) {
+        stringResource(
+            R.string.compare_library_session_content_description_with_meta,
+            metaForDescription,
+            timestamp
+        )
+    } else {
+        stringResource(R.string.compare_library_session_content_description, timestamp)
+    }
+
     val selectedDesc = stringResource(R.string.compare_library_session_selected)
     val notSelectedDesc = stringResource(R.string.compare_library_session_not_selected)
     val reservedTextHeight = with(LocalDensity.current) {
@@ -425,35 +444,78 @@ private fun CompareSessionTile(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Spacer(modifier = Modifier.height(reservedTextHeight))
-                if (!session.title.isNullOrEmpty()) {
-                    Column {
-                        Text(
-                            text = session.title!!,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = timestamp,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                when {
+                    hasTitle && hasLocation -> {
+                        // Fall A: Titel und Location vorhanden — kein Datum
+                        Column {
+                            Text(
+                                text = session.title!!,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = locationText!!,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
-                } else {
-                    Box(
-                        modifier = Modifier.matchParentSize(),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(
-                            text = timestamp,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    hasTitle -> {
+                        // Fall B: Titel, keine Location — Zeile 1: Titel, Zeile 2: Datum
+                        Column {
+                            Text(
+                                text = session.title!!,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = timestamp,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    hasLocation -> {
+                        // Fall C: Location, kein Titel — Zeile 1: Location, Zeile 2: Datum
+                        Column {
+                            Text(
+                                text = locationText!!,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = timestamp,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    else -> {
+                        // Fall D: Weder Titel noch Location — nur Datum, zentriert
+                        Box(
+                            modifier = Modifier.matchParentSize(),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Text(
+                                text = timestamp,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -478,6 +540,34 @@ private fun CompareSessionTile(
                     .padding(4.dp)
             )
         }
+    }
+}
+
+/**
+ * Formats user-authored location fields into a single display string following the §32 priority
+ * order. Returns null when no location data is present.
+ *
+ * Uses simple string concatenation without width measurement; TextOverflow.Ellipsis handles
+ * truncation at the call site.
+ */
+private fun formatLibraryLocation(
+    displayName: String?,
+    city: String?,
+    country: String?
+): String? {
+    if (displayName != null) {
+        return when {
+            city != null && country != null -> "$displayName · $city, $country"
+            city != null -> "$displayName · $city"
+            country != null -> "$displayName · $country"
+            else -> displayName
+        }
+    }
+    return when {
+        city != null && country != null -> "$city, $country"
+        city != null -> city
+        country != null -> country
+        else -> null
     }
 }
 

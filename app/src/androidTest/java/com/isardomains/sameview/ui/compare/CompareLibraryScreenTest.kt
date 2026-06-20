@@ -594,13 +594,156 @@ class CompareLibraryScreenTest {
         assertTrue("Tile 4 should be in a different row than tile 0", kotlin.math.abs(top0 - top4) > 50f)
     }
 
-    private fun createFakeSession(id: String = fakeSessionId, title: String? = null) = ScannedSession(
+    private fun createFakeSession(
+        id: String = fakeSessionId,
+        title: String? = null,
+        locationDisplayName: String? = null,
+        locationCity: String? = null,
+        locationCountry: String? = null
+    ) = ScannedSession(
         sessionId = id,
         timestamp = fakeTimestamp,
         referenceFileUri = fakeReferenceUri,
         captureFileUri = fakeCaptureUri,
-        title = title
+        title = title,
+        locationDisplayName = locationDisplayName,
+        locationCity = locationCity,
+        locationCountry = locationCountry
     )
+
+    // ── Location-Display-Tests ──────────────────────────────────────────────
+
+    @Test
+    fun tile_fallA_showsTitleAndLocation_whenBothPresent() {
+        val session = createFakeSession(
+            title = "Holla die Waldfee",
+            locationDisplayName = "Cavallino",
+            locationCountry = "Italien"
+        )
+        setLibraryContent(sessions = listOf(session))
+
+        composeRule.onNodeWithText("Holla die Waldfee").assertIsDisplayed()
+        composeRule.onNodeWithText("Cavallino · Italien").assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_fallA_doesNotShowTimestamp_whenTitleAndLocationPresent() {
+        val session = createFakeSession(
+            title = "Holla die Waldfee",
+            locationCity = "München",
+            locationCountry = "Deutschland"
+        )
+        setLibraryContent(sessions = listOf(session))
+
+        val expectedTimestamp = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+            .format(Date(fakeTimestamp))
+        composeRule.onNodeWithText(expectedTimestamp).assertDoesNotExist()
+    }
+
+    @Test
+    fun tile_fallA_allThreeLocationFields_displaysMostInformativeCandidate() {
+        val session = createFakeSession(
+            title = "Zugspitze",
+            locationDisplayName = "Zugspitze Summit",
+            locationCity = "Garmisch",
+            locationCountry = "Deutschland"
+        )
+        setLibraryContent(sessions = listOf(session))
+
+        composeRule.onNodeWithText("Zugspitze").assertIsDisplayed()
+        composeRule.onNodeWithText("Zugspitze Summit · Garmisch, Deutschland").assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_fallB_showsTitleAndTimestamp_whenTitleButNoLocation() {
+        val session = createFakeSession(title = "Goldener Herbst")
+        setLibraryContent(sessions = listOf(session))
+
+        val expectedTimestamp = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+            .format(Date(fakeTimestamp))
+        composeRule.onNodeWithText("Goldener Herbst").assertIsDisplayed()
+        composeRule.onNodeWithText(expectedTimestamp).assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_fallC_showsLocationAndTimestamp_whenLocationButNoTitle() {
+        val session = createFakeSession(locationCity = "München", locationCountry = "Deutschland")
+        setLibraryContent(sessions = listOf(session))
+
+        val expectedTimestamp = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+            .format(Date(fakeTimestamp))
+        composeRule.onNodeWithText("München, Deutschland").assertIsDisplayed()
+        composeRule.onNodeWithText(expectedTimestamp).assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_fallC_displayNameOnly_whenCityAndCountryAbsent() {
+        val session = createFakeSession(locationDisplayName = "Marienplatz")
+        setLibraryContent(sessions = listOf(session))
+
+        composeRule.onNodeWithText("Marienplatz").assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_fallD_showsOnlyTimestamp_whenNeitherTitleNorLocation() {
+        val session = createFakeSession()
+        setLibraryContent(sessions = listOf(session))
+
+        val expectedTimestamp = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+            .format(Date(fakeTimestamp))
+        composeRule.onNodeWithText(expectedTimestamp).assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_heightStable_acrossFallAAndFallD() {
+        // Fall D (kein Titel, keine Location) und Fall A (Titel + Location) müssen
+        // dieselbe Tile-Höhe haben — reservedTextHeight-Spacer bleibt stabil.
+        val sessionFallD = createFakeSession(id = "tile_d")
+        val sessionFallA = createFakeSession(
+            id = "tile_a",
+            title = "Mein Titel",
+            locationCity = "München"
+        )
+        // Beide Tiles landen in der ersten Zeile des 2-Spalten-Grids.
+        setLibraryContent(sessions = listOf(sessionFallD, sessionFallA))
+
+        val boundsD = composeRule.onNodeWithTag("compare_library_session_tile_tile_d")
+            .fetchSemanticsNode().boundsInRoot
+        val boundsA = composeRule.onNodeWithTag("compare_library_session_tile_tile_a")
+            .fetchSemanticsNode().boundsInRoot
+
+        assertTrue(
+            "Tiles müssen in derselben Zeile sein (top-Differenz < 2 px)",
+            kotlin.math.abs(boundsD.top - boundsA.top) < 2f
+        )
+        assertTrue(
+            "Tile-Höhen müssen identisch sein (Differenz < 2 px)",
+            kotlin.math.abs(boundsD.height - boundsA.height) < 2f
+        )
+    }
+
+    @Test
+    fun tile_heightStable_acrossFallBAndFallC() {
+        // Fall B (Titel, keine Location) und Fall C (Location, kein Titel) —
+        // beide zeigen zwei Textzeilen und dürfen nicht unterschiedlich hoch sein.
+        val sessionFallB = createFakeSession(id = "tile_b", title = "Mein Titel")
+        val sessionFallC = createFakeSession(id = "tile_c", locationCity = "München")
+        setLibraryContent(sessions = listOf(sessionFallB, sessionFallC))
+
+        val boundsB = composeRule.onNodeWithTag("compare_library_session_tile_tile_b")
+            .fetchSemanticsNode().boundsInRoot
+        val boundsC = composeRule.onNodeWithTag("compare_library_session_tile_tile_c")
+            .fetchSemanticsNode().boundsInRoot
+
+        assertTrue(
+            "Tiles müssen in derselben Zeile sein (top-Differenz < 2 px)",
+            kotlin.math.abs(boundsB.top - boundsC.top) < 2f
+        )
+        assertTrue(
+            "Tile-Höhen müssen identisch sein (Differenz < 2 px)",
+            kotlin.math.abs(boundsB.height - boundsC.height) < 2f
+        )
+    }
 
     private fun wakeTestDevice() {
         InstrumentationRegistry.getInstrumentation()

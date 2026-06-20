@@ -175,7 +175,10 @@ Active compare session lifecycle — fully implemented:
 - Multi-select mode includes Select All / Deselect All toggle and a Backup icon
 - Backup exports all selected sessions as a single ZIP file via SAF `ACTION_CREATE_DOCUMENT`
 - Multi-select mode remains active after backup; selection is preserved
-- Titles are displayed when present
+- Titles and user-authored location are displayed on tiles when present (see tile display logic below)
+- Tile text area always reserves height for two lines — grid height is stable regardless of content
+- Tile display priority: (A) title + location → title / location, no date; (B) title only → title / date; (C) location only → location / date; (D) neither → date only
+- Location is formatted using the §32 priority order: displayName · city, country → displayName · city → displayName · country → displayName → city, country → city → country
 - This is not a general gallery or MediaStore browser
 
 ### Video Export

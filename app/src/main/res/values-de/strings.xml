@@ -22,6 +22,7 @@
     <string name="compare_library_empty_body">Mach ein Foto, um deinen ersten Vergleich zu erstellen.</string>
     <string name="compare_library_empty_cta">Mach dein erstes Foto</string>
     <string name="compare_library_session_content_description">Vergleich vom %s</string>
+    <string name="compare_library_session_content_description_with_meta">%1$s – Vergleich vom %2$s</string>
     <string name="compare_library_selection_count">%d ausgewählt</string>
     <string name="compare_library_cancel_selection">Abbrechen</string>
     <string name="compare_library_select_all">Alle auswählen</string>
