@@ -162,6 +162,7 @@ GPS is architecturally separate from the Compare rendering pipeline. `GpsSnapsho
 - Compare shows a metadata header above the slider: title, location (`📍 displayName · city, country`), or `Created <date>` fallback; hidden in fullscreen (spec: §42)
 - Compare image load failures show a fallback UI and allow back navigation
 - **Favourite star (2026-06-20):** TopAppBar action (first action before Create Video); visible when `sessionId != null`; outline star = not favourited; filled star with `SameViewStarFavorited` amber tint = favourited; toggles via `CameraViewModel.toggleFavorite()`; state derived from `CameraViewModel.savedSessions` — no local state in CompareScreen
+- **CompareScreen TopAppBar — planned restructuring (spec 2026-06-21, not yet implemented):** The dedicated Create Video icon will be replaced by an Export icon (see `SHARE_COMPARISON_IMAGE_V1.md §6` and `COMPARE_FLOW_V1.md §43`). The Export icon opens a dropdown with "Share comparison image" → `ShareComparisonScreen` and "Create video" → `CreateVideoScreen`. This restructuring is part of the Share Comparison Image implementation scope, not yet implemented.
 
 Active compare session lifecycle — fully implemented:
 
@@ -185,6 +186,19 @@ Active compare session lifecycle — fully implemented:
 - **Favorites (2026-06-20):** Favourite star visible on each tile in normal mode (TopStart, 48 dp touch target, icon anchored to corner); hidden in multi-select mode; toggled via `CameraViewModel.toggleFavorite()` with Write-First and targeted in-memory update; `ScannedSession.isFavorite: Boolean = false` added; `SessionStorage.updateFavorite()` added
 - **Filter / Sort (2026-06-20):** Overflow menu (⋮) in normal-mode TopAppBar; Filter: All comparisons / Favorites only; Sort: Newest first / Oldest first; persisted via `SettingsRepository`/DataStore keys `library_filter` and `library_sort_order`; filter then sort pipeline derived in-memory via `remember`; Favorites-specific empty state when filter = Favorites and no favorites present; Select All operates on the **filtered list** only (see PD-08 note above)
 - This is not a general gallery or MediaStore browser
+
+### Share Comparison Image
+
+Full specification: `SHARE_COMPARISON_IMAGE_V1.md`
+Implementation plan: `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`
+
+**Status: Specification and implementation plan complete (2026-06-21). Not yet implemented.**
+
+Pending prerequisite: scope addendum in `CLAUDE_PROJECT_INSTRUCTION.md` must be written before implementation begins (see `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md §3`).
+
+Open product decision before Block 2: Slider divider with or without handle (see `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md §4`).
+
+---
 
 ### Video Export
 

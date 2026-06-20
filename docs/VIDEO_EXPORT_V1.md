@@ -81,17 +81,35 @@ These decisions are final and must not be re-evaluated during implementation.
 
 ### 5.1 TopAppBar Structure
 
-The `CompareScreen` top app bar is restructured as part of this feature's scope:
+The `CompareScreen` top app bar was restructured as part of this feature's scope:
 
-```
+```text
 ← Back  |  [Create Video icon]  |  [Delete Session icon]  |  ⋮
 ```
 
-This is the product-intended structure documented in `SESSION_BACKUP_EXPORT_V1.md` §7.3 and `CLAUDE_PROJECT_INSTRUCTION.md` Addendum 2026-06-01. The restructuring must not be pre-implemented with placeholders or disabled icons — it happens in full as part of the Create Video implementation scope.
+This is the structure documented in `SESSION_BACKUP_EXPORT_V1.md` §7.3 and `CLAUDE_PROJECT_INSTRUCTION.md` Addendum 2026-06-01. The restructuring was not pre-implemented with placeholders or disabled icons — it was implemented in full as part of the Create Video implementation scope.
+
+**Addendum (2026-06-21) — Export Icon Supersedes Create Video Icon:**
+The introduction of the Share Comparison Image feature (`SHARE_COMPARISON_IMAGE_V1.md`) replaces
+the dedicated Create Video icon with a new **Export** icon. The updated top app bar structure is:
+
+```text
+← Back  |  [Favourite]  |  [Export]  |  [Delete Session]  |  ⋮
+```
+
+The Export icon opens a dropdown menu containing:
+
+- Share comparison image → `ShareComparisonScreen`
+- Create video → `CreateVideoScreen` (existing behavior, unchanged)
+
+`CreateVideoScreen` itself, its navigation, state machine, export pipeline, and all existing
+behavior are completely unaffected. Only the entry point in the top app bar changes.
+Full specification of the Export icon and dropdown: `SHARE_COMPARISON_IMAGE_V1.md §6`.
+Full specification of the TopAppBar change: `COMPARE_FLOW_V1.md §43`.
 
 The overflow menu continues to contain:
-- Edit Title
-- Remove Title (visible only when a title is present)
+
+- Edit Session
 - Backup Session
 
 Delete Session remains a dedicated top app bar icon, unchanged.

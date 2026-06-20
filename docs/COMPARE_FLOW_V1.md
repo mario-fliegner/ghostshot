@@ -1589,3 +1589,69 @@ The portrait `CompareMetadataHeader` and the landscape TopAppBar metadata are bo
 - Capture time (only date in fallback, no time component)
 - `content.description`
 - Session ID
+
+---
+
+## 43. COMPARESCREEN TOPAPPBAR — EXPORT ICON RESTRUCTURING (2026-06-21)
+
+This section documents the product decision to replace the dedicated Create Video icon in the
+`CompareScreen` top app bar with a new **Export** icon that opens a dropdown menu.
+
+Full specification: `SHARE_COMPARISON_IMAGE_V1.md`
+
+### 43.1 Motivation
+
+The introduction of the Share Comparison Image feature adds a second export action to
+`CompareScreen`. Two dedicated icons for export actions would overcrowd the top app bar. A single
+Export icon with a dropdown menu groups all export actions cleanly and leaves room for the
+Favourite star, Delete Session icon, and overflow menu (⋮).
+
+### 43.2 New TopAppBar Structure
+
+**Previous structure (implemented as of Block 3+4 of `VIDEO_EXPORT_V1.md`):**
+
+```text
+← Back  |  [Favourite]  |  [Create Video]  |  [Delete Session]  |  ⋮
+```
+
+**New structure (implemented as part of `SHARE_COMPARISON_IMAGE_V1.md` scope):**
+
+```text
+← Back  |  [Favourite]  |  [Export]  |  [Delete Session]  |  ⋮
+```
+
+### 43.3 Export Dropdown Contents
+
+Tapping the Export icon opens a `DropdownMenu`:
+
+```text
+─────────────────────────────────
+  Share comparison image   → ShareComparisonScreen
+  Create video             → CreateVideoScreen (unchanged behavior)
+─────────────────────────────────
+```
+
+The dropdown uses the same `DropdownMenu` / `DropdownMenuItem` pattern as the existing overflow
+menu (⋮). No new menu component is introduced.
+
+### 43.4 Overflow Menu (⋮) Unchanged
+
+The overflow menu continues to contain:
+
+- Edit Session
+- Backup Session
+
+### 43.5 Availability
+
+The Export icon is shown only when `sessionId != null`. Each dropdown item has its own
+availability rule (see `SHARE_COMPARISON_IMAGE_V1.md §6.3`).
+
+### 43.6 No Impact on Compare Mechanics
+
+This restructuring does not change:
+
+- Compare rendering, slider behavior, or image display
+- Session storage, session scanning, or session deletion logic
+- `compareInput` lifecycle or `savedSessions` state
+- Navigation contracts from `CameraScreen` or from Library to `CompareScreen`
+- Fullscreen behavior or metadata header behavior
