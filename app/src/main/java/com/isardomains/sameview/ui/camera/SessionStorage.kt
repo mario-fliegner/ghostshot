@@ -290,6 +290,43 @@ internal object SessionStorage {
         }
     }
 
+    /**
+     * Sets [additional.isFavorite] in the session's metadata.json.
+     *
+     * If the [additional] block is absent (e.g. v2/v3 session), a new block is created
+     * containing only [isFavorite]. No other fields ([visibility], [source]) are added.
+     * If the [additional] block already exists, all existing fields are preserved and only
+     * [isFavorite] is updated.
+     *
+     * Returns false on invalid [sessionId], path traversal, missing metadata.json, IO or
+     * security errors.
+     */
+    fun updateFavorite(sessionsRoot: File, sessionId: String, isFavorite: Boolean): Boolean {
+        return try {
+            val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
+
+            val metadataFile = File(sessionDir, "metadata.json")
+            if (!metadataFile.exists()) return false
+
+            val json = try {
+                JSONObject(metadataFile.readText())
+            } catch (e: Exception) {
+                return false
+            }
+
+            val additional = json.optJSONObject("additional") ?: JSONObject()
+            additional.put("isFavorite", isFavorite)
+            json.put("additional", additional)
+
+            metadataFile.writeText(json.toString())
+            true
+        } catch (e: SecurityException) {
+            false
+        } catch (e: IOException) {
+            false
+        }
+    }
+
     private fun resolveDirectSessionDir(sessionsRoot: File, sessionId: String): File? {
         if (sessionId.isEmpty()) return null
         if (sessionId == "." || sessionId == "..") return null

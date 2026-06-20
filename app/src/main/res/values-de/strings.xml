@@ -21,6 +21,15 @@
     <string name="compare_library_empty_title">Noch keine Vergleiche</string>
     <string name="compare_library_empty_body">Mach ein Foto, um deinen ersten Vergleich zu erstellen.</string>
     <string name="compare_library_empty_cta">Mach dein erstes Foto</string>
+    <string name="compare_library_empty_favorites_title">Noch keine Favoriten</string>
+    <string name="compare_library_empty_favorites_body">Markiere Vergleiche als Favoriten, um sie schneller zu finden.</string>
+    <string name="compare_library_filter_sort_options">Filter- und Sortieroptionen</string>
+    <string name="compare_library_filter_header">Filter</string>
+    <string name="compare_library_filter_all">Alle Vergleiche</string>
+    <string name="compare_library_filter_favorites">Nur Favoriten</string>
+    <string name="compare_library_sort_header">Sortieren nach</string>
+    <string name="compare_library_sort_newest_first">Neueste zuerst</string>
+    <string name="compare_library_sort_oldest_first">Älteste zuerst</string>
     <string name="compare_library_session_content_description">Vergleich vom %s</string>
     <string name="compare_library_session_content_description_with_meta">%1$s – Vergleich vom %2$s</string>
     <string name="compare_library_selection_count">%d ausgewählt</string>
@@ -66,6 +75,11 @@
     <string name="compare_screen_edit_title_hint">Titel</string>
     <string name="compare_screen_remove_title">Titel entfernen</string>
     <string name="compare_screen_title_save_failed">Titel konnte nicht gespeichert werden</string>
+    <string name="compare_session_favorite_update_failed">Favorit konnte nicht aktualisiert werden</string>
+    <string name="compare_screen_favorite_mark">Als Favorit markieren</string>
+    <string name="compare_screen_favorite_remove">Aus Favoriten entfernen</string>
+    <string name="compare_library_tile_favorite_mark">Als Favorit markieren</string>
+    <string name="compare_library_tile_favorite_remove">Aus Favoriten entfernen</string>
     <string name="delete_failed">Vergleich konnte nicht gelöscht werden</string>
 
     <string name="select_reference_image">Referenzfoto auswählen</string>

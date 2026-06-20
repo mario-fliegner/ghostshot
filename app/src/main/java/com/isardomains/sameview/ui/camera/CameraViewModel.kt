@@ -23,7 +23,10 @@ import androidx.lifecycle.viewModelScope
 import com.isardomains.sameview.BuildConfig
 import com.isardomains.sameview.R
 import com.isardomains.sameview.storage.SessionBackupExporter
+import com.isardomains.sameview.ui.settings.LibraryFilter
+import com.isardomains.sameview.ui.settings.LibrarySortOrder
 import com.isardomains.sameview.ui.settings.SettingsRepository
+import kotlinx.coroutines.flow.Flow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -241,6 +244,9 @@ class CameraViewModel @Inject constructor(
     private var sessionDeleter: (File, String) -> Boolean =
         { root, id -> SessionDeleter.delete(root, id) }
 
+    private var sessionFavoriteUpdater: (File, String, Boolean) -> Boolean =
+        { root, id, fav -> SessionStorage.updateFavorite(root, id, fav) }
+
     private var sessionBackupExporter: (File, List<String>, Uri, ContentResolver?) -> SessionBackupExporter.BackupResult = { root, ids, uri, cr ->
         if (cr == null) {
             SessionBackupExporter.BackupResult.Failure("ContentResolver not available", null)
@@ -356,7 +362,8 @@ class CameraViewModel @Inject constructor(
         locationPermissionChecker: (() -> Boolean)? = null,
         sessionBackupExporter: ((File, List<String>, Uri, ContentResolver?) -> SessionBackupExporter.BackupResult)? = null,
         compassProvider: CompassProvider? = null,
-        displayRotationProvider: (() -> Int)? = null
+        displayRotationProvider: (() -> Int)? = null,
+        sessionFavoriteUpdater: ((File, String, Boolean) -> Boolean)? = null
     ) : this(context, settingsRepository) {
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
@@ -381,6 +388,9 @@ class CameraViewModel @Inject constructor(
         }
         if (displayRotationProvider != null) {
             this.displayRotationProvider = displayRotationProvider
+        }
+        if (sessionFavoriteUpdater != null) {
+            this.sessionFavoriteUpdater = sessionFavoriteUpdater
         }
     }
 
@@ -1162,6 +1172,55 @@ class CameraViewModel @Inject constructor(
             }
             refreshSavedSessions()
         }
+    }
+
+    /**
+     * Toggles [isFavorite] for the session identified by [sessionId].
+     *
+     * Write-First strategy: writes metadata.json first; only on success is the in-memory
+     * [CameraUiState.savedSessions] entry updated (targeted, single entry). On failure,
+     * [savedSessions] is not modified and a Snackbar event is emitted. No full rescan.
+     */
+    fun toggleFavorite(sessionId: String) {
+        val currentSession = _uiState.value.savedSessions.find { it.sessionId == sessionId }
+            ?: return
+        val newValue = !currentSession.isFavorite
+        viewModelScope.launch {
+            val sessionsRoot = File(context.filesDir, "sessions")
+            val success = try {
+                withContext(ioDispatcher) {
+                    sessionFavoriteUpdater(sessionsRoot, sessionId, newValue)
+                }
+            } catch (e: Exception) {
+                false
+            }
+            if (success) {
+                _uiState.update { current ->
+                    current.copy(
+                        savedSessions = current.savedSessions.map { session ->
+                            if (session.sessionId == sessionId) session.copy(isFavorite = newValue)
+                            else session
+                        }
+                    )
+                }
+            } else {
+                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.compare_session_favorite_update_failed))
+            }
+        }
+    }
+
+    /** Pass-through to [SettingsRepository.libraryFilter]; does not update [CameraUiState]. */
+    val libraryFilter: Flow<LibraryFilter> = settingsRepository.libraryFilter
+
+    /** Pass-through to [SettingsRepository.librarySortOrder]; does not update [CameraUiState]. */
+    val librarySortOrder: Flow<LibrarySortOrder> = settingsRepository.librarySortOrder
+
+    fun setLibraryFilter(filter: LibraryFilter) {
+        viewModelScope.launch { settingsRepository.setLibraryFilter(filter) }
+    }
+
+    fun setLibrarySortOrder(order: LibrarySortOrder) {
+        viewModelScope.launch { settingsRepository.setLibrarySortOrder(order) }
     }
 
     fun refreshSavedSessions() {

@@ -25,6 +25,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -68,6 +70,7 @@ import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.settings.SettingsCard
 import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
+import com.isardomains.sameview.ui.theme.SameViewStarFavorited
 import java.io.File
 import java.util.Calendar
 import java.util.Locale
@@ -110,6 +113,7 @@ fun EditSessionScreen(
     val locationCountry by viewModel.locationCountryField.collectAsStateWithLifecycle()
     val isDirty by viewModel.isDirty.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
+    val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     val captureTimestampMs by viewModel.captureTimestampMs.collectAsStateWithLifecycle()
 
     // ── UI derivations ─────────────────────────────────────────────────────────
@@ -235,6 +239,23 @@ fun EditSessionScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.edit_session_back_content_description)
+                        )
+                    }
+                },
+                actions = {
+                    val starDescription = stringResource(
+                        if (isFavorite) R.string.compare_screen_favorite_remove
+                        else R.string.compare_screen_favorite_mark
+                    )
+                    IconButton(
+                        onClick = { viewModel.toggleFavorite() },
+                        modifier = Modifier.testTag("edit_session_favorite_button")
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+                            contentDescription = starDescription,
+                            tint = if (isFavorite) SameViewStarFavorited
+                                   else MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }

@@ -42,6 +42,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Slideshow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -101,6 +103,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.theme.SameViewAccent
+import com.isardomains.sameview.ui.theme.SameViewStarFavorited
 import com.isardomains.sameview.ui.theme.SameViewAppSurface
 import com.isardomains.sameview.ui.theme.SameViewAppSurfaceElevated
 import com.isardomains.sameview.ui.theme.SameViewCompareOriginalBadgeBackground
@@ -158,6 +161,8 @@ fun CompareScreen(
     locationDisplayName: String? = null,
     locationCity: String? = null,
     locationCountry: String? = null,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     modifier: Modifier = Modifier
 ) {
@@ -247,8 +252,26 @@ fun CompareScreen(
                             color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(start = 4.dp)
                         )
-                        if (onCreateVideo != null || onEditSession != null || sessionId != null || onDelete != null) {
+                        if (onToggleFavorite != null || onCreateVideo != null || onEditSession != null || sessionId != null || onDelete != null) {
                             Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                    // Favourite star — only when session context is present (onToggleFavorite != null)
+                    if (onToggleFavorite != null) {
+                        val starDescription = stringResource(
+                            if (isFavorite) R.string.compare_screen_favorite_remove
+                            else R.string.compare_screen_favorite_mark
+                        )
+                        IconButton(
+                            onClick = { onToggleFavorite() },
+                            modifier = Modifier.testTag("compare_screen_favorite_button")
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+                                contentDescription = starDescription,
+                                tint = if (isFavorite) SameViewStarFavorited
+                                       else MaterialTheme.colorScheme.onBackground
+                            )
                         }
                     }
                     // Create Video button — only when sessionId context is present (onCreateVideo != null)

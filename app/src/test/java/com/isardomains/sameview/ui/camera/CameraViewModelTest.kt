@@ -11,6 +11,8 @@ import android.os.Looper
 import java.io.File
 import com.isardomains.sameview.R
 import com.isardomains.sameview.storage.SessionBackupExporter
+import com.isardomains.sameview.ui.settings.LibraryFilter
+import com.isardomains.sameview.ui.settings.LibrarySortOrder
 import com.isardomains.sameview.ui.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
@@ -53,6 +55,8 @@ class CameraViewModelTest {
         on { autoOpenCompareAfterCapture } doReturn flowOf(false)
         on { recreationGuidance } doReturn flowOf(false)
         on { liveDirectionArrow } doReturn flowOf(false)
+        on { libraryFilter } doReturn flowOf(LibraryFilter.ALL)
+        on { librarySortOrder } doReturn flowOf(LibrarySortOrder.NEWEST_FIRST)
     }
 
     @Before
@@ -1890,6 +1894,170 @@ class CameraViewModelTest {
         val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
         assertEquals(1, snackbars.size)
         assertEquals(R.string.compare_screen_title_save_failed, snackbars[0].messageResId)
+    }
+
+    // --- toggleFavorite ---
+
+    @Test
+    fun toggleFavorite_updatesInMemoryState_onSuccess() = runTest {
+        val session = ScannedSession(
+            sessionId = "session-fav",
+            timestamp = 1000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock(),
+            isFavorite = false
+        )
+        val testViewModel = CameraViewModel(
+            mock(),
+            StandardTestDispatcher(testScheduler),
+            { null },
+            fakeSettingsRepository,
+            sessionScanner = { _ -> listOf(session) },
+            sessionFavoriteUpdater = { _, _, _ -> true }
+        )
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        testViewModel.toggleFavorite("session-fav")
+        advanceUntilIdle()
+
+        val updated = testViewModel.uiState.value.savedSessions.find { it.sessionId == "session-fav" }
+        assertNotNull(updated)
+        assertTrue(updated!!.isFavorite)
+    }
+
+    @Test
+    fun toggleFavorite_doesNotUpdateInMemoryState_onWriteFailure() = runTest {
+        val session = ScannedSession(
+            sessionId = "session-fav",
+            timestamp = 1000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock(),
+            isFavorite = false
+        )
+        val testViewModel = CameraViewModel(
+            mock(),
+            StandardTestDispatcher(testScheduler),
+            { null },
+            fakeSettingsRepository,
+            sessionScanner = { _ -> listOf(session) },
+            sessionFavoriteUpdater = { _, _, _ -> false }
+        )
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect {} }
+        testViewModel.toggleFavorite("session-fav")
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        val inMemory = testViewModel.uiState.value.savedSessions.find { it.sessionId == "session-fav" }
+        assertNotNull(inMemory)
+        assertFalse(inMemory!!.isFavorite) // unchanged
+    }
+
+    @Test
+    fun toggleFavorite_emitsSnackbar_onWriteFailure() = runTest {
+        val session = ScannedSession(
+            sessionId = "session-fav",
+            timestamp = 1000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock(),
+            isFavorite = false
+        )
+        val testViewModel = CameraViewModel(
+            mock(),
+            StandardTestDispatcher(testScheduler),
+            { null },
+            fakeSettingsRepository,
+            sessionScanner = { _ -> listOf(session) },
+            sessionFavoriteUpdater = { _, _, _ -> false }
+        )
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+        testViewModel.toggleFavorite("session-fav")
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
+        assertEquals(1, snackbars.size)
+        assertEquals(R.string.compare_session_favorite_update_failed, snackbars[0].messageResId)
+    }
+
+    @Test
+    fun toggleFavorite_onlyAffectsTargetSession() = runTest {
+        val sessionA = ScannedSession(
+            sessionId = "session-a",
+            timestamp = 1000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock(),
+            isFavorite = false
+        )
+        val sessionB = ScannedSession(
+            sessionId = "session-b",
+            timestamp = 2000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock(),
+            isFavorite = false
+        )
+        val testViewModel = CameraViewModel(
+            mock(),
+            StandardTestDispatcher(testScheduler),
+            { null },
+            fakeSettingsRepository,
+            sessionScanner = { _ -> listOf(sessionA, sessionB) },
+            sessionFavoriteUpdater = { _, _, _ -> true }
+        )
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        testViewModel.toggleFavorite("session-a")
+        advanceUntilIdle()
+
+        val updatedA = testViewModel.uiState.value.savedSessions.find { it.sessionId == "session-a" }
+        val updatedB = testViewModel.uiState.value.savedSessions.find { it.sessionId == "session-b" }
+        assertNotNull(updatedA)
+        assertNotNull(updatedB)
+        assertTrue(updatedA!!.isFavorite)
+        assertFalse(updatedB!!.isFavorite) // unchanged
+    }
+
+    @Test
+    fun toggleFavorite_noSideEffect_whenSessionIdNotFound() = runTest {
+        val session = ScannedSession(
+            sessionId = "session-existing",
+            timestamp = 1000L,
+            referenceFileUri = mock(),
+            captureFileUri = mock(),
+            isFavorite = false
+        )
+        var writeCallCount = 0
+        val testViewModel = CameraViewModel(
+            mock(),
+            StandardTestDispatcher(testScheduler),
+            { null },
+            fakeSettingsRepository,
+            sessionScanner = { _ -> listOf(session) },
+            sessionFavoriteUpdater = { _, _, _ -> writeCallCount++; true }
+        )
+        testViewModel.refreshSavedSessions()
+        advanceUntilIdle()
+
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+        testViewModel.toggleFavorite("session-does-not-exist")
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        assertEquals(0, writeCallCount) // no storage write
+        assertEquals(0, events.size) // no Snackbar
+        // savedSessions unchanged
+        val existing = testViewModel.uiState.value.savedSessions.find { it.sessionId == "session-existing" }
+        assertNotNull(existing)
+        assertFalse(existing!!.isFavorite)
     }
 
     // --- onCompareDisabledTapped ---

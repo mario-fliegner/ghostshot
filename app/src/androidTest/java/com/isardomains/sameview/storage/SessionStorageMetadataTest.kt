@@ -1007,6 +1007,140 @@ class SessionStorageMetadataTest {
         return sessionDir
     }
 
+    // ── Block A: updateFavorite ───────────────────────────────────────────────
+
+    /**
+     * Creates a minimal v4 session with an [additional] block.
+     * When [isFavorite] is non-null the block is written with that value plus the standard
+     * [visibility] and [source] defaults (realistic v4 state).
+     * When [isFavorite] is null no [additional] block is written (simulates a v2/v3 session).
+     * No actual image files are created — only metadata.json is required for updateFavorite tests.
+     */
+    private fun createSessionWithAdditionalBlock(
+        sessionId: String = "test-session-additional",
+        isFavorite: Boolean? = null
+    ): File {
+        val sessionDir = File(testRoot, sessionId)
+        sessionDir.mkdirs()
+        val json = JSONObject().apply {
+            put("version", 4)
+            put("session", JSONObject().apply { put("createdAtMs", 1_000_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("overlay", JSONObject().apply {
+                put("scale", 1.0)
+                put("offsetX", 0.0)
+                put("offsetY", 0.0)
+                put("displayMode", "COMPARE_WITH_PREVIEW")
+            })
+            put("capture", JSONObject().apply { put("timestampMs", 1_000_000L) })
+            put("reference", JSONObject().apply { put("sourceDisplayName", "content://test/ref/1") })
+            if (isFavorite != null) {
+                put("additional", JSONObject().apply {
+                    put("isFavorite", isFavorite)
+                    put("visibility", "private")
+                    put("source", "sameview")
+                })
+            }
+        }
+        File(sessionDir, "metadata.json").writeText(json.toString())
+        return sessionDir
+    }
+
+    @Test
+    fun updateFavorite_setsTrue() {
+        val sessionDir = createSessionWithAdditionalBlock(isFavorite = false)
+
+        val result = SessionStorage.updateFavorite(testRoot, sessionDir.name, true)
+
+        assertTrue(result)
+        assertTrue(readMetadata(sessionDir).getJSONObject("additional").getBoolean("isFavorite"))
+    }
+
+    @Test
+    fun updateFavorite_setsFalse() {
+        val sessionDir = createSessionWithAdditionalBlock(isFavorite = true)
+
+        val result = SessionStorage.updateFavorite(testRoot, sessionDir.name, false)
+
+        assertTrue(result)
+        assertFalse(readMetadata(sessionDir).getJSONObject("additional").getBoolean("isFavorite"))
+    }
+
+    @Test
+    fun updateFavorite_togglesFromTrueToFalse() {
+        val sessionDir = createSessionWithAdditionalBlock(isFavorite = false)
+        SessionStorage.updateFavorite(testRoot, sessionDir.name, true)
+
+        val result = SessionStorage.updateFavorite(testRoot, sessionDir.name, false)
+
+        assertTrue(result)
+        assertFalse(readMetadata(sessionDir).getJSONObject("additional").getBoolean("isFavorite"))
+    }
+
+    @Test
+    fun updateFavorite_preservesAllOtherFields() {
+        val sessionDir = createSessionWithAdditionalBlock(isFavorite = false)
+        val jsonBefore = readMetadata(sessionDir)
+
+        SessionStorage.updateFavorite(testRoot, sessionDir.name, true)
+
+        val jsonAfter = readMetadata(sessionDir)
+        // All blocks outside of additional must be identical
+        assertEquals(jsonBefore.getInt("version"), jsonAfter.getInt("version"))
+        assertEquals(
+            jsonBefore.getJSONObject("session").getLong("createdAtMs"),
+            jsonAfter.getJSONObject("session").getLong("createdAtMs")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("files").getString("capture"),
+            jsonAfter.getJSONObject("files").getString("capture")
+        )
+        assertEquals(
+            jsonBefore.getJSONObject("overlay").getDouble("scale"),
+            jsonAfter.getJSONObject("overlay").getDouble("scale"),
+            0.0001
+        )
+    }
+
+    @Test
+    fun updateFavorite_preservesOtherAdditionalFields() {
+        val sessionDir = createSessionWithAdditionalBlock(isFavorite = false)
+
+        SessionStorage.updateFavorite(testRoot, sessionDir.name, true)
+
+        val additional = readMetadata(sessionDir).getJSONObject("additional")
+        assertEquals("private", additional.getString("visibility"))
+        assertEquals("sameview", additional.getString("source"))
+    }
+
+    @Test
+    fun updateFavorite_pathTraversal_returnsFalse() {
+        assertFalse(SessionStorage.updateFavorite(testRoot, "../some-other-dir", true))
+    }
+
+    @Test
+    fun updateFavorite_missingSession_returnsFalse() {
+        assertFalse(SessionStorage.updateFavorite(testRoot, "does-not-exist", true))
+    }
+
+    @Test
+    fun updateFavorite_createsAdditionalBlock_whenAbsent() {
+        // Uses createV2Session() to produce a session without any additional block
+        val sessionDir = createV2Session(sessionId = "test-session-v2-noadditional")
+
+        val result = SessionStorage.updateFavorite(testRoot, sessionDir.name, true)
+
+        assertTrue(result)
+        val additional = readMetadata(sessionDir).getJSONObject("additional")
+        assertTrue(additional.getBoolean("isFavorite"))
+        // visibility and source must NOT be added — only isFavorite is written
+        assertFalse("visibility must not be present in newly created additional block", additional.has("visibility"))
+        assertFalse("source must not be present in newly created additional block", additional.has("source"))
+    }
+
     @Test
     fun updateContent_writesTitleAndDescription() {
         val sessionDir = createSessionWithContentFields()

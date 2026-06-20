@@ -66,6 +66,7 @@ class EditSessionViewModelTest {
         contentUpdater: (File, String, String?, String?) -> Boolean = { _, _, _, _ -> true },
         referenceDateUpdater: (File, String, String?) -> Boolean = { _, _, _ -> true },
         locationUpdater: (File, String, String?, String?, String?) -> Boolean = { _, _, _, _, _ -> true },
+        favoriteUpdater: (File, String, Boolean) -> Boolean = { _, _, _ -> true },
         reader: (File, String) -> InitialSessionFields = { _, _ ->
             InitialSessionFields("", "", "", "", "")
         }
@@ -78,6 +79,7 @@ class EditSessionViewModelTest {
         vm.sessionContentUpdater = contentUpdater
         vm.sessionReferenceDateUpdater = referenceDateUpdater
         vm.sessionLocationUpdater = locationUpdater
+        vm.sessionFavoriteUpdater = favoriteUpdater
         return vm
     }
 
@@ -719,5 +721,43 @@ class EditSessionViewModelTest {
         vm.onSave()
         advanceUntilIdle()
         assertEquals("A scenic alpine view", capturedDescription)
+    }
+
+    // ── Bug fix: Favorite-return refresh (FAVORITES_AND_LIBRARY_FILTERS_V1 §18.3) ──
+
+    @Test
+    fun toggleFavorite_emitsFavoriteToggleComplete_onSuccess() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            favoriteUpdater = { _, _, _ -> true }
+        )
+        advanceUntilIdle()
+        val events = mutableListOf<EditSessionEvent>()
+        val job = launch { vm.events.collect { events.add(it) } }
+        vm.toggleFavorite()
+        advanceUntilIdle()
+        job.cancel()
+        assertEquals(1, events.size)
+        assertTrue(events[0] is EditSessionEvent.FavoriteToggleComplete)
+    }
+
+    @Test
+    fun toggleFavorite_doesNotEmitFavoriteToggleComplete_onFailure() = runTest(testDispatcher) {
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "", isFavorite = false) },
+            favoriteUpdater = { _, _, _ -> false }
+        )
+        advanceUntilIdle()
+        val events = mutableListOf<EditSessionEvent>()
+        val job = launch { vm.events.collect { events.add(it) } }
+        vm.toggleFavorite()
+        advanceUntilIdle()
+        job.cancel()
+        // FavoriteToggleComplete must NOT be emitted
+        assertFalse(events.any { it is EditSessionEvent.FavoriteToggleComplete })
+        // SaveFailed must be emitted
+        assertEquals(1, events.size)
+        assertTrue(events[0] is EditSessionEvent.SaveFailed)
+        // isFavorite must be reverted to false
+        assertFalse(vm.isFavorite.value)
     }
 }

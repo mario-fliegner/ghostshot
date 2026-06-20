@@ -135,10 +135,17 @@ The form content may be scrollable when the screen is too short to display all f
 
 The editor has a top app bar containing:
 - Back navigation icon (left side)
-- Screen title: "Edit Session" (using string resource)
-- Save action (right side, text or icon)
+- Screen title: "Edit Session" with subtitle (using string resources)
+- Favorite star action (right side, icon button) — see §20
+- Save action: located in the **bottom bar** (`Scaffold.bottomBar`), not in the TopAppBar
 
-The Save action is always visible. It must never be hidden or placed in an overflow menu.
+Note: The original V1 specification described Save as a TopAppBar action. The
+implemented architecture places Save in `Scaffold.bottomBar` to accommodate IME
+(keyboard) interactions and Expanded-width layout constraints. The TopAppBar `actions`
+slot is used exclusively for the Favorite star (§20).
+
+The Save button in the bottom bar is always visible. It must never be hidden or placed
+in an overflow menu. It is enabled only when `isDirty == true && isSaving == false`.
 
 ### Navigation Flow
 
@@ -213,9 +220,10 @@ The pre-populated values are the current saved state. They represent the last pe
 
 The following are explicitly out of scope for V1 and must not be implemented as part of any task that references this document:
 
-**Fields not in V1:**
+**Fields not in V1 form:**
 - Tags (`content.tags`)
-- Favorite toggle (`additional.isFavorite`)
+- Favorite toggle as a form field — `isFavorite` is surfaced as a TopAppBar action (§20),
+  not as an editable form field
 - Visibility selector (`additional.visibility`)
 - GPS coordinates (any field from `captureLocation` or `referenceLocation`)
 
@@ -757,7 +765,8 @@ The following are explicitly deferred and must not be implemented as part of V1:
 ### Additional Fields
 
 - Tags (`content.tags`) — requires tag input UI (chip input or tag list)
-- Favorite toggle (`additional.isFavorite`) — requires toggle and library integration
+- Favorite toggle as form field — decided: NOT a form field; implemented as TopAppBar
+  action per §20 and `FAVORITES_AND_LIBRARY_FILTERS_V1.md §18.3`
 - Visibility selector (`additional.visibility`) — requires selector and upload-flow integration
 
 ### Editor Entry Points
@@ -786,3 +795,108 @@ The following are explicitly deferred and must not be implemented as part of V1:
 - Filtering sessions by location or date
 - Sorting by `reference.date`
 - Displaying location or reference date on library tiles
+
+---
+
+## 20. Favorite Star — TopAppBar Action
+
+This section documents the decided extension to the Session Metadata Editor, added per
+`FAVORITES_AND_LIBRARY_FILTERS_V1.md §18.3`. It supersedes the V1 Non-Goals entry
+for "Favorite toggle" (§7), which listed it as a form field. The feature is implemented
+as a TopAppBar action instead.
+
+### 20.1 Purpose
+
+`EditSessionScreen` is the third Favorites entry point in SameView, alongside
+`CompareScreen` (TopAppBar star) and `CompareLibraryScreen` (tile star). The star in
+EditSession allows the user to see and change the Favorite status while editing session
+metadata, without leaving the screen.
+
+### 20.2 TopAppBar Position
+
+The Favorite star is added to the `actions` slot of the `EditSessionScreen` TopAppBar.
+The `actions` slot was previously empty. No existing TopAppBar element is moved or
+removed.
+
+Updated TopAppBar structure:
+```
+← Back  |  Edit session / Update information…  |  [★ Favorite]
+```
+
+The star is the only element in the `actions` slot.
+
+### 20.3 Icon Visual States
+
+Identical to `FAVORITES_AND_LIBRARY_FILTERS_V1.md §6.2`:
+- Not favorited: outline star, standard `onSurface` tint
+- Favorited: filled star, `SameViewStarFavorited` amber/yellow tint
+
+### 20.4 Toggle Behavior
+
+Tapping the star:
+1. Calls `SessionStorage.updateFavorite()` immediately (via injectable `sessionFavoriteUpdater`
+   lambda in `EditSessionViewModel`)
+2. On success: `isFavorite` StateFlow in `EditSessionViewModel` updates; icon changes
+3. On failure: error Snackbar via the existing `events: SharedFlow<EditSessionEvent>`
+   channel; icon reverts
+
+The star toggle:
+- Does NOT affect `isDirty`
+- Does NOT require the Save button to persist
+- Does NOT interact with form validation
+- Is NOT reverted when the user confirms "Discard changes" for form fields
+
+### 20.5 Dirty / Discard Interaction
+
+The Discard dialog ("Your changes have not been saved") and the Discard action apply
+exclusively to form fields tracked by `isDirty`. The favorite status, having been
+written to disk immediately, is permanent from the moment the star is tapped.
+
+A user who taps the star and then discards form changes leaves the session with:
+- Favorite status: updated (persisted)
+- Title, description, reference date, location: unchanged (discarded)
+
+This is the intended behavior. It matches how the star works in CompareScreen and
+CompareLibraryScreen — the star always takes effect immediately.
+
+### 20.6 Availability
+
+The star is always visible in EditSessionScreen (a valid `sessionId` is always present
+when the screen is open). No conditional visibility rule is needed.
+
+### 20.7 Accessibility
+
+- Content description: reuses `compare_screen_favorite_mark` / `compare_screen_favorite_remove`
+  (no new string resources required)
+- The star is a standard `IconButton` in the TopAppBar; TalkBack navigates to it
+  naturally in the action area
+
+### 20.8 ViewModel Requirements
+
+`EditSessionViewModel` is extended with:
+- `isFavorite: StateFlow<Boolean>` — initialized from `additional.isFavorite` in `metadata.json`
+  during the existing `init`-phase metadata read (via `InitialSessionFields`)
+- `toggleFavorite()` function — writes via `sessionFavoriteUpdater(sessionsRoot, sessionId, !isFavorite.value)`
+  on the IO dispatcher; updates `isFavorite` StateFlow on success; emits a failure event
+  on error
+- `sessionFavoriteUpdater: (File, String, Boolean) -> Boolean` — injectable lambda
+  (default: `SessionStorage.updateFavorite`), following the same pattern as
+  `sessionLocationUpdater` and `sessionReferenceDateUpdater`
+
+`isDirty` is NOT modified by `toggleFavorite()`. The `onSave()` path is NOT modified.
+
+### 20.9 Testing Requirements
+
+- `favoriteButton_isVisible` — star is visible in the EditSession TopAppBar
+- `favoriteButton_showsOutlineIcon_whenNotFavorited` — `isFavorite = false` → outline star
+- `favoriteButton_showsFilledIcon_whenFavorited` — `isFavorite = true` → filled star
+- `favoriteButton_tap_togglesImmediately` — tap star → `toggleFavorite()` called;
+  no Save required
+- `favoriteButton_doesNotAffectDirtyState` — tap star → `isDirty` unchanged
+- `favoriteButton_doesNotAffectSaveButton` — Save button enabled/disabled state
+  unaffected by star toggle
+
+### 20.10 Implementation Reference
+
+Implementation block: `Block F.3` in
+`FAVORITES_AND_LIBRARY_FILTERS_V1_IMPLEMENTATION_PLAN.md`

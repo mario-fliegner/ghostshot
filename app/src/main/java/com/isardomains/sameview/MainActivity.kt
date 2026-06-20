@@ -38,6 +38,8 @@ import com.isardomains.sameview.ui.compare.CompareScreen
 import com.isardomains.sameview.ui.compare.EditSessionEvent
 import com.isardomains.sameview.ui.compare.EditSessionScreen
 import com.isardomains.sameview.ui.compare.EditSessionViewModel
+import com.isardomains.sameview.ui.settings.LibraryFilter
+import com.isardomains.sameview.ui.settings.LibrarySortOrder
 import com.isardomains.sameview.ui.settings.SettingsScreen
 import com.isardomains.sameview.ui.theme.SameViewTheme
 import com.isardomains.sameview.ui.video.CreateVideoScreen
@@ -155,11 +157,19 @@ class MainActivity : ComponentActivity() {
                                 pendingSnackbarEvent = null
                             }
                         }
+                        val libraryFilter by viewModel.libraryFilter
+                            .collectAsStateWithLifecycle(LibraryFilter.ALL)
+                        val librarySortOrder by viewModel.librarySortOrder
+                            .collectAsStateWithLifecycle(LibrarySortOrder.NEWEST_FIRST)
                         Box(modifier = Modifier.fillMaxSize()) {
                             CompareLibraryScreen(
                                 sessions = uiState.savedSessions,
                                 onRefresh = viewModel::refreshSavedSessions,
                                 windowWidthSizeClass = windowSizeClass.widthSizeClass,
+                                libraryFilter = libraryFilter,
+                                librarySortOrder = librarySortOrder,
+                                onSetLibraryFilter = { filter -> viewModel.setLibraryFilter(filter) },
+                                onSetLibrarySortOrder = { order -> viewModel.setLibrarySortOrder(order) },
                                 onSessionClick = { session ->
                                     navController.navigate(
                                         compareRoute(
@@ -174,6 +184,7 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 onDeleteSessions = viewModel::deleteSessions,
                                 onBackupSessions = { sessionIds, uri -> viewModel.backupSessions(sessionIds, uri) },
+                                onToggleFavorite = { sessionId -> viewModel.toggleFavorite(sessionId) },
                                 isBackupInProgress = uiState.isBackupInProgress,
                                 isDeletionInProgress = uiState.isDeletionInProgress
                             )
@@ -239,6 +250,10 @@ class MainActivity : ComponentActivity() {
                         val locationCountry = uiState.savedSessions
                             .find { it.sessionId == sessionId }
                             ?.locationCountry
+                        val isFavorite = uiState.savedSessions
+                            .find { it.sessionId == sessionId }
+                            ?.isFavorite
+                            ?: false
 
                         // Availability check for Create Video: session must have both images.
                         val filesDir = applicationContext.filesDir
@@ -312,7 +327,11 @@ class MainActivity : ComponentActivity() {
                                 onCreateVideo = if (sessionId != null) {
                                     { navController.navigate(createVideoRoute(sessionId)) }
                                 } else null,
-                                isCreateVideoAvailable = isCreateVideoAvailable
+                                isCreateVideoAvailable = isCreateVideoAvailable,
+                                isFavorite = isFavorite,
+                                onToggleFavorite = if (sessionId != null) {
+                                    { viewModel.toggleFavorite(sessionId) }
+                                } else null
                             )
 
                             SnackbarHost(
@@ -359,6 +378,11 @@ class MainActivity : ComponentActivity() {
                                     EditSessionEvent.SaveComplete -> {
                                         cameraViewModel.refreshSavedSessions()
                                         navController.popBackStack()
+                                    }
+                                    EditSessionEvent.FavoriteToggleComplete -> {
+                                        // Refresh savedSessions so CompareScreen reflects the
+                                        // new favourite status after Back. No navigation.
+                                        cameraViewModel.refreshSavedSessions()
                                     }
                                     EditSessionEvent.SaveFailed -> {
                                         snackbarHostState.showSnackbar(saveFailedMessage)

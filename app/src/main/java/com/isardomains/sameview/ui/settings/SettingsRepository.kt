@@ -13,6 +13,18 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Filter applied to the Compare Library session grid. Default: [ALL]. */
+enum class LibraryFilter(val storedValue: String) {
+    ALL("all"),
+    FAVORITES("favorites")
+}
+
+/** Sort order applied to the Compare Library session grid. Default: [NEWEST_FIRST]. */
+enum class LibrarySortOrder(val storedValue: String) {
+    NEWEST_FIRST("newest_first"),
+    OLDEST_FIRST("oldest_first")
+}
+
 @Singleton
 class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
@@ -25,6 +37,8 @@ class SettingsRepository @Inject constructor(
         val RECREATION_GUIDANCE = booleanPreferencesKey("recreation_guidance")
         val LIVE_DIRECTION_ARROW = booleanPreferencesKey("live_direction_arrow")
         val BRANDING_ENABLED = booleanPreferencesKey("branding_enabled")
+        val LIBRARY_FILTER = stringPreferencesKey("library_filter")
+        val LIBRARY_SORT_ORDER = stringPreferencesKey("library_sort_order")
     }
 
     private val preferences: Flow<Preferences> = dataStore.data
@@ -104,6 +118,34 @@ class SettingsRepository @Inject constructor(
     suspend fun setBrandingEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.BRANDING_ENABLED] = enabled
+        }
+    }
+
+    /** Library session filter; default [LibraryFilter.ALL]. */
+    val libraryFilter: Flow<LibraryFilter> = preferences.map { prefs ->
+        when (prefs[Keys.LIBRARY_FILTER]) {
+            LibraryFilter.FAVORITES.storedValue -> LibraryFilter.FAVORITES
+            else -> LibraryFilter.ALL
+        }
+    }
+
+    suspend fun setLibraryFilter(filter: LibraryFilter) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LIBRARY_FILTER] = filter.storedValue
+        }
+    }
+
+    /** Library session sort order; default [LibrarySortOrder.NEWEST_FIRST]. */
+    val librarySortOrder: Flow<LibrarySortOrder> = preferences.map { prefs ->
+        when (prefs[Keys.LIBRARY_SORT_ORDER]) {
+            LibrarySortOrder.OLDEST_FIRST.storedValue -> LibrarySortOrder.OLDEST_FIRST
+            else -> LibrarySortOrder.NEWEST_FIRST
+        }
+    }
+
+    suspend fun setLibrarySortOrder(order: LibrarySortOrder) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LIBRARY_SORT_ORDER] = order.storedValue
         }
     }
 }

@@ -18,6 +18,7 @@ This document defines:
 - the ViewModel contract for favorite toggling
 - the Favorites UX in CompareScreen
 - the Favorites UX in CompareLibraryScreen
+- the Favorites UX in EditSessionScreen (decided per §18.3)
 - the Library Filter and Sort system
 - the Library overflow menu entry point
 - i18n requirements
@@ -265,16 +266,37 @@ Visual design:
 - Icon: outline star (not favorited) / filled star (favorited)
 - Tint: consistent with §6.2 — standard tint for outline, theme-defined amber/yellow for filled
 - Visual icon size: approximately 18–20 dp
-- Touch target: minimum 48 dp × 48 dp, with the icon centered inside the touch target area
+- Touch target: minimum 48 dp × 48 dp
+
+**Visual icon positioning within the touch target:**
+The visual icon must appear near the TopStart corner of the tile, NOT centered within
+the touch target area. The goal is visual corner-proximity consistent with the Selection
+Checkbox at TopEnd: both should appear to sit at their respective tile corners when
+viewed at a glance.
+
+A touch target of 48 dp with a centered icon places the icon center approximately 28 dp
+from the corner — which reads as "inside the image," not "at the corner." The correct
+approach: the icon is anchored to the TopStart edge of the touch target, such that the
+visual icon center is approximately 12–16 dp from the tile corner. The touch target then
+extends inward to cover the required 48 dp, not outward from the icon.
+
+Exact inner padding and anchor alignment are implementation decisions, constrained by
+this visual goal: the star should look like it belongs to the corner, the same way the
+Selection Checkbox belongs to its corner.
 
 Positioning:
-- `Alignment.TopStart` of the tile's root container
-- Small padding from tile edges; exact padding is an implementation decision
+- Touch target: `Alignment.TopStart` of the tile's root container
+- The touch target may start at or near the tile corner (0–4 dp outer padding)
+- The visual icon anchors to TopStart within the touch target, not to its center
 
 Visual contrast aid:
-- A subtle semi-transparent scrim behind the icon area is recommended to ensure
+- A subtle semi-transparent scrim behind the icon is recommended to ensure
   legibility over both bright and dark thumbnail images
-- The scrim covers only the star's visual extent, not the full tile
+- The scrim should be sized and positioned to match the icon's anchor, not the full
+  48 dp touch target center
+- Scrim radius and opacity are implementation decisions; prefer minimal visual weight
+  (e.g., 20–22 dp radius, 25–35 % opacity) to avoid the scrim appearing as a
+  secondary UI element
 
 ### 7.2 Gesture Behavior
 
@@ -464,6 +486,42 @@ the menu. Selecting the already-active option is a no-op (menu closes, no state 
 In normal mode, the existing TopAppBar currently has a back navigation icon and a title.
 After this feature: the TopAppBar also has an overflow icon (end) that opens the menu
 described in §10.1. No other changes to the normal-mode TopAppBar are made.
+
+### 10.3 Visual Design Language — AppBar Overflow Menus
+
+All TopAppBar overflow menus in SameView must share the same visual design language.
+This applies to the CameraScreen overflow (Settings / About) and the CompareLibraryScreen
+overflow (Filter / Sort) equally.
+
+**Shared design base:**
+- Shape: Material 3 menu default shape (consistent rounded corners)
+- Container color: Material 3 menu default surface / container color
+- Base typography: Material 3 `bodyLarge` for all interactive menu items
+- Padding and elevation: Material 3 menu defaults
+
+**Differences are permitted only by content, not by style:**
+- A simple navigation menu (Camera) has fewer items and no internal structure
+- A state-change menu (Library) has sections, active indicators, and a divider
+- These structural differences are appropriate and expected
+- They must not produce a different visual "feel" due to styling divergence
+
+**Section headers within the Library overflow:**
+Section headers ("Filter", "Sort by") must be rendered as semantic label elements —
+not as disabled interactive items. A disabled `DropdownMenuItem` conveys "unavailable
+action," which is semantically incorrect for a category label. The correct approach is
+a plain text element with secondary styling (`labelSmall`, `onSurfaceVariant`), rendered
+directly inside the menu without the interactive-item wrapper.
+
+**Active state indicator (checkmark):**
+Active options show a leading checkmark icon. All options in a group must maintain
+consistent horizontal text alignment, regardless of whether a checkmark is shown.
+If one option in a group shows a leading icon, all options in that group must reserve
+the same leading space — either with the checkmark icon or with a consistent spacer —
+so that text does not shift horizontally between active and inactive states.
+
+This design language rule applies to any future overflow menus added to SameView
+TopAppBars. It is NOT a requirement to build a shared technical component. The goal
+is visual consistency, not code reuse.
 
 ---
 
@@ -783,6 +841,80 @@ or selection-count tracking.
 `true`. No new data category is introduced. The field carries no location, identity, or
 personal data. No permissions are required. No network communication is introduced.
 Backup export includes `isFavorite` unchanged under the existing full-fidelity rule.
+
+---
+
+## 18. Open UX Topics and Future Extensions
+
+The following items were identified during manual verification after initial implementation.
+They are documented here for completeness. They do not block Block G (Release Verification)
+but must be resolved before or alongside it.
+
+### 18.1 UX Polish — Favorite Star Corner Proximity (Pre-Block-G)
+
+During manual verification, the favorite star in the CompareLibrary tile was found to
+appear visually too far from the tile corner compared to the Selection Checkbox at TopEnd.
+
+**Root cause:** The visual icon was centered within the 48 dp touch target (icon center at
+~28 dp from corner). The Selection Checkbox visual indicator sits at ~14 dp from its
+corner. The 14 dp visual gap creates a perception that the star is "inside the image"
+rather than "at the corner."
+
+**Required correction (pre-Block-G):** The visual icon must anchor to the TopStart edge
+of the touch target, not to its center. See §7.1 for the corrected positioning spec.
+Touch target (48 dp minimum) and accessibility behavior are unchanged. The scrim behind
+the icon should be sized proportionally to the icon's new anchor position, not to the
+touch target center.
+
+This is a visual-only correction. No behavioral change.
+
+### 18.2 UX Polish — Library Overflow Menu Structural Consistency (Pre-Block-G)
+
+During manual verification, the CompareLibrary overflow menu was found to render section
+headers as disabled `DropdownMenuItem` elements. This conveys "unavailable action" rather
+than "category label," which is semantically incorrect.
+
+**Required correction (pre-Block-G):** Section headers must be rendered as non-interactive
+text labels, not as disabled menu items. See §10.3 for the visual design language
+requirement. Interactive items within each section must maintain consistent horizontal
+text alignment between active and inactive states (leading icon slot must be reserved
+uniformly, not conditionally).
+
+This is a structural rendering correction. No functional change.
+
+### 18.3 EditSession Favorite Star — Pre-Block-G (Decided)
+
+**Decision: Variant A — Favorite star in the EditSessionScreen TopAppBar.**
+
+This decision was made after manual verification confirmed that a user editing session
+metadata has no visual indication of whether the session is favorited, and no way to
+change that status from the editor.
+
+**Decided behavior:**
+- A Favorite star is added to the TopAppBar `actions` slot of `EditSessionScreen`
+- Visual states: outline star (not favorited) / filled star with `SameViewStarFavorited`
+  tint (favorited) — consistent with CompareScreen §6.2
+- The star toggles `isFavorite` status **immediately** via `SessionStorage.updateFavorite()`
+- The star does NOT affect `isDirty` — it is architecturally separate from the form fields
+- The Discard dialog (triggered by Back with unsaved form changes) applies ONLY to form
+  fields (title, description, reference date, location). A star toggle that has already
+  been written to disk is NOT reverted when the user discards form changes.
+- Availability: star is always visible in EditSessionScreen (sessionId is always present)
+- The TopAppBar `actions` slot is currently empty — no crowding with existing elements
+
+**Pattern consistency:**
+- CompareScreen: star in TopAppBar → toggles immediately ✅
+- CompareLibraryScreen: star on tile → toggles immediately ✅
+- EditSessionScreen: star in TopAppBar → toggles immediately ✅
+
+This is the third Favorites entry point in the app. The unified mental model:
+"Tapping the star always takes effect immediately, everywhere."
+
+**Authoritative detail spec:** `SESSION_METADATA_EDITOR_V1.md §20` (added as part of
+this decision)
+
+**Implementation:** Block F.3 in `FAVORITES_AND_LIBRARY_FILTERS_V1_IMPLEMENTATION_PLAN.md`
+(required before Block G)
 
 ---
 

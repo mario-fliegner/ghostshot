@@ -174,4 +174,58 @@ class SettingsRepositoryTest {
         repository.setRecreationGuidance(false)
         assertEquals(false, repository.recreationGuidance.first())
     }
+
+    // ── Block E: libraryFilter ────────────────────────────────────────────────
+
+    @Test
+    fun libraryFilter_defaultsToAll() = testScope.runTest {
+        assertEquals(LibraryFilter.ALL, repository.libraryFilter.first())
+    }
+
+    @Test
+    fun setLibraryFilter_favoritesIsPersisted() = testScope.runTest {
+        repository.setLibraryFilter(LibraryFilter.FAVORITES)
+        assertEquals(LibraryFilter.FAVORITES, repository.libraryFilter.first())
+    }
+
+    @Test
+    fun setLibraryFilter_allCanBeSetBack() = testScope.runTest {
+        repository.setLibraryFilter(LibraryFilter.FAVORITES)
+        repository.setLibraryFilter(LibraryFilter.ALL)
+        assertEquals(LibraryFilter.ALL, repository.libraryFilter.first())
+    }
+
+    @Test
+    fun libraryFilter_invalidStoredValue_defaultsToAll() = testScope.runTest {
+        val key = stringPreferencesKey("library_filter")
+        dataStore.edit { prefs -> prefs[key] = "not-a-filter" }
+        assertEquals(LibraryFilter.ALL, repository.libraryFilter.first())
+    }
+
+    // ── Block E: librarySortOrder ─────────────────────────────────────────────
+
+    @Test
+    fun librarySortOrder_defaultsToNewestFirst() = testScope.runTest {
+        assertEquals(LibrarySortOrder.NEWEST_FIRST, repository.librarySortOrder.first())
+    }
+
+    @Test
+    fun setLibrarySortOrder_oldestFirstIsPersisted() = testScope.runTest {
+        repository.setLibrarySortOrder(LibrarySortOrder.OLDEST_FIRST)
+        assertEquals(LibrarySortOrder.OLDEST_FIRST, repository.librarySortOrder.first())
+    }
+
+    @Test
+    fun setLibrarySortOrder_newestFirstCanBeSetBack() = testScope.runTest {
+        repository.setLibrarySortOrder(LibrarySortOrder.OLDEST_FIRST)
+        repository.setLibrarySortOrder(LibrarySortOrder.NEWEST_FIRST)
+        assertEquals(LibrarySortOrder.NEWEST_FIRST, repository.librarySortOrder.first())
+    }
+
+    @Test
+    fun librarySortOrder_invalidStoredValue_defaultsToNewestFirst() = testScope.runTest {
+        val key = stringPreferencesKey("library_sort_order")
+        dataStore.edit { prefs -> prefs[key] = "not-a-sort-order" }
+        assertEquals(LibrarySortOrder.NEWEST_FIRST, repository.librarySortOrder.first())
+    }
 }

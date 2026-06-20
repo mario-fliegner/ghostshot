@@ -26,6 +26,8 @@ import javax.inject.Inject
 sealed interface EditSessionEvent {
     data object SaveComplete : EditSessionEvent
     data object SaveFailed : EditSessionEvent
+    /** Emitted after a successful favourite toggle write. Does NOT trigger navigation. */
+    data object FavoriteToggleComplete : EditSessionEvent
 }
 
 /**
@@ -43,7 +45,8 @@ internal data class InitialSessionFields(
     val locationCountry: String,
     val description: String = "",
     val captureTimestampMs: Long = 0L,
-    val referenceSourceDisplayName: String = ""
+    val referenceSourceDisplayName: String = "",
+    val isFavorite: Boolean = false
 )
 
 /**
@@ -84,6 +87,15 @@ class EditSessionViewModel @Inject constructor(
     private var initialLocationDisplayName = ""
     private var initialLocationCity = ""
     private var initialLocationCountry = ""
+
+    // ── Favourite state (independent of form dirty tracking) ──────────────────
+
+    private val _isFavorite = MutableStateFlow(false)
+    /**
+     * Current favourite status for this session. Updated optimistically when [toggleFavorite]
+     * is called. Does NOT influence [isDirty] or the Save button.
+     */
+    val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
 
     // ── Loading state ───────────────────────────────────────────────────────────
 
@@ -226,6 +238,10 @@ class EditSessionViewModel @Inject constructor(
     internal var sessionLocationUpdater: (File, String, String?, String?, String?) -> Boolean =
         { root, id, dn, city, country -> SessionStorage.updateLocation(root, id, dn, city, country) }
 
+    /** Replaceable for unit tests. Defaults to [SessionStorage.updateFavorite]. */
+    internal var sessionFavoriteUpdater: (File, String, Boolean) -> Boolean =
+        { root, id, fav -> SessionStorage.updateFavorite(root, id, fav) }
+
     // ── Metadata reader ─────────────────────────────────────────────────────
 
     /**
@@ -242,6 +258,7 @@ class EditSessionViewModel @Inject constructor(
             val referenceObj = json.optJSONObject("reference")
             val captureObj = json.optJSONObject("capture")
             val locationObj = json.optJSONObject("location")
+            val additionalObj = json.optJSONObject("additional")
             InitialSessionFields(
                 title = contentObj?.optString("title", "") ?: "",
                 description = contentObj?.optString("description", "") ?: "",
@@ -250,7 +267,8 @@ class EditSessionViewModel @Inject constructor(
                 locationCity = locationObj?.optString("city", "") ?: "",
                 locationCountry = locationObj?.optString("country", "") ?: "",
                 captureTimestampMs = captureObj?.optLong("timestampMs", 0L) ?: 0L,
-                referenceSourceDisplayName = referenceObj?.optString("sourceDisplayName", "") ?: ""
+                referenceSourceDisplayName = referenceObj?.optString("sourceDisplayName", "") ?: "",
+                isFavorite = additionalObj?.optBoolean("isFavorite", false) ?: false
             )
         }
 
@@ -276,6 +294,7 @@ class EditSessionViewModel @Inject constructor(
                 _locationCountryField.value = fields.locationCountry
                 _captureTimestampMs.value = fields.captureTimestampMs
                 _referenceSourceDisplayName.value = fields.referenceSourceDisplayName
+                _isFavorite.value = fields.isFavorite
             } catch (e: Exception) {
                 // All fields remain at their initial empty-string / zero values.
             } finally {
@@ -361,6 +380,37 @@ class EditSessionViewModel @Inject constructor(
                 _events.emit(EditSessionEvent.SaveComplete)
             } finally {
                 _isSaving.value = false
+            }
+        }
+    }
+
+    /**
+     * Toggles [isFavorite] for this session.
+     *
+     * Uses an optimistic-update strategy: [_isFavorite] is flipped immediately so the UI
+     * reflects the new state without visible latency. The write to metadata.json happens
+     * asynchronously on the IO dispatcher. On write failure, the value is reverted and
+     * [EditSessionEvent.SaveFailed] is emitted.
+     *
+     * This function does NOT affect [isDirty] and does NOT interact with the form Save flow.
+     */
+    fun toggleFavorite() {
+        val newValue = !_isFavorite.value
+        _isFavorite.value = newValue // optimistic flip
+        viewModelScope.launch {
+            val sessionsRoot = File(context.filesDir, "sessions")
+            val success = try {
+                withContext(ioDispatcher) {
+                    sessionFavoriteUpdater(sessionsRoot, sessionId, newValue)
+                }
+            } catch (e: Exception) {
+                false
+            }
+            if (success) {
+                _events.emit(EditSessionEvent.FavoriteToggleComplete)
+            } else {
+                _isFavorite.value = !newValue // revert
+                _events.emit(EditSessionEvent.SaveFailed)
             }
         }
     }

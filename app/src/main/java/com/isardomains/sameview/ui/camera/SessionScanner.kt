@@ -18,7 +18,8 @@ data class ScannedSession(
     val referenceDate: String? = null,
     val locationDisplayName: String? = null,
     val locationCity: String? = null,
-    val locationCountry: String? = null
+    val locationCountry: String? = null,
+    val isFavorite: Boolean = false
 )
 
 internal object SessionScanner {
@@ -160,6 +161,9 @@ internal object SessionScanner {
         val locationCity = locationObj?.optString("city", "")?.takeIf { it.isNotEmpty() }
         val locationCountry = locationObj?.optString("country", "")?.takeIf { it.isNotEmpty() }
 
+        val additionalObj: JSONObject? = json.optJSONObject("additional")
+        val isFavorite: Boolean = additionalObj?.optBoolean("isFavorite", false) ?: false
+
         return ScannedSession(
             sessionId = id,
             timestamp = timestamp,
@@ -169,7 +173,8 @@ internal object SessionScanner {
             referenceDate = referenceDate,
             locationDisplayName = locationDisplayName,
             locationCity = locationCity,
-            locationCountry = locationCountry
+            locationCountry = locationCountry,
+            isFavorite = isFavorite
         )
     }
 

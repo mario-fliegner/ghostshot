@@ -23,6 +23,15 @@
     <string name="compare_library_empty_title">No comparisons yet</string>
     <string name="compare_library_empty_body">Take a photo to create your first comparison.</string>
     <string name="compare_library_empty_cta">Take your first shot</string>
+    <string name="compare_library_empty_favorites_title">No favorites yet</string>
+    <string name="compare_library_empty_favorites_body">Mark comparisons as favorites to find them faster.</string>
+    <string name="compare_library_filter_sort_options">Filter and sort options</string>
+    <string name="compare_library_filter_header">Filter</string>
+    <string name="compare_library_filter_all">All comparisons</string>
+    <string name="compare_library_filter_favorites">Favorites only</string>
+    <string name="compare_library_sort_header">Sort by</string>
+    <string name="compare_library_sort_newest_first">Newest first</string>
+    <string name="compare_library_sort_oldest_first">Oldest first</string>
     <string name="compare_library_session_content_description">Comparison from %s</string>
     <string name="compare_library_session_content_description_with_meta">%1$s – comparison from %2$s</string>
     <string name="compare_library_selection_count">%d selected</string>
@@ -70,6 +79,11 @@
     <string name="compare_screen_edit_title_hint">Title</string>
     <string name="compare_screen_remove_title">Remove title</string>
     <string name="compare_screen_title_save_failed">Couldn\'t save title</string>
+    <string name="compare_session_favorite_update_failed">Couldn\'t update favorite</string>
+    <string name="compare_screen_favorite_mark">Mark as favorite</string>
+    <string name="compare_screen_favorite_remove">Remove from favorites</string>
+    <string name="compare_library_tile_favorite_mark">Mark as favorite</string>
+    <string name="compare_library_tile_favorite_remove">Remove from favorites</string>
     <string name="delete_failed">Could not delete compare</string>
 
     <!-- Reference image overlay -->

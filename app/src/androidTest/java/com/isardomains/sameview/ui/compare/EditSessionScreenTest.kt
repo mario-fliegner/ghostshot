@@ -11,6 +11,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -316,6 +317,79 @@ class EditSessionScreenTest {
         ).assertDoesNotExist()
     }
 
+    // ── Block F.3: Favourite star tests ──────────────────────────────────────
+
+    @Test
+    fun favoriteButton_isVisible() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_favorite_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun favoriteButton_showsOutlineIcon_whenNotFavorited() {
+        setEditSessionContent(createSession(isFavorite = false))
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.compare_screen_favorite_mark)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun favoriteButton_showsFilledIcon_whenFavorited() {
+        setEditSessionContent(createSession(isFavorite = true))
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.compare_screen_favorite_remove)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun favoriteButton_tap_togglesImmediately() {
+        setEditSessionContent(createSession(isFavorite = false))
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("edit_session_favorite_button").performClick()
+        composeRule.waitForIdle()
+
+        // After toggle: filled star (favorited) content description visible
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.compare_screen_favorite_remove)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun favoriteButton_doesNotAffectDirtyState() {
+        setEditSessionContent(createEmptySession())
+        composeRule.waitForIdle()
+
+        // Tap star — no form changes
+        composeRule.onNodeWithTag("edit_session_favorite_button").performClick()
+        composeRule.waitForIdle()
+
+        // Save button must still be disabled (isDirty unchanged)
+        composeRule.onNodeWithTag("edit_session_save_button").assertIsNotEnabled()
+    }
+
+    @Test
+    fun favoriteButton_doesNotAffectSaveButton() {
+        setEditSessionContent(createEmptySession())
+        composeRule.waitForIdle()
+
+        // Make form dirty via title change → Save enables
+        composeRule.onNodeWithTag("edit_session_title_field")
+            .performScrollTo().performTextInput("A")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").assertIsEnabled()
+
+        // Tap star → Save button must remain enabled (star toggle does not reset dirty)
+        composeRule.onNodeWithTag("edit_session_favorite_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").assertIsEnabled()
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun createEmptySession(): String = createSession()
@@ -327,7 +401,8 @@ class EditSessionScreenTest {
         locationDisplayName: String = "",
         locationCity: String = "",
         locationCountry: String = "",
-        captureTimestampMs: Long = 0L
+        captureTimestampMs: Long = 0L,
+        isFavorite: Boolean = false
     ): String {
         val sessionId = "edit_test_${System.nanoTime()}"
         val sessionsRoot = File(context.filesDir, "sessions")
@@ -364,6 +439,11 @@ class EditSessionScreenTest {
                 if (locationCountry.isNotEmpty()) put("country", locationCountry)
             })
         }
+        json.put("additional", org.json.JSONObject().apply {
+            put("isFavorite", isFavorite)
+            put("visibility", "private")
+            put("source", "sameview")
+        })
         File(sessionDir, "metadata.json").writeText(json.toString())
 
         return sessionId

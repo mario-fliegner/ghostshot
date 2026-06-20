@@ -1667,6 +1667,101 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_screen_metadata_location").assertIsDisplayed()
     }
 
+    // ── Block C: Favourite star tests ────────────────────────────────────────
+
+    @Test
+    fun favoriteButton_isNotVisible_whenOnToggleFavoriteIsNull() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null)
+
+        composeRule.onNodeWithTag("compare_screen_favorite_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun favoriteButton_isVisible_whenOnToggleFavoriteProvided() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            onToggleFavorite = {}
+        )
+
+        composeRule.onNodeWithTag("compare_screen_favorite_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun favoriteButton_showsOutlineIcon_whenNotFavorited() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            isFavorite = false,
+            onToggleFavorite = {}
+        )
+
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.compare_screen_favorite_mark)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun favoriteButton_showsFilledIcon_whenFavorited() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            isFavorite = true,
+            onToggleFavorite = {}
+        )
+
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.compare_screen_favorite_remove)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun favoriteButton_tap_invokesToggleCallback() {
+        var toggleCount = 0
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            onToggleFavorite = { toggleCount++ }
+        )
+
+        composeRule.onNodeWithTag("compare_screen_favorite_button").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, toggleCount)
+    }
+
+    @Test
+    fun favoriteButton_doesNotTriggerNavigation() {
+        var backCount = 0
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            onBack = { backCount++ },
+            onToggleFavorite = {}
+        )
+
+        composeRule.onNodeWithTag("compare_screen_favorite_button").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(0, backCount)
+    }
+
+    @Test
+    fun favoriteButton_doesNotAffectSlider() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            onToggleFavorite = {}
+        )
+
+        composeRule.onNodeWithTag("compare_screen_favorite_button").performClick()
+        composeRule.waitForIdle()
+
+        // Compare screen root must still be present — no navigation or crash
+        composeRule.onNodeWithTag("compare_screen_root").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_top_bar").assertIsDisplayed()
+    }
+
     private fun setCompareContent(
         referenceImageUri: Uri?,
         captureImageUri: Uri?,
@@ -1677,7 +1772,9 @@ class CompareScreenTest {
         onEditSession: (() -> Unit)? = null,
         locationDisplayName: String? = null,
         locationCity: String? = null,
-        locationCountry: String? = null
+        locationCountry: String? = null,
+        isFavorite: Boolean = false,
+        onToggleFavorite: (() -> Unit)? = null
     ) {
         setHostContent {
             CompareScreen(
@@ -1690,7 +1787,9 @@ class CompareScreenTest {
                 onEditSession = onEditSession,
                 locationDisplayName = locationDisplayName,
                 locationCity = locationCity,
-                locationCountry = locationCountry
+                locationCountry = locationCountry,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite
             )
         }
     }

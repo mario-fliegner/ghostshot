@@ -11,8 +11,10 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -22,6 +24,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.camera.ScannedSession
+import com.isardomains.sameview.ui.settings.LibraryFilter
+import com.isardomains.sameview.ui.settings.LibrarySortOrder
 import com.isardomains.sameview.ui.theme.SameViewTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -384,6 +388,296 @@ class CompareLibraryScreenTest {
         assertEquals(session, clickedSession)
     }
 
+    // ── Block D: Favourite star tests ────────────────────────────────────────
+
+    @Test
+    fun tile_starVisible_whenNotInSelectionMode() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        // Star is a child of combinedClickable → only accessible in unmerged tree
+        composeRule.onNodeWithTag(
+            "compare_library_tile_favorite_star_$fakeSessionId",
+            useUnmergedTree = true
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_starHidden_whenInSelectionMode() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(
+            "compare_library_tile_favorite_star_$fakeSessionId",
+            useUnmergedTree = true
+        ).assertDoesNotExist()
+    }
+
+    @Test
+    fun tile_starTap_doesNotOpenSession() {
+        var sessionClickCount = 0
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            onSessionClick = { sessionClickCount++ }
+        )
+
+        // performClick() invokes the semantics onClick action on the star node only
+        composeRule.onNodeWithTag(
+            "compare_library_tile_favorite_star_$fakeSessionId",
+            useUnmergedTree = true
+        ).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(0, sessionClickCount)
+    }
+
+    @Test
+    fun tile_starTap_doesNotActivateMultiSelect() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag(
+            "compare_library_tile_favorite_star_$fakeSessionId",
+            useUnmergedTree = true
+        ).performClick()
+        composeRule.waitForIdle()
+
+        // Cancel button only appears when multi-select is active
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun tile_starTap_invokesToggleFavorite() {
+        var toggledSessionId: String? = null
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            onToggleFavorite = { sessionId -> toggledSessionId = sessionId }
+        )
+
+        composeRule.onNodeWithTag(
+            "compare_library_tile_favorite_star_$fakeSessionId",
+            useUnmergedTree = true
+        ).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(fakeSessionId, toggledSessionId)
+    }
+
+    @Test
+    fun longPress_stillActivatesMultiSelect_withStarPresent() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun starContentDescription_markAsFavorite_whenNotFavorited() {
+        setLibraryContent(sessions = listOf(createFakeSession(isFavorite = false)))
+
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.compare_library_tile_favorite_mark),
+            useUnmergedTree = true
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun starContentDescription_removeFromFavorites_whenFavorited() {
+        setLibraryContent(sessions = listOf(createFakeSession(isFavorite = true)))
+
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.compare_library_tile_favorite_remove),
+            useUnmergedTree = true
+        ).assertIsDisplayed()
+    }
+
+    // ── Block F: Filter + Sort UI tests ──────────────────────────────────────
+
+    @Test
+    fun overflowMenu_isVisibleInNormalMode() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_overflow_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun overflowMenu_isNotVisibleInSelectionMode() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_library_overflow_button").assertDoesNotExist()
+    }
+
+    @Test
+    fun overflowMenu_containsFilterAndSortSections() {
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_overflow_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_filter_header)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_sort_header)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_filter_all)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_sort_newest_first)).assertIsDisplayed()
+    }
+
+    @Test
+    fun filter_favorites_showsOnlyFavoritedSessions() {
+        val favSession = createFakeSession(id = "fav", isFavorite = true)
+        val notFavSession = createFakeSession(id = "not_fav", isFavorite = false)
+        setLibraryContent(
+            sessions = listOf(favSession, notFavSession),
+            libraryFilter = LibraryFilter.FAVORITES
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_fav").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_library_session_tile_not_fav").assertDoesNotExist()
+    }
+
+    @Test
+    fun filter_all_showsAllSessions() {
+        val favSession = createFakeSession(id = "fav", isFavorite = true)
+        val notFavSession = createFakeSession(id = "not_fav", isFavorite = false)
+        setLibraryContent(
+            sessions = listOf(favSession, notFavSession),
+            libraryFilter = LibraryFilter.ALL
+        )
+
+        composeRule.onNodeWithTag("compare_library_session_tile_fav").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_library_session_tile_not_fav").assertIsDisplayed()
+    }
+
+    @Test
+    fun sort_newestFirst_correctOrder() {
+        val newer = createFakeSession(id = "newer", timestamp = 3000L)
+        val middle = createFakeSession(id = "middle", timestamp = 2000L)
+        val older = createFakeSession(id = "older", timestamp = 1000L)
+        setLibraryContent(
+            sessions = listOf(newer, middle, older),
+            librarySortOrder = LibrarySortOrder.NEWEST_FIRST
+        )
+
+        val topNewer = composeRule.onNodeWithTag("compare_library_session_tile_newer")
+            .fetchSemanticsNode().boundsInRoot.top
+        val topOlder = composeRule.onNodeWithTag("compare_library_session_tile_older")
+            .fetchSemanticsNode().boundsInRoot.top
+
+        assertTrue("Newer session should appear above older in NEWEST_FIRST order", topNewer < topOlder)
+    }
+
+    @Test
+    fun sort_oldestFirst_correctOrder() {
+        val newer = createFakeSession(id = "newer", timestamp = 3000L)
+        val middle = createFakeSession(id = "middle", timestamp = 2000L)
+        val older = createFakeSession(id = "older", timestamp = 1000L)
+        setLibraryContent(
+            sessions = listOf(newer, middle, older),
+            librarySortOrder = LibrarySortOrder.OLDEST_FIRST
+        )
+
+        val topNewer = composeRule.onNodeWithTag("compare_library_session_tile_newer")
+            .fetchSemanticsNode().boundsInRoot.top
+        val topOlder = composeRule.onNodeWithTag("compare_library_session_tile_older")
+            .fetchSemanticsNode().boundsInRoot.top
+
+        assertTrue("Older session should appear above newer in OLDEST_FIRST order", topOlder < topNewer)
+    }
+
+    @Test
+    fun filterAndSort_combined_correct() {
+        val favOld = createFakeSession(id = "fav_old", isFavorite = true, timestamp = 1000L)
+        val favNew = createFakeSession(id = "fav_new", isFavorite = true, timestamp = 3000L)
+        val notFav = createFakeSession(id = "not_fav", isFavorite = false, timestamp = 2000L)
+        setLibraryContent(
+            sessions = listOf(favOld, favNew, notFav),
+            libraryFilter = LibraryFilter.FAVORITES,
+            librarySortOrder = LibrarySortOrder.OLDEST_FIRST
+        )
+
+        // Non-favorited session must not appear
+        composeRule.onNodeWithTag("compare_library_session_tile_not_fav").assertDoesNotExist()
+        // Both favorited sessions are visible
+        composeRule.onNodeWithTag("compare_library_session_tile_fav_old").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_library_session_tile_fav_new").assertIsDisplayed()
+        // Oldest favorited session appears above newest
+        val topOld = composeRule.onNodeWithTag("compare_library_session_tile_fav_old")
+            .fetchSemanticsNode().boundsInRoot.top
+        val topNew = composeRule.onNodeWithTag("compare_library_session_tile_fav_new")
+            .fetchSemanticsNode().boundsInRoot.top
+        assertTrue("Oldest favorite should appear above newest in OLDEST_FIRST order", topOld <= topNew)
+    }
+
+    @Test
+    fun emptyState_favorites_shownWhenNoFavorites() {
+        val notFav = createFakeSession(isFavorite = false)
+        setLibraryContent(
+            sessions = listOf(notFav),
+            libraryFilter = LibraryFilter.FAVORITES
+        )
+
+        composeRule.onNodeWithTag("compare_library_empty_favorites_state").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_empty_favorites_title))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyState_favorites_disappears_whenFavoriteAdded() {
+        // Start with no favorites → favorites empty state shown
+        var sessions = listOf(createFakeSession(id = "s1", isFavorite = false))
+        var currentSessions = sessions
+        setLibraryContent(
+            sessions = currentSessions,
+            libraryFilter = LibraryFilter.FAVORITES
+        )
+
+        composeRule.onNodeWithTag("compare_library_empty_favorites_state").assertIsDisplayed()
+
+        // Simulate favorite added by recomposing with a favorited session
+        composeRule.runOnUiThread {
+            // Content is already set; we verify the logic works when sessions have isFavorite=true
+        }
+
+        // Re-set content with a favorited session
+        setLibraryContent(
+            sessions = listOf(createFakeSession(id = "s1", isFavorite = true)),
+            libraryFilter = LibraryFilter.FAVORITES
+        )
+
+        composeRule.onNodeWithTag("compare_library_empty_favorites_state").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_library_session_tile_s1").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectAll_inFavoritesFilter_selectsOnlyFavorites() {
+        val fav1 = createFakeSession(id = "fav1", isFavorite = true)
+        val fav2 = createFakeSession(id = "fav2", isFavorite = true)
+        val notFav = createFakeSession(id = "not_fav", isFavorite = false)
+        setLibraryContent(
+            sessions = listOf(fav1, fav2, notFav),
+            libraryFilter = LibraryFilter.FAVORITES
+        )
+
+        // Enter selection mode via long press on visible tile
+        composeRule.onNodeWithTag("compare_library_session_tile_fav1")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        // Select all (visible = only the 2 favorites)
+        composeRule.onNodeWithTag("compare_library_select_all_toggle").performClick()
+        composeRule.waitForIdle()
+
+        // Should show 2 selected (only the 2 visible favorites)
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_selection_count, 2))
+            .assertIsDisplayed()
+    }
+
     private fun setLibraryContent(
         sessions: List<ScannedSession>,
         onRefresh: () -> Unit = {},
@@ -391,6 +685,11 @@ class CompareLibraryScreenTest {
         onBack: () -> Unit = {},
         onDeleteSessions: (List<String>) -> Unit = {},
         onBackupSessions: (List<String>, Uri) -> Unit = { _, _ -> },
+        onToggleFavorite: (String) -> Unit = {},
+        libraryFilter: LibraryFilter = LibraryFilter.ALL,
+        librarySortOrder: LibrarySortOrder = LibrarySortOrder.NEWEST_FIRST,
+        onSetLibraryFilter: (LibraryFilter) -> Unit = {},
+        onSetLibrarySortOrder: (LibrarySortOrder) -> Unit = {},
         isBackupInProgress: Boolean = false,
         isDeletionInProgress: Boolean = false,
         windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact
@@ -412,6 +711,11 @@ class CompareLibraryScreenTest {
                         onBack = onBack,
                         onDeleteSessions = onDeleteSessions,
                         onBackupSessions = onBackupSessions,
+                        onToggleFavorite = onToggleFavorite,
+                        libraryFilter = libraryFilter,
+                        librarySortOrder = librarySortOrder,
+                        onSetLibraryFilter = onSetLibraryFilter,
+                        onSetLibrarySortOrder = onSetLibrarySortOrder,
                         isBackupInProgress = isBackupInProgress,
                         isDeletionInProgress = isDeletionInProgress,
                         windowWidthSizeClass = windowWidthSizeClass
@@ -599,16 +903,19 @@ class CompareLibraryScreenTest {
         title: String? = null,
         locationDisplayName: String? = null,
         locationCity: String? = null,
-        locationCountry: String? = null
+        locationCountry: String? = null,
+        isFavorite: Boolean = false,
+        timestamp: Long = fakeTimestamp
     ) = ScannedSession(
         sessionId = id,
-        timestamp = fakeTimestamp,
+        timestamp = timestamp,
         referenceFileUri = fakeReferenceUri,
         captureFileUri = fakeCaptureUri,
         title = title,
         locationDisplayName = locationDisplayName,
         locationCity = locationCity,
-        locationCountry = locationCountry
+        locationCountry = locationCountry,
+        isFavorite = isFavorite
     )
 
     // ── Location-Display-Tests ──────────────────────────────────────────────

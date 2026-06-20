@@ -6,6 +6,7 @@ import com.isardomains.sameview.ui.camera.SessionScanner
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -52,7 +53,8 @@ class SessionScannerTest {
         referenceDate: String? = null,
         locationDisplayName: String? = null,
         locationCity: String? = null,
-        locationCountry: String? = null
+        locationCountry: String? = null,
+        isFavorite: Boolean? = null
     ) {
         val json = JSONObject().apply {
             put("version", version)
@@ -73,6 +75,9 @@ class SessionScannerTest {
                     if (locationCity != null) put("city", locationCity)
                     if (locationCountry != null) put("country", locationCountry)
                 })
+            }
+            if (isFavorite != null) {
+                put("additional", JSONObject().apply { put("isFavorite", isFavorite) })
             }
         }
         File(sessionDir, "metadata.json").writeText(json.toString())
@@ -565,5 +570,94 @@ class SessionScannerTest {
         assertNull(result[0].locationDisplayName)
         assertNull(result[0].locationCity)
         assertNull(result[0].locationCountry)
+    }
+
+    // ── Block A: isFavorite scanner tests ─────────────────────────────────────
+
+    @Test
+    fun isFavorite_true_whenSetInMetadata() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, isFavorite = true)
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertTrue(result[0].isFavorite)
+    }
+
+    @Test
+    fun isFavorite_false_whenSetFalseInMetadata() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, isFavorite = false)
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertFalse(result[0].isFavorite)
+    }
+
+    @Test
+    fun isFavorite_false_whenAdditionalBlockAbsent() {
+        // writeMetadata() without isFavorite parameter writes no additional block
+        fullSession("2026-04-24_10-00-00", timestamp = 5_000L)
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertFalse(result[0].isFavorite)
+    }
+
+    @Test
+    fun isFavorite_false_whenFieldAbsentInAdditionalBlock() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        // additional block present but without isFavorite key
+        val json = JSONObject().apply {
+            put("version", 2)
+            put("session", JSONObject().apply { put("createdAtMs", 1_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("additional", JSONObject().apply {
+                put("visibility", "private")
+                put("source", "sameview")
+                // isFavorite intentionally omitted
+            })
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertFalse(result[0].isFavorite)
+    }
+
+    @Test
+    fun isFavorite_false_whenValueIsInvalidType() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        // isFavorite stored as a String instead of Boolean
+        val json = JSONObject().apply {
+            put("version", 2)
+            put("session", JSONObject().apply { put("createdAtMs", 1_000L) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                put("reference", "reference.jpg")
+            })
+            put("additional", JSONObject().apply { put("isFavorite", "yes") })
+        }
+        File(dir, "metadata.json").writeText(json.toString())
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertFalse(result[0].isFavorite)
     }
 }

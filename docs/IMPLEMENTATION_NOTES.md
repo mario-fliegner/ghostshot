@@ -66,6 +66,8 @@ Current release state:
 - Implemented settings:
   - Grid Type: Off / Rule of Thirds / Quarters
   - Keep screen awake
+  - `library_filter`: `"all"` / `"favorites"` (default `"all"`) — added 2026-06-20
+  - `library_sort_order`: `"newest_first"` / `"oldest_first"` (default `"newest_first"`) — added 2026-06-20
   - Reset overlay after capture
   - Auto-open compare after capture
   - Recreation Guidance (GPS; boolean; default OFF; lazy permission request)
@@ -159,6 +161,7 @@ GPS is architecturally separate from the Compare rendering pipeline. `GpsSnapsho
 - Back exits fullscreen before leaving the screen
 - Compare shows a metadata header above the slider: title, location (`📍 displayName · city, country`), or `Created <date>` fallback; hidden in fullscreen (spec: §42)
 - Compare image load failures show a fallback UI and allow back navigation
+- **Favourite star (2026-06-20):** TopAppBar action (first action before Create Video); visible when `sessionId != null`; outline star = not favourited; filled star with `SameViewStarFavorited` amber tint = favourited; toggles via `CameraViewModel.toggleFavorite()`; state derived from `CameraViewModel.savedSessions` — no local state in CompareScreen
 
 Active compare session lifecycle — fully implemented:
 
@@ -179,6 +182,8 @@ Active compare session lifecycle — fully implemented:
 - Tile text area always reserves height for two lines — grid height is stable regardless of content
 - Tile display priority: (A) title + location → title / location, no date; (B) title only → title / date; (C) location only → location / date; (D) neither → date only
 - Location is formatted using the §32 priority order: displayName · city, country → displayName · city → displayName · country → displayName → city, country → city → country
+- **Favorites (2026-06-20):** Favourite star visible on each tile in normal mode (TopStart, 48 dp touch target, icon anchored to corner); hidden in multi-select mode; toggled via `CameraViewModel.toggleFavorite()` with Write-First and targeted in-memory update; `ScannedSession.isFavorite: Boolean = false` added; `SessionStorage.updateFavorite()` added
+- **Filter / Sort (2026-06-20):** Overflow menu (⋮) in normal-mode TopAppBar; Filter: All comparisons / Favorites only; Sort: Newest first / Oldest first; persisted via `SettingsRepository`/DataStore keys `library_filter` and `library_sort_order`; filter then sort pipeline derived in-memory via `remember`; Favorites-specific empty state when filter = Favorites and no favorites present; Select All operates on the **filtered list** only (see PD-08 note above)
 - This is not a general gallery or MediaStore browser
 
 ### Video Export
@@ -244,7 +249,7 @@ Feedback:
 - Each session stores `capture.jpg`, `reference.jpg`, and `metadata.json`
 - `metadata.json` schema is **v4** (bumped from v3 in Block A, 2026-06-09): includes `capture.timestampMs` as the canonical capture timestamp inside the `capture` block; `session.createdAtMs` is preserved for backward compatibility and carries the same value
 - `SessionScanner` accepts versions {2, 3, 4}; reads `capture.timestampMs` as primary timestamp source, falls back to `session.createdAtMs` for v2/v3 sessions that have no `capture` block
-- `metadata.json` contains an `additional` block at session creation with fixed defaults: `isFavorite: false`, `visibility: "private"`, `source: "sameview"` (Block B, 2026-06-09); no UI or update endpoint yet
+- `metadata.json` contains an `additional` block at session creation with fixed defaults: `isFavorite: false`, `visibility: "private"`, `source: "sameview"` (Block B, 2026-06-09); UI and update endpoint implemented 2026-06-20 via `SessionStorage.updateFavorite()` and `CameraViewModel.toggleFavorite()`
 - `content` block is absent at session creation when no title is present (Block C, 2026-06-09); fixes §12.1 violation where `description: null` and `tags: []` were pre-populated; `updateTitle()` handles absent `content` block correctly via `optJSONObject("content") ?: JSONObject()`
 - `reference.date` EXIF auto-population implemented (Block D, 2026-06-09): at session creation, `ReferenceImageMetadataReader` reads EXIF `DateTimeOriginal` and parses it to `"YYYY-MM-DD"`; plausibility filter rejects years < 1826 or > current year; non-lenient `Calendar` rejects invalid month/day values (e.g. month=99, Feb 31); when present, `reference.date`, `reference.dateSource = "exif"`, and `reference.userEdited = false` are written into the `reference` block; when absent or implausible, the three fields are omitted entirely; `ReferenceImageMetadata.exifDateTimeOriginal` is the carrier (trailing default `null`, no call-site changes required)
 - `SessionStorage.updateReferenceDate()` implemented (Block E, 2026-06-09): storage-side write function for manual `reference.date` changes; signature `(sessionsRoot, sessionId, date: String?): Boolean`; `date != null` (valid) → writes `reference.date`, `reference.dateSource = "manual"`, `reference.userEdited = true`; `date == null` (remove) → removes `reference.date` and `reference.dateSource`, keeps `reference.userEdited = true`; invalid non-null date returns `false` without modifying anything; `isValidReferenceDate()` validates exact ISO 8601 precision levels ("YYYY", "YYYY-MM", "YYYY-MM-DD") with plausibility filter and non-lenient Calendar check; path traversal protection identical to `updateTitle()`; no UI, no scanner changes
@@ -508,6 +513,17 @@ No open Session Metadata Editor Block H tasks remain.
 
 ---
 
+**Favourite Star in EditSessionScreen (Block F.3 + bugfix — 2026-06-20):**
+
+- `EditSessionScreen` TopAppBar receives a Favourite star action (first action; consistent with CompareScreen)
+- `EditSessionViewModel` exposes `isFavorite: StateFlow<Boolean>` loaded from `metadata.json`; `toggleFavorite()` performs an optimistic flip followed by `SessionStorage.updateFavorite()` on IO dispatcher
+- Toggle does NOT affect `isDirty`; Save button and Discard dialog are unaffected
+- `EditSessionEvent.FavoriteToggleComplete` emitted on success; `MainActivity` handles it by calling `cameraViewModel.refreshSavedSessions()` (no navigation) — this fixes the bug where `CompareScreen` showed a stale star after Favourite-only Back from EditSession
+- `EditSessionViewModelTest` extended with `favoriteUpdater` injectable lambda and 2 new tests
+- `EditSessionScreenTest` extended with 6 new `favoriteButton_*` tests; 28/28 PASSED
+
+---
+
 Block UX5 completed (2026-06-09) — Session Metadata Editor Pre-Block-H UX Fix:
 
 - **Session date priorisiert** — in der Session Card steht "Session date" jetzt als erstes Element, vor Title und Description; die Hauptinformation der Session ist damit sofort sichtbar.
@@ -708,7 +724,7 @@ Existing tests cover the critical release paths around:
 - session backup export: ZIP structure, byte integrity, operation locks, SAF null-URI no-op handling
 - CompareScreen overflow: Backup Session visibility (sessionId != null), disabled state during backup
 - CompareLibrary backup: icon presence, disabled states (empty selection, isBackupInProgress, isDeletionInProgress)
-- Select All sets selectedSessionIds to the complete session list; Deselect All clears it
+- Select All sets selectedSessionIds to the **current filtered view** (not all sessions unconditionally); this supersedes the prior "complete scanned session list" behavior — see `FAVORITES_AND_LIBRARY_FILTERS_V1.md PD-08`
 
 Latest verified test state (GPS Recreation Blocks 1–8 complete):
 

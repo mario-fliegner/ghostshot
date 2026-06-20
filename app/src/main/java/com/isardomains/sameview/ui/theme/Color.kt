@@ -103,3 +103,6 @@ val SameViewAboutFooterText = SameViewTextSecondary
 
 /** About screen feedback action text. */
 val SameViewAboutActionText = SameViewAccent
+
+/** Favourite star fill — amber/yellow used to signal a favourited compare session. */
+val SameViewStarFavorited = Color(0xFFFFC107)
