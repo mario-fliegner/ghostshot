@@ -19,12 +19,12 @@
     <string name="camera_start_failed">Camera could not be started.</string>
 
     <!-- Compare Library -->
-    <string name="compare_library_title">Compares</string>
+    <string name="compare_library_title">Comparisons</string>
     <string name="compare_library_empty_title">No comparisons yet</string>
-    <string name="compare_library_empty_body">Take a photo to create one.</string>
+    <string name="compare_library_empty_body">Take a photo to create your first comparison.</string>
     <string name="compare_library_empty_cta">Take your first shot</string>
-    <string name="compare_library_session_content_description">Compare from %s</string>
-    <string name="compare_library_session_content_description_with_meta">%1$s – compare from %2$s</string>
+    <string name="compare_library_session_content_description">Comparison from %s</string>
+    <string name="compare_library_session_content_description_with_meta">%1$s – comparison from %2$s</string>
     <string name="compare_library_selection_count">%d selected</string>
     <string name="compare_library_cancel_selection">Cancel</string>
     <string name="compare_library_select_all">Select all</string>
@@ -32,15 +32,15 @@
     <string name="compare_library_delete_selected">Delete selected</string>
     <string name="compare_library_session_selected">Selected</string>
     <string name="compare_library_session_not_selected">Not selected</string>
-    <string name="compare_library_delete_dialog_title">Delete compares?</string>
-    <string name="compare_library_delete_dialog_message">The selected compares will be deleted.</string>
+    <string name="compare_library_delete_dialog_title">Delete comparisons?</string>
+    <string name="compare_library_delete_dialog_message">The selected comparisons will be deleted.</string>
     <string name="compare_library_delete_confirm">Delete</string>
     <string name="compare_library_delete_cancel">Cancel</string>
 
     <!-- Compare flow -->
     <string name="compare_images">Compare</string>
     <string name="compare_entry_label">Compare</string>
-    <string name="compare_library_entry_label">Compares</string>
+    <string name="compare_library_entry_label">Comparisons</string>
     <string name="compare_screen_title">Compare</string>
     <string name="compare_back">Back to camera</string>
     <string name="compare_label_reference">Reference</string>
@@ -111,11 +111,11 @@
     <string name="settings_grid_type_none_short">Off</string>
     <string name="settings_grid_type_rule_of_thirds_short">Thirds</string>
     <string name="settings_grid_type_quarters_short">Quarters</string>
-    <string name="settings_overlay_compare_title">Overlay &amp; Compare</string>
+    <string name="settings_overlay_compare_title">Reference &amp; Compare</string>
     <string name="settings_reset_overlay_after_capture">Reset reference after capture</string>
     <string name="settings_auto_open_compare_after_capture">Auto-open compare after capture</string>
-    <string name="settings_gps_guidance_title">GPS Guidance</string>
-    <string name="settings_recreation_guidance">Recreation guidance</string>
+    <string name="settings_gps_guidance_title">Location guidance</string>
+    <string name="settings_recreation_guidance">Show reference location</string>
     <string name="settings_recreation_guidance_rationale_title">Location access</string>
     <string name="settings_recreation_guidance_rationale_message">SameView uses your current location to guide you back to where the original photo was taken, and reads the location stored in your reference photo. Your location data is never shared or uploaded.</string>
     <string name="settings_recreation_guidance_rationale_confirm">Continue</string>
@@ -130,7 +130,7 @@
     <string name="about_back">Back</string>
     <string name="about_app_name">SameView</string>
     <string name="about_description">Capture the same view again.</string>
-    <string name="about_local_device">Recreate memories. Not images.</string>
+    <string name="about_local_device">Compare moments. Not just photos.</string>
     <string name="about_no_account_required">Your memories.</string>
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_visit_website">Website</string>
@@ -234,7 +234,7 @@
     <!-- Edit Session — overflow item, screen, and top app bar -->
     <string name="edit_session_overflow_item">Edit session</string>
     <string name="edit_session_screen_title">Edit session</string>
-    <string name="edit_session_subtitle">Update information about this comparison</string>
+    <string name="edit_session_subtitle">Edit details for this comparison</string>
     <string name="edit_session_save">Save</string>
     <string name="edit_session_save_changes">Save changes</string>
     <string name="edit_session_back_content_description">Back</string>
