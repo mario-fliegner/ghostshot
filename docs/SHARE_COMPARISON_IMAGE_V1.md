@@ -690,14 +690,21 @@ expectations for image exports and avoids UI complexity.
 
 Image is written to `MediaStore.Images.Media` with:
 
-```
+```text
 RELATIVE_PATH = Pictures/SameView
-DISPLAY_NAME  = SameView_<sessionId>_<style>.jpg
+DISPLAY_NAME  = SameView_<exportTimestamp>_<style>.jpg
 MIME_TYPE     = image/jpeg
 IS_PENDING    = 1
 ```
 
-Where `<style>` is `slider` or `sidebyside`.
+Where:
+
+- `<exportTimestamp>` is the current wall-clock time at export start, formatted as `yyyyMMdd_HHmmss` (e.g., `20240615_143022`). This is the export time, not the session capture time.
+- `<style>` is `slider` or `sidebyside`.
+
+Example: `SameView_20240615_143022_slider.jpg`
+
+The export timestamp guarantees a unique filename per export even when the same session is exported multiple times with identical settings. The session capture time (`sessionId`) is not used in the filename.
 
 ### 17.2 IS_PENDING Lifecycle
 
@@ -732,8 +739,13 @@ GPS coordinates are explicitly **NOT** written into the exported JPEG.
 - No GPS EXIF tags are written to the output image
 - The rendering pipeline creates a new composite bitmap from session images; no EXIF from
   `reference.jpg` or `capture.jpg` is copied to the output
+- `Bitmap.compress()` does not write any EXIF block — the output JPEG contains no EXIF
+  by construction
+- `ExifInterface` is **never called** on the output JPEG. No EXIF write of any kind is
+  performed after compression. No EXIF injection step exists in the rendering pipeline.
+- No XMP sidecar, no IPTC metadata, no ICC profile with location data is written
 - Only the caption text (user-authored `content.title`, `reference.date`, `location.*`) is
-  included in the visible image content
+  included as visible pixel content in the image
 
 This matches `VIDEO_EXPORT_V1.md §23.2` (no GPS in exported video).
 
@@ -1016,11 +1028,7 @@ or product name). This matches all existing SameView string resources.
 |---|---|
 | `share_comparison_error_render_failed` | Snackbar: "Could not create image" |
 
-**Filename (not translatable):**
-
-| Key | Usage |
-|---|---|
-| `share_comparison_filename` | MediaStore display name: `"SameView_%1$s_%2$s.jpg"` (sessionId, style) |
+**Filename (not translatable):** `share_comparison_filename` = `"SameView_%1$s_%2$s.jpg"` where `%1$s` is the export timestamp (`yyyyMMdd_HHmmss`) and `%2$s` is the style (`slider` or `sidebyside`).
 
 Key names follow the existing project naming convention. No second naming system is introduced.
 
@@ -1056,19 +1064,32 @@ No new Manifest permissions required.
 
 ## 27. Filename and Unicode Safety
 
-The `DISPLAY_NAME` in MediaStore supports Unicode natively. Session IDs follow the format
-`YYYY-MM-DD_HH-mm-ss` and contain only ASCII-safe characters. No Unicode handling is required
-for the filename itself.
+The filename is based on the **export timestamp**, not on session titles, location names, or
+any other user-authored content. This is a deliberate product decision:
 
-**Pattern:** `SameView_<sessionId>_slider.jpg` or `SameView_<sessionId>_sidebyside.jpg`
+- Session titles can be absent, long, or changed after export
+- Location names can contain arbitrary Unicode including characters problematic for some
+  filesystems (e.g., `/`, `:`, `*` in Windows-mounted paths)
+- An export timestamp is always present, always short, and always ASCII-safe
+- Using the export timestamp guarantees uniqueness: repeated exports of the same session
+  produce different filenames without MediaStore deduplication
 
-Unicode session titles or location names appear only in the visible caption text within the
-image — they never appear in the filename. This guarantees that:
+**Pattern:** `SameView_<exportTimestamp>_slider.jpg` or `SameView_<exportTimestamp>_sidebyside.jpg`
 
-- Filenames are always filesystem-safe on all Android API levels
-- Unicode in user content is fully preserved in the caption area
-- Examples like `München`, `Łódź`, `東京駅`, `Кремль` are rendered correctly in the caption
+Where `<exportTimestamp>` is formatted as `yyyyMMdd_HHmmss` (e.g., `20240615_143022`).
+
+Unicode session titles and location names appear **only in the visible caption area** of the
+exported image — never in the filename. This guarantees that:
+
+- Filenames are always filesystem-safe on all Android API levels and mounted storage
+- Unicode in user content is fully preserved in the rendered caption
+- Examples like `München`, `Łódź`, `東京駅`, `Кремль` render correctly in the caption
   without any sanitization
+- No Unicode normalization, romanization, or stripping occurs anywhere in the export pipeline
+
+`DISPLAY_NAME` in MediaStore supports Unicode natively and would technically accept Unicode
+filenames, but the export-timestamp approach makes this irrelevant and avoids an entire class
+of potential edge cases.
 
 ---
 

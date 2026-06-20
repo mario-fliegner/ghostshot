@@ -52,30 +52,22 @@ The following decisions are final. They must not be re-evaluated during implemen
 
 ## 3. Prerequisite: Scope Addendum to CLAUDE_PROJECT_INSTRUCTION.md
 
-**This addendum must be written and present before any implementation block begins.**
+**Status: COMPLETE (2026-06-21). Block 1 may now begin.**
 
-`CLAUDE_PROJECT_INSTRUCTION.md` currently contains:
+The addendum "Addendum (2026-06-21 – Session Post-Processing Export Features)" has been
+written into `CLAUDE_PROJECT_INSTRUCTION.md`. It clarifies:
 
-```
-- No comparison export
-- No collage export
-- No side-by-side export
-- Share flow (out of scope)
-```
-
-These rules apply to the **camera capture pipeline** only. An addendum must clarify this
-(analogous to the 2026-06-01 Session Backup Export addendum) before Block 1 can begin.
-
-The addendum must state:
 - "No comparison export", "No side-by-side export", "No collage export" apply exclusively
   to the shutter → `Pictures/SameView` capture pipeline.
 - "Share flow" in OUT OF SCOPE refers to social sharing as a primary product feature.
-  The Export icon and Share Comparison Image screen are session post-processing tools.
-- Share Comparison Image is a user-initiated session export: `reference.jpg` + `capture.jpg`
-  → composite JPEG → `Pictures/SameView` → Android Share Sheet.
-- Reference: `SHARE_COMPARISON_IMAGE_V1.md` for the full specification.
-
-This addendum is part of **Block A**.
+- "Video" in the original V1 OUT OF SCOPE referred to camera video recording, not session
+  MP4 export.
+- Create Video and Share Comparison Image are explicitly in-scope session post-processing
+  export features.
+- Remains out of scope: cloud sync, social media integrations, automatic publishing, online
+  galleries, server components, INTERNET permission.
+- CompareScreen authoritative TopAppBar structure documented (Export icon, see §43 of
+  `COMPARE_FLOW_V1.md`).
 
 ---
 
@@ -240,7 +232,7 @@ Package suggestions:
 | `share_comparison_quality_original` | "Original" | "Original" |
 | `share_comparison_action_share` | "Share" | "Teilen" |
 | `share_comparison_error_render_failed` | "Could not create image" | "Bild konnte nicht erstellt werden" |
-| `share_comparison_filename` (non-translatable) | `"SameView_%1$s_%2$s.jpg"` | `"SameView_%1$s_%2$s.jpg"` |
+| `share_comparison_filename` (non-translatable) | `"SameView_%1$s_%2$s.jpg"` — `%1$s` = export timestamp (`yyyyMMdd_HHmmss`), `%2$s` = style | same |
 
 **Localization note:** All German strings use informal `du` address (e.g., "Titel in …
 hinzufügen", not "Fügen Sie … hinzu"). Same rule as all existing DE strings.
@@ -253,32 +245,32 @@ hinzufügen", not "Fügen Sie … hinzu"). Same rule as all existing DE strings.
 
 ### Block A — Scope Addendum (Prerequisite)
 
-**Status:** Not started
+Status: Completed (2026-06-21)
 
-**Scope:**
-- `CLAUDE_PROJECT_INSTRUCTION.md` — write scope addendum (analogous to 2026-06-01 addendum)
-- Addendum must clarify that "no comparison export / no side-by-side export / share flow" apply
-  exclusively to the capture pipeline, not to session post-processing features
-- Reference `SHARE_COMPARISON_IMAGE_V1.md` in the addendum
+Scope: `CLAUDE_PROJECT_INSTRUCTION.md` — addendum "Addendum (2026-06-21 – Session
+Post-Processing Export Features)" written.
 
-**Affected Files:**
-- `docs/CLAUDE_PROJECT_INSTRUCTION.md`
+Completed changes:
 
-**Not in Scope:**
-- No production code
-- No tests
-- No UI
+- Capture Behavior constraints clarified: "No comparison export", "No side-by-side export",
+  "No collage export", "No second output file" apply exclusively to the shutter→MediaStore
+  capture pipeline.
+- OUT OF SCOPE list clarified: "Video" referred to camera video recording; "Share flow"
+  referred to social sharing as a primary product feature.
+- Create Video (MP4) and Share Comparison Image (JPEG) explicitly declared in scope.
+- Remains out of scope: cloud sync, social media integrations, automatic publishing, online
+  galleries, server components, INTERNET permission.
+- Authoritative CompareScreen TopAppBar structure documented (Export icon).
 
-**Risks:**
-- None: documentation change only
+Affected files: `docs/CLAUDE_PROJECT_INSTRUCTION.md`
 
-**Tests Required:**
-- None
+Tests required: None
 
-**Definition of Done:**
-- Addendum present in `CLAUDE_PROJECT_INSTRUCTION.md` with correct scope language
-- Addendum references `SHARE_COMPARISON_IMAGE_V1.md`
-- No existing spec contradicts the implementation anymore
+Definition of Done — all criteria met:
+
+- Addendum present with correct scope language ✓
+- Addendum references `SHARE_COMPARISON_IMAGE_V1.md` ✓
+- No existing spec contradicts the implementation anymore ✓
 
 ---
 
@@ -646,7 +638,7 @@ CompareScreen TopAppBar. Accurate: not yet implemented.
 
 | Block | Description | Status |
 |---|---|---|
-| Block A | Scope addendum in `CLAUDE_PROJECT_INSTRUCTION.md` | Not started |
+| Block A | Scope addendum in `CLAUDE_PROJECT_INSTRUCTION.md` | Completed (2026-06-21) |
 | Block 1 | CompareScreen TopAppBar restructuring + test migration | Not started |
 | Block 2 | ShareImageRenderer core (renderer, no UI) | Not started |
 | Block 3 | ShareComparisonScreen + ViewModel + navigation | Not started |

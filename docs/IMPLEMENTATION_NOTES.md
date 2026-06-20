@@ -194,9 +194,11 @@ Implementation plan: `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`
 
 **Status: Specification and implementation plan complete (2026-06-21). Not yet implemented.**
 
-Pending prerequisite: scope addendum in `CLAUDE_PROJECT_INSTRUCTION.md` must be written before implementation begins (see `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md §3`).
+Block A completed (2026-06-21): scope addendum written in `CLAUDE_PROJECT_INSTRUCTION.md` — Share Comparison Image and Create Video declared in scope as session post-processing export features; capture pipeline restrictions clarified; out-of-scope boundaries (cloud, social media integrations, server) preserved.
 
-Open product decision before Block 2: Slider divider with or without handle (see `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md §4`).
+Slider handle product decision resolved (2026-06-21): Slider export style includes the SameView handle (see `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md §4`).
+
+Next step: Block 1 — CompareScreen TopAppBar restructuring.
 
 ---
 

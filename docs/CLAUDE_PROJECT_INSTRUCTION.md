@@ -638,3 +638,84 @@ Multi-select mode action bar now contains three elements:
 After a successful backup, multi-select mode remains active and the selection is preserved.
 
 Backup is not a Share action. It writes to local device storage via SAF.
+
+### Addendum (2026-06-21 – Session Post-Processing Export Features)
+
+#### Scope Clarification: Capture Behavior Constraints
+
+The CAPTURE BEHAVIOR section contains the following rules:
+
+- "No comparison export"
+- "No collage export"
+- "No side-by-side export"
+- "No second output file"
+
+These rules apply **exclusively to the camera capture pipeline** — the path from shutter press to the saved photo in `Pictures/SameView/`. They mean: when the user presses the shutter, exactly one photo is saved to MediaStore. No overlay is baked in. No second composite file is created alongside the capture.
+
+These rules do **not** apply to user-initiated session post-processing features that operate on already-saved session files (`capture.jpg`, `reference.jpg`) as their input. Those features are separate operations, explicitly requested by the user, and governed by their own specifications.
+
+#### Scope Clarification: OUT OF SCOPE List
+
+The original OUT OF SCOPE list contains:
+
+- "Video" — this referred to video recording and playback via the camera (camera video mode). It does not refer to video export from saved sessions.
+- "Share flow" — this referred to social sharing as a **primary product feature** (e.g., a Share button as the main capture outcome, or deep third-party integrations). It does not refer to the Android Share Sheet used as a secondary delivery mechanism for user-initiated exports.
+- "Overlay export" — this refers to exporting the overlay image itself. It is not affected by session export features.
+
+#### Session Post-Processing Export Features — In Scope
+
+The following session post-processing export features are **explicitly in scope**:
+
+##### Create Video (MP4 session export)
+
+Fully implemented. Specification: `VIDEO_EXPORT_V1.md`. Entry point: CompareScreen Export icon → "Create video". Output: MP4 in `Movies/SameView` via MediaStore. Android Share Sheet on explicit user tap only.
+
+##### Share Comparison Image (JPEG session export)
+
+New feature. Specification: `SHARE_COMPARISON_IMAGE_V1.md`. Implementation plan: `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`. Entry point: CompareScreen Export icon → "Share comparison image". Output: JPEG in `Pictures/SameView` via MediaStore. Android Share Sheet on explicit user tap only.
+
+Both features:
+
+- Are user-initiated
+- Operate on existing session files as input
+- Write output via MediaStore (no raw file paths, no external storage)
+- Use the Android Share Sheet as the delivery mechanism — not a social media integration
+- Require no new Manifest permissions
+- Make no network calls
+- Contain no analytics, tracking, or telemetry
+
+#### Remains Explicitly Out of Scope
+
+The following remain out of scope regardless of this addendum and must not be implemented:
+
+- Cloud upload or cloud sync of any session data or export file
+- Server-side storage or processing
+- Social media integrations (direct TikTok, Instagram, WhatsApp, YouTube API calls)
+- Automatic sharing or publishing without explicit user action
+- Online galleries or web viewer features
+- Session synchronization across devices
+- External sharing services beyond Android Share Sheet
+- Background export without foreground user interaction
+- Any feature requiring the INTERNET permission
+
+#### CompareScreen TopAppBar — Current Authoritative Structure
+
+The 2026-06-01 addendum documented a "planned future top app bar structure" with a dedicated Create Video icon. That structure was implemented as part of the Create Video scope and has since been superseded by the Export icon introduced with the Share Comparison Image feature.
+
+The **current authoritative CompareScreen top app bar structure** is:
+
+```text
+← Back  |  [Favourite]  |  [Export]  |  [Delete Session]  |  ⋮
+```
+
+The Export icon opens a dropdown with:
+
+- Share comparison image → `ShareComparisonScreen`
+- Create video → `CreateVideoScreen`
+
+The overflow menu (⋮) contains:
+
+- Edit Session
+- Backup Session
+
+Full specification: `COMPARE_FLOW_V1.md §43` and `SHARE_COMPARISON_IMAGE_V1.md §6`.
