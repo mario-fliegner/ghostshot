@@ -1,0 +1,82 @@
+// path: app/src/main/java/com/isardomains/sameview/image/CaptionRenderer.kt
+package com.isardomains.sameview.image
+
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.text.TextPaint
+import android.text.TextUtils
+
+/**
+ * Renders the optional caption area below the comparison image.
+ *
+ * Typography and layout match SHARE_COMPARISON_IMAGE_V1.md §12:
+ *   - Date pair: bold, 4.5 % of min(compW, compH)
+ *   - Title: regular, 3.5 %
+ *   - Location: regular, 3.5 %
+ *   - Shadow via setShadowLayer() (acceptable for static Bitmap Canvas rendering)
+ *   - Lines rendered bottom-up: location → date → title
+ *
+ * No GPS data, no hidden metadata — only visible text pixels.
+ */
+internal class CaptionRenderer(
+    private val dims: CanvasDimensions,
+    captionData: ShareCaptionData
+) {
+    private val baseDim = minOf(dims.compW, dims.compH).toFloat()
+    private val titleSize = baseDim * 0.035f
+    private val dateSize = baseDim * 0.045f
+    private val locationSize = baseDim * 0.035f
+    private val lineSpacing = 1.20f
+
+    private val leftPad = dims.canvasW * 0.04f
+    private val bottomPad = dims.canvasH * 0.04f
+    private val maxTextWidth = dims.canvasW * 0.92f
+    private val shadowRadius = (baseDim * 0.004f).coerceAtLeast(2f)
+
+    private inner class Line(val text: String, val textSize: Float, val paint: Paint)
+
+    private val titlePaint = makePaint(titleSize, bold = false)
+    private val datePaint = makePaint(dateSize, bold = true)
+    private val locationPaint = makePaint(locationSize, bold = false)
+
+    // Lines in top-to-bottom display order (rendered bottom-up).
+    private val lines: List<Line> = buildList {
+        if (!captionData.titleLine.isNullOrBlank()) add(Line(captionData.titleLine, titleSize, titlePaint))
+        if (!captionData.dateLine.isNullOrBlank()) add(Line(captionData.dateLine, dateSize, datePaint))
+        if (!captionData.locationLine.isNullOrBlank()) add(Line(captionData.locationLine, locationSize, locationPaint))
+    }
+
+    val hasContent: Boolean get() = lines.isNotEmpty()
+
+    private fun makePaint(textSize: Float, bold: Boolean) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.textSize = textSize
+        color = Color.WHITE
+        typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        setShadowLayer(shadowRadius, 1f, 1f, Color.argb(191, 0, 0, 0)) // ~75 % opacity shadow
+    }
+
+    private fun ellipsized(text: String, paint: Paint): String {
+        if (paint.measureText(text) <= maxTextWidth) return text
+        return TextUtils.ellipsize(
+            text,
+            TextPaint(paint),
+            maxTextWidth,
+            TextUtils.TruncateAt.END
+        ).toString()
+    }
+
+    /** Renders all caption lines onto [canvas] at full opacity. */
+    fun render(canvas: Canvas) {
+        if (lines.isEmpty()) return
+        var y = dims.canvasH.toFloat() - bottomPad
+        for (i in lines.indices.reversed()) {
+            val line = lines[i]
+            canvas.drawText(ellipsized(line.text, line.paint), leftPad, y, line.paint)
+            if (i > 0) {
+                y -= maxOf(line.textSize, lines[i - 1].textSize) * lineSpacing
+            }
+        }
+    }
+}

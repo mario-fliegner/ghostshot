@@ -640,6 +640,6 @@ CompareScreen TopAppBar. Accurate: not yet implemented.
 |---|---|---|
 | Block A | Scope addendum in `CLAUDE_PROJECT_INSTRUCTION.md` | Completed (2026-06-21) |
 | Block 1 | CompareScreen TopAppBar restructuring + test migration | Completed (2026-06-21) |
-| Block 2 | ShareImageRenderer core (renderer, no UI) | Not started |
+| Block 2 | ShareImageRenderer core (renderer, no UI) | Completed (2026-06-21) |
 | Block 3 | ShareComparisonScreen + ViewModel + navigation | Not started |
 | Block 4 | Final verification | Not started |

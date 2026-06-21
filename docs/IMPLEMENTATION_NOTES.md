@@ -200,7 +200,9 @@ Slider handle product decision resolved (2026-06-21): Slider export style includ
 
 Block 1 completed (2026-06-21): CompareScreen TopAppBar restructured — dedicated Create Video icon replaced by Export icon (`Icons.Outlined.Share`); Export dropdown with "Share comparison image" (item 1) and "Create video" (item 2); test tags `compare_screen_export_button`, `compare_screen_export_share_item`, `compare_screen_export_create_video_item`; 5 existing Create Video tests migrated to Export flow; `onShareComparisonImage` no-op placeholder wired in MainActivity; `testDebugUnitTest` PASSED; `assembleDebug` BUILD SUCCESSFUL.
 
-Next step: Block 2 — ShareImageRenderer core (renderer, no UI).
+Block 2 completed (2026-06-21): ShareImageRenderer core implemented — package `com.isardomains.sameview.image`; new classes: `ShareComparisonStyle`, `ShareQuality`, `ShareCaptionData`, `ShareRenderConfig` (+ `computeCanvasDimensions`, `buildDisplayName`), `ShareMediaStoreWriter`, `CaptionRenderer`, `SliderRenderStrategy` (50/50 + gradient divider + SameViewAccent handle + white arrows), `SideBySideRenderStrategy`, `ShareImageRenderer` (orchestrator, IS_PENDING lifecycle, no EXIF written); 15/15 unit tests PASSED (`ShareRenderConfigTest`); `testDebugUnitTest` BUILD SUCCESSFUL; `assembleDebug` BUILD SUCCESSFUL; instrumentation tests (`ShareImageRendererInstrumentedTest`) require real device — not yet executed.
+
+Next step: Block 3 — ShareComparisonScreen + ViewModel + navigation route.
 
 ---
 
