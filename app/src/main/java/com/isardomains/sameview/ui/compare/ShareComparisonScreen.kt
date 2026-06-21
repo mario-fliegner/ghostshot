@@ -73,18 +73,15 @@ fun ShareComparisonScreen(
 ) {
     val style by viewModel.style.collectAsStateWithLifecycle()
     val quality by viewModel.quality.collectAsStateWithLifecycle()
-    val titleEnabled by viewModel.titleEnabled.collectAsStateWithLifecycle()
-    val dateEnabled by viewModel.dateEnabled.collectAsStateWithLifecycle()
+    val titleDateEnabled by viewModel.titleDateEnabled.collectAsStateWithLifecycle()
     val locationEnabled by viewModel.locationEnabled.collectAsStateWithLifecycle()
     val isRendering by viewModel.isRendering.collectAsStateWithLifecycle()
     val sessionViewportRatio by viewModel.sessionViewportRatio.collectAsStateWithLifecycle()
 
-    val isTitleAvailable by viewModel.isTitleAvailable.collectAsStateWithLifecycle()
-    val isDateAvailable by viewModel.isDateAvailable.collectAsStateWithLifecycle()
+    val isTitleDateAvailable by viewModel.isTitleDateAvailable.collectAsStateWithLifecycle()
     val isLocationAvailable by viewModel.isLocationAvailable.collectAsStateWithLifecycle()
 
-    val titlePreviewText by viewModel.titlePreviewText.collectAsStateWithLifecycle()
-    val datePreviewText by viewModel.datePreviewText.collectAsStateWithLifecycle()
+    val titleDatePreviewText by viewModel.titleDatePreviewText.collectAsStateWithLifecycle()
     val locationPreviewText by viewModel.locationPreviewText.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
@@ -97,9 +94,9 @@ fun ShareComparisonScreen(
 
     // Caption data for live preview — mirrors what will be passed to the renderer
     val previewCaptionData = remember(
-        titleEnabled, dateEnabled, locationEnabled,
-        isTitleAvailable, isDateAvailable, isLocationAvailable,
-        titlePreviewText, datePreviewText, locationPreviewText
+        titleDateEnabled, locationEnabled,
+        isTitleDateAvailable, isLocationAvailable,
+        titleDatePreviewText, locationPreviewText
     ) {
         viewModel.buildCaptionData()
     }
@@ -185,37 +182,27 @@ fun ShareComparisonScreen(
                     )
                 }
 
-                // ── Information card ──────────────────────────────────────────
+                // ── Extras card ───────────────────────────────────────────────
                 SettingsCard(
-                    title = stringResource(R.string.share_comparison_info_label),
+                    title = stringResource(R.string.share_comparison_extras_label),
                 ) {
                     InfoToggleRow(
-                        label = stringResource(R.string.share_comparison_toggle_title),
-                        checked = titleEnabled && isTitleAvailable,
-                        enabled = isTitleAvailable,
-                        onCheckedChange = viewModel::onTitleToggled,
-                        previewText = titlePreviewText,
-                        hintText = stringResource(R.string.share_comparison_no_title_hint),
-                        testTag = "share_comparison_toggle_title"
+                        label = stringResource(R.string.create_video_overlay_title_date_label),
+                        checked = titleDateEnabled && isTitleDateAvailable,
+                        enabled = isTitleDateAvailable,
+                        onCheckedChange = viewModel::onTitleDateToggled,
+                        previewText = titleDatePreviewText,
+                        hintText = stringResource(R.string.create_video_overlay_no_data_hint),
+                        testTag = "share_comparison_toggle_title_date"
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                     InfoToggleRow(
-                        label = stringResource(R.string.share_comparison_toggle_date),
-                        checked = dateEnabled && isDateAvailable,
-                        enabled = isDateAvailable,
-                        onCheckedChange = viewModel::onDateToggled,
-                        previewText = datePreviewText,
-                        hintText = stringResource(R.string.share_comparison_no_date_hint),
-                        testTag = "share_comparison_toggle_date"
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    InfoToggleRow(
-                        label = stringResource(R.string.share_comparison_toggle_location),
+                        label = stringResource(R.string.create_video_overlay_location_label),
                         checked = locationEnabled && isLocationAvailable,
                         enabled = isLocationAvailable,
                         onCheckedChange = viewModel::onLocationToggled,
                         previewText = locationPreviewText,
-                        hintText = stringResource(R.string.share_comparison_no_location_hint),
+                        hintText = stringResource(R.string.create_video_overlay_location_no_data_hint),
                         testTag = "share_comparison_toggle_location"
                     )
                 }

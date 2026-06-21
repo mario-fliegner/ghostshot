@@ -144,12 +144,7 @@ fun ShareComparisonPreview(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(compH)
-                        .clip(RoundedCornerShape(ComparisonCornerRadius))
-                        .border(
-                            1.dp,
-                            ComparisonBorder,
-                            RoundedCornerShape(ComparisonCornerRadius)
-                        )
+                        .border(1.dp, ComparisonBorder)
                 ) {
                     when (style) {
                         ShareComparisonStyle.SLIDER ->
@@ -298,12 +293,10 @@ private fun SideBySidePreviewContent(sessionDir: File) {
 
 @Composable
 private fun CaptionPreviewContent(captionData: ShareCaptionData) {
-    // Left-aligned at the image edge (4 dp additional inset beyond the outer canvas padding).
-    // Bottom breathing room is provided by the parent Column's bottom Spacer.
+    // Left-aligned at the image edge. Bottom breathing room provided by the parent Column's bottom Spacer.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 4.dp)
     ) {
         captionData.titleLine?.takeIf { it.isNotBlank() }?.let { title ->
             Text(

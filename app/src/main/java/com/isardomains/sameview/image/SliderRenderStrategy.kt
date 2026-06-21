@@ -106,8 +106,7 @@ internal class SliderRenderStrategy(
         drawArrows(canvas, hcx, hcy, handleDiam)
 
         // 7. Comparison border — drawn last so it sits on top of image content.
-        val cornerRadius = (minOf(cW, cH) * 0.015f).coerceAtLeast(4f)
-        canvas.drawRoundRect(compRect, cornerRadius, cornerRadius, borderPaint)
+        canvas.drawRect(compRect, borderPaint)
 
         // 8. Caption (if active).
         if (captionData != null && captionData.hasContent) {

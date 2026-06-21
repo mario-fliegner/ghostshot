@@ -5,7 +5,8 @@ package com.isardomains.sameview.image
  * Pre-computed text lines for the caption area below the comparison image.
  *
  * All fields are nullable. A null field means that line is not rendered.
- * When all three fields are null (or blank), pass [ShareRenderConfig.captionData] as
+ * Title and date are separate lines even though they share one UI toggle.
+ * When all fields are null (or blank), pass [ShareRenderConfig.captionData] as
  * null to skip the caption area entirely.
  */
 data class ShareCaptionData(

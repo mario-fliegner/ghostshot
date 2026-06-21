@@ -92,13 +92,12 @@ class ShareComparisonScreenTest {
         ).assertIsDisplayed()
     }
 
-    // ── T-B3-09: Information card shows Title, Date, Location toggles ─────────
+    // ── T-B3-09: Extras card shows title+date and location toggles ───────────
 
     @Test
-    fun t_b3_09_informationCardShowsAllThreeToggles() {
+    fun t_b3_09_extrasCardShowsTwoToggles() {
         launch()
-        composeRule.onNodeWithTag("share_comparison_toggle_title").assertIsDisplayed()
-        composeRule.onNodeWithTag("share_comparison_toggle_date").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_toggle_title_date").assertIsDisplayed()
         composeRule.onNodeWithTag("share_comparison_toggle_location").assertIsDisplayed()
     }
 
@@ -227,22 +226,16 @@ private fun ShareComparisonScreenStub(onBack: () -> Unit) {
                     modifier = Modifier.testTag("share_comparison_style_control")
                 )
             }
-            // Information card
-            SettingsCard(title = stringResource(R.string.share_comparison_info_label)) {
+            // Extras card
+            SettingsCard(title = stringResource(R.string.share_comparison_extras_label)) {
                 SettingsSwitchRow(
-                    label = stringResource(R.string.share_comparison_toggle_title),
+                    label = stringResource(R.string.create_video_overlay_title_date_label),
                     checked = true,
                     onCheckedChange = {},
-                    testTag = "share_comparison_toggle_title"
+                    testTag = "share_comparison_toggle_title_date"
                 )
                 SettingsSwitchRow(
-                    label = stringResource(R.string.share_comparison_toggle_date),
-                    checked = true,
-                    onCheckedChange = {},
-                    testTag = "share_comparison_toggle_date"
-                )
-                SettingsSwitchRow(
-                    label = stringResource(R.string.share_comparison_toggle_location),
+                    label = stringResource(R.string.create_video_overlay_location_label),
                     checked = false,
                     onCheckedChange = {},
                     testTag = "share_comparison_toggle_location"

@@ -102,13 +102,8 @@ class ShareComparisonViewModelTest {
     }
 
     @Test
-    fun defaults_titleEnabled_isTrue() {
-        assertTrue(viewModel.titleEnabled.value)
-    }
-
-    @Test
-    fun defaults_dateEnabled_isTrue() {
-        assertTrue(viewModel.dateEnabled.value)
+    fun defaults_titleDateEnabled_isTrue() {
+        assertTrue(viewModel.titleDateEnabled.value)
     }
 
     @Test
@@ -116,21 +111,22 @@ class ShareComparisonViewModelTest {
         assertFalse(viewModel.locationEnabled.value)
     }
 
-    // ── T-B3-03: title toggle off → titleLine null ─────────────────────────────
+    // ── T-B3-03: title+date toggle off → no title/date in caption ────────────
 
     @Test
-    fun titleToggle_offWithAvailableTitle_titleLineIsNull() = runTest {
+    fun titleDateToggle_offWithAvailableData_captionHasNoTitleOrDate() = runTest {
         val vm = createViewModel { _ ->
             ShareMetadataSnapshot("My title", null, 0L, null, null, null)
         }
         vm.loadMetadata()
         advanceUntilIdle()
 
-        assertTrue("Title should be available", vm.isTitleAvailable.value)
+        assertTrue("Title+date should be available", vm.isTitleDateAvailable.value)
 
-        vm.onTitleToggled(false)
+        vm.onTitleDateToggled(false)
         val captionData = vm.buildCaptionData()
-        assertNull("titleLine should be null when toggle is off", captionData?.titleLine)
+        // Title is the only content; toggle off → captionData is null
+        assertNull("captionData should be null when title+date toggle is off and no location", captionData)
     }
 
     // ── T-B3-04: location toggle true → locationLine present ──────────────────
@@ -161,8 +157,7 @@ class ShareComparisonViewModelTest {
         vm.loadMetadata()
         advanceUntilIdle()
 
-        vm.onTitleToggled(false)
-        vm.onDateToggled(false)
+        vm.onTitleDateToggled(false)
         vm.onLocationToggled(false)
 
         val captionData = vm.buildCaptionData()
@@ -198,7 +193,7 @@ class ShareComparisonViewModelTest {
     }
 
     @Test
-    fun buildCaptionData_titleAndDateAvailable_buildsBothLines() = runTest {
+    fun buildCaptionData_titleAndDateAvailable_buildsBothAsSeperateLines() = runTest {
         val vm = createViewModel { _ ->
             ShareMetadataSnapshot("Grünwald Rathaus", "1958", 1748000000000L, null, null, null)
         }
@@ -207,8 +202,89 @@ class ShareComparisonViewModelTest {
 
         val captionData = vm.buildCaptionData()
         assertNotNull(captionData)
+        // Title and date must be separate fields — not merged into one string
         assertEquals("Grünwald Rathaus", captionData!!.titleLine)
-        assertNotNull(captionData.dateLine)
+        assertNotNull("dateLine must be non-null when date is available", captionData.dateLine)
+        assertNull(captionData.locationLine)
+    }
+
+    // ── Title-only: no date available ─────────────────────────────────────────
+
+    @Test
+    fun titleDateToggle_onlyTitleAvailable_showsTitleInPreview() = runTest {
+        val vm = createViewModel { _ ->
+            ShareMetadataSnapshot("My Title", null, 0L, null, null, null)
+        }
+        vm.loadMetadata()
+        advanceUntilIdle()
+
+        assertTrue("isTitleDateAvailable should be true when title present", vm.isTitleDateAvailable.value)
+        assertEquals("My Title", vm.titleDatePreviewText.value)
+
+        val captionData = vm.buildCaptionData()
+        assertNotNull(captionData)
+        assertEquals("My Title", captionData!!.titleLine)
+        assertNull("dateLine should be null when no date available", captionData.dateLine)
+    }
+
+    // ── Date-only: no title available ─────────────────────────────────────────
+
+    @Test
+    fun titleDateToggle_onlyDateAvailable_showsDateInPreview() = runTest {
+        val vm = createViewModel { _ ->
+            // title = null, but referenceDate + captureTimestampMs → date line computable
+            ShareMetadataSnapshot(null, "1958", 1748000000000L, null, null, null)
+        }
+        vm.loadMetadata()
+        advanceUntilIdle()
+
+        assertTrue("isTitleDateAvailable should be true when date computable", vm.isTitleDateAvailable.value)
+        val preview = vm.titleDatePreviewText.value
+        assertNotNull("Preview should be non-null when date available", preview)
+        // The date preview must not contain a "·" separator (no title)
+        assertFalse("Preview should not contain separator when only date present",
+            preview!!.contains(" · "))
+
+        val captionData = vm.buildCaptionData()
+        assertNotNull(captionData)
+        assertNull("titleLine should be null when no title available", captionData!!.titleLine)
+        assertNotNull("dateLine should be non-null when date is available", captionData.dateLine)
+    }
+
+    // ── Both title and date available ─────────────────────────────────────────
+
+    @Test
+    fun titleDateToggle_bothAvailable_showsCombinedPreviewWithSeparator() = runTest {
+        val vm = createViewModel { _ ->
+            ShareMetadataSnapshot("My Title", "1958", 1748000000000L, null, null, null)
+        }
+        vm.loadMetadata()
+        advanceUntilIdle()
+
+        assertTrue(vm.isTitleDateAvailable.value)
+        val preview = vm.titleDatePreviewText.value
+        assertNotNull(preview)
+        assertTrue("Preview should contain separator when both title and date present",
+            preview!!.contains(" · "))
+        assertTrue("Preview should start with title", preview.startsWith("My Title"))
+    }
+
+    // ── Neither title nor date → toggle unavailable ───────────────────────────
+
+    @Test
+    fun titleDateToggle_neitherAvailable_isTitleDateAvailableFalse() = runTest {
+        val vm = createViewModel { _ ->
+            // no title, no referenceDate, captureTimestampMs = 0 → no date either
+            ShareMetadataSnapshot(null, null, 0L, null, null, null)
+        }
+        vm.loadMetadata()
+        advanceUntilIdle()
+
+        assertFalse("isTitleDateAvailable should be false when neither title nor date present",
+            vm.isTitleDateAvailable.value)
+        assertNull("titleDatePreviewText should be null", vm.titleDatePreviewText.value)
+        // buildCaptionData with title+date toggle ON but unavailable → null caption
+        assertNull("captionData should be null", vm.buildCaptionData())
     }
 
     // ── sessionId ──────────────────────────────────────────────────────────────
@@ -221,25 +297,25 @@ class ShareComparisonViewModelTest {
     // ── Metadata loading ───────────────────────────────────────────────────────
 
     @Test
-    fun loadMetadata_withTitle_titleAvailableAndPreviewTextSet() = runTest {
+    fun loadMetadata_withTitle_titleDateAvailableAndPreviewTextSet() = runTest {
         val vm = createViewModel { _ ->
             ShareMetadataSnapshot("My Shot", null, 0L, null, null, null)
         }
         vm.loadMetadata()
         advanceUntilIdle()
 
-        assertTrue(vm.isTitleAvailable.value)
-        assertEquals("My Shot", vm.titlePreviewText.value)
+        assertTrue(vm.isTitleDateAvailable.value)
+        assertEquals("My Shot", vm.titleDatePreviewText.value)
     }
 
     @Test
-    fun loadMetadata_withoutTitle_titleNotAvailable() = runTest {
+    fun loadMetadata_withoutTitleOrDate_titleDateNotAvailable() = runTest {
         val vm = createViewModel()
         vm.loadMetadata()
         advanceUntilIdle()
 
-        assertFalse(vm.isTitleAvailable.value)
-        assertNull(vm.titlePreviewText.value)
+        assertFalse(vm.isTitleDateAvailable.value)
+        assertNull(vm.titleDatePreviewText.value)
     }
 
     @Test

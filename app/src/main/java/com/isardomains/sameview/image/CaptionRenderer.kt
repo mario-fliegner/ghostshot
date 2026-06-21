@@ -12,12 +12,13 @@ import android.text.TextUtils
  * Renders the optional caption area below the comparison image.
  *
  * Typography and layout match SHARE_COMPARISON_IMAGE_V1.md §12:
- *   - Date pair: bold, 4.5 % of min(compW, compH)
- *   - Title: regular, 3.5 %
+ *   - Title: regular, 3.5 % of min(compW, compH)
+ *   - Date pair: bold, 4.5 %
  *   - Location: regular, 3.5 %
  *   - Shadow via setShadowLayer() (acceptable for static Bitmap Canvas rendering)
- *   - Lines rendered bottom-up: location → date → title
+ *   - Lines rendered top-down: title → date → location
  *
+ * Title and date share one UI toggle but are always rendered as separate lines.
  * No GPS data, no hidden metadata — only visible text pixels.
  */
 internal class CaptionRenderer(
@@ -30,7 +31,7 @@ internal class CaptionRenderer(
     private val locationSize = baseDim * 0.035f
     private val lineSpacing = 1.20f
 
-    private val leftPad = dims.canvasW * 0.04f
+    private val leftPad = dims.compLeft
     // outerPad is the bottom margin allocated in canvasH by computeCanvasDimensions.
     // Using canvasH * 0.04 would give ~2× outerPad (canvasH >> min(compW,compH)),
     // which pushes the text too high and leaves a large empty zone below.

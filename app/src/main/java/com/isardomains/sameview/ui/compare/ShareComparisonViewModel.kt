@@ -59,10 +59,10 @@ internal data class ShareMetadataSnapshot(
 /**
  * ViewModel for [ShareComparisonScreen].
  *
- * Manages style/quality selection, Information toggle state, metadata loading,
+ * Manages style/quality selection, Extras toggle state, metadata loading,
  * and orchestrates the Share action via [ShareImageRenderer].
  *
- * Defaults: Slider, Standard, Title ON, Date ON, Location OFF.
+ * Defaults: Slider, Standard, Title and date ON, Location OFF.
  */
 @HiltViewModel
 class ShareComparisonViewModel @Inject constructor(
@@ -80,11 +80,8 @@ class ShareComparisonViewModel @Inject constructor(
     private val _quality = MutableStateFlow(ShareQuality.STANDARD)
     val quality: StateFlow<ShareQuality> = _quality.asStateFlow()
 
-    private val _titleEnabled = MutableStateFlow(true)
-    val titleEnabled: StateFlow<Boolean> = _titleEnabled.asStateFlow()
-
-    private val _dateEnabled = MutableStateFlow(true)
-    val dateEnabled: StateFlow<Boolean> = _dateEnabled.asStateFlow()
+    private val _titleDateEnabled = MutableStateFlow(true)
+    val titleDateEnabled: StateFlow<Boolean> = _titleDateEnabled.asStateFlow()
 
     private val _locationEnabled = MutableStateFlow(false)
     val locationEnabled: StateFlow<Boolean> = _locationEnabled.asStateFlow()
@@ -100,20 +97,16 @@ class ShareComparisonViewModel @Inject constructor(
     private val _sessionViewportRatio = MutableStateFlow(9f / 16f)
     val sessionViewportRatio: StateFlow<Float> = _sessionViewportRatio.asStateFlow()
 
-    private val _isTitleAvailable = MutableStateFlow(false)
-    val isTitleAvailable: StateFlow<Boolean> = _isTitleAvailable.asStateFlow()
-
-    private val _isDateAvailable = MutableStateFlow(false)
-    val isDateAvailable: StateFlow<Boolean> = _isDateAvailable.asStateFlow()
+    /** True when at least one of title or date is available. */
+    private val _isTitleDateAvailable = MutableStateFlow(false)
+    val isTitleDateAvailable: StateFlow<Boolean> = _isTitleDateAvailable.asStateFlow()
 
     private val _isLocationAvailable = MutableStateFlow(false)
     val isLocationAvailable: StateFlow<Boolean> = _isLocationAvailable.asStateFlow()
 
-    private val _titlePreviewText = MutableStateFlow<String?>(null)
-    val titlePreviewText: StateFlow<String?> = _titlePreviewText.asStateFlow()
-
-    private val _datePreviewText = MutableStateFlow<String?>(null)
-    val datePreviewText: StateFlow<String?> = _datePreviewText.asStateFlow()
+    /** Combined preview text: "title · date", "title", or "date" depending on availability. */
+    private val _titleDatePreviewText = MutableStateFlow<String?>(null)
+    val titleDatePreviewText: StateFlow<String?> = _titleDatePreviewText.asStateFlow()
 
     private val _locationPreviewText = MutableStateFlow<String?>(null)
     val locationPreviewText: StateFlow<String?> = _locationPreviewText.asStateFlow()
@@ -170,12 +163,17 @@ class ShareComparisonViewModel @Inject constructor(
             computedDateLine = dateLine
             computedLocationLine = locationLine
 
+            val combinedPreview = when {
+                title != null && dateLine != null -> "$title · $dateLine"
+                title != null -> title
+                dateLine != null -> dateLine
+                else -> null
+            }
+
             _sessionViewportRatio.value = snapshot.viewportRatio
-            _titlePreviewText.value = title
-            _datePreviewText.value = dateLine
+            _titleDatePreviewText.value = combinedPreview
             _locationPreviewText.value = locationLine
-            _isTitleAvailable.value = title != null
-            _isDateAvailable.value = dateLine != null
+            _isTitleDateAvailable.value = combinedPreview != null
             _isLocationAvailable.value = locationLine != null
         }
     }
@@ -184,8 +182,7 @@ class ShareComparisonViewModel @Inject constructor(
 
     fun onStyleChanged(style: ShareComparisonStyle) { _style.value = style }
     fun onQualityChanged(quality: ShareQuality) { _quality.value = quality }
-    fun onTitleToggled(enabled: Boolean) { _titleEnabled.value = enabled }
-    fun onDateToggled(enabled: Boolean) { _dateEnabled.value = enabled }
+    fun onTitleDateToggled(enabled: Boolean) { _titleDateEnabled.value = enabled }
     fun onLocationToggled(enabled: Boolean) { _locationEnabled.value = enabled }
 
     // ── Share action ───────────────────────────────────────────────────────────
@@ -228,8 +225,9 @@ class ShareComparisonViewModel @Inject constructor(
      * Returns null when no active caption content exists (triggers caption-less export).
      */
     internal fun buildCaptionData(): ShareCaptionData? {
-        val titleLine = if (_titleEnabled.value && _isTitleAvailable.value) computedTitle else null
-        val dateLine = if (_dateEnabled.value && _isDateAvailable.value) computedDateLine else null
+        val showTitleDate = _titleDateEnabled.value && _isTitleDateAvailable.value
+        val titleLine = if (showTitleDate) computedTitle else null
+        val dateLine = if (showTitleDate) computedDateLine else null
         val locationLine = if (_locationEnabled.value && _isLocationAvailable.value) computedLocationLine else null
         if (titleLine == null && dateLine == null && locationLine == null) return null
         return ShareCaptionData(titleLine, dateLine, locationLine)

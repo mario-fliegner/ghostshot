@@ -69,8 +69,7 @@ internal class SideBySideRenderStrategy(
         canvas.drawRect(midX - 1f, dims.compTop, midX + 1f, dims.compBottom, separatorPaint)
 
         // 6. Comparison border.
-        val cornerRadius = (minOf(cW, cH) * 0.015f).coerceAtLeast(4f)
-        canvas.drawRoundRect(compRect, cornerRadius, cornerRadius, borderPaint)
+        canvas.drawRect(compRect, borderPaint)
 
         // 7. Caption (if active).
         if (captionData != null && captionData.hasContent) {
