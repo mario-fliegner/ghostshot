@@ -102,9 +102,12 @@ internal fun computeCanvasDimensions(
     // 3. Outer padding proportional to shortest comparison dimension.
     val outerPad = (minOf(compW, compH) * OUTER_PADDING_FRACTION).toInt().coerceAtLeast(4)
 
-    // 4. Caption area height estimate.
-    val captionH = estimateCaptionHeight(captionData, compW, compH)
-    val captionGap = if (captionH > 0) (compH * CAPTION_GAP_FRACTION).toInt().coerceAtLeast(4) else 0
+    // 4. Caption area height (precise, line-count-dependent).
+    val captionH = preciseCaptionHeight(captionData, compW, compH)
+    // captionGap equals outerPad so the spacing above the caption matches the uniform canvas margin.
+    // Using compH × CAPTION_GAP_FRACTION would make the gap scale with the image height, producing
+    // a 2× larger gap for portrait Slider exports than for Side-by-side (where compH is halved).
+    val captionGap = if (captionH > 0) outerPad else 0
 
     // 5. Full canvas.
     val canvasW = makeEven(compW + 2 * outerPad)
@@ -113,13 +116,34 @@ internal fun computeCanvasDimensions(
     return CanvasDimensions(canvasW, canvasH, compW, compH, outerPad)
 }
 
-/** Returns an estimated caption area height in pixels, or 0 if no caption content. */
-private fun estimateCaptionHeight(captionData: ShareCaptionData?, compW: Int, compH: Int): Int {
+/**
+ * Computes precise caption area height in pixels, matching the [CaptionRenderer] rendering logic.
+ *
+ * Mirrors the bottom-up rendering sequence of [CaptionRenderer.render]: starts from the bottom
+ * line and adds per-pair line spacing going upward. This ensures the canvas is sized exactly for
+ * the visible lines — 1 active line allocates space for 1 line, not for 3.
+ *
+ * A +10 % margin is added for descenders/ascenders and anti-aliasing.
+ */
+internal fun preciseCaptionHeight(captionData: ShareCaptionData?, compW: Int, compH: Int): Int {
     if (captionData == null || !captionData.hasContent) return 0
     val baseDim = minOf(compW, compH).toFloat()
-    val maxLineSize = baseDim * DATE_SIZE_FRACTION   // date is largest
-    // Generous estimate: max line height × line count × 1.5 spacing + margin
-    return (maxLineSize * captionData.lineCount * 1.6f).toInt().coerceAtLeast(1)
+
+    // Build line sizes in display order (title → date → location), matching CaptionRenderer.
+    val lineSizes = buildList<Float> {
+        if (!captionData.titleLine.isNullOrBlank()) add(baseDim * TITLE_SIZE_FRACTION)
+        if (!captionData.dateLine.isNullOrBlank()) add(baseDim * DATE_SIZE_FRACTION)
+        if (!captionData.locationLine.isNullOrBlank()) add(baseDim * LOCATION_SIZE_FRACTION)
+    }
+    if (lineSizes.isEmpty()) return 0
+
+    // Start from the bottom line; add baseline-to-baseline spacing for each line above.
+    // CaptionRenderer iterates indices.reversed(), so spacing is max(current, previous) × lineSpacing.
+    var h = lineSizes.last()
+    for (i in lineSizes.size - 2 downTo 0) {
+        h += maxOf(lineSizes[i + 1], lineSizes[i]) * LINE_SPACING
+    }
+    return (h * 1.1f).toInt().coerceAtLeast(1)
 }
 
 /** Builds the MediaStore DISPLAY_NAME from the export timestamp and style. */

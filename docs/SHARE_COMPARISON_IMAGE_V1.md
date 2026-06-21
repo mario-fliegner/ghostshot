@@ -311,18 +311,35 @@ All padding values scale proportionally with canvas resolution.
 
 **Canvas outer padding (all sides):** approximately 4 % of the shortest canvas dimension.
 
-**Between comparison area and caption:** approximately 4 % of canvas height.
+**Between comparison area and caption:** equal to the outer canvas padding (`outerPad`). This
+ensures the gap above the caption is visually consistent between Slider and Side by side exports.
+Using a fraction of the comparison height (`compH × 4 %`) would produce a 2× larger gap for
+portrait Slider exports (where compH is full image height) than for Side by side (where compH is
+halved), making Slider captions appear further from the image than intended.
 
 **Caption internal padding (from canvas edge):**
 - Left: approximately 4 % of canvas width
 - Bottom: approximately 4 % of canvas height
 
-### 9.3 Caption Area Presence
+### 9.3 Caption Area Presence and Dynamic Height
 
 The caption area is rendered **only** when at least one caption line produces visible content
 after applying toggle state and metadata availability. When no caption content is active, the
-comparison area uses a vertically centered position within the canvas (with equal padding top
-and bottom).
+canvas below the comparison area is only the outer padding — no footer area is reserved.
+
+**Caption height is dynamic — it grows with the number of visible lines:**
+
+- 0 visible lines → no caption area; canvas below comparison = outer padding only
+- 1 visible line → canvas accommodates exactly one text line + gap + outer padding
+- 2 visible lines → canvas accommodates exactly two text lines + spacing + gap + outer padding
+- 3 visible lines → canvas accommodates all three lines
+
+No fixed reservation for three lines is made when fewer lines are active. The canvas height
+for a session with only a date label is significantly smaller than one with title + date + location.
+
+This behaviour applies to both the exported JPEG and the preview in `ShareComparisonScreen`.
+The caption height calculation in `computeCanvasDimensions()` mirrors the `CaptionRenderer`
+rendering logic precisely, ensuring canvas size matches the actual rendered text block.
 
 ---
 

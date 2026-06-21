@@ -153,4 +153,59 @@ class ShareRenderConfigTest {
             kotlin.math.abs(sbsDims.canvasH - expectedCanvasH) <= 2
         )
     }
+
+    // --- preciseCaptionHeight: dynamic line-count-dependent sizing ---
+
+    @Test
+    fun captionHeight_noCaption_isZero() {
+        assertEquals(0, preciseCaptionHeight(null, 1080, 1920))
+        assertEquals(0, preciseCaptionHeight(ShareCaptionData(null, null, null), 1080, 1920))
+    }
+
+    @Test
+    fun captionHeight_lines_strictlyIncreasing() {
+        val oneLine   = ShareCaptionData(null, "2008 → 2026", null)           // date only
+        val twoLines  = ShareCaptionData("Title", "2008 → 2026", null)        // title + date
+        val threeLines = ShareCaptionData("Title", "2008 → 2026", "München")  // all three
+
+        val h1 = preciseCaptionHeight(oneLine, 1080, 1920)
+        val h2 = preciseCaptionHeight(twoLines, 1080, 1920)
+        val h3 = preciseCaptionHeight(threeLines, 1080, 1920)
+
+        assertTrue("0-line must be 0", preciseCaptionHeight(null, 1080, 1920) == 0)
+        assertTrue("1-line ($h1) must be > 0", h1 > 0)
+        assertTrue("2-line ($h2) must be > 1-line ($h1)", h2 > h1)
+        assertTrue("3-line ($h3) must be > 2-line ($h2)", h3 > h2)
+    }
+
+    @Test
+    fun captionHeight_oneLine_significantlySmallerThanThreeLines() {
+        // Core regression: 1 visible line must NOT reserve space for 3 lines.
+        val oneLine    = ShareCaptionData(null, "2008 → 2026", null)
+        val threeLines = ShareCaptionData("Title", "2008 → 2026", "München")
+
+        val h1 = preciseCaptionHeight(oneLine, 1080, 1920)
+        val h3 = preciseCaptionHeight(threeLines, 1080, 1920)
+
+        // 1-line must be at most 55 % of 3-line height (no blanket 3-line reservation).
+        assertTrue(
+            "1-line height ($h1) must be < 55% of 3-line height ($h3)",
+            h1 < h3 * 0.55f
+        )
+    }
+
+    @Test
+    fun captionHeight_canvasH_scalesWithLineCount() {
+        // The canvas height must grow proportionally with caption line count.
+        val noCaptionDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
+        val oneLineDims   = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD,
+            ShareCaptionData(null, "2008 → 2026", null), ShareComparisonStyle.SLIDER)
+        val threeLineDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD,
+            ShareCaptionData("Title", "2008 → 2026", "München"), ShareComparisonStyle.SLIDER)
+
+        assertTrue("1-line canvas (${oneLineDims.canvasH}) > no-caption (${noCaptionDims.canvasH})",
+            oneLineDims.canvasH > noCaptionDims.canvasH)
+        assertTrue("3-line canvas (${threeLineDims.canvasH}) > 1-line (${oneLineDims.canvasH})",
+            threeLineDims.canvasH > oneLineDims.canvasH)
+    }
 }

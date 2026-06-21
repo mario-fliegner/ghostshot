@@ -31,7 +31,10 @@ internal class CaptionRenderer(
     private val lineSpacing = 1.20f
 
     private val leftPad = dims.canvasW * 0.04f
-    private val bottomPad = dims.canvasH * 0.04f
+    // outerPad is the bottom margin allocated in canvasH by computeCanvasDimensions.
+    // Using canvasH * 0.04 would give ~2× outerPad (canvasH >> min(compW,compH)),
+    // which pushes the text too high and leaves a large empty zone below.
+    private val bottomPad = dims.outerPad.toFloat()
     private val maxTextWidth = dims.canvasW * 0.92f
     private val shadowRadius = (baseDim * 0.004f).coerceAtLeast(2f)
 
@@ -67,15 +70,44 @@ internal class CaptionRenderer(
         ).toString()
     }
 
-    /** Renders all caption lines onto [canvas] at full opacity. */
+    /**
+     * Renders all caption lines onto [canvas] at full opacity, top-down.
+     *
+     * The first line is anchored at the TOP of the caption zone so that the gap between the
+     * comparison image and the first text line equals exactly [captionGap]. Bottom-up rendering
+     * (the previous approach) placed the last line at [canvasH - bottomPad] and worked upward,
+     * which left the gap above the first line larger than intended.
+     *
+     * Caption zone top = canvasH − outerPad − captionH, where captionH is recomputed inline
+     * from the lines list using the same formula as preciseCaptionHeight().
+     */
     fun render(canvas: Canvas) {
         if (lines.isEmpty()) return
-        var y = dims.canvasH.toFloat() - bottomPad
-        for (i in lines.indices.reversed()) {
+
+        // Recompute captionH from the lines list to derive the caption zone top position.
+        // Mirrors preciseCaptionHeight(): bottom line height + per-pair baseline spacings + 10%.
+        val rawTextH = run {
+            var h = lines.last().textSize
+            for (i in lines.size - 2 downTo 0) {
+                h += maxOf(lines[i + 1].textSize, lines[i].textSize) * lineSpacing
+            }
+            h
+        }
+        val captionH = (rawTextH * 1.1f).toInt()
+
+        // Caption zone top: exactly outerPad + compH + captionGap from the canvas top.
+        val captionAreaTop = (dims.canvasH - dims.outerPad - captionH).toFloat()
+
+        // First line baseline = caption zone top + the font's ascent for that line.
+        // fontMetrics.ascent is negative in Android (distance from baseline upward), so negate it.
+        var y = captionAreaTop + (-lines.first().paint.fontMetrics.ascent)
+
+        // Render top-down: title → date → location.
+        for (i in lines.indices) {
             val line = lines[i]
             canvas.drawText(ellipsized(line.text, line.paint), leftPad, y, line.paint)
-            if (i > 0) {
-                y -= maxOf(line.textSize, lines[i - 1].textSize) * lineSpacing
+            if (i < lines.size - 1) {
+                y += maxOf(line.textSize, lines[i + 1].textSize) * lineSpacing
             }
         }
     }

@@ -109,9 +109,16 @@ fun ShareComparisonPreview(
 
         val hasCaptionContent = captionData != null && captionData.hasContent
 
-        // Caption overhead: gap + approximate text height.
-        // Bottom canvas padding is provided by the bottom Spacer inside the Column.
-        val captionTotalH: Dp = if (hasCaptionContent) (6.dp + 36.dp) else 0.dp
+        // Caption overhead scales with the number of visible lines — no fixed 3-line reservation.
+        // Each text line in the preview is approximately 14 dp tall; gap above the caption is 6 dp.
+        // Bottom canvas padding is always provided by the trailing Spacer inside the Column.
+        val captionLineCount = if (hasCaptionContent) (captionData?.lineCount ?: 0) else 0
+        val captionTotalH: Dp = when (captionLineCount) {
+            0    -> 0.dp
+            1    -> 20.dp   // 6 dp gap + ~14 dp single text line
+            2    -> 33.dp   // 6 dp gap + ~27 dp two text lines
+            else -> 46.dp   // 6 dp gap + ~40 dp three text lines
+        }
 
         // Uniform outer canvas padding on all four sides — makes the dark canvas visible
         // around the comparison area, consistent regardless of caption state.
