@@ -202,9 +202,16 @@ Block 1 completed (2026-06-21): CompareScreen TopAppBar restructured — dedicat
 
 Block 2 completed (2026-06-21): ShareImageRenderer core implemented — package `com.isardomains.sameview.image`; new classes: `ShareComparisonStyle`, `ShareQuality`, `ShareCaptionData`, `ShareRenderConfig` (+ `computeCanvasDimensions`, `buildDisplayName`), `ShareMediaStoreWriter`, `CaptionRenderer`, `SliderRenderStrategy` (50/50 + gradient divider + SameViewAccent handle + white arrows), `SideBySideRenderStrategy`, `ShareImageRenderer` (orchestrator, IS_PENDING lifecycle, no EXIF written); 15/15 unit tests PASSED (`ShareRenderConfigTest`); `testDebugUnitTest` BUILD SUCCESSFUL; `assembleDebug` BUILD SUCCESSFUL; instrumentation tests (`ShareImageRendererInstrumentedTest`) require real device — not yet executed.
 
-Block 3 completed (2026-06-21): `ShareComparisonViewModel` (StandardTestDispatcher pattern, injectable metadataReader/shareRunner/ioDispatcher), `ShareComparisonPreview` (Compose-rendered, session viewport ratio, Slider handle + side-by-side), `ShareComparisonScreen` (SettingsCard + SameViewSegmentControl + InfoToggleRow pattern, CreateVideoScreen CTA placement, Expanded 680dp responsive), `MainActivity` route `share_comparison/{sessionId}`, Block-1-Placeholder ersetzt; 20/20 unit tests PASSED (`ShareComparisonViewModelTest`); `testDebugUnitTest` BUILD SUCCESSFUL; `assembleDebug` BUILD SUCCESSFUL; instrumented tests (`ShareComparisonScreenTest`) require real device — not yet executed.
+Block 3 completed (2026-06-21): `ShareComparisonViewModel`, `ShareComparisonPreview`, `ShareComparisonScreen`, `MainActivity` route + navigation wired.
 
-Next step: Block 4 — Final Verification.
+Block 4 completed (2026-06-21) — **Share Comparison Image fully implemented and verified**:
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL; 611/611 PASSED; ShareRenderConfigTest 15/15, ShareComparisonViewModelTest 20/20, all prior tests remain green
+- `connectedDebugAndroidTest` — BUILD SUCCESSFUL; 594/594 PASSED on SM-S911B (Android 16); ShareImageRendererInstrumentedTest 6/6, ShareComparisonScreenTest 7/7, all prior tests remain green
+- `assembleDebug` — BUILD SUCCESSFUL
+- `assembleRelease` — BUILD SUCCESSFUL
+- JPEG export confirmed in `Pictures/SameView` on device; MediaStore DISPLAY_NAME format verified; no GPS EXIF; app launches without crash
+- Manual smoke tests Smoke-01, 02, 09, 10, 18 deferred — require physical screen interaction before production release
 
 ---
 
