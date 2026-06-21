@@ -215,8 +215,8 @@
 
     <!-- Export menu (CompareScreen top app bar) -->
     <string name="export_entry_content_description">Export</string>
-    <string name="export_menu_share_comparison_image">Share comparison image</string>
-    <string name="export_menu_create_video">Create video</string>
+    <string name="export_menu_share_comparison_image">Share image</string>
+    <string name="export_menu_create_video">Share video</string>
 
     <!-- Share Comparison Image screen -->
     <string name="share_comparison_screen_title">Share comparison</string>

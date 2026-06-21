@@ -209,8 +209,8 @@ Package suggestions:
 | Key | EN | DE |
 |---|---|---|
 | `export_entry_content_description` | "Export" | "Exportieren" |
-| `export_menu_share_comparison_image` | "Share comparison image" | "Vergleichsbild teilen" |
-| `export_menu_create_video` | "Create video" | "Video erstellen" |
+| `export_menu_share_comparison_image` | "Share image" | "Bild teilen" |
+| `export_menu_create_video` | "Share video" | "Video teilen" |
 
 ### 9.2 Block 3 Strings (ShareComparisonScreen)
 
@@ -283,7 +283,7 @@ Definition of Done — all criteria met:
 
 **Scope:**
 - `CompareScreen.kt` — replace dedicated `Create Video` icon with Export icon; add
-  `DropdownMenu` with two items in correct order (Share comparison image first, Create video
+  `DropdownMenu` with two items in correct order (Share image first, Share video
   second); new parameters `onShareComparisonImage: (() -> Unit)?` and
   `isShareComparisonAvailable: Boolean = false`; remove `compare_screen_create_video_button`
   test tag; add `compare_screen_export_button`, `compare_screen_export_share_item`,
@@ -321,12 +321,12 @@ Definition of Done — all criteria met:
 | T-B1-01 | Export button visible when `sessionId != null` | Instrumentation |
 | T-B1-02 | Export button absent when `sessionId == null` | Instrumentation |
 | T-B1-03 | Tapping Export opens dropdown | Instrumentation |
-| T-B1-04 | Dropdown shows "Share comparison image" as first item | Instrumentation |
-| T-B1-05 | Dropdown shows "Create video" as second item | Instrumentation |
-| T-B1-06 | Tapping "Create video" invokes `onCreateVideo` callback (migrated from T-I-07) | Instrumentation |
-| T-B1-07 | Tapping "Create video" when unavailable: item disabled (migrated from T-I-06) | Instrumentation |
-| T-B1-08 | Tapping "Share comparison image" invokes `onShareComparisonImage` callback | Instrumentation |
-| T-B1-09 | Tapping "Share comparison image" when unavailable: item disabled | Instrumentation |
+| T-B1-04 | Dropdown shows "Share image" as first item | Instrumentation |
+| T-B1-05 | Dropdown shows "Share video" as second item | Instrumentation |
+| T-B1-06 | Tapping "Share video" invokes `onCreateVideo` callback (migrated from T-I-07) | Instrumentation |
+| T-B1-07 | Tapping "Share video" when unavailable: item disabled (migrated from T-I-06) | Instrumentation |
+| T-B1-08 | Tapping "Share image" invokes `onShareComparisonImage` callback | Instrumentation |
+| T-B1-09 | Tapping "Share image" when unavailable: item disabled | Instrumentation |
 | T-B1-10 | All existing non-affected `CompareScreenTest` tests remain green | Regression |
 
 **Gradle command after Block 1:**
@@ -336,7 +336,7 @@ Definition of Done — all criteria met:
 
 **Definition of Done:**
 - Export icon replaces Create Video icon in correct position
-- Dropdown order: Share comparison image first, Create video second
+- Dropdown order: Share image first, Share video second
 - All 5 migrated tests pass
 - All new Block 1 tests pass
 - All previously green `CompareScreenTest` tests (≥ 86 total) remain green
@@ -516,7 +516,7 @@ Definition of Done — all criteria met:
 | T-B3-09 | `ShareComparisonScreen`: Information card shows Title, Date, Location toggles | Instrumentation |
 | T-B3-10 | `ShareComparisonScreen`: Share button present | Instrumentation |
 | T-B3-11 | `ShareComparisonScreen`: Back navigation returns to CompareScreen with unchanged state | Instrumentation |
-| T-B3-12 | Navigation: Tapping "Share comparison image" in Export dropdown → `ShareComparisonScreen` opens | Instrumentation |
+| T-B3-12 | Navigation: Tapping "Share image" in Export dropdown → `ShareComparisonScreen` opens | Instrumentation |
 
 **Gradle command after Block 3:**
 ```
@@ -561,9 +561,9 @@ Items requiring manual on-device verification (marked M — to be verified befor
 | # | Scenario | Status |
 |---|---|---|
 | Smoke-01 | Export icon visible in CompareScreen with session context | M — pending manual |
-| Smoke-02 | Export dropdown opens; order: Share comparison image first, Create video second | M — pending manual |
-| Smoke-03 | "Create video" from dropdown → CreateVideoScreen opens (regression) | A: T-I-06 (migrated) |
-| Smoke-04 | "Share comparison image" → ShareComparisonScreen opens | A: T-B3-12 / T-B3-07 |
+| Smoke-02 | Export dropdown opens; order: Share image first, Share video second | M — pending manual |
+| Smoke-03 | "Share video" from dropdown → CreateVideoScreen opens (regression) | A: T-I-06 (migrated) |
+| Smoke-04 | "Share image" → ShareComparisonScreen opens | A: T-B3-12 / T-B3-07 |
 | Smoke-05 | Style Slider ↔ Side by side toggle updates preview | A: T-B3-08 |
 | Smoke-06 | Title / Date / Location toggles visible and interactive | A: T-B3-09 |
 | Smoke-07 | Standard / Original quality toggle works | A: quality card visible |
@@ -641,7 +641,7 @@ CompareScreen TopAppBar. Accurate: not yet implemented.
 | R-04 | Low | German localization — informal address must be consistent throughout | All DE strings reviewed for `du`/`dir`/`dein` forms before Block 1 commit |
 | R-05 | Low | Canvas even-dimension enforcement — odd viewport dimensions from older sessions | Enforce `coerceToEven()` in renderer before MediaStore insert |
 | R-06 | Low | GPS EXIF isolation — new composite JPEG must not inherit GPS from session images | JPEG rendered from scratch; no EXIF copy path exists in the renderer design |
-| R-07 | Low | Export dropdown item order — spec requires Share comparison image first | Enforced by render order in Composable; test T-B1-04 verifies |
+| R-07 | Low | Export dropdown item order — spec requires Share image first | Enforced by render order in Composable; test T-B1-04 verifies |
 
 ---
 

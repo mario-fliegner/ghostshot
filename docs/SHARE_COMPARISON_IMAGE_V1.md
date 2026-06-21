@@ -24,7 +24,7 @@ other export format.
 
 - A user-initiated export of a compare session as a JPEG image
 - Triggered from `CompareScreen` via a new **Export** icon in the top app bar
-- The Export icon opens a dropdown menu with two items: **Share comparison image** and **Create video**
+- The Export icon opens a dropdown menu with two items: **Share image** and **Share video**
 - Output: a single JPEG file written to `Pictures/SameView` via MediaStore
 - Fully offline: no network calls; the app makes no uploads
 - Two visual styles: **Slider** (50/50) and **Side by side**
@@ -140,10 +140,10 @@ The overflow menu (⋮) contents are **unchanged**:
 
 Tapping the Export icon opens a `DropdownMenu` with two items:
 
-```
+```text
 ───────────────────────────────
-  Share comparison image   →  navigates to ShareComparisonScreen
-  Create video             →  navigates to CreateVideoScreen (existing behavior)
+  Share image   →  navigates to ShareComparisonScreen
+  Share video   →  navigates to CreateVideoScreen (existing behavior)
 ───────────────────────────────
 ```
 
@@ -161,12 +161,12 @@ order.
 
 The Export icon is shown only when `sessionId != null` (session context is present).
 
-**"Share comparison image"** item in the dropdown is executable only when both `reference.jpg` and
-`capture.jpg` exist on the filesystem (same availability rule as the existing Create Video
+**"Share image"** item in the dropdown is executable only when both `reference.jpg` and
+`capture.jpg` exist on the filesystem (same availability rule as the existing Share Video
 availability check: `isCreateVideoAvailable`). When session files are missing, the item must not
 be offered as an executable action.
 
-**"Create video"** item in the dropdown follows its existing availability rule unchanged.
+**"Share video"** item in the dropdown follows its existing availability rule unchanged.
 
 ### 6.4 Session Context Requirement
 
@@ -990,8 +990,8 @@ or product name). This matches all existing SameView string resources.
 | Key | Usage |
 |---|---|
 | `export_entry_content_description` | Export icon content description: "Export" |
-| `export_menu_share_comparison_image` | Dropdown item: "Share comparison image" |
-| `export_menu_create_video` | Dropdown item: "Create video" |
+| `export_menu_share_comparison_image` | Dropdown item: "Share image" |
+| `export_menu_create_video` | Dropdown item: "Share video" |
 
 **ShareComparisonScreen — General:**
 
@@ -1166,9 +1166,9 @@ No changes to compare mechanics, slider, or session state.
 | T-I-01 | End-to-end: Slider style, Standard quality, caption OFF → valid JPEG created in `Pictures/SameView` |
 | T-I-02 | End-to-end: Side by side, Original quality, caption ON → valid JPEG, correct dimensions |
 | T-I-03 | `CompareScreen` shows Export icon in top app bar when session has valid files |
-| T-I-04 | `CompareScreen` Export dropdown shows "Share comparison image" and "Create video" |
-| T-I-05 | Tapping "Share comparison image" navigates to `ShareComparisonScreen` |
-| T-I-06 | Tapping "Create video" navigates to `CreateVideoScreen` (regression: existing behavior unchanged) |
+| T-I-04 | `CompareScreen` Export dropdown shows "Share image" and "Share video" |
+| T-I-05 | Tapping "Share image" navigates to `ShareComparisonScreen` |
+| T-I-06 | Tapping "Share video" navigates to `CreateVideoScreen` (regression: existing behavior unchanged) |
 | T-I-07 | Back from `ShareComparisonScreen` returns to `CompareScreen` with unchanged compare state |
 
 ### 29.3 Regression Guard

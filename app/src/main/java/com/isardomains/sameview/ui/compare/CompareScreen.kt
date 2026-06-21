@@ -293,7 +293,7 @@ fun CompareScreen(
                                 expanded = showExportMenu,
                                 onDismissRequest = { showExportMenu = false }
                             ) {
-                                // 1. Share comparison image
+                                // 1. Share image
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.export_menu_share_comparison_image)) },
                                     enabled = isShareComparisonAvailable,

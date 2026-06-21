@@ -99,8 +99,8 @@ the dedicated Create Video icon with a new **Export** icon. The updated top app 
 
 The Export icon opens a dropdown menu containing:
 
-- Share comparison image → `ShareComparisonScreen`
-- Create video → `CreateVideoScreen` (existing behavior, unchanged)
+- Share image → `ShareComparisonScreen`
+- Share video → `CreateVideoScreen` (existing behavior, unchanged)
 
 `CreateVideoScreen` itself, its navigation, state machine, export pipeline, and all existing
 behavior are completely unaffected. Only the entry point in the top app bar changes.

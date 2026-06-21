@@ -1626,8 +1626,8 @@ Tapping the Export icon opens a `DropdownMenu`:
 
 ```text
 ─────────────────────────────────
-  Share comparison image   → ShareComparisonScreen
-  Create video             → CreateVideoScreen (unchanged behavior)
+  Share image   → ShareComparisonScreen
+  Share video   → CreateVideoScreen (unchanged behavior)
 ─────────────────────────────────
 ```
 

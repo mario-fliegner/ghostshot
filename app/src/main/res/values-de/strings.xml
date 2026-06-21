@@ -202,8 +202,8 @@
 
     <!-- Export-Menü (CompareScreen Titelleiste) -->
     <string name="export_entry_content_description">Exportieren</string>
-    <string name="export_menu_share_comparison_image">Vergleichsbild teilen</string>
-    <string name="export_menu_create_video">Video erstellen</string>
+    <string name="export_menu_share_comparison_image">Bild teilen</string>
+    <string name="export_menu_create_video">Video teilen</string>
 
     <!-- Vergleich teilen-Screen -->
     <string name="share_comparison_screen_title">Vergleich teilen</string>

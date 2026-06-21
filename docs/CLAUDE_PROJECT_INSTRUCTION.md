@@ -668,11 +668,11 @@ The following session post-processing export features are **explicitly in scope*
 
 ##### Create Video (MP4 session export)
 
-Fully implemented. Specification: `VIDEO_EXPORT_V1.md`. Entry point: CompareScreen Export icon → "Create video". Output: MP4 in `Movies/SameView` via MediaStore. Android Share Sheet on explicit user tap only.
+Fully implemented. Specification: `VIDEO_EXPORT_V1.md`. Entry point: CompareScreen Export icon → "Share video". Output: MP4 in `Movies/SameView` via MediaStore. Android Share Sheet on explicit user tap only.
 
 ##### Share Comparison Image (JPEG session export)
 
-New feature. Specification: `SHARE_COMPARISON_IMAGE_V1.md`. Implementation plan: `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`. Entry point: CompareScreen Export icon → "Share comparison image". Output: JPEG in `Pictures/SameView` via MediaStore. Android Share Sheet on explicit user tap only.
+New feature. Specification: `SHARE_COMPARISON_IMAGE_V1.md`. Implementation plan: `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`. Entry point: CompareScreen Export icon → "Share image". Output: JPEG in `Pictures/SameView` via MediaStore. Android Share Sheet on explicit user tap only.
 
 Both features:
 
@@ -710,8 +710,8 @@ The **current authoritative CompareScreen top app bar structure** is:
 
 The Export icon opens a dropdown with:
 
-- Share comparison image → `ShareComparisonScreen`
-- Create video → `CreateVideoScreen`
+- Share image → `ShareComparisonScreen`
+- Share video → `CreateVideoScreen`
 
 The overflow menu (⋮) contains:
 
