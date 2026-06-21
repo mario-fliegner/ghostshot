@@ -230,6 +230,7 @@ Package suggestions:
 | `share_comparison_quality_label` | "Quality" | "Qualität" |
 | `share_comparison_quality_standard` | "Standard" | "Standard" |
 | `share_comparison_quality_original` | "Original" | "Original" |
+| `share_comparison_quality_original_note` | "Full session resolution, larger file" | "Originalauflösung, größere Datei" |
 | `share_comparison_action_share` | "Share" | "Teilen" |
 | `share_comparison_error_render_failed` | "Could not create image" | "Bild konnte nicht erstellt werden" |
 | `share_comparison_filename` (non-translatable) | `"SameView_%1$s_%2$s.jpg"` — `%1$s` = export timestamp (`yyyyMMdd_HHmmss`), `%2$s` = style | same |
@@ -453,14 +454,18 @@ Definition of Done — all criteria met:
 - `ShareComparisonViewModel.kt` — `@HiltViewModel`; `sessionId` from `SavedStateHandle`;
   loads metadata from `metadata.json` on `Dispatchers.IO` at init (title, date, location
   fields); exposes `StateFlow`s for: `style`, `quality`, `titleEnabled`, `dateEnabled`,
-  `locationEnabled`, `isRendering`; toggle handler functions; `onShare(context: Context)`
-  orchestrates render + MediaStore write + Share Sheet launch; `ShareCaptionData` computed
-  from metadata + toggle state
+  `locationEnabled`, `isRendering`, `sessionViewportRatio: StateFlow<Float>` (width/height
+  float, same pattern as `CreateVideoViewModel.sessionViewportRatio`, read from
+  `viewport.width` / `viewport.height` in `metadata.json`, defaults to `9f/16f`);
+  toggle handler functions; `onShare(context: Context)` orchestrates render + MediaStore
+  write + Share Sheet launch; `ShareCaptionData` computed from metadata + toggle state
 - `ShareComparisonScreen.kt` — `@Composable`; `Scaffold` with `TopAppBar` ("Share
-  comparison") and `bottomBar` (Share button); Style card with `SameViewSegmentControl`
-  + `HorizontalDivider` + live preview; Information card with `SettingsSwitchRow` per
-  toggle + dynamic preview lines; Quality card with `SameViewSegmentControl`; Expanded
-  max-width 680 dp (same as `EditSessionScreen` Block 3B pattern)
+  comparison"); **no sticky bottomBar** — Share `Button` at the END of the scrollable
+  column with `navigationBarsPadding()` (CreateVideoScreen pattern, not EditSessionScreen
+  pattern — no text inputs, no IME); Style card with `SameViewSegmentControl` +
+  `HorizontalDivider` + `ShareComparisonPreview`; Information card with
+  `SettingsSwitchRow` per toggle + dynamic preview lines; Quality card with
+  `SameViewSegmentControl` + Original quality hint; Expanded max-width 680 dp
 - `MainActivity.kt` — add `ROUTE_SHARE_COMPARISON` / `ROUTE_SHARE_COMPARISON_WITH_ARGS`
   constants; add `composable` route in `NavHost`; wire `onShareComparisonImage` callback
   in the Compare route to `navController.navigate(shareComparisonRoute(sessionId))`
@@ -641,5 +646,5 @@ CompareScreen TopAppBar. Accurate: not yet implemented.
 | Block A | Scope addendum in `CLAUDE_PROJECT_INSTRUCTION.md` | Completed (2026-06-21) |
 | Block 1 | CompareScreen TopAppBar restructuring + test migration | Completed (2026-06-21) |
 | Block 2 | ShareImageRenderer core (renderer, no UI) | Completed (2026-06-21) |
-| Block 3 | ShareComparisonScreen + ViewModel + navigation | Not started |
+| Block 3 | ShareComparisonScreen + ViewModel + navigation | Completed (2026-06-21) |
 | Block 4 | Final verification | Not started |

@@ -253,6 +253,8 @@ Only two styles are defined. No additional styles, modes, or hybrid options are 
 - JPEG compression quality: 92%
 - Caption area included
 - Typical file size: 1–5 MB depending on session resolution
+- **Wizard hint (shown when Original is selected):** string resource
+  `share_comparison_quality_original_note` = "Full session resolution, larger file"
 
 ### 8.3 Canvas Dimensions
 
@@ -636,9 +638,18 @@ TopAppBar:  ← Back   "Share comparison"
 │ [ Standard ]  [ Original ]                  │  ← SameViewSegmentControl
 └─────────────────────────────────────────────┘
 
-[ Share ]                                        ← Scaffold bottomBar; full-width Button;
-                                                   enabled when session files exist
+[ Share ]                                        ← full-width Button at the end of the
+                                                   scrollable column (not a sticky bottomBar);
+                                                   navigationBarsPadding(); enabled when
+                                                   session files exist
 ```
+
+**Share button placement rationale:** `ShareComparisonScreen` has no text input fields and therefore
+does not need `imePadding()`. The CTA at the end of the scroll column matches `CreateVideoScreen`
+exactly (not `EditSessionScreen`, which uses a sticky bottomBar only because its Save button must
+stay above the keyboard). With only three compact cards (Style, Information, Quality), the total
+scroll height is small enough that the Share button is reachable with minimal scrolling on all
+compact devices.
 
 ### 15.4 Wizard State Persistence
 
@@ -1015,6 +1026,7 @@ or product name). This matches all existing SameView string resources.
 | `share_comparison_quality_label` | SettingsCard title: "Quality" |
 | `share_comparison_quality_standard` | Segment: "Standard" |
 | `share_comparison_quality_original` | Segment: "Original" |
+| `share_comparison_quality_original_note` | Hint shown when Original is selected: "Full session resolution, larger file" |
 
 **ShareComparisonScreen — CTA:**
 

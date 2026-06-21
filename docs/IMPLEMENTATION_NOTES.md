@@ -202,7 +202,9 @@ Block 1 completed (2026-06-21): CompareScreen TopAppBar restructured — dedicat
 
 Block 2 completed (2026-06-21): ShareImageRenderer core implemented — package `com.isardomains.sameview.image`; new classes: `ShareComparisonStyle`, `ShareQuality`, `ShareCaptionData`, `ShareRenderConfig` (+ `computeCanvasDimensions`, `buildDisplayName`), `ShareMediaStoreWriter`, `CaptionRenderer`, `SliderRenderStrategy` (50/50 + gradient divider + SameViewAccent handle + white arrows), `SideBySideRenderStrategy`, `ShareImageRenderer` (orchestrator, IS_PENDING lifecycle, no EXIF written); 15/15 unit tests PASSED (`ShareRenderConfigTest`); `testDebugUnitTest` BUILD SUCCESSFUL; `assembleDebug` BUILD SUCCESSFUL; instrumentation tests (`ShareImageRendererInstrumentedTest`) require real device — not yet executed.
 
-Next step: Block 3 — ShareComparisonScreen + ViewModel + navigation route.
+Block 3 completed (2026-06-21): `ShareComparisonViewModel` (StandardTestDispatcher pattern, injectable metadataReader/shareRunner/ioDispatcher), `ShareComparisonPreview` (Compose-rendered, session viewport ratio, Slider handle + side-by-side), `ShareComparisonScreen` (SettingsCard + SameViewSegmentControl + InfoToggleRow pattern, CreateVideoScreen CTA placement, Expanded 680dp responsive), `MainActivity` route `share_comparison/{sessionId}`, Block-1-Placeholder ersetzt; 20/20 unit tests PASSED (`ShareComparisonViewModelTest`); `testDebugUnitTest` BUILD SUCCESSFUL; `assembleDebug` BUILD SUCCESSFUL; instrumented tests (`ShareComparisonScreenTest`) require real device — not yet executed.
+
+Next step: Block 4 — Final Verification.
 
 ---
 

@@ -38,6 +38,7 @@ import com.isardomains.sameview.ui.compare.CompareScreen
 import com.isardomains.sameview.ui.compare.EditSessionEvent
 import com.isardomains.sameview.ui.compare.EditSessionScreen
 import com.isardomains.sameview.ui.compare.EditSessionViewModel
+import com.isardomains.sameview.ui.compare.ShareComparisonScreen
 import com.isardomains.sameview.ui.settings.LibraryFilter
 import com.isardomains.sameview.ui.settings.LibrarySortOrder
 import com.isardomains.sameview.ui.settings.SettingsScreen
@@ -57,6 +58,9 @@ private const val ROUTE_CREATE_VIDEO_WITH_ARGS = "$ROUTE_CREATE_VIDEO/{$ARG_CREA
 private const val ROUTE_EDIT_SESSION = "edit_session"
 private const val ARG_EDIT_SESSION_ID = "sessionId"
 private const val ROUTE_EDIT_SESSION_WITH_ARGS = "$ROUTE_EDIT_SESSION/{$ARG_EDIT_SESSION_ID}"
+private const val ROUTE_SHARE_COMPARISON = "share_comparison"
+private const val ARG_SHARE_COMPARISON_SESSION_ID = "sessionId"
+private const val ROUTE_SHARE_COMPARISON_WITH_ARGS = "$ROUTE_SHARE_COMPARISON/{$ARG_SHARE_COMPARISON_SESSION_ID}"
 private const val ARG_REFERENCE_URI = "referenceUri"
 private const val ARG_CAPTURE_URI = "captureUri"
 private const val ARG_SESSION_ID = "sessionId"
@@ -331,7 +335,7 @@ class MainActivity : ComponentActivity() {
                                 } else null,
                                 isCreateVideoAvailable = isCreateVideoAvailable,
                                 onShareComparisonImage = if (sessionId != null) {
-                                    { /* Block 1 placeholder — ShareComparisonScreen route added in Block 3 */ }
+                                    { navController.navigate(shareComparisonRoute(sessionId)) }
                                 } else null,
                                 isShareComparisonAvailable = isShareComparisonAvailable,
                                 isFavorite = isFavorite,
@@ -411,6 +415,19 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                    composable(
+                        route = ROUTE_SHARE_COMPARISON_WITH_ARGS,
+                        arguments = listOf(
+                            navArgument(ARG_SHARE_COMPARISON_SESSION_ID) {
+                                type = NavType.StringType
+                            }
+                        )
+                    ) {
+                        ShareComparisonScreen(
+                            onBack = { navController.popBackStack() },
+                            windowWidthSizeClass = windowSizeClass.widthSizeClass
+                        )
+                    }
                 }
             }
         }
@@ -446,3 +463,6 @@ private fun createVideoRoute(sessionId: String): String =
 
 private fun editSessionRoute(sessionId: String): String =
     "$ROUTE_EDIT_SESSION/${Uri.encode(sessionId)}"
+
+private fun shareComparisonRoute(sessionId: String): String =
+    "$ROUTE_SHARE_COMPARISON/${Uri.encode(sessionId)}"

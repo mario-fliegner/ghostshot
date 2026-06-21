@@ -218,6 +218,25 @@
     <string name="export_menu_share_comparison_image">Share comparison image</string>
     <string name="export_menu_create_video">Create video</string>
 
+    <!-- Share Comparison Image screen -->
+    <string name="share_comparison_screen_title">Share comparison</string>
+    <string name="share_comparison_style_label">Style</string>
+    <string name="share_comparison_style_slider">Slider</string>
+    <string name="share_comparison_style_side_by_side">Side by side</string>
+    <string name="share_comparison_info_label">Information</string>
+    <string name="share_comparison_toggle_title">Title</string>
+    <string name="share_comparison_toggle_date">Date</string>
+    <string name="share_comparison_toggle_location">Location</string>
+    <string name="share_comparison_no_title_hint">Add a title in Edit Session</string>
+    <string name="share_comparison_no_date_hint">Add a reference date in Edit Session</string>
+    <string name="share_comparison_no_location_hint">Add location in Edit Session</string>
+    <string name="share_comparison_quality_label">Quality</string>
+    <string name="share_comparison_quality_standard">Standard</string>
+    <string name="share_comparison_quality_original">Original</string>
+    <string name="share_comparison_quality_original_note">Full session resolution, larger file</string>
+    <string name="share_comparison_action_share">Share</string>
+    <string name="share_comparison_error_render_failed">Could not create image</string>
+
     <!-- Create Video — Entry point (CompareScreen top app bar; accessed via Export menu) -->
     <string name="create_video_entry_content_description">Create video</string>
 

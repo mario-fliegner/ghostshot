@@ -205,6 +205,25 @@
     <string name="export_menu_share_comparison_image">Vergleichsbild teilen</string>
     <string name="export_menu_create_video">Video erstellen</string>
 
+    <!-- Vergleich teilen-Screen -->
+    <string name="share_comparison_screen_title">Vergleich teilen</string>
+    <string name="share_comparison_style_label">Stil</string>
+    <string name="share_comparison_style_slider">Slider</string>
+    <string name="share_comparison_style_side_by_side">Nebeneinander</string>
+    <string name="share_comparison_info_label">Information</string>
+    <string name="share_comparison_toggle_title">Titel</string>
+    <string name="share_comparison_toggle_date">Datum</string>
+    <string name="share_comparison_toggle_location">Ort</string>
+    <string name="share_comparison_no_title_hint">Titel in „Vergleich bearbeiten" hinzufügen</string>
+    <string name="share_comparison_no_date_hint">Referenzdatum in „Vergleich bearbeiten" hinzufügen</string>
+    <string name="share_comparison_no_location_hint">Ort in „Vergleich bearbeiten" hinzufügen</string>
+    <string name="share_comparison_quality_label">Qualität</string>
+    <string name="share_comparison_quality_standard">Standard</string>
+    <string name="share_comparison_quality_original">Original</string>
+    <string name="share_comparison_quality_original_note">Originalauflösung, größere Datei</string>
+    <string name="share_comparison_action_share">Teilen</string>
+    <string name="share_comparison_error_render_failed">Bild konnte nicht erstellt werden</string>
+
     <!-- Video erstellen — Einstiegspunkt (CompareScreen Titelleiste; über Export-Menü erreichbar) -->
     <string name="create_video_entry_content_description">Video erstellen</string>
 
