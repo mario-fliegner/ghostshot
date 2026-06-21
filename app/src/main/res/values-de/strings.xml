@@ -200,7 +200,12 @@
     <string name="create_video_action_share">Teilen</string>
     <string name="create_video_action_delete">Video löschen</string>
 
-    <!-- Video erstellen — Einstiegspunkt (CompareScreen Titelleiste) -->
+    <!-- Export-Menü (CompareScreen Titelleiste) -->
+    <string name="export_entry_content_description">Exportieren</string>
+    <string name="export_menu_share_comparison_image">Vergleichsbild teilen</string>
+    <string name="export_menu_create_video">Video erstellen</string>
+
+    <!-- Video erstellen — Einstiegspunkt (CompareScreen Titelleiste; über Export-Menü erreichbar) -->
     <string name="create_video_entry_content_description">Video erstellen</string>
 
     <!-- Video erstellen — Export-Abbrechen-Dialog -->

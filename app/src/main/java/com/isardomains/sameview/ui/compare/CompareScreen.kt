@@ -41,8 +41,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -157,6 +157,8 @@ fun CompareScreen(
     isBackupInProgress: Boolean = false,
     onCreateVideo: (() -> Unit)? = null,
     isCreateVideoAvailable: Boolean = false,
+    onShareComparisonImage: (() -> Unit)? = null,
+    isShareComparisonAvailable: Boolean = false,
     referenceDate: String? = null,
     locationDisplayName: String? = null,
     locationCity: String? = null,
@@ -169,6 +171,7 @@ fun CompareScreen(
     val hasValidInput = referenceImageUri != null && captureImageUri != null
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
+    var showExportMenu by remember { mutableStateOf(false) }
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     val compareContentScale = if (isFullscreen) ContentScale.Crop else ContentScale.Fit
@@ -274,18 +277,43 @@ fun CompareScreen(
                             )
                         }
                     }
-                    // Create Video button — only when sessionId context is present (onCreateVideo != null)
-                    if (onCreateVideo != null) {
-                        val createVideoDescription = stringResource(R.string.create_video_entry_content_description)
-                        IconButton(
-                            onClick = { if (isCreateVideoAvailable) onCreateVideo() },
-                            enabled = isCreateVideoAvailable,
-                            modifier = Modifier.testTag("compare_screen_create_video_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Slideshow,
-                                contentDescription = createVideoDescription
-                            )
+                    // Export dropdown — only when sessionId context is present
+                    if (sessionId != null) {
+                        Box {
+                            IconButton(
+                                onClick = { showExportMenu = true },
+                                modifier = Modifier.testTag("compare_screen_export_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Share,
+                                    contentDescription = stringResource(R.string.export_entry_content_description)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showExportMenu,
+                                onDismissRequest = { showExportMenu = false }
+                            ) {
+                                // 1. Share comparison image
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.export_menu_share_comparison_image)) },
+                                    enabled = isShareComparisonAvailable,
+                                    onClick = {
+                                        showExportMenu = false
+                                        onShareComparisonImage?.invoke()
+                                    },
+                                    modifier = Modifier.testTag("compare_screen_export_share_item")
+                                )
+                                // 2. Create video
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.export_menu_create_video)) },
+                                    enabled = isCreateVideoAvailable,
+                                    onClick = {
+                                        showExportMenu = false
+                                        onCreateVideo?.invoke()
+                                    },
+                                    modifier = Modifier.testTag("compare_screen_export_create_video_item")
+                                )
+                            }
                         }
                     }
                     // Delete button — dedicated icon, not in overflow

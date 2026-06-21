@@ -1182,10 +1182,10 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_original_reference_badge").assertIsDisplayed()
     }
 
-    // --- T-I-05: Create Video button visible and enabled when session has valid files ---
+    // --- T-I-05: Export button visible and Create video item enabled when session has valid files ---
 
     @Test
-    fun t_i_05_createVideoButton_visibleAndEnabledWhenSessionHasValidFiles() {
+    fun t_i_05_exportButton_visibleAndCreateVideoItemEnabledWhenSessionHasValidFiles() {
         setHostContent {
             CompareScreen(
                 referenceImageUri = null,
@@ -1193,18 +1193,23 @@ class CompareScreenTest {
                 onBack = {},
                 sessionId = "2026-01-01_12-00-00",
                 onCreateVideo = {},
-                isCreateVideoAvailable = true
+                isCreateVideoAvailable = true,
+                onShareComparisonImage = {},
+                isShareComparisonAvailable = true
             )
         }
 
-        composeRule.onNodeWithTag("compare_screen_create_video_button").assertIsDisplayed()
-        composeRule.onNodeWithTag("compare_screen_create_video_button").assertIsEnabled()
+        composeRule.onNodeWithTag("compare_screen_export_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_export_create_video_item").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_export_create_video_item").assertIsEnabled()
     }
 
-    // --- T-I-06: Create Video button visible but disabled when files are not available ---
+    // --- T-I-06: Export button visible and Create video item disabled when files not available ---
 
     @Test
-    fun t_i_06_createVideoButton_visibleButDisabledWhenFilesNotAvailable() {
+    fun t_i_06_exportButton_visibleAndCreateVideoItemDisabledWhenFilesNotAvailable() {
         setHostContent {
             CompareScreen(
                 referenceImageUri = null,
@@ -1212,18 +1217,23 @@ class CompareScreenTest {
                 onBack = {},
                 sessionId = "2026-01-01_12-00-00",
                 onCreateVideo = {},
-                isCreateVideoAvailable = false
+                isCreateVideoAvailable = false,
+                onShareComparisonImage = {},
+                isShareComparisonAvailable = false
             )
         }
 
-        composeRule.onNodeWithTag("compare_screen_create_video_button").assertIsDisplayed()
-        composeRule.onNodeWithTag("compare_screen_create_video_button").assertIsNotEnabled()
+        composeRule.onNodeWithTag("compare_screen_export_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_export_create_video_item").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_export_create_video_item").assertIsNotEnabled()
     }
 
-    // --- T-I-07: Tap on Create Video invokes the callback ---
+    // --- T-I-07: Tap Export → Create video invokes Create Video callback ---
 
     @Test
-    fun t_i_07_createVideoButton_tapInvokesCallback() {
+    fun t_i_07_exportMenu_createVideoItem_tapInvokesCallback() {
         var createVideoCount = 0
         setHostContent {
             CompareScreen(
@@ -1232,22 +1242,26 @@ class CompareScreenTest {
                 onBack = {},
                 sessionId = "2026-01-01_12-00-00",
                 onCreateVideo = { createVideoCount++ },
-                isCreateVideoAvailable = true
+                isCreateVideoAvailable = true,
+                onShareComparisonImage = {},
+                isShareComparisonAvailable = true
             )
         }
 
-        composeRule.onNodeWithTag("compare_screen_create_video_button").performClick()
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_export_create_video_item").performClick()
         composeRule.waitForIdle()
 
         assertEquals(1, createVideoCount)
     }
 
-    // --- T-I-08: Back from CreateVideoScreen returns to CompareScreen with unchanged state ---
-    // Verified by checking that tapping Create Video does not alter CompareScreen's slider state.
+    // --- T-I-08: Tap Export → Create video does not alter CompareScreen slider state ---
+    // Verified by checking that invoking Create Video callback does not change slider state.
     // The slider's rememberSaveable ensures state is preserved when navigation pops back.
 
     @Test
-    fun t_i_08_createVideoTap_doesNotAlterCompareScreenState() {
+    fun t_i_08_exportMenu_createVideoTap_doesNotAlterCompareScreenState() {
         val compareInput = createCompareInput()
         var createVideoInvoked = false
 
@@ -1258,7 +1272,9 @@ class CompareScreenTest {
                 onBack = {},
                 sessionId = "2026-01-01_12-00-00",
                 onCreateVideo = { createVideoInvoked = true },
-                isCreateVideoAvailable = true
+                isCreateVideoAvailable = true,
+                onShareComparisonImage = {},
+                isShareComparisonAvailable = true
             )
         }
 
@@ -1273,8 +1289,10 @@ class CompareScreenTest {
         composeRule.waitForIdle()
         val sliderBefore = composeRule.onNodeWithTag("compare_slider").getUnclippedBoundsInRoot()
 
-        // Tap Create Video (simulates navigation trigger — doesn't change CompareScreen state)
-        composeRule.onNodeWithTag("compare_screen_create_video_button").performClick()
+        // Tap Export → Create video (simulates navigation trigger — doesn't change CompareScreen state)
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_export_create_video_item").performClick()
         composeRule.waitForIdle()
 
         assertTrue("onCreateVideo callback must have been invoked", createVideoInvoked)
@@ -1284,13 +1302,13 @@ class CompareScreenTest {
         assertCenterXNear(sliderBefore, sliderAfter, 8.dp)
     }
 
-    // --- Create Video button absent when onCreateVideo is null (no session context) ---
+    // --- Export button absent when sessionId is null (no session context) ---
 
     @Test
-    fun createVideoButton_notVisibleWhenOnCreateVideoIsNull() {
+    fun exportButton_notVisibleWhenSessionIdIsNull() {
         setCompareContent(referenceImageUri = null, captureImageUri = null)
 
-        composeRule.onNodeWithTag("compare_screen_create_video_button").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_export_button").assertDoesNotExist()
     }
 
     // --- FitBounds tests ---
@@ -1774,7 +1792,8 @@ class CompareScreenTest {
         locationCity: String? = null,
         locationCountry: String? = null,
         isFavorite: Boolean = false,
-        onToggleFavorite: (() -> Unit)? = null
+        onToggleFavorite: (() -> Unit)? = null,
+        onShareComparisonImage: (() -> Unit)? = null
     ) {
         setHostContent {
             CompareScreen(
@@ -1789,7 +1808,8 @@ class CompareScreenTest {
                 locationCity = locationCity,
                 locationCountry = locationCountry,
                 isFavorite = isFavorite,
-                onToggleFavorite = onToggleFavorite
+                onToggleFavorite = onToggleFavorite,
+                onShareComparisonImage = onShareComparisonImage
             )
         }
     }

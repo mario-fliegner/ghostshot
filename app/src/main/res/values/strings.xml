@@ -213,7 +213,12 @@
     <string name="create_video_action_share">Share</string>
     <string name="create_video_action_delete">Delete video</string>
 
-    <!-- Create Video — Entry point (CompareScreen top app bar) -->
+    <!-- Export menu (CompareScreen top app bar) -->
+    <string name="export_entry_content_description">Export</string>
+    <string name="export_menu_share_comparison_image">Share comparison image</string>
+    <string name="export_menu_create_video">Create video</string>
+
+    <!-- Create Video — Entry point (CompareScreen top app bar; accessed via Export menu) -->
     <string name="create_video_entry_content_description">Create video</string>
 
     <!-- Create Video — Cancel export dialog (Back during Rendering) -->

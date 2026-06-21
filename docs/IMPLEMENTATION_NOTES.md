@@ -198,7 +198,9 @@ Block A completed (2026-06-21): scope addendum written in `CLAUDE_PROJECT_INSTRU
 
 Slider handle product decision resolved (2026-06-21): Slider export style includes the SameView handle (see `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md §4`).
 
-Next step: Block 1 — CompareScreen TopAppBar restructuring.
+Block 1 completed (2026-06-21): CompareScreen TopAppBar restructured — dedicated Create Video icon replaced by Export icon (`Icons.Outlined.Share`); Export dropdown with "Share comparison image" (item 1) and "Create video" (item 2); test tags `compare_screen_export_button`, `compare_screen_export_share_item`, `compare_screen_export_create_video_item`; 5 existing Create Video tests migrated to Export flow; `onShareComparisonImage` no-op placeholder wired in MainActivity; `testDebugUnitTest` PASSED; `assembleDebug` BUILD SUCCESSFUL.
+
+Next step: Block 2 — ShareImageRenderer core (renderer, no UI).
 
 ---
 

@@ -255,9 +255,9 @@ class MainActivity : ComponentActivity() {
                             ?.isFavorite
                             ?: false
 
-                        // Availability check for Create Video: session must have both images.
+                        // Availability check for export features: session must have both images.
                         val filesDir = applicationContext.filesDir
-                        val isCreateVideoAvailable = remember(sessionId) {
+                        val isExportAvailable = remember(sessionId) {
                             if (sessionId == null) false
                             else {
                                 val sessionDir = java.io.File(filesDir, "sessions/$sessionId")
@@ -265,6 +265,8 @@ class MainActivity : ComponentActivity() {
                                     java.io.File(sessionDir, "capture.jpg").exists()
                             }
                         }
+                        val isCreateVideoAvailable = isExportAvailable
+                        val isShareComparisonAvailable = isExportAvailable
 
                         val snackbarHostState = remember { SnackbarHostState() }
                         val coroutineScope = rememberCoroutineScope()
@@ -328,6 +330,10 @@ class MainActivity : ComponentActivity() {
                                     { navController.navigate(createVideoRoute(sessionId)) }
                                 } else null,
                                 isCreateVideoAvailable = isCreateVideoAvailable,
+                                onShareComparisonImage = if (sessionId != null) {
+                                    { /* Block 1 placeholder — ShareComparisonScreen route added in Block 3 */ }
+                                } else null,
+                                isShareComparisonAvailable = isShareComparisonAvailable,
                                 isFavorite = isFavorite,
                                 onToggleFavorite = if (sessionId != null) {
                                     { viewModel.toggleFavorite(sessionId) }
