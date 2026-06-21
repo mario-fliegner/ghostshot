@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,23 +42,38 @@ import java.io.File
 private val CanvasBackground = Color(0xFF0D1424)
 private val ComparisonBorder = Color(0xFF17202F)
 private val SeparatorColor = Color(0xFF17202F)
-private const val MAX_PREVIEW_COMPARISON_HEIGHT_DP = 160
-private const val MAX_TOTAL_PREVIEW_HEIGHT_DP = 200
+// Safety cap: comparison area never exceeds this height regardless of aspect ratio.
+// Prevents extreme portrait ratios (e.g. 9:16) from spanning the full visible screen.
+// Normal portrait formats (3:4, 1:1) are uncapped and render at their exact ratio.
+private const val MAX_PREVIEW_COMPARISON_HEIGHT_DP = 500
+// Absolute backstop for total preview height (comparison + caption).
+private const val MAX_TOTAL_PREVIEW_HEIGHT_DP = 550
 private val ComparisonCornerRadius = 6.dp
 
 /**
  * Compose-rendered preview of the Share Comparison Image export canvas.
  *
- * Shows the full canvas layout: dark outer background, comparison area with subtle border,
- * and caption text below. No bitmap rendering — this is a visual selection aid only.
+ * Compose-rendered preview of the Share Comparison Image export canvas.
  *
- * Analogue to [com.isardomains.sameview.ui.video.VideoModePreview] for video exports.
- * Decorative — excluded from the accessibility tree via [clearAndSetSemantics].
+ * The preview is **ratio-proportional**: height is derived from the session viewport aspect ratio
+ * so that 3:4 portrait sessions show a tall portrait preview and 16:9 sessions show a flat
+ * landscape preview — accurately reflecting what the exported JPEG will look like.
+ *
+ * Safety caps prevent extreme portrait ratios (e.g. 9:16) from making the screen unusable:
+ * - Comparison height is capped at `availableWidth × 1.5` (max ~495dp at 330dp card width)
+ * - Comparison height is capped at [MAX_PREVIEW_COMPARISON_HEIGHT_DP] (500dp absolute)
+ * Normal formats (3:4, 1:1, 4:3, 16:9) render at their exact aspect ratio, uncapped.
+ *
+ * Comparison and caption share one unified rounded-rectangle dark background so the preview
+ * reads as a single export object. The screen is scrollable; portrait previews push Quality
+ * and Share controls below the fold, which is acceptable and expected.
+ *
+ * No bitmap rendering — decorative, excluded from accessibility tree via [clearAndSetSemantics].
  *
  * @param style Current comparison style (Slider or Side by side).
- * @param captionData Caption lines to show below the comparison; null = no caption area.
+ * @param captionData Pre-computed caption lines; null = no caption area rendered.
  * @param sessionDir Directory containing reference.jpg and capture.jpg.
- * @param viewportRatio Width ÷ height of the session viewport; drives comparison proportions.
+ * @param viewportRatio Width ÷ height of the session viewport; drives proportions.
  */
 @Composable
 fun ShareComparisonPreview(
@@ -77,45 +91,75 @@ fun ShareComparisonPreview(
         val availableW = maxWidth
         val safeRatio = if (viewportRatio > 0f) viewportRatio else (9f / 16f)
 
-        // Comparison area: width is at most availableW; height from ratio, capped
-        val compHeightFromWidth: Dp = availableW / safeRatio
-        val compH: Dp = minOf(compHeightFromWidth, MAX_PREVIEW_COMPARISON_HEIGHT_DP.dp)
-        val compW: Dp = compH * safeRatio
+        // Preview fills the full card width. Comparison height is style-dependent:
+        // - Slider uses the full available width per image (crop-fill), so height follows
+        //   the full-width viewport ratio.
+        // - Side by side gives each image only half the width (fit-fill), so the natural
+        //   image height is halfW / ratio. This avoids empty dark space above/below the images.
+        val compW: Dp = availableW
+        val compH: Dp = when (style) {
+            ShareComparisonStyle.SLIDER ->
+                (availableW / safeRatio)
+                    .coerceAtMost(availableW * 1.5f)              // narrow-portrait safety
+                    .coerceAtMost(MAX_PREVIEW_COMPARISON_HEIGHT_DP.dp)
+            ShareComparisonStyle.SIDE_BY_SIDE ->
+                ((availableW / 2) / safeRatio)                    // half width → half-width fit height
+                    .coerceAtMost(MAX_PREVIEW_COMPARISON_HEIGHT_DP.dp)
+        }
 
-        // Caption area: fixed compact height when content is present
         val hasCaptionContent = captionData != null && captionData.hasContent
-        val captionH: Dp = if (hasCaptionContent) 36.dp else 0.dp
 
-        // Total preview height: comparison + small gap + caption
-        val totalH: Dp = (compH + (if (hasCaptionContent) 8.dp else 0.dp) + captionH)
-            .coerceAtMost(MAX_TOTAL_PREVIEW_HEIGHT_DP.dp)
+        // Caption overhead: gap + approximate text height.
+        // Bottom canvas padding is provided by the bottom Spacer inside the Column.
+        val captionTotalH: Dp = if (hasCaptionContent) (6.dp + 36.dp) else 0.dp
 
+        // Uniform outer canvas padding on all four sides — makes the dark canvas visible
+        // around the comparison area, consistent regardless of caption state.
+        val outerPad = 4.dp
+
+        val totalH: Dp = (outerPad + compH + captionTotalH + outerPad)
+            .coerceAtMost(MAX_TOTAL_PREVIEW_HEIGHT_DP.dp) // 550dp absolute backstop
+
+        // Preview canvas: dark background visible on all sides around the comparison area.
+        // The Column padding creates consistent 4dp margins on top, left, and right.
+        // A bottom Spacer mirrors the top padding to complete the canvas framing.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(totalH)
+                .clip(RoundedCornerShape(ComparisonCornerRadius))
                 .background(CanvasBackground),
-            contentAlignment = Alignment.TopCenter
+            contentAlignment = Alignment.TopStart
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Comparison area
+            Column(modifier = Modifier.padding(start = outerPad, end = outerPad, top = outerPad)) {
+                // Comparison area — border is visible against the surrounding dark canvas.
                 Box(
                     modifier = Modifier
-                        .size(width = compW, height = compH)
+                        .fillMaxWidth()
+                        .height(compH)
                         .clip(RoundedCornerShape(ComparisonCornerRadius))
-                        .border(1.dp, ComparisonBorder, RoundedCornerShape(ComparisonCornerRadius))
+                        .border(
+                            1.dp,
+                            ComparisonBorder,
+                            RoundedCornerShape(ComparisonCornerRadius)
+                        )
                 ) {
                     when (style) {
-                        ShareComparisonStyle.SLIDER -> SliderPreviewContent(sessionDir, compW, compH)
-                        ShareComparisonStyle.SIDE_BY_SIDE -> SideBySidePreviewContent(sessionDir)
+                        ShareComparisonStyle.SLIDER ->
+                            SliderPreviewContent(sessionDir, compW, compH)
+                        ShareComparisonStyle.SIDE_BY_SIDE ->
+                            SideBySidePreviewContent(sessionDir)
                     }
                 }
 
-                // Caption area
+                // Caption area: gap above, left-aligned, no bottom padding (Spacer handles it).
                 if (hasCaptionContent && captionData != null) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    CaptionPreviewContent(captionData, compW)
+                    CaptionPreviewContent(captionData)
                 }
+
+                // Bottom canvas padding — always present, mirrors top outerPad.
+                Spacer(modifier = Modifier.height(outerPad))
             }
         }
     }
@@ -159,7 +203,7 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
                 modifier = Modifier.fillMaxSize()
             )
         }
-        // White divider at center
+        // White divider at centre
         androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
             drawLine(
                 color = Color.White,
@@ -168,7 +212,7 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
                 strokeWidth = 1.dp.toPx()
             )
         }
-        // SameView handle — blue circle with white arrows
+        // SameView handle — blue circle with white arrows, same geometry as export renderer
         val handleSize = minOf(compW.value * 0.15f, compH.value * 0.20f, 36f).dp
         Box(
             modifier = Modifier
@@ -178,22 +222,18 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
                 .background(SameViewAccent),
             contentAlignment = Alignment.Center
         ) {
-            androidx.compose.foundation.Canvas(
-                modifier = Modifier.size(handleSize)
-            ) {
+            androidx.compose.foundation.Canvas(modifier = Modifier.size(handleSize)) {
                 val unit = size.width / 48f
                 val cx = size.width / 2f
                 val cy = size.height / 2f
-                val arrowPaint = androidx.compose.ui.graphics.Paint().apply {
-                    color = Color.White
-                    strokeWidth = unit * 2.5f
-                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
-                    strokeJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-                }
                 val off = unit * 9f
                 val depth = unit * 4f
                 val halfH = unit * 7f
-
+                val arrowStroke = Stroke(
+                    width = unit * 2.5f,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                )
                 val leftPath = Path().apply {
                     moveTo(cx - off + depth, cy - halfH)
                     lineTo(cx - off - depth, cy)
@@ -204,12 +244,8 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
                     lineTo(cx + off + depth, cy)
                     lineTo(cx + off - depth, cy + halfH)
                 }
-                drawPath(leftPath, Color.White, style = Stroke(width = unit * 2.5f,
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                    join = androidx.compose.ui.graphics.StrokeJoin.Round))
-                drawPath(rightPath, Color.White, style = Stroke(width = unit * 2.5f,
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                    join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                drawPath(leftPath, Color.White, style = arrowStroke)
+                drawPath(rightPath, Color.White, style = arrowStroke)
             }
         }
     }
@@ -219,14 +255,19 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
 
 @Composable
 private fun SideBySidePreviewContent(sessionDir: File) {
+    // Fit semantics: both images are fully visible within their respective halves.
+    // Letterboxing may appear for aspect ratio mismatches, but both reference and capture
+    // are always shown in their entirety — the defining characteristic of Side by side.
+    // The dark canvas background fills any letterbox areas.
     Row(modifier = Modifier.fillMaxSize()) {
         AsyncImage(
             model = File(sessionDir, "reference.jpg"),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
+                .background(CanvasBackground)
         )
         Spacer(
             modifier = Modifier
@@ -237,10 +278,11 @@ private fun SideBySidePreviewContent(sessionDir: File) {
         AsyncImage(
             model = File(sessionDir, "capture.jpg"),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
+                .background(CanvasBackground)
         )
     }
 }
@@ -248,11 +290,13 @@ private fun SideBySidePreviewContent(sessionDir: File) {
 // ── Caption preview ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun CaptionPreviewContent(captionData: ShareCaptionData, compW: Dp) {
+private fun CaptionPreviewContent(captionData: ShareCaptionData) {
+    // Left-aligned at the image edge (4 dp additional inset beyond the outer canvas padding).
+    // Bottom breathing room is provided by the parent Column's bottom Spacer.
     Column(
         modifier = Modifier
-            .width(compW)
-            .padding(horizontal = 2.dp)
+            .fillMaxWidth()
+            .padding(start = 4.dp)
     ) {
         captionData.titleLine?.takeIf { it.isNotBlank() }?.let { title ->
             Text(

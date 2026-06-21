@@ -35,7 +35,7 @@ class ShareImageRenderer {
         // --- Rendering phase (CPU-bound) ---
         val (canvasBitmap, displayName) = withContext(Dispatchers.Default) {
             val viewport = readSessionViewport(config.sessionDir)
-            val dims = computeCanvasDimensions(viewport.first, viewport.second, config.quality, config.captionData)
+            val dims = computeCanvasDimensions(viewport.first, viewport.second, config.quality, config.captionData, config.style)
 
             val refFile = File(config.sessionDir, "reference.jpg")
             val capFile = File(config.sessionDir, "capture.jpg")

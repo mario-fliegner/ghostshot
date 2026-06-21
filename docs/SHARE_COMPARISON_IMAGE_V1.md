@@ -362,6 +362,19 @@ at the fixed horizontal midpoint, vertically centered.
 
 ### 10.3 Side by Side Rendering
 
+**Comparison area height is style-specific.** For Side by side, `compH` is set to
+`makeEven(sliderCompH / 2)` before canvas allocation. This is necessary because each image
+occupies only half the comparison width (`halfWidth = compW / 2`). With Fit semantics, the
+natural visible height in each half is:
+
+```text
+visibleH = halfWidth / ratio = (compW / 2) / (compW / compH) = compH / 2
+```
+
+Using the full Slider `compH` for Side by side would produce a comparison area twice as tall
+as the images it contains, leaving 50% of each half as empty dark space above and below the
+images. Setting `compH = compHBase / 2` ensures the images fill their slots exactly.
+
 For the Side by side style:
 
 1. Fill canvas with `#0D1424`
@@ -555,20 +568,65 @@ The live preview is a **Compose-only visual simulation** of the export canvas. I
 render of the actual export output. It uses `AsyncImage` (Coil) for the session images and a
 `Canvas` composable to simulate the comparison composition.
 
-Implementation mirrors `VideoModePreview.kt`:
-- `BoxWithConstraints` to measure available width
-- Session-viewport aspect ratio
-- Max height: 200 dp
-- Fills available card width horizontally
-- Background: `#0D1424`
-- Decorative: `Modifier.clearAndSetSemantics {}` (not in accessibility tree)
+The preview is **ratio-proportional**: its height is derived from the actual session viewport
+aspect ratio, so portrait sessions appear tall, landscape sessions flat, and square sessions
+square — accurately reflecting the exported JPEG's proportions.
+
+The preview fills the available card width (`compW = availableW`). **Comparison height is
+style-dependent** — Slider and Side by side have different natural heights because they give
+each image a different effective width:
+
+```text
+Slider:       compH = min(availableW / ratio,  availableW × 1.5,  500 dp)
+Side by side: compH = min((availableW / 2) / ratio,  500 dp)
+totalH        = min(compH + captionOverhead + outerPad×2,  550 dp)
+```
+
+**Why different heights:**
+
+- Slider gives each image the **full** preview width; height follows `availableW / ratio`.
+- Side by side gives each image **half** the preview width. With `ContentScale.Fit`, the natural
+  image height in each half is `(availableW / 2) / ratio`. Using the Slider height for Side by
+  side would leave 50% of the comparison area as empty dark space.
+
+The preview container changes height when the user switches between Slider and Side by side.
+This is correct and expected: the two styles have inherently different proportions.
+
+**Session format behaviour at 330 dp card width (halfW = 165 dp):**
+
+| Format | ratio | Slider compH | Side by side compH | SbS letterboxing |
+| --- | --- | --- | --- | --- |
+| 9:16 portrait | 0.5625 | 495 dp (1.5× cap) | **293 dp** (exact) | None |
+| 3:4 portrait | 0.75 | 440 dp (exact) | **220 dp** (exact) | None |
+| 1:1 square | 1.0 | 330 dp (exact) | **165 dp** (exact) | None |
+| 4:3 landscape | 1.333 | 248 dp (exact) | **124 dp** (exact) | None |
+| 16:9 landscape | 1.778 | 187 dp (exact) | **93 dp** (exact) | None |
+
+Side by side `compH` is always exactly half the Slider `compH` (before caps). With `ContentScale.Fit`,
+both images fill their respective half-width slots completely with no letterboxing.
+
+The screen is scrollable; portrait Slider previews push the Quality card and Share button below
+the initial fold. This is expected and consistent with `CreateVideoScreen` scroll behaviour.
+Side by side previews are significantly more compact and often fit without scrolling.
+
+**Outer canvas padding:** A uniform 4 dp inset surrounds the comparison area on all four sides
+within the preview canvas. This makes the dark `#0D1424` canvas visible around the comparison
+image, mirrors the outer padding of the actual export canvas, and ensures the comparison border
+(`#17202F`) is visually legible against the dark background. The padding is constant regardless
+of caption state — the preview always looks like a framed export object.
 
 **Slider preview:** Static 50/50 split with a visible centered vertical divider line and the
 SameView handle (filled `SameViewAccent` circle with directional arrows) at the divider
-midpoint. The handle in the preview matches the exported image handle visually. No animation.
+midpoint. Images use `ContentScale.Crop` — consistent with the export's Fill semantics. No
+animation.
 
-**Side by side preview:** Two equal halves, each showing the respective session image, with a
-thin vertical separator.
+**Side by side preview:** Two equal halves separated by a 1 dp line. Images use
+`ContentScale.Fit` — both reference and capture are always fully visible within their respective
+halves. Letterboxing may appear when the image aspect ratio does not match the half-slot
+proportions; this is correct and expected behaviour, as it preserves the complete image rather
+than cropping. The dark `#0D1424` canvas background fills any letterbox areas. `ContentScale.Fit`
+is the defining requirement for Side by side: both images must be shown in their entirety, which
+is the visual distinction from the Slider style.
 
 **Caption preview:** Caption lines rendered below the comparison area in the preview, matching
 the font weight and hierarchy (bold date pair, regular title/location), but at a fixed readable

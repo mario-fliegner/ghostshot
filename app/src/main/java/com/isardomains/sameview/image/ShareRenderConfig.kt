@@ -62,17 +62,22 @@ private const val LINE_SPACING = 1.20f
  * @param viewportH Session viewport height.
  * @param quality Output resolution tier.
  * @param captionData Caption lines; used to estimate caption area height.
+ * @param style Export style. Side by side sets [CanvasDimensions.compH] to half the Slider value
+ *   because each image occupies only half the comparison width; with Fit semantics the natural
+ *   visible height is `(compW / 2) / ratio = compH / 2`. Without this adjustment the comparison
+ *   area would be twice as tall as the visible image content, producing large empty dark zones.
  */
 internal fun computeCanvasDimensions(
     viewportW: Int,
     viewportH: Int,
     quality: ShareQuality,
-    captionData: ShareCaptionData?
+    captionData: ShareCaptionData?,
+    style: ShareComparisonStyle = ShareComparisonStyle.SLIDER
 ): CanvasDimensions {
     require(viewportW > 0 && viewportH > 0) { "Viewport dimensions must be positive" }
 
-    // 1. Scale comparison area to quality tier.
-    val (compW, compH) = when (quality) {
+    // 1. Scale comparison area to quality tier (full viewport ratio, style-agnostic).
+    val (compW, compHBase) = when (quality) {
         ShareQuality.STANDARD -> {
             val longest = maxOf(viewportW, viewportH)
             if (longest <= MAX_COMPARISON_LONGEST_EDGE) {
@@ -85,14 +90,23 @@ internal fun computeCanvasDimensions(
         ShareQuality.ORIGINAL -> Pair(makeEven(viewportW), makeEven(viewportH))
     }
 
-    // 2. Outer padding proportional to shortest comparison dimension.
+    // 2. Apply style-specific comparison height.
+    //    Side by side: each image occupies halfW = compW / 2. With ContentScale.Fit the
+    //    natural visible height is halfW / ratio = compHBase / 2. Using the full compHBase
+    //    would produce 50% empty dark space above and below every image.
+    val compH = when (style) {
+        ShareComparisonStyle.SLIDER -> compHBase
+        ShareComparisonStyle.SIDE_BY_SIDE -> makeEven(compHBase / 2)
+    }
+
+    // 3. Outer padding proportional to shortest comparison dimension.
     val outerPad = (minOf(compW, compH) * OUTER_PADDING_FRACTION).toInt().coerceAtLeast(4)
 
-    // 3. Caption area height estimate.
+    // 4. Caption area height estimate.
     val captionH = estimateCaptionHeight(captionData, compW, compH)
     val captionGap = if (captionH > 0) (compH * CAPTION_GAP_FRACTION).toInt().coerceAtLeast(4) else 0
 
-    // 4. Full canvas.
+    // 5. Full canvas.
     val canvasW = makeEven(compW + 2 * outerPad)
     val canvasH = makeEven(compH + 2 * outerPad + captionGap + captionH)
 

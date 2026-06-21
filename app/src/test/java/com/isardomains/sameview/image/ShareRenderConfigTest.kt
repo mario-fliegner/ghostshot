@@ -11,7 +11,7 @@ class ShareRenderConfigTest {
 
     @Test
     fun standard_viewportFitsIn2048_noScalingApplied() {
-        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null)
+        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         // comparison area <= 2048 on longest edge
         assertTrue(maxOf(dims.compW, dims.compH) <= MAX_COMPARISON_LONGEST_EDGE)
         assertEquals(1080, dims.compW)
@@ -20,7 +20,7 @@ class ShareRenderConfigTest {
 
     @Test
     fun standard_viewportExceeds2048_scaledDown() {
-        val dims = computeCanvasDimensions(3024, 4032, ShareQuality.STANDARD, null)
+        val dims = computeCanvasDimensions(3024, 4032, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         assertTrue(maxOf(dims.compW, dims.compH) <= MAX_COMPARISON_LONGEST_EDGE)
         // Aspect ratio preserved: 3024:4032 = 3:4
         val ratio = dims.compH.toDouble() / dims.compW.toDouble()
@@ -29,7 +29,7 @@ class ShareRenderConfigTest {
 
     @Test
     fun original_usesViewportDimensionsDirectly() {
-        val dims = computeCanvasDimensions(3024, 4032, ShareQuality.ORIGINAL, null)
+        val dims = computeCanvasDimensions(3024, 4032, ShareQuality.ORIGINAL, null, ShareComparisonStyle.SLIDER)
         assertEquals(3024, dims.compW)
         assertEquals(4032, dims.compH)
     }
@@ -37,7 +37,7 @@ class ShareRenderConfigTest {
     @Test
     fun canvasDimensions_alwaysEven() {
         // Feed an odd-ish viewport to trigger rounding
-        val dims = computeCanvasDimensions(1081, 1921, ShareQuality.STANDARD, null)
+        val dims = computeCanvasDimensions(1081, 1921, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         assertEquals(0, dims.compW % 2)
         assertEquals(0, dims.compH % 2)
         assertEquals(0, dims.canvasW % 2)
@@ -46,22 +46,22 @@ class ShareRenderConfigTest {
 
     @Test
     fun canvas_largerThanComparison_dueToPadding() {
-        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null)
+        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         assertTrue(dims.canvasW > dims.compW)
         assertTrue(dims.canvasH > dims.compH)
     }
 
     @Test
     fun canvas_withCaption_tallerThanWithout() {
-        val noCaptionDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null)
+        val noCaptionDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         val withCaptionData = ShareCaptionData(titleLine = "My title", dateLine = "2008 → 2026", locationLine = null)
-        val captionDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, withCaptionData)
+        val captionDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, withCaptionData, ShareComparisonStyle.SLIDER)
         assertTrue(captionDims.canvasH > noCaptionDims.canvasH)
     }
 
     @Test
     fun canvas_withoutCaption_compTopPlusCompHeightPlusCompTopEqualsCanvasH() {
-        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null)
+        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         // canvasH = compH + 2 * outerPad (no caption)
         val expected = dims.compH + 2 * dims.outerPad
         // Allow ± 2 for even-rounding adjustments
@@ -125,5 +125,32 @@ class ShareRenderConfigTest {
         val data = ShareCaptionData(titleLine = "   ", dateLine = null, locationLine = null)
         assertFalse(data.hasContent)
         assertEquals(0, data.lineCount)
+    }
+
+    // --- Style-dependent compH (Side by side fix) ---
+
+    @Test
+    fun sideBySide_compH_isHalfOfSlider() {
+        // For any viewport, Side by side compH must equal Slider compH / 2.
+        // This ensures Fit-scaled images fill each half-width slot without empty dark zones.
+        val sliderDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
+        val sbsDims    = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SIDE_BY_SIDE)
+
+        assertEquals("SbS compH must be half of Slider compH", sliderDims.compH / 2, sbsDims.compH)
+        assertEquals("compW must be unchanged between styles", sliderDims.compW, sbsDims.compW)
+    }
+
+    @Test
+    fun sideBySide_canvasH_isCorrect() {
+        // Verify that the full canvas height reflects the reduced comparison height.
+        val sbsDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SIDE_BY_SIDE)
+
+        // compH must be 960 (1920 / 2), canvasH = compH + 2 * outerPad (no caption)
+        assertEquals(960, sbsDims.compH)
+        val expectedCanvasH = sbsDims.compH + 2 * sbsDims.outerPad
+        assertTrue(
+            "canvasH (${sbsDims.canvasH}) must be close to compH + 2*outerPad ($expectedCanvasH)",
+            kotlin.math.abs(sbsDims.canvasH - expectedCanvasH) <= 2
+        )
     }
 }
