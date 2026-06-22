@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -53,6 +54,8 @@ class SettingsScreenTest {
         liveDirectionArrow: Boolean = false,
         onLiveDirectionArrowChanged: (Boolean) -> Unit = {},
         showLocationPermissionDeniedHint: Boolean = false,
+        stripOriginalsMetadata: Boolean = false,
+        onStripOriginalsMetadataChanged: (Boolean) -> Unit = {},
         onBack: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -79,6 +82,8 @@ class SettingsScreenTest {
                         liveDirectionArrow = liveDirectionArrow,
                         onLiveDirectionArrowChanged = onLiveDirectionArrowChanged,
                         showLocationPermissionDeniedHint = showLocationPermissionDeniedHint,
+                        stripOriginalsMetadata = stripOriginalsMetadata,
+                        onStripOriginalsMetadataChanged = onStripOriginalsMetadataChanged,
                         onBack = onBack
                     )
                 }
@@ -344,6 +349,31 @@ class SettingsScreenTest {
         )
 
         composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, received)
+    }
+
+    @Test
+    fun privacyCardTitle_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_privacy_title))
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun stripOriginalsMetadataToggle_callsCallback_whenClicked() {
+        var received: Boolean? = null
+        setContent(
+            stripOriginalsMetadata = false,
+            onStripOriginalsMetadataChanged = { received = it }
+        )
+
+        composeRule.onNodeWithTag("settings_strip_originals_metadata")
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         assertEquals(true, received)

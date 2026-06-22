@@ -39,6 +39,7 @@ class SettingsRepository @Inject constructor(
         val BRANDING_ENABLED = booleanPreferencesKey("branding_enabled")
         val LIBRARY_FILTER = stringPreferencesKey("library_filter")
         val LIBRARY_SORT_ORDER = stringPreferencesKey("library_sort_order")
+        val STRIP_ORIGINALS_METADATA = booleanPreferencesKey("strip_originals_metadata")
     }
 
     private val preferences: Flow<Preferences> = dataStore.data
@@ -146,6 +147,17 @@ class SettingsRepository @Inject constructor(
     suspend fun setLibrarySortOrder(order: LibrarySortOrder) {
         dataStore.edit { prefs ->
             prefs[Keys.LIBRARY_SORT_ORDER] = order.storedValue
+        }
+    }
+
+    /** Whether to strip EXIF/GPS/camera metadata from stored session originals; default false. */
+    val stripOriginalsMetadata: Flow<Boolean> = preferences.map { prefs ->
+        prefs[Keys.STRIP_ORIGINALS_METADATA] ?: false
+    }
+
+    suspend fun setStripOriginalsMetadata(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.STRIP_ORIGINALS_METADATA] = enabled
         }
     }
 }

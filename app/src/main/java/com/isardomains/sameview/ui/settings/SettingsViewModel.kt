@@ -101,4 +101,13 @@ class SettingsViewModel @Inject constructor(
             runCatching { repository.setRecreationGuidance(granted) }
         }
     }
+
+    val stripOriginalsMetadata: StateFlow<Boolean> = repository.stripOriginalsMetadata
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun onStripOriginalsMetadataChanged(enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { repository.setStripOriginalsMetadata(enabled) }
+        }
+    }
 }

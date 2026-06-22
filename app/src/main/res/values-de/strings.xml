@@ -134,6 +134,11 @@
     <string name="settings_live_direction_arrow_description">Zeigt mithilfe der Gerätesensoren die Richtung zum Referenzstandort an. Die Genauigkeit kann je nach Umgebung variieren.</string>
     <string name="gps_guidance_chip_description">GPS-Navigation</string>
 
+    <!-- Settings: Datenschutz -->
+    <string name="settings_privacy_title">Datenschutz</string>
+    <string name="settings_strip_originals_metadata_title">Metadaten aus Originalen entfernen</string>
+    <string name="settings_strip_originals_metadata_description">Speichert Session-Originale in voller Auflösung ohne EXIF-, GPS-, Kamera- oder Geräteinformationen. Ursprüngliche Dateiformate können dabei bei Bedarf konvertiert werden.</string>
+
     <!-- About -->
     <string name="about_screen_title">Über SameView</string>
     <string name="about_back">Zurück</string>

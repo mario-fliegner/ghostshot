@@ -43,6 +43,8 @@ class SettingsViewModelTest {
         whenever(repository.resetOverlayAfterCapture).thenReturn(MutableStateFlow(false))
         whenever(repository.autoOpenCompareAfterCapture).thenReturn(MutableStateFlow(false))
         whenever(repository.recreationGuidance).thenReturn(recreationGuidanceFlow)
+        whenever(repository.liveDirectionArrow).thenReturn(MutableStateFlow(false))
+        whenever(repository.stripOriginalsMetadata).thenReturn(MutableStateFlow(false))
         whenever(locationPermissionChecker.isGranted()).thenReturn(false)
         viewModel = SettingsViewModel(repository, locationPermissionChecker)
     }
@@ -180,5 +182,40 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         verify(repository).setRecreationGuidance(true)
+    }
+
+    @Test
+    fun stripOriginalsMetadata_defaultIsFalse() {
+        assertEquals(false, viewModel.stripOriginalsMetadata.value)
+    }
+
+    @Test
+    fun onStripOriginalsMetadataChanged_true_callsRepository() = runTest {
+        viewModel.onStripOriginalsMetadataChanged(true)
+        advanceUntilIdle()
+        verify(repository).setStripOriginalsMetadata(true)
+    }
+
+    @Test
+    fun onStripOriginalsMetadataChanged_false_callsRepository() = runTest {
+        viewModel.onStripOriginalsMetadataChanged(false)
+        advanceUntilIdle()
+        verify(repository).setStripOriginalsMetadata(false)
+    }
+
+    @Test
+    fun stripOriginalsMetadata_updatesWhenRepositoryFlowChanges() = runTest {
+        val stripFlow = MutableStateFlow(false)
+        whenever(repository.stripOriginalsMetadata).thenReturn(stripFlow)
+        viewModel = SettingsViewModel(repository, locationPermissionChecker)
+
+        val collected = mutableListOf<Boolean>()
+        val job = launch { viewModel.stripOriginalsMetadata.collect { collected.add(it) } }
+
+        stripFlow.value = true
+        advanceUntilIdle()
+
+        assertEquals(true, collected.last())
+        job.cancel()
     }
 }

@@ -58,6 +58,7 @@ fun SettingsScreen(
     val autoOpenCompareAfterCapture by viewModel.autoOpenCompareAfterCapture.collectAsStateWithLifecycle()
     val recreationGuidance by viewModel.recreationGuidance.collectAsStateWithLifecycle()
     val liveDirectionArrow by viewModel.liveDirectionArrow.collectAsStateWithLifecycle()
+    val stripOriginalsMetadata by viewModel.stripOriginalsMetadata.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     var showRationaleDialog by remember { mutableStateOf(false) }
@@ -136,6 +137,8 @@ fun SettingsScreen(
         liveDirectionArrow = liveDirectionArrow,
         onLiveDirectionArrowChanged = viewModel::onLiveDirectionArrowChanged,
         showLocationPermissionDeniedHint = showPermissionDeniedHint,
+        stripOriginalsMetadata = stripOriginalsMetadata,
+        onStripOriginalsMetadataChanged = viewModel::onStripOriginalsMetadataChanged,
         windowWidthSizeClass = windowWidthSizeClass,
         onBack = onBack
     )
@@ -157,6 +160,8 @@ internal fun SettingsScreenContent(
     liveDirectionArrow: Boolean,
     onLiveDirectionArrowChanged: (Boolean) -> Unit,
     showLocationPermissionDeniedHint: Boolean = false,
+    stripOriginalsMetadata: Boolean = false,
+    onStripOriginalsMetadataChanged: (Boolean) -> Unit = {},
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     onBack: () -> Unit
 ) {
@@ -260,6 +265,19 @@ internal fun SettingsScreenContent(
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
+            SettingsCard(title = stringResource(R.string.settings_privacy_title)) {
+                StripOriginalsMetadataRow(
+                    checked = stripOriginalsMetadata,
+                    onCheckedChange = onStripOriginalsMetadataChanged
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_strip_originals_metadata_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SameViewSettingsSecondaryText,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
             } // inner Column
         } // outer Column
     }
@@ -329,5 +347,18 @@ private fun LiveDirectionArrowRow(
         enabled = enabled,
         onCheckedChange = onCheckedChange,
         testTag = "settings_live_direction_arrow"
+    )
+}
+
+@Composable
+private fun StripOriginalsMetadataRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    SettingsSwitchRow(
+        label = stringResource(R.string.settings_strip_originals_metadata_title),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        testTag = "settings_strip_originals_metadata"
     )
 }
