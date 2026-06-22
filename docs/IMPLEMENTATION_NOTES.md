@@ -259,7 +259,7 @@ Entry points:
 
 ZIP format:
 - One subdirectory per session, named by session ID
-- Each subdirectory contains all four session files: `capture.jpg`, `reference.jpg`, `reference-original.jpg`, `metadata.json`
+- File set is metadata-driven: all filenames declared in `files.*` block plus `metadata.json` — v4 sessions export 4 files; v5 sessions export 6 files including `capture-original.jpg` and `reference-source-original.[ext]`
 - Files written byte-for-byte without modification (no re-encoding, no EXIF stripping, no GPS stripping)
 
 Operation locks:
@@ -275,9 +275,16 @@ Feedback:
 
 ### Session Storage
 - Successful captures with an active reference can create an internal session under `filesDir/sessions/<sessionId>/`
-- Each session stores `capture.jpg`, `reference.jpg`, and `metadata.json`
-- `metadata.json` schema is **v4** (bumped from v3 in Block A, 2026-06-09): includes `capture.timestampMs` as the canonical capture timestamp inside the `capture` block; `session.createdAtMs` is preserved for backward compatibility and carries the same value
-- `SessionScanner` accepts versions {2, 3, 4}; reads `capture.timestampMs` as primary timestamp source, falls back to `session.createdAtMs` for v2/v3 sessions that have no `capture` block
+- **Session Originals (2026-06-22):** schema is now **v5**. Each new session contains six files: `capture.jpg`, `capture-original.jpg`, `reference.jpg`, `reference-original.jpg`, `reference-source-original.[ext]`, `metadata.json`. Full specification: `SESSION_ORIGINALS_V1.md`.
+  - `capture-original.jpg` is a byte-for-byte copy of the committed MediaStore file (quality 95, all EXIF intact)
+  - `reference-source-original.[ext]` is a byte-for-byte copy of the reference source URI; extension derived from MIME type (`image/jpeg` → `.jpg`, `image/heic`/`image/heif` → `.heic`, `null`/unknown → `.bin`)
+  - Compare uses only `capture.jpg` + `reference.jpg` — originals are provenance files for future HQ export
+  - `metadata.json` v5 writes `reference.sourceUri` (correcting the v2–v4 misnomer `reference.sourceDisplayName`); writes `reference.sourceMimeType` when non-null
+  - `files.*` block contains all six filenames including the format-specific `referenceSourceOriginal` name
+- `SessionScanner` accepts versions {2, 3, 4, 5}; v5 additionally validates that the files referenced in `files.captureOriginal` and `files.referenceSourceOriginal` exist on disk; v2/v3/v4 sessions without original files remain fully valid
+- `SessionBackupExporter` is metadata-driven: reads the `files.*` block from each session's `metadata.json` to determine which files to export; handles v4 (4 files) and v5 (6 files) uniformly; variable-extension originals are handled automatically
+- `EditSessionViewModel` reads `reference.sourceUri` first (v5), falls back to `reference.sourceDisplayName` (v2–v4)
+- `metadata.json` schema is **v4** through 2026-06-21 (bumped from v3 in Block A, 2026-06-09): includes `capture.timestampMs` as the canonical capture timestamp inside the `capture` block; `session.createdAtMs` is preserved for backward compatibility and carries the same value
 - `metadata.json` contains an `additional` block at session creation with fixed defaults: `isFavorite: false`, `visibility: "private"`, `source: "sameview"` (Block B, 2026-06-09); UI and update endpoint implemented 2026-06-20 via `SessionStorage.updateFavorite()` and `CameraViewModel.toggleFavorite()`
 - `content` block is absent at session creation when no title is present (Block C, 2026-06-09); fixes §12.1 violation where `description: null` and `tags: []` were pre-populated; `updateTitle()` handles absent `content` block correctly via `optJSONObject("content") ?: JSONObject()`
 - `reference.date` EXIF auto-population implemented (Block D, 2026-06-09): at session creation, `ReferenceImageMetadataReader` reads EXIF `DateTimeOriginal` and parses it to `"YYYY-MM-DD"`; plausibility filter rejects years < 1826 or > current year; non-lenient `Calendar` rejects invalid month/day values (e.g. month=99, Feb 31); when present, `reference.date`, `reference.dateSource = "exif"`, and `reference.userEdited = false` are written into the `reference` block; when absent or implausible, the three fields are omitted entirely; `ReferenceImageMetadata.exifDateTimeOriginal` is the carrier (trailing default `null`, no call-site changes required)
@@ -775,6 +782,15 @@ Latest verified test state (Session Backup Export complete):
 - Manual device smoke test — completed on SM-S911B: single-session backup, multi-session backup, Select All + Backup, SAF cancel no-op, success snackbar, ZIP structure verified
 
 No open Session Backup Export implementation tasks remain.
+
+Latest verified test state (Session Originals — Blocks A–F complete, 2026-06-22):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL (642 tests, 0 failed); includes 14 `ResolveExtensionForMimeTypeTest`, 3 `EditSessionViewModelTest` Block-F tests, updated `SessionBackupExporterTest` (v5/metadata-driven)
+- `assembleDebug` — BUILD SUCCESSFUL
+- `assembleRelease` — BUILD SUCCESSFUL
+- `connectedDebugAndroidTest` full suite — **610/610 PASSED** on SM-S911B (Android 16); includes `SessionStorageMetadataTest` (byte-identity, sourceMimeType, sourceUri), `SessionScannerTest` (v5 validation, backward compat), `SessionBackupExporterInstrumentedTest` (v4/v5 ZIP structure)
+
+No open Session Originals tasks remain.
 
 Latest verified test state (Video Export Blocks 1–2 complete):
 

@@ -27,7 +27,7 @@ internal object SessionScanner {
     private const val TAG = "SessionScanner"
     private const val SESSIONS_DIR = "sessions"
     private const val METADATA_FILE = "metadata.json"
-    private val SUPPORTED_VERSIONS = setOf(2, 3, 4)
+    private val SUPPORTED_VERSIONS = setOf(2, 3, 4, 5)
 
     fun scan(context: Context): List<ScannedSession> = scan(File(context.filesDir, SESSIONS_DIR))
 
@@ -148,6 +148,38 @@ internal object SessionScanner {
         if (!capFile.exists() || !capFile.isFile) {
             if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.capture $captureFile not found on disk") }
             return null
+        }
+
+        // v5: additionally validate the two original files declared in the files block.
+        // Versions 2, 3, and 4 are not affected by these checks.
+        if (version == 5) {
+            val captureOriginalFile = filesObj.optString("captureOriginal", "")
+            if (captureOriginalFile.isEmpty()) {
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.captureOriginal missing or empty in v5") }
+                return null
+            }
+            if (!isSafeFilename(captureOriginalFile)) {
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.captureOriginal is unsafe — $captureOriginalFile") }
+                return null
+            }
+            if (!File(sessionDir, captureOriginalFile).let { it.exists() && it.isFile }) {
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.captureOriginal $captureOriginalFile not found on disk") }
+                return null
+            }
+
+            val referenceSourceOriginalFile = filesObj.optString("referenceSourceOriginal", "")
+            if (referenceSourceOriginalFile.isEmpty()) {
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.referenceSourceOriginal missing or empty in v5") }
+                return null
+            }
+            if (!isSafeFilename(referenceSourceOriginalFile)) {
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.referenceSourceOriginal is unsafe — $referenceSourceOriginalFile") }
+                return null
+            }
+            if (!File(sessionDir, referenceSourceOriginalFile).let { it.exists() && it.isFile }) {
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.referenceSourceOriginal $referenceSourceOriginalFile not found on disk") }
+                return null
+            }
         }
 
         val contentObj: JSONObject? = json.optJSONObject("content")

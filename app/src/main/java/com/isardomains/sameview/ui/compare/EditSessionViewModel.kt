@@ -267,7 +267,11 @@ class EditSessionViewModel @Inject constructor(
                 locationCity = locationObj?.optString("city", "") ?: "",
                 locationCountry = locationObj?.optString("country", "") ?: "",
                 captureTimestampMs = captureObj?.optLong("timestampMs", 0L) ?: 0L,
-                referenceSourceDisplayName = referenceObj?.optString("sourceDisplayName", "") ?: "",
+                referenceSourceDisplayName = referenceObj?.run {
+                    // v5 sessions write "sourceUri"; v2–v4 sessions write "sourceDisplayName".
+                    optString("sourceUri", "").ifEmpty { null }
+                        ?: optString("sourceDisplayName", "").ifEmpty { null }
+                } ?: "",
                 isFavorite = additionalObj?.optBoolean("isFavorite", false) ?: false
             )
         }

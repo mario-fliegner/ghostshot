@@ -102,6 +102,9 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockito.kotlin)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    // Provides a real org.json implementation for JVM unit tests, replacing the Android SDK stub
+    // that returns null for all methods (isReturnDefaultValues = true).
+    testImplementation("org.json:json:20231013")
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

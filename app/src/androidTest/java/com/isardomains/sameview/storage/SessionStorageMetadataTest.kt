@@ -14,6 +14,7 @@ import com.isardomains.sameview.ui.camera.SessionScanner
 import com.isardomains.sameview.ui.camera.SessionStorage
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -31,7 +32,8 @@ class SessionStorageMetadataTest {
     private val appContext = InstrumentationRegistry.getInstrumentation().targetContext
     private val testRoot = File(appContext.filesDir, "session-tests/SessionStorageMetadataTest")
 
-    private val captureMediaStoreUri = Uri.parse("content://test/capture/123")
+    // Initialized in setUp() to a real file URI so writeCaptureOriginal() can open an InputStream.
+    private lateinit var captureMediaStoreUri: Uri
 
     // Fixed snapshot values used in saveTestSession() — referenced in assertion tests.
     private val testViewportWidth = 80
@@ -44,6 +46,10 @@ class SessionStorageMetadataTest {
     @Before
     fun clearSessions() {
         cleanTestRoot()
+        // Create a minimal JPEG stub in cacheDir so writeCaptureOriginal() can open an InputStream.
+        val tempCapture = File(appContext.cacheDir, "test_capture.jpg")
+        tempCapture.writeBytes(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x01))
+        captureMediaStoreUri = Uri.fromFile(tempCapture)
     }
 
     @After
@@ -145,9 +151,9 @@ class SessionStorageMetadataTest {
     }
 
     @Test
-    fun metadataFile_containsVersion4() {
+    fun metadataFile_containsVersion5() {
         val json = readMetadata(saveTestSession())
-        assertEquals(4, json.getInt("version"))
+        assertEquals(5, json.getInt("version"))
     }
 
     @Test
@@ -189,16 +195,79 @@ class SessionStorageMetadataTest {
     }
 
     @Test
+    fun metadataFile_files_containsCaptureOriginal() {
+        val json = readMetadata(saveTestSession())
+        assertEquals("capture-original.jpg", json.getJSONObject("files").getString("captureOriginal"))
+    }
+
+    @Test
+    fun metadataFile_files_containsReferenceSourceOriginal() {
+        val json = readMetadata(saveTestSession())
+        val refSourceOriginal = json.getJSONObject("files").getString("referenceSourceOriginal")
+        assertTrue("referenceSourceOriginal must start with 'reference-source-original.'",
+            refSourceOriginal.startsWith("reference-source-original."))
+    }
+
+    @Test
+    fun captureOriginalFile_exists() {
+        val sessionDir = saveTestSession()
+        assertTrue(File(sessionDir, "capture-original.jpg").exists())
+    }
+
+    @Test
+    fun referenceSourceOriginalFile_exists() {
+        val sessionDir = saveTestSession()
+        val json = readMetadata(sessionDir)
+        val filename = json.getJSONObject("files").getString("referenceSourceOriginal")
+        assertTrue(File(sessionDir, filename).exists())
+    }
+
+    @Test
+    fun captureOriginalFile_isByteIdenticalToCaptureSource() {
+        val sessionDir = saveTestSession()
+        val srcBytes = File(appContext.cacheDir, "test_capture.jpg").readBytes()
+        val sessionBytes = File(sessionDir, "capture-original.jpg").readBytes()
+        assertArrayEquals(srcBytes, sessionBytes)
+    }
+
+    @Test
+    fun referenceSourceOriginalFile_isByteIdenticalToReferenceSource() {
+        val sessionDir = saveTestSession()
+        val srcBytes = File(appContext.cacheDir, "test_reference.jpg").readBytes()
+        val json = readMetadata(sessionDir)
+        val filename = json.getJSONObject("files").getString("referenceSourceOriginal")
+        val sessionBytes = File(sessionDir, filename).readBytes()
+        assertArrayEquals(srcBytes, sessionBytes)
+    }
+
+    @Test
+    fun metadataFile_reference_sourceMimeType_whenPresentIsNotBlank() {
+        val json = readMetadata(saveTestSession())
+        val refObj = json.getJSONObject("reference")
+        if (refObj.has("sourceMimeType")) {
+            assertTrue("sourceMimeType must not be blank when present",
+                refObj.getString("sourceMimeType").isNotBlank())
+        }
+        // When sourceMimeType is absent (e.g. null MIME from file:// URI), that is also valid.
+    }
+
+    @Test
+    fun metadataFile_reference_doesNotContainSourceDisplayName() {
+        val json = readMetadata(saveTestSession())
+        assertFalse(json.getJSONObject("reference").has("sourceDisplayName"))
+    }
+
+    @Test
     fun metadataFile_capture_containsMediaStoreUri() {
         val json = readMetadata(saveTestSession())
         assertEquals(captureMediaStoreUri.toString(), json.getJSONObject("capture").getString("mediaStoreUri"))
     }
 
     @Test
-    fun metadataFile_reference_containsSourceDisplayName() {
+    fun metadataFile_reference_containsSourceUri() {
         val tempFile = File(appContext.cacheDir, "test_reference.jpg")
         val json = readMetadata(saveTestSession())
-        assertEquals(Uri.fromFile(tempFile).toString(), json.getJSONObject("reference").getString("sourceDisplayName"))
+        assertEquals(Uri.fromFile(tempFile).toString(), json.getJSONObject("reference").getString("sourceUri"))
     }
 
     // ── New v2 block assertions ───────────────────────────────────────────────

@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import android.provider.MediaStore
 import android.util.Log
 import com.isardomains.sameview.AppConstants
 import com.isardomains.sameview.BuildConfig
@@ -27,9 +28,18 @@ internal data class SavedSessionRef(
     val referenceDate: String? = null
 )
 
+/** Result of [SessionStorage.writeReferenceSourceOriginal]. */
+internal data class ReferenceSourceOriginalResult(
+    val filename: String,
+    val mimeType: String?
+)
+
 /**
- * Writes a v4 session (capture.jpg + reference-original.jpg + reference.jpg + metadata.json)
- * to app-internal storage under filesDir/sessions/YYYY-MM-DD_HH-mm-ss/.
+ * Writes a v5 session (all six files) to app-internal storage under
+ * filesDir/sessions/YYYY-MM-DD_HH-mm-ss/.
+ *
+ * Write order: capture-original.jpg → reference-source-original.[ext] → capture.jpg
+ * → reference-original.jpg → reference.jpg → metadata.json (always last).
  *
  * A session is only created as a complete set. If any file cannot be written,
  * the session directory is removed so no partial session is ever left on disk.
@@ -45,7 +55,9 @@ internal object SessionStorage {
     private const val FILE_CAPTURE = "capture.jpg"
     private const val FILE_REFERENCE = "reference.jpg"
     private const val FILE_REFERENCE_ORIGINAL = "reference-original.jpg"
-    private const val METADATA_VERSION = 4
+    private const val FILE_CAPTURE_ORIGINAL = "capture-original.jpg"
+    private const val FILE_REFERENCE_SOURCE_ORIGINAL_BASE = "reference-source-original"
+    private const val METADATA_VERSION = 5
     private const val JPEG_QUALITY = 90
 
     /**
@@ -85,9 +97,11 @@ internal object SessionStorage {
             if (!sessionDir.mkdirs()) {
                 throw IOException("Could not create session directory: $sessionDir")
             }
+            val captureOriginalFilename = writeCaptureOriginal(context, captureMediaStoreUri, sessionDir)
+            val referenceSourceOriginalResult = writeReferenceSourceOriginal(context, snapshot.referenceImageUri, sessionDir)
             writeCapture(capturedBitmap, sessionDir, snapshot.gpsSnapshot)
             writeReferenceOriginalAndReference(context, snapshot, sessionDir)
-            writeMetadata(sessionDir, sessionTimestampMs, snapshot, captureMediaStoreUri)
+            writeMetadata(sessionDir, sessionTimestampMs, snapshot, captureMediaStoreUri, captureOriginalFilename, referenceSourceOriginalResult)
             if (BuildConfig.DEBUG) { Log.d(TAG, "Session saved") }
             return SavedSessionRef(
                 sessionId = sessionDir.name,
@@ -480,7 +494,9 @@ internal object SessionStorage {
         sessionDir: File,
         sessionTimestampMs: Long,
         snapshot: CaptureSessionSnapshot,
-        captureMediaStoreUri: Uri
+        captureMediaStoreUri: Uri,
+        captureOriginalFilename: String,
+        referenceSourceOriginalResult: ReferenceSourceOriginalResult
     ) {
         val orientation = if (snapshot.viewportWidth > snapshot.viewportHeight) "LANDSCAPE" else "PORTRAIT"
         val json = JSONObject().apply {
@@ -491,8 +507,10 @@ internal object SessionStorage {
             })
             put("files", JSONObject().apply {
                 put("capture", FILE_CAPTURE)
+                put("captureOriginal", captureOriginalFilename)
                 put("reference", FILE_REFERENCE)
                 put("referenceOriginal", FILE_REFERENCE_ORIGINAL)
+                put("referenceSourceOriginal", referenceSourceOriginalResult.filename)
             })
             put("capture", JSONObject().apply {
                 put("timestampMs", sessionTimestampMs)
@@ -523,7 +541,9 @@ internal object SessionStorage {
                 }
             }
             put("reference", JSONObject().apply {
-                put("sourceDisplayName", snapshot.referenceImageUri.toString())
+                put("sourceUri", snapshot.referenceImageUri.toString())
+                val mimeType = referenceSourceOriginalResult.mimeType
+                if (!mimeType.isNullOrBlank()) put("sourceMimeType", mimeType)
                 put("originalWidth", snapshot.referenceImageMetadata.rawWidth)
                 put("originalHeight", snapshot.referenceImageMetadata.rawHeight)
                 put("orientedWidth", snapshot.referenceImageMetadata.orientedWidth)
@@ -597,5 +617,91 @@ internal object SessionStorage {
         } else {
             source
         }
+    }
+
+    /**
+     * Maps a MIME type string to a file extension for [FILE_REFERENCE_SOURCE_ORIGINAL_BASE].
+     *
+     * Returns `.bin` for null, empty, or unrecognized MIME types so the bytes are preserved
+     * without asserting a format that cannot be confirmed.
+     */
+    internal fun resolveExtensionForMimeType(mimeType: String?): String = when (mimeType?.lowercase()) {
+        "image/jpeg" -> ".jpg"
+        "image/heic", "image/heif" -> ".heic"
+        "image/png" -> ".png"
+        "image/webp" -> ".webp"
+        "image/gif" -> ".gif"
+        "image/avif" -> ".avif"
+        "image/bmp" -> ".bmp"
+        else -> ".bin"
+    }
+
+    /**
+     * Applies [MediaStore.setRequireOriginal] for `media`-authority content URIs so that
+     * the byte-copy receives the original file rather than a transcoded version.
+     * Falls back to the plain [uri] on any exception or for non-media URIs.
+     */
+    private fun resolveSourceUri(uri: Uri): Uri {
+        if (uri.scheme != "content" || uri.authority != "media") return uri
+        return try {
+            MediaStore.setRequireOriginal(uri)
+        } catch (_: UnsupportedOperationException) {
+            uri
+        } catch (_: SecurityException) {
+            uri
+        } catch (_: IllegalArgumentException) {
+            uri
+        }
+    }
+
+    /** Copies bytes from [sourceUri] to [destFile] in 8 KB chunks. Throws [IOException] on failure. */
+    private fun copyStreamToFile(context: Context, sourceUri: Uri, destFile: File) {
+        context.contentResolver.openInputStream(sourceUri)
+            ?.use { input ->
+                FileOutputStream(destFile).use { output ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                    }
+                }
+            } ?: throw IOException("Could not open input stream for $sourceUri")
+    }
+
+    /**
+     * Copies the committed MediaStore capture file byte-for-byte to [FILE_CAPTURE_ORIGINAL]
+     * inside [sessionDir]. [captureMediaStoreUri] must already be committed (IS_PENDING = 0).
+     * [MediaStore.setRequireOriginal] is intentionally not applied — this is our own committed entry.
+     *
+     * @return [FILE_CAPTURE_ORIGINAL] (the fixed filename).
+     * @throws IOException if the stream cannot be opened or the copy fails.
+     */
+    private fun writeCaptureOriginal(context: Context, captureMediaStoreUri: Uri, sessionDir: File): String {
+        copyStreamToFile(context, captureMediaStoreUri, File(sessionDir, FILE_CAPTURE_ORIGINAL))
+        return FILE_CAPTURE_ORIGINAL
+    }
+
+    /**
+     * Copies the reference source file byte-for-byte to a file named
+     * `reference-source-original.[ext]` inside [sessionDir], where `[ext]` is derived from
+     * the source MIME type. For `media`-authority URIs [MediaStore.setRequireOriginal] is applied
+     * so that the original format (e.g. HEIC) is preserved rather than a transcoded copy.
+     *
+     * @return [ReferenceSourceOriginalResult] containing the constructed filename and the
+     *   resolved MIME type (may be null when the content provider does not report one).
+     * @throws IOException if the stream cannot be opened or the copy fails.
+     */
+    private fun writeReferenceSourceOriginal(
+        context: Context,
+        referenceUri: Uri,
+        sessionDir: File
+    ): ReferenceSourceOriginalResult {
+        val resolvedUri = resolveSourceUri(referenceUri)
+        val mimeType = context.contentResolver.getType(resolvedUri)
+            ?: context.contentResolver.getType(referenceUri)
+        val extension = resolveExtensionForMimeType(mimeType)
+        val filename = "$FILE_REFERENCE_SOURCE_ORIGINAL_BASE$extension"
+        copyStreamToFile(context, resolvedUri, File(sessionDir, filename))
+        return ReferenceSourceOriginalResult(filename = filename, mimeType = mimeType)
     }
 }

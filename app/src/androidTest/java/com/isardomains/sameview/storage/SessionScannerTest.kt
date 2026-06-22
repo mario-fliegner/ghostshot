@@ -660,4 +660,127 @@ class SessionScannerTest {
         assertEquals(1, result.size)
         assertFalse(result[0].isFavorite)
     }
+
+    // ── v5 original file validation ───────────────────────────────────────────
+
+    /**
+     * Writes a v5-compatible metadata.json. Pass null for [captureOriginalFile] or
+     * [referenceSourceOriginalFile] to omit the respective key from the files block,
+     * simulating a corrupt or incomplete v5 session.
+     */
+    private fun writeMetadataV5(
+        sessionDir: File,
+        timestamp: Long = 1_000L,
+        captureOriginalFile: String? = "capture-original.jpg",
+        referenceSourceOriginalFile: String? = "reference-source-original.jpg"
+    ) {
+        val json = JSONObject().apply {
+            put("version", 5)
+            put("session", JSONObject().apply { put("createdAtMs", timestamp) })
+            put("capture", JSONObject().apply { put("timestampMs", timestamp) })
+            put("files", JSONObject().apply {
+                put("capture", "capture.jpg")
+                if (captureOriginalFile != null) put("captureOriginal", captureOriginalFile)
+                put("reference", "reference.jpg")
+                put("referenceOriginal", "reference-original.jpg")
+                if (referenceSourceOriginalFile != null) put("referenceSourceOriginal", referenceSourceOriginalFile)
+            })
+        }
+        File(sessionDir, "metadata.json").writeText(json.toString())
+    }
+
+    /** Creates a complete v5 session directory with all six required files. */
+    private fun fullSessionV5(sessionId: String, timestamp: Long = 1_000L): File {
+        val dir = createSessionDir(sessionId)
+        writeMetadataV5(dir, timestamp = timestamp)
+        touch(dir, "capture.jpg")
+        touch(dir, "capture-original.jpg")
+        touch(dir, "reference.jpg")
+        touch(dir, "reference-original.jpg")
+        touch(dir, "reference-source-original.jpg")
+        return dir
+    }
+
+    @Test
+    fun v5Session_allRequiredFiles_isValid() {
+        fullSessionV5("2026-07-01_10-00-00", timestamp = 5_000L)
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertEquals("2026-07-01_10-00-00", result[0].sessionId)
+    }
+
+    @Test
+    fun v5Session_captureOriginalKeyMissing_isIgnored() {
+        val dir = createSessionDir("2026-07-01_10-00-00")
+        writeMetadataV5(dir, captureOriginalFile = null)  // key absent from files block
+        touch(dir, "capture.jpg")
+        touch(dir, "reference.jpg")
+        touch(dir, "reference-source-original.jpg")
+
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
+    }
+
+    @Test
+    fun v5Session_referenceSourceOriginalKeyMissing_isIgnored() {
+        val dir = createSessionDir("2026-07-01_10-00-00")
+        writeMetadataV5(dir, referenceSourceOriginalFile = null)  // key absent from files block
+        touch(dir, "capture.jpg")
+        touch(dir, "capture-original.jpg")
+        touch(dir, "reference.jpg")
+
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
+    }
+
+    @Test
+    fun v5Session_captureOriginalFileNotOnDisk_isIgnored() {
+        val dir = createSessionDir("2026-07-01_10-00-00")
+        writeMetadataV5(dir)
+        touch(dir, "capture.jpg")
+        // capture-original.jpg referenced in metadata but intentionally absent from disk
+        touch(dir, "reference.jpg")
+        touch(dir, "reference-source-original.jpg")
+
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
+    }
+
+    @Test
+    fun v5Session_referenceSourceOriginalFileNotOnDisk_isIgnored() {
+        val dir = createSessionDir("2026-07-01_10-00-00")
+        writeMetadataV5(dir, referenceSourceOriginalFile = "reference-source-original.bin")
+        touch(dir, "capture.jpg")
+        touch(dir, "capture-original.jpg")
+        touch(dir, "reference.jpg")
+        // reference-source-original.bin referenced in metadata but intentionally absent from disk
+
+        assertTrue(SessionScanner.scan(testRoot).isEmpty())
+    }
+
+    @Test
+    fun v4Session_withoutOriginalFiles_isValid() {
+        val dir = createSessionDir("2026-07-01_10-00-00")
+        writeMetadata(dir, version = 4, timestamp = 1_000L)
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        assertEquals(1, SessionScanner.scan(testRoot).size)
+    }
+
+    @Test
+    fun v3Session_withoutOriginalFiles_isValid() {
+        val dir = createSessionDir("2026-07-01_10-00-00")
+        writeMetadata(dir, version = 3, timestamp = 1_000L)
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        assertEquals(1, SessionScanner.scan(testRoot).size)
+    }
+
+    @Test
+    fun v2Session_withoutOriginalFiles_isValid() {
+        fullSession("2026-07-01_10-00-00")  // fullSession uses version 2 by default
+
+        assertEquals(1, SessionScanner.scan(testRoot).size)
+    }
 }

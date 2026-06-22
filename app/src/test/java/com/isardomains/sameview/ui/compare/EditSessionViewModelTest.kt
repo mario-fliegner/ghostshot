@@ -20,7 +20,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import java.util.Calendar
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import java.io.File
@@ -39,6 +41,9 @@ class EditSessionViewModelTest {
     private companion object {
         const val TEST_SESSION_ID = "2026-06-01_12-00-00"
     }
+
+    @get:Rule
+    val tempFolder = TemporaryFolder()
 
     private val testScheduler = TestCoroutineScheduler()
     private val testDispatcher = StandardTestDispatcher(testScheduler)
@@ -759,5 +764,57 @@ class EditSessionViewModelTest {
         assertTrue(events[0] is EditSessionEvent.SaveFailed)
         // isFavorite must be reverted to false
         assertFalse(vm.isFavorite.value)
+    }
+
+    // ── Block F: sourceUri / sourceDisplayName fallback ──────────────────────
+
+    private fun createViewModelWithRealReader(metadata: String): EditSessionViewModel {
+        val sessionDir = File(File(tempFolder.root, "sessions"), TEST_SESSION_ID).also { it.mkdirs() }
+        File(sessionDir, "metadata.json").writeText(metadata)
+        val context: Context = mock { on { filesDir } doReturn tempFolder.root }
+        val savedStateHandle = SavedStateHandle(mapOf("sessionId" to TEST_SESSION_ID))
+        val vm = EditSessionViewModel(savedStateHandle, context)
+        vm.ioDispatcher = testDispatcher
+        // metadataReader NOT overridden — uses production default
+        return vm
+    }
+
+    @Test
+    fun metadataReader_v5_sourceUri_isRead() = runTest(testDispatcher) {
+        val vm = createViewModelWithRealReader("""
+            {"version":5,"session":{"createdAtMs":1000},"capture":{"timestampMs":1000},
+             "files":{"capture":"capture.jpg","reference":"reference.jpg"},
+             "reference":{"sourceUri":"content://test/v5/ref"}}
+        """.trimIndent())
+
+        advanceUntilIdle()
+
+        assertEquals("content://test/v5/ref", vm.referenceSourceDisplayName.value)
+    }
+
+    @Test
+    fun metadataReader_v4_sourceDisplayName_fallback() = runTest(testDispatcher) {
+        val vm = createViewModelWithRealReader("""
+            {"version":4,"session":{"createdAtMs":1000},"capture":{"timestampMs":1000},
+             "files":{"capture":"capture.jpg","reference":"reference.jpg"},
+             "reference":{"sourceDisplayName":"content://test/v4/ref"}}
+        """.trimIndent())
+
+        advanceUntilIdle()
+
+        assertEquals("content://test/v4/ref", vm.referenceSourceDisplayName.value)
+    }
+
+    @Test
+    fun metadataReader_noSourceField_returnsEmptyString() = runTest(testDispatcher) {
+        val vm = createViewModelWithRealReader("""
+            {"version":4,"session":{"createdAtMs":1000},"capture":{"timestampMs":1000},
+             "files":{"capture":"capture.jpg","reference":"reference.jpg"},
+             "reference":{"date":"2008-06","dateSource":"exif"}}
+        """.trimIndent())
+
+        advanceUntilIdle()
+
+        assertEquals("", vm.referenceSourceDisplayName.value)
     }
 }

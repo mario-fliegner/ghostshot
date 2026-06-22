@@ -37,7 +37,7 @@ class SessionBackupExporterInstrumentedTest {
             "capture.jpg" to byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 10, 20, 30),
             "reference.jpg" to byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 40, 50, 60),
             "reference-original.jpg" to byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 70, 80, 90),
-            "metadata.json" to """{"version":3,"session":{"id":"$sessionId"}}""".toByteArray(Charsets.UTF_8)
+            "metadata.json" to """{"version":4,"session":{"id":"$sessionId","createdAtMs":1705312200000},"files":{"capture":"capture.jpg","reference":"reference.jpg","referenceOriginal":"reference-original.jpg"}}""".toByteArray(Charsets.UTF_8)
         )
         content.forEach { (name, bytes) -> File(dir, name).writeBytes(bytes) }
         return content

@@ -29,7 +29,7 @@ class SessionStorageGpsTest {
     private val testContext = InstrumentationRegistry.getInstrumentation().context
     private val appContext = InstrumentationRegistry.getInstrumentation().targetContext
     private val testRoot = File(appContext.filesDir, "session-tests/SessionStorageGpsTest")
-    private val captureMediaStoreUri = Uri.parse("content://test/capture/gps-test")
+    private lateinit var captureMediaStoreUri: Uri
 
     private val testGps = GpsSnapshot(
         latitude = 48.137108,
@@ -45,7 +45,12 @@ class SessionStorageGpsTest {
         accuracyMeters = null
     )
 
-    @Before fun clearSessions() { cleanTestRoot() }
+    @Before fun clearSessions() {
+        cleanTestRoot()
+        val tempCapture = File(appContext.cacheDir, "test_capture_gps.jpg")
+        tempCapture.writeBytes(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x01))
+        captureMediaStoreUri = Uri.fromFile(tempCapture)
+    }
     @After fun cleanup() { cleanTestRoot() }
 
     private fun cleanTestRoot() {

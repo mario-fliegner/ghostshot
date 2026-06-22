@@ -90,13 +90,15 @@ class SessionStorageReferenceOrientationTest {
             viewportHeight = 120,
         )
 
+        val tempCapture = File(appContext.cacheDir, "test_capture_orientation.jpg")
+        tempCapture.writeBytes(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x01))
         val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
         SessionStorage.saveSession(
             context = appContext,
             sessionsRoot = testRoot,
             capturedBitmap = captureBitmap,
             snapshot = snapshot,
-            captureMediaStoreUri = Uri.parse("content://test/capture"),
+            captureMediaStoreUri = Uri.fromFile(tempCapture),
         )
         captureBitmap.recycle()
 
