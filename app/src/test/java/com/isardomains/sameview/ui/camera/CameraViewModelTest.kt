@@ -15,6 +15,7 @@ import com.isardomains.sameview.ui.settings.LibraryFilter
 import com.isardomains.sameview.ui.settings.LibrarySortOrder
 import com.isardomains.sameview.ui.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -57,6 +58,7 @@ class CameraViewModelTest {
         on { liveDirectionArrow } doReturn flowOf(false)
         on { libraryFilter } doReturn flowOf(LibraryFilter.ALL)
         on { librarySortOrder } doReturn flowOf(LibrarySortOrder.NEWEST_FIRST)
+        on { stripOriginalsMetadata } doReturn flowOf(false)
     }
 
     @Before
@@ -2332,6 +2334,7 @@ class CameraViewModelTest {
             on { autoOpenCompareAfterCapture } doReturn flowOf(false)
             on { recreationGuidance } doReturn flowOf(false)
             on { liveDirectionArrow } doReturn flowOf(false)
+            on { stripOriginalsMetadata } doReturn flowOf(false)
         }
         val testViewModel = CameraViewModel(mock(), settingsRepo)
         assertEquals(GridType.QUARTERS, testViewModel.uiState.value.gridType)
@@ -2443,6 +2446,7 @@ class CameraViewModelTest {
             on { autoOpenCompareAfterCapture } doReturn flowOf(false)
             on { recreationGuidance } doReturn flowOf(false)
             on { liveDirectionArrow } doReturn flowOf(false)
+            on { stripOriginalsMetadata } doReturn flowOf(false)
         }
         return CameraViewModel(
             mock(),
@@ -2460,6 +2464,7 @@ class CameraViewModelTest {
             on { autoOpenCompareAfterCapture } doReturn flowOf(autoOpenEnabled)
             on { recreationGuidance } doReturn flowOf(false)
             on { liveDirectionArrow } doReturn flowOf(false)
+            on { stripOriginalsMetadata } doReturn flowOf(false)
         }
         return CameraViewModel(
             mock(),
@@ -2478,6 +2483,7 @@ class CameraViewModelTest {
         on { autoOpenCompareAfterCapture } doReturn flowOf(false)
         on { this.recreationGuidance } doReturn flowOf(recreationGuidance)
         on { liveDirectionArrow } doReturn flowOf(false)
+        on { stripOriginalsMetadata } doReturn flowOf(false)
     }
 
     private fun settingsRepoWithSensor(
@@ -2490,6 +2496,7 @@ class CameraViewModelTest {
         on { autoOpenCompareAfterCapture } doReturn flowOf(false)
         on { this.recreationGuidance } doReturn flowOf(recreationGuidance)
         on { this.liveDirectionArrow } doReturn flowOf(liveDirectionArrow)
+        on { stripOriginalsMetadata } doReturn flowOf(false)
     }
 
     private fun gpsViewModel(
@@ -2611,6 +2618,7 @@ class CameraViewModelTest {
             on { autoOpenCompareAfterCapture } doReturn flowOf(false)
             on { recreationGuidance } doReturn flowOf(true)
             on { liveDirectionArrow } doReturn flowOf(false)
+            on { stripOriginalsMetadata } doReturn flowOf(false)
         }
         val metadata = ReferenceImageMetadata(1080, 1920, 1080, 1920, null, gpsLatitude = 48.0, gpsLongitude = 11.0)
         val vm = CameraViewModel(
@@ -3609,5 +3617,63 @@ class CameraViewModelTest {
             .filter { it.messageResId == R.string.session_backup_success_single ||
                       it.messageResId == R.string.session_backup_error }
         assertEquals(0, backupSnackbars.size)
+    }
+
+    // --- stripOriginalsMetadata (Block D) ---
+
+    @Test
+    fun stripOriginalsMetadata_defaultIsFalse() = runTest {
+        // Default repository stub emits false — ViewModel must reflect that
+        assertEquals(false, viewModel.stripOriginalsMetadata)
+    }
+
+    @Test
+    fun stripOriginalsMetadata_updatesWhenRepositoryEmitsTrue() = runTest {
+        val stripFlow = MutableStateFlow(false)
+        val repo = mock<SettingsRepository> {
+            on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+            on { keepScreenOn } doReturn flowOf(true)
+            on { resetOverlayAfterCapture } doReturn flowOf(false)
+            on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+            on { recreationGuidance } doReturn flowOf(false)
+            on { liveDirectionArrow } doReturn flowOf(false)
+            on { libraryFilter } doReturn flowOf(LibraryFilter.ALL)
+            on { librarySortOrder } doReturn flowOf(LibrarySortOrder.NEWEST_FIRST)
+            on { stripOriginalsMetadata } doReturn stripFlow
+        }
+        val testViewModel = CameraViewModel(mock(), UnconfinedTestDispatcher(), { null }, repo)
+
+        // Initial state
+        assertEquals(false, testViewModel.stripOriginalsMetadata)
+
+        // Setting toggled ON
+        stripFlow.value = true
+        advanceUntilIdle()
+
+        assertEquals(true, testViewModel.stripOriginalsMetadata)
+    }
+
+    @Test
+    fun stripOriginalsMetadata_revertsToFalseWhenRepositoryEmitsFalse() = runTest {
+        val stripFlow = MutableStateFlow(true)
+        val repo = mock<SettingsRepository> {
+            on { gridType } doReturn flowOf(GridType.RULE_OF_THIRDS)
+            on { keepScreenOn } doReturn flowOf(true)
+            on { resetOverlayAfterCapture } doReturn flowOf(false)
+            on { autoOpenCompareAfterCapture } doReturn flowOf(false)
+            on { recreationGuidance } doReturn flowOf(false)
+            on { liveDirectionArrow } doReturn flowOf(false)
+            on { libraryFilter } doReturn flowOf(LibraryFilter.ALL)
+            on { librarySortOrder } doReturn flowOf(LibrarySortOrder.NEWEST_FIRST)
+            on { stripOriginalsMetadata } doReturn stripFlow
+        }
+        val testViewModel = CameraViewModel(mock(), UnconfinedTestDispatcher(), { null }, repo)
+        advanceUntilIdle()
+        assertEquals(true, testViewModel.stripOriginalsMetadata)
+
+        stripFlow.value = false
+        advanceUntilIdle()
+
+        assertEquals(false, testViewModel.stripOriginalsMetadata)
     }
 }

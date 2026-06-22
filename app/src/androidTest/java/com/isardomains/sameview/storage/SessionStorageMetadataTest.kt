@@ -10,6 +10,11 @@ import com.isardomains.sameview.AppConstants
 import com.isardomains.sameview.ui.camera.CaptureSessionSnapshot
 import com.isardomains.sameview.ui.camera.ReferenceImageDisplayMode
 import com.isardomains.sameview.ui.camera.ReferenceImageMetadata
+import com.isardomains.sameview.ui.camera.GpsExifWriter
+import com.isardomains.sameview.ui.camera.GpsSnapshot
+import com.isardomains.sameview.ui.camera.PRESERVATION_BYTE_COPY
+import com.isardomains.sameview.ui.camera.PRESERVATION_METADATA_STRIPPED
+import com.isardomains.sameview.ui.camera.PRESERVATION_NOT_POSSIBLE
 import com.isardomains.sameview.ui.camera.SessionScanner
 import com.isardomains.sameview.ui.camera.SessionStorage
 import org.json.JSONObject
@@ -18,6 +23,8 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -1266,5 +1273,272 @@ class SessionStorageMetadataTest {
     @Test
     fun updateContent_returnsFalseWhenMetadataMissing() {
         assertFalse(SessionStorage.updateContent(testRoot, "does-not-exist", "Title", null))
+    }
+
+    // ── Block B Privacy: saveSession(stripMetadata) ───────────────────────────
+
+    /**
+     * Saves a session with a real capture file URI that contains GPS EXIF and returns
+     * the session directory. Used by privacy tests to verify EXIF removal.
+     */
+    private fun saveTestSessionWithPrivacy(stripMetadata: Boolean): File {
+        // Reference file
+        val tempRef = File(appContext.cacheDir, "test_reference_priv.jpg")
+        testContext.assets.open("exif_90.jpg").use { tempRef.outputStream().use { os -> it.copyTo(os) } }
+
+        // Capture file — write a minimal JPEG and embed GPS EXIF into it
+        val tempCapture = File(appContext.cacheDir, "test_capture_priv.jpg")
+        // Write a tiny valid JPEG (reuse exif_90.jpg as content)
+        testContext.assets.open("exif_90.jpg").use { tempCapture.outputStream().use { os -> it.copyTo(os) } }
+        // Embed GPS EXIF into the capture file so we can verify it is removed
+        val gpsSnapshot = GpsSnapshot(latitude = 48.137, longitude = 11.575, altitude = 520.0, accuracyMeters = 5.0f)
+        GpsExifWriter.writeGpsToFile(tempCapture, gpsSnapshot)
+
+        val snapshot = buildTestSnapshot(Uri.fromFile(tempRef))
+        val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+        SessionStorage.saveSession(
+            context = appContext,
+            sessionsRoot = testRoot,
+            capturedBitmap = captureBitmap,
+            snapshot = snapshot,
+            captureMediaStoreUri = Uri.fromFile(tempCapture),
+            stripMetadata = stripMetadata
+        )
+        captureBitmap.recycle()
+        return testRoot.listFiles()?.firstOrNull()
+            ?: error("SessionStorage did not create a session directory")
+    }
+
+    @Test
+    fun privacyOff_metadata_hasNoOriginalsBlock() {
+        val json = readMetadata(saveTestSession())  // default stripMetadata = false
+        assertFalse("originals block must be absent when privacy is OFF", json.has("originals"))
+    }
+
+    @Test
+    fun privacyOn_metadata_hasOriginalsBlock_withCorrectFields() {
+        val sessionDir = saveTestSessionWithPrivacy(stripMetadata = true)
+        val json = readMetadata(sessionDir)
+        assertTrue("originals block must be present when privacy is ON", json.has("originals"))
+        val originals = json.getJSONObject("originals")
+        assertTrue("originals.privacyMode must be true", originals.getBoolean("privacyMode"))
+        assertEquals("capturePreservation must be metadata_stripped",
+            PRESERVATION_METADATA_STRIPPED, originals.getString("capturePreservation"))
+        assertEquals("referenceSourcePreservation must be metadata_stripped for a JPEG reference",
+            PRESERVATION_METADATA_STRIPPED, originals.getString("referenceSourcePreservation"))
+    }
+
+    @Test
+    fun privacyOn_captureOriginal_hasNoGpsTags() {
+        val sessionDir = saveTestSessionWithPrivacy(stripMetadata = true)
+        val captureOrig = File(sessionDir, "capture-original.jpg")
+        assertTrue("capture-original.jpg must exist", captureOrig.exists())
+        val exif = ExifInterface(captureOrig.absolutePath)
+        assertNull("GPS latitude must be absent after stripping",
+            exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE))
+        assertNull("GPS longitude must be absent after stripping",
+            exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE))
+    }
+
+    @Test
+    fun privacyOn_captureOriginal_resolutionPreserved() {
+        val sessionDir = saveTestSessionWithPrivacy(stripMetadata = true)
+        val captureOrig = File(sessionDir, "capture-original.jpg")
+        val bitmap = BitmapFactory.decodeFile(captureOrig.absolutePath)
+            ?: error("Could not decode capture-original.jpg after privacy strip")
+        try {
+            assertTrue("Width must be > 0", bitmap.width > 0)
+            assertTrue("Height must be > 0", bitmap.height > 0)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun privacyOff_captureOriginal_isByteIdenticalToCaptureSrc_unchanged() {
+        // Existing byte-for-byte behavior must be unaffected when privacy is OFF
+        val sessionDir = saveTestSession()  // default stripMetadata = false
+        val srcBytes = File(appContext.cacheDir, "test_capture.jpg").readBytes()
+        val sessionBytes = File(sessionDir, "capture-original.jpg").readBytes()
+        assertArrayEquals("capture-original.jpg must be byte-for-byte copy when privacy OFF",
+            srcBytes, sessionBytes)
+    }
+
+    // ── Block C: reference-source-original privacy ────────────────────────────
+
+    private fun savePrivacySessionWithCustomRef(referenceUri: Uri): File {
+        // Use a real JPEG for the capture file — the 3-byte stub fails when privacy stripping
+        // falls back to decode+re-encode, because BitmapFactory can't decode a truncated JPEG.
+        val tempCapture = File(appContext.cacheDir, "test_capture_block_c.jpg")
+        testContext.assets.open("exif_90.jpg").use { tempCapture.outputStream().use { os -> it.copyTo(os) } }
+
+        val snapshot = buildTestSnapshot(referenceUri)
+        val captureBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+        SessionStorage.saveSession(
+            context = appContext,
+            sessionsRoot = testRoot,
+            capturedBitmap = captureBitmap,
+            snapshot = snapshot,
+            captureMediaStoreUri = Uri.fromFile(tempCapture),
+            stripMetadata = true
+        )
+        captureBitmap.recycle()
+        return testRoot.listFiles()?.firstOrNull()
+            ?: error("SessionStorage did not create a session directory")
+    }
+
+    @Test
+    fun privacyOff_referenceSourceOriginal_isByteIdenticalToSource() {
+        // Privacy OFF: byte-for-byte copy must be unaffected
+        val sessionDir = saveTestSession()  // stripMetadata = false
+        val srcBytes = File(appContext.cacheDir, "test_reference.jpg").readBytes()
+        val json = readMetadata(sessionDir)
+        val filename = json.getJSONObject("files").getString("referenceSourceOriginal")
+        val sessionBytes = File(sessionDir, filename).readBytes()
+        assertArrayEquals("reference-source-original must be byte-for-byte copy when privacy OFF",
+            srcBytes, sessionBytes)
+    }
+
+    @Test
+    fun privacyOn_jpegReferenceSource_preservation_isMetadataStripped() {
+        // JPEG reference → decode → JPEG 95 → preservation = metadata_stripped
+        val tempRef = File(appContext.cacheDir, "test_ref_jpeg_c.jpg")
+        testContext.assets.open("exif_90.jpg").use { tempRef.outputStream().use { os -> it.copyTo(os) } }
+
+        val sessionDir = savePrivacySessionWithCustomRef(Uri.fromFile(tempRef))
+        val originals = readMetadata(sessionDir).getJSONObject("originals")
+        assertEquals(PRESERVATION_METADATA_STRIPPED, originals.getString("referenceSourcePreservation"))
+    }
+
+    @Test
+    fun privacyOn_jpegReferenceSource_storedAsJpeg_extensionIsJpg() {
+        val tempRef = File(appContext.cacheDir, "test_ref_jpeg_ext.jpg")
+        testContext.assets.open("exif_90.jpg").use { tempRef.outputStream().use { os -> it.copyTo(os) } }
+
+        val sessionDir = savePrivacySessionWithCustomRef(Uri.fromFile(tempRef))
+        val json = readMetadata(sessionDir)
+        val filename = json.getJSONObject("files").getString("referenceSourceOriginal")
+        assertTrue("JPEG reference must produce .jpg output file", filename.endsWith(".jpg"))
+        assertTrue("Output file must exist", File(sessionDir, filename).exists())
+    }
+
+    @Test
+    fun privacyOn_jpegReferenceSource_isDecodable() {
+        // Verify the stripped JPEG can still be decoded (resolution preserved)
+        val tempRef = File(appContext.cacheDir, "test_ref_decodable.jpg")
+        testContext.assets.open("exif_90.jpg").use { tempRef.outputStream().use { os -> it.copyTo(os) } }
+
+        val sessionDir = savePrivacySessionWithCustomRef(Uri.fromFile(tempRef))
+        val json = readMetadata(sessionDir)
+        val filename = json.getJSONObject("files").getString("referenceSourceOriginal")
+        val bitmap = BitmapFactory.decodeFile(File(sessionDir, filename).absolutePath)
+        assertNotNull("Stripped reference source must be decodable", bitmap)
+        bitmap?.recycle()
+    }
+
+    @Test
+    fun privacyOn_pngReferenceSource_storedAsPng_extensionIsPng() {
+        // Create a minimal PNG file from a Bitmap
+        val tempPng = File(appContext.cacheDir, "test_ref_block_c.png")
+        val bmp = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
+        tempPng.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 0, it) }
+        bmp.recycle()
+
+        val sessionDir = savePrivacySessionWithCustomRef(Uri.fromFile(tempPng))
+        val json = readMetadata(sessionDir)
+        val filename = json.getJSONObject("files").getString("referenceSourceOriginal")
+        assertTrue("PNG reference must produce .png output file", filename.endsWith(".png"))
+        assertTrue("Output PNG file must exist", File(sessionDir, filename).exists())
+        val originals = json.getJSONObject("originals")
+        assertEquals(PRESERVATION_METADATA_STRIPPED, originals.getString("referenceSourcePreservation"))
+    }
+
+    @Test
+    fun privacyOn_unknownMimeReference_preservation_isNotPossible() {
+        // A JPEG file with an unrecognized extension (.xyz) → ContentResolver returns null MIME type
+        // → extension inference also returns null → stored as-is with not_possible.
+        // Using a valid JPEG file so that writeReferenceOriginalAndReference() can still decode it.
+        val tempUnknown = File(appContext.cacheDir, "test_ref_unknown.xyz")
+        testContext.assets.open("exif_90.jpg").use { tempUnknown.outputStream().use { os -> it.copyTo(os) } }
+
+        val sessionDir = savePrivacySessionWithCustomRef(Uri.fromFile(tempUnknown))
+        val json = readMetadata(sessionDir)
+        val originals = json.getJSONObject("originals")
+        assertEquals(PRESERVATION_NOT_POSSIBLE, originals.getString("referenceSourcePreservation"))
+        // Session was saved successfully despite not_possible
+        assertTrue("metadata.json must exist", File(sessionDir, "metadata.json").exists())
+    }
+
+    @Test
+    fun privacyOn_jpegReferenceSource_noExifGpsInOutput() {
+        // Embed GPS EXIF into a reference JPEG and verify it is removed after privacy stripping
+        val tempRef = File(appContext.cacheDir, "test_ref_gps_strip.jpg")
+        testContext.assets.open("exif_90.jpg").use { tempRef.outputStream().use { os -> it.copyTo(os) } }
+        val gpsSnapshot = GpsSnapshot(latitude = 47.5, longitude = 11.0, altitude = 800.0, accuracyMeters = 5.0f)
+        GpsExifWriter.writeGpsToFile(tempRef, gpsSnapshot)
+
+        val sessionDir = savePrivacySessionWithCustomRef(Uri.fromFile(tempRef))
+        val json = readMetadata(sessionDir)
+        val filename = json.getJSONObject("files").getString("referenceSourceOriginal")
+        val exif = ExifInterface(File(sessionDir, filename).absolutePath)
+        assertNull("GPS latitude must be absent from stripped reference source",
+            exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE))
+        assertNull("GPS longitude must be absent from stripped reference source",
+            exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE))
+    }
+
+    // ── Block C: HEIC reference source (real asset) ───────────────────────────
+
+    @Test
+    fun privacyOn_heicReferenceSource_convertedToJpeg_withMetadataStripped() {
+        // Copy the real HEIC test asset from androidTest/assets to cacheDir so it can be
+        // referenced via Uri.fromFile(). The .heic extension triggers HEIC extension inference
+        // in writeReferenceSourceOriginalStripped() if ContentResolver returns null MIME.
+        val tempHeic = File(appContext.cacheDir, "test_ref_heic_privacy.heic")
+        testContext.assets.open("privacy/reference_source_original_heic_test.heic").use { input ->
+            tempHeic.outputStream().use { input.copyTo(it) }
+        }
+
+        val sessionDir = savePrivacySessionWithCustomRef(Uri.fromFile(tempHeic))
+        val json = readMetadata(sessionDir)
+
+        // 1. files.referenceSourceOriginal must be a .jpg (HEIC converted to JPEG)
+        val refSrcFilename = json.getJSONObject("files").getString("referenceSourceOriginal")
+        assertEquals("HEIC reference source must be stored as reference-source-original.jpg",
+            "reference-source-original.jpg", refSrcFilename)
+
+        // 2. The stored file must exist and be JPEG-decodable
+        val refSrcFile = File(sessionDir, refSrcFilename)
+        assertTrue("reference-source-original.jpg must exist after HEIC conversion", refSrcFile.exists())
+        val opts = BitmapFactory.Options().also { it.inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(refSrcFile.absolutePath, opts)
+        assertTrue("Converted HEIC must produce a decodable JPEG with positive width", opts.outWidth > 0)
+        assertTrue("Converted HEIC must produce a decodable JPEG with positive height", opts.outHeight > 0)
+
+        // 3. originals block: preservation = metadata_stripped
+        val originals = json.getJSONObject("originals")
+        assertEquals("referenceSourcePreservation must be metadata_stripped for HEIC",
+            PRESERVATION_METADATA_STRIPPED, originals.getString("referenceSourcePreservation"))
+
+        // 4. originals block: stored MIME = image/jpeg (confirms HEIC→JPEG conversion)
+        assertEquals("referenceSourceStoredMimeType must be image/jpeg",
+            "image/jpeg", originals.getString("referenceSourceStoredMimeType"))
+
+        // 5. reference.sourceMimeType (if present) must reflect the HEIC source
+        val refBlock = json.optJSONObject("reference")
+        if (refBlock != null && refBlock.has("sourceMimeType")) {
+            assertEquals("When present, reference.sourceMimeType must be image/heic",
+                "image/heic", refBlock.getString("sourceMimeType"))
+        }
+        // Absence of sourceMimeType is also valid when ContentResolver returns null for file:// URI
+
+        // 6. Output JPEG must have no EXIF metadata (GPS, camera make/model)
+        val exif = ExifInterface(refSrcFile.absolutePath)
+        assertNull("GPS latitude must be absent after HEIC→JPEG conversion",
+            exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE))
+        assertNull("GPS longitude must be absent after HEIC→JPEG conversion",
+            exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE))
+        assertNull("Camera make must be absent after HEIC→JPEG conversion",
+            exif.getAttribute(ExifInterface.TAG_MAKE))
     }
 }

@@ -270,6 +270,13 @@ class CameraViewModel @Inject constructor(
     private val nextCaptureTokenId = AtomicLong(0L)
     private val activeCaptureTokenId = AtomicLong(NO_CAPTURE_TOKEN_ID)
 
+    // Privacy setting — whether to strip EXIF/GPS metadata from stored session originals.
+    // Updated from DataStore via the init block; frozen to a local val at capture time.
+    // Internal visibility enables direct observation in unit tests.
+    @Volatile
+    internal var stripOriginalsMetadata = false
+        private set
+
     // GPS state — foreground-only, active only when all four conditions are met
     private var recreationGuidanceEnabled = false
     private var liveDirectionArrowEnabled = false
@@ -428,6 +435,11 @@ class CameraViewModel @Inject constructor(
             settingsRepository.liveDirectionArrow.collect { enabled ->
                 liveDirectionArrowEnabled = enabled
                 updateSensorActivation()
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.stripOriginalsMetadata.collect { enabled ->
+                stripOriginalsMetadata = enabled
             }
         }
     }
@@ -812,6 +824,9 @@ class CameraViewModel @Inject constructor(
         val gpsSnapshot: GpsSnapshot? = if (recreationGuidanceEnabled) {
             currentLocation?.let { GpsSnapshot.from(it) }
         } else null
+        // Freeze privacy setting at capture time so a Settings change mid-save cannot
+        // produce a session that is half byte-copy and half stripped.
+        val stripMetadataForSession = stripOriginalsMetadata
         val snapshot: CaptureSessionSnapshot? = if (
             currentState.referenceImageUri != null &&
             currentState.referenceImageMetadata != null
@@ -857,7 +872,8 @@ class CameraViewModel @Inject constructor(
                             context = context,
                             capturedBitmap = corrected,
                             snapshot = snapshot,
-                            captureMediaStoreUri = savedUri
+                            captureMediaStoreUri = savedUri,
+                            stripMetadata = stripMetadataForSession
                         )
                         val sessions = scanSavedSessionsSafely()
                         _uiState.update { it.copy(savedSessions = sessions) }

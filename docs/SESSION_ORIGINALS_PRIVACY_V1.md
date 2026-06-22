@@ -99,10 +99,12 @@ All metadata (GPS, EXIF, MakerNotes, XMP) is preserved in these files.
 
 **`reference-source-original.<ext>`:**
 - Source: the reference image picker URI
-- Processing depends on source format (see §6 Format Matrix)
-- Filename and extension may change when format conversion occurs
+- Always decoded via `ImageDecoder` and re-encoded as JPEG 95 (see §6 Format Matrix)
+- No byte-level stripping is attempted for reference sources — always decode and re-encode
+- PNG sources are re-encoded as PNG (lossless); all other decodeable formats become JPEG 95
+- Filename extension changes to `.jpg` for non-PNG sources (e.g. `.heic` → `.jpg`)
 - The actual stored filename is always written to `files.referenceSourceOriginal` in metadata.json
-- Visual quality: full resolution; lossless where possible; JPEG 95 where conversion is required
+- Visual quality: full resolution; PNG sources lossless; all other sources JPEG 95
 
 **MediaStore photo (`Pictures/SameView`):**
 - Never modified by this setting, regardless of ON or OFF
@@ -150,18 +152,24 @@ The following metadata is always removed when setting is ON:
 
 ### 5.3 Orientation Handling
 
-EXIF orientation is **not preserved as a tag** — it is applied to the pixel data before stripping and then discarded.
+EXIF orientation is **not preserved as a tag** — it is applied to the pixel data and then discarded. The two original files use different strategies.
 
-For JPEG sources with trivial orientation (NORMAL or absent):
-- Byte-level segment stripping is used; no pixel re-encoding required
+**`capture-original.jpg` (MediaStore JPEG source):**
 
-For JPEG sources with non-trivial orientation (ROTATE_90, ROTATE_180, ROTATE_270, FLIP variants):
-- Pixel data is decoded, rotation is applied via `Matrix`, output is re-encoded as JPEG 95 without orientation tag
+- Orientation is read from EXIF before processing
+- Trivial orientation (NORMAL / UNDEFINED): byte-level JPEG segment stripping; no re-encoding; zero quality loss
+- Non-trivial orientation: decode to Bitmap, apply rotation via `Matrix`, re-encode at JPEG 95 without orientation tag
+- Fallback if byte-level strip encounters a malformed segment: decode+rotate+re-encode at JPEG 95
+- Note: MediaStore captures are typically NORMAL orientation because `CameraViewModel` already rotates the bitmap before saving
 
-For all non-JPEG formats:
-- Pixel data is decoded (orientation applied automatically or manually), output encoded as JPEG 95 without orientation tag
+**`reference-source-original` (user-selected reference source):**
 
-After processing, the image displays correctly without any orientation tag.
+- Always decoded via `ImageDecoder.decodeBitmap()`, which applies EXIF orientation automatically
+- No separate orientation check or `Matrix` rotation required
+- Output re-encoded to JPEG 95 (or PNG for PNG sources) without any orientation tag
+- Byte-level stripping is never attempted for reference sources
+
+After processing, both files display correctly without any orientation tag.
 
 ### 5.4 What SameView Can and Cannot Guarantee
 
@@ -186,14 +194,14 @@ After processing, the image displays correctly without any orientation tag.
 
 | Source Format | Privacy ON: Approach | Output Format | Extension Changes | Quality Impact | minSdk 29 Support | Notes |
 |---|---|---|---|---|---|---|
-| `image/jpeg` | Byte-level strip (APP1/APP13/XMP removed, ICC kept) OR re-encode at JPEG 95 if orientation non-trivial | JPEG | None (stays `.jpg`) | None (byte-level) or minimal (95% re-encode) | ✓ | Preferred: byte-level strip. Fallback: decode+orient+re-encode 95% |
-| `image/heic` | Decode (BitmapFactory/ImageDecoder) → apply orientation → compress JPEG 95 | JPEG | `.heic` → `.jpg` | Controlled, single-step | ✓ (API 29+) | HEIC native decode supported from API 29 |
-| `image/heif` | Same as HEIC | JPEG | `.heif` → `.jpg` | Controlled, single-step | ✓ | Normalize to same path as HEIC |
-| `image/png` | Chunk-level strip (remove tEXt, iTXt, zTXt, eXIf chunks; keep IHDR, IDAT, iCCP) OR decode → PNG re-encode | PNG | None (stays `.png`) | None (lossless) | ✓ | PNG is lossless; no re-encode quality loss |
-| `image/webp` | Decode → apply orientation → compress JPEG 95 | JPEG | `.webp` → `.jpg` | Controlled, single-step | ✓ (API 18+) | Covers both lossy and lossless WebP; simplest unified approach |
-| `image/gif` | Decode first frame → compress JPEG 95 | JPEG | `.gif` → `.jpg` | Lossy conversion (GIF → JPEG); animation lost | ✓ | GIF as reference source is extremely rare; animation loss acceptable |
-| `image/avif` | API 31+: Decode → JPEG 95. API 29–30: Cannot decode → as-is + `preservation: "not_possible"` | JPEG (API 31+) / unchanged (API 29–30) | `.avif` → `.jpg` (API 31+) | Controlled (API 31+) | Partial (API 31+ only) | AVIF decode not available on API 29–30 |
-| `image/bmp` | Decode → compress JPEG 95 | JPEG | `.bmp` → `.jpg` | Controlled, single-step | ✓ | BMP has minimal metadata; conversion for consistency |
+| `image/jpeg` | **capture-original**: byte-level JPEG segment strip (APP1/APP13/XMP removed, ICC kept); fallback to decode→JPEG95 if strip fails or orientation non-trivial. **reference-source**: `ImageDecoder` decode → JPEG 95 (no byte-level strip) | JPEG | None (stays `.jpg`) | capture: none (byte-level) or minimal (95% fallback). reference: minimal (95% re-encode) | ✓ | Byte-level strip only for capture-original; reference-source always re-encoded |
+| `image/heic` | `ImageDecoder.decodeBitmap()` → orientation applied automatically → compress JPEG 95 | JPEG | `.heic` → `.jpg` | Controlled, single-step | ✓ (`ImageDecoder` supports HEIC from API 28+) | `BitmapFactory` does NOT apply EXIF orientation for HEIC; `ImageDecoder` is required |
+| `image/heif` | Same as HEIC via `ImageDecoder` | JPEG | `.heif` → `.jpg` | Controlled, single-step | ✓ | Normalize to same path as HEIC |
+| `image/png` | Decode (BitmapFactory) → PNG re-encode (lossless). Removes all metadata. No chunk parsing. | PNG | None (stays `.png`) | None (lossless) | ✓ | BitmapFactory+compress(PNG) is simpler and more reliable than chunk-level iteration |
+| `image/webp` | `ImageDecoder.decodeBitmap()` → orientation applied automatically → compress JPEG 95 | JPEG | `.webp` → `.jpg` | Controlled, single-step | ✓ (`ImageDecoder` API 28+) | `ImageDecoder` handles both lossy and lossless WebP with correct orientation |
+| `image/gif` | Decode first frame (BitmapFactory) → compress JPEG 95 | JPEG | `.gif` → `.jpg` | Lossy; animation lost | ✓ | GIF as reference source is extremely rare; animation loss acceptable |
+| `image/avif` | API 31+: `ImageDecoder.decodeBitmap()` → JPEG 95. API 29–30: `preservation: "not_possible"` → stored as-is | JPEG (API 31+) / unchanged (API 29–30) | `.avif` → `.jpg` (API 31+) | Controlled (API 31+) | Partial | `BitmapFactory` does NOT support AVIF at any API level. `ImageDecoder` required; AVIF decode only available from API 31 |
+| `image/bmp` | Decode (BitmapFactory) → compress JPEG 95 | JPEG | `.bmp` → `.jpg` | Controlled, single-step | ✓ | BMP has minimal metadata; conversion for consistency |
 | `null` / `.bin` / unrecognized | Cannot decode → stored as-is | Unchanged | None | None | ✓ | `preservation: "not_possible"` written to metadata |
 
 ---
@@ -224,21 +232,27 @@ After processing, the image displays correctly without any orientation tag.
 ```
 1. Resolve source URI (resolveSourceUri() — unchanged)
 2. Read MIME type via ContentResolver.getType()
-3. Determine output format and extension from Format Matrix (§6)
-4. If JPEG and trivial orientation:
-   a. Byte-level strip (same as capture, step 3a–3d above)
-   b. Extension stays .jpg
-5. If JPEG and non-trivial orientation, or any non-JPEG format:
-   a. Decode to Bitmap via BitmapFactory / ImageDecoder
-   b. Orientation already applied by decoder, or apply manually
-   c. Compress to output file at JPEG 95 (or PNG lossless for PNG sources)
-   d. Filename: FILE_REFERENCE_SOURCE_ORIGINAL_BASE + new extension
-6. If cannot decode (.bin, AVIF on API 29–30):
-   a. Copy bytes as-is (same as OFF behavior for this file)
-   b. Set preservation mode to "not_possible"
-   c. Filename: FILE_REFERENCE_SOURCE_ORIGINAL_BASE + ".bin"
-7. Return ReferenceSourceOriginalResult(filename, mimeType, storedMimeType, preservation)
+3. Dispatch by decodability:
+   a. PNG source (image/png):
+      - Decode via BitmapFactory.decodeStream()
+      - Compress as PNG (lossless) → reference-source-original.png
+      - preservation = "metadata_stripped", storedMimeType = "image/png"
+   b. All other decodeable formats (JPEG, HEIC, HEIF, WebP, GIF, BMP):
+      - Decode via ImageDecoder.decodeBitmap() [orientation applied automatically]
+        For formats ImageDecoder does not support (BMP, GIF): use BitmapFactory.decodeStream()
+      - Compress to JPEG 95 → reference-source-original.jpg
+      - preservation = "metadata_stripped", storedMimeType = "image/jpeg"
+   c. AVIF on API 29–30:
+      - ImageDecoder does not support AVIF before API 31
+      - Copy bytes as-is
+      - preservation = "not_possible", filename = reference-source-original.bin
+   d. .bin / unrecognized / decode failure:
+      - Copy bytes as-is
+      - preservation = "not_possible", filename = reference-source-original.bin
+4. Return ReferenceSourceOriginalResult(filename, mimeType, storedMimeType, preservation)
 ```
+
+No byte-level stripping is attempted for `reference-source-original`. All decodeable sources go through a full decode → re-encode cycle, which eliminates all metadata completely and reliably.
 
 ### 7.3 Atomicity
 

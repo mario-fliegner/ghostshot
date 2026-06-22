@@ -127,9 +127,10 @@ Reads `stripOriginalsMetadata` from DataStore at session save time (passed as pa
 
 ### Notes
 
-- The JPEG byte-level stripper is self-contained with no external dependencies
-- `BitmapFactory.decodeFile()` + `Bitmap.compress(JPEG, 95)` is the fallback path for non-trivial orientation — always available on minSdk 29
+- The JPEG byte-level stripper applies exclusively to `capture-original.jpg`; `reference-source-original` always uses decode → re-encode
+- `BitmapFactory.decodeFile()` + `Bitmap.compress(JPEG, 95)` is the fallback path for non-trivial orientation on the capture path — always available on minSdk 29
 - The temp-file pattern for capture-original ensures that if stripping fails, the session save catches the exception and cleans up via `deleteRecursively()`
+- `ImageDecoder` is the primary decoder for reference sources (HEIC, WebP, JPEG, AVIF-on-31+); it applies EXIF orientation automatically; available from API 28 (minSdk 29 satisfied)
 
 ### Validation
 
@@ -151,47 +152,51 @@ Block B is complete when:
 
 **New internal function: `processReferenceSourceForPrivacy(context, sourceUri, mimeType, sessionDir): ReferenceSourceOriginalResult`**
 
-Implements the format-specific logic from `SESSION_ORIGINALS_PRIVACY_V1.md §6`:
+Implements the format-specific logic from `SESSION_ORIGINALS_PRIVACY_V1.md §6` and §7.2.
+
+No byte-level stripping is used for reference sources. All decodeable formats go through a full decode → re-encode cycle, which reliably removes all metadata.
 
 ```
 when (mimeType?.lowercase()) {
-  "image/jpeg" → stripJpegReferenceSource(context, sourceUri, sessionDir)
-  "image/heic", "image/heif" → decodeAndReencodeAsJpeg(context, sourceUri, sessionDir, "image/heic")
-  "image/png" → stripPngMetadata(context, sourceUri, sessionDir)
-  "image/webp" → decodeAndReencodeAsJpeg(context, sourceUri, sessionDir, mimeType)
-  "image/gif" → decodeAndReencodeAsJpeg(context, sourceUri, sessionDir, mimeType)
+  "image/png" → decodeAndReencodeAsPng(context, sourceUri, sessionDir)
+  "image/jpeg", "image/heic", "image/heif", "image/webp",
+  "image/gif", "image/bmp" → decodeAndReencodeAsJpeg(context, sourceUri, sessionDir, mimeType)
   "image/avif" → avifWithFallback(context, sourceUri, sessionDir, mimeType)
-  "image/bmp" → decodeAndReencodeAsJpeg(context, sourceUri, sessionDir, mimeType)
   else → copyAsIsNotPossible(context, sourceUri, sessionDir)
 }
 ```
 
-**`stripJpegReferenceSource(context, sourceUri, sessionDir)`:**
-- Similar to capture-original JPEG stripping
-- Read EXIF orientation via `resolveSourceUri()` (existing helper)
-- Byte-level strip if trivial orientation; decode+rotate+re-encode 95% otherwise
-- Returns `ReferenceSourceOriginalResult(filename="reference-source-original.jpg", mimeType=originalMime, storedMimeType="image/jpeg", preservation="metadata_stripped")`
-
 **`decodeAndReencodeAsJpeg(context, sourceUri, sessionDir, sourceMimeType)`:**
-- `BitmapFactory.decodeStream(contentResolver.openInputStream(resolvedUri))`
-- Orientation applied automatically for HEIC by decoder, or via ExifInterface for others
-- `bitmap.compress(Bitmap.CompressFormat.JPEG, 95, FileOutputStream(destFile))`
-- Returns `ReferenceSourceOriginalResult(filename="reference-source-original.jpg", mimeType=sourceMimeType, storedMimeType="image/jpeg", preservation="metadata_stripped")`
 
-**`stripPngMetadata(context, sourceUri, sessionDir)`:**
-- Read PNG bytes; iterate chunks
-- Remove: tEXt, iTXt, zTXt, eXIf chunks (contain text metadata and EXIF)
-- Keep: IHDR, IDAT, PLTE, iCCP, gAMA, sRGB, cHRM, pHYs, tRNS, bKGD, IEND
-- Write clean PNG to `reference-source-original.png`
-- Returns `ReferenceSourceOriginalResult(filename="reference-source-original.png", mimeType="image/png", storedMimeType="image/png", preservation="metadata_stripped")`
+Preferred decoder: `ImageDecoder.createSource(contentResolver, resolvedUri)` + `ImageDecoder.decodeBitmap(source)`. `ImageDecoder` applies EXIF orientation automatically for all supported formats (JPEG, HEIC, HEIF, WebP) and is available from API 28.
+
+For formats `ImageDecoder` may not support (BMP, GIF): fallback to `BitmapFactory.decodeStream(contentResolver.openInputStream(resolvedUri))` and apply orientation manually via `ExifInterface` if needed.
+
+Output: `bitmap.compress(Bitmap.CompressFormat.JPEG, 95, FileOutputStream(destFile))`
+
+Returns `ReferenceSourceOriginalResult(filename="reference-source-original.jpg", mimeType=sourceMimeType, storedMimeType="image/jpeg", preservation="metadata_stripped")`
+
+**`decodeAndReencodeAsPng(context, sourceUri, sessionDir)`:**
+
+PNG sources are re-encoded as PNG (lossless), preserving the lossless format.
+
+- `BitmapFactory.decodeStream(contentResolver.openInputStream(resolvedUri))`
+- `bitmap.compress(Bitmap.CompressFormat.PNG, 0, FileOutputStream(destFile))` (PNG quality parameter is ignored; always lossless)
+- No chunk parsing required — Bitmap re-encode removes all metadata automatically
+
+Returns `ReferenceSourceOriginalResult(filename="reference-source-original.png", mimeType="image/png", storedMimeType="image/png", preservation="metadata_stripped")`
 
 **`avifWithFallback(context, sourceUri, sessionDir, mimeType)`:**
+
+`BitmapFactory` does NOT support AVIF at any API level. `ImageDecoder` supports AVIF from API 31 only.
+
 - Check `Build.VERSION.SDK_INT >= Build.VERSION_CODES.S` (API 31)
-- If API 31+: decode via `ImageDecoder.decodeBitmap()`, re-encode as JPEG 95
+- If API 31+: `ImageDecoder.createSource(contentResolver, resolvedUri)` + `ImageDecoder.decodeBitmap(source)` → re-encode as JPEG 95
 - If API 29–30: copy bytes as-is, return `preservation="not_possible"`
 
 **`copyAsIsNotPossible(context, sourceUri, sessionDir)`:**
-- Copy bytes as-is (fallback to OFF behavior for this file)
+
+- Copy bytes as-is (same as OFF behavior for this file)
 - Returns `ReferenceSourceOriginalResult(filename="reference-source-original.bin", mimeType=null, storedMimeType=null, preservation="not_possible")`
 
 ### Update to `ReferenceSourceOriginalResult`
