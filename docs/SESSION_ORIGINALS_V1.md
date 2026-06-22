@@ -124,6 +124,8 @@ A **byte-for-byte copy** of the file that was committed to MediaStore as `Pictur
 - Includes all EXIF tags written by `MediaStoreWriter`, including GPS EXIF when present
 - This file is the authoritative high-quality capture source for future export and print workflows
 
+**Privacy mode exception:** When the `strip_originals_metadata` setting is ON, `capture-original.jpg` is written at full resolution and JPEG quality 95 but without EXIF, GPS, camera, or device metadata. See `SESSION_ORIGINALS_PRIVACY_V1.md` for the complete specification.
+
 **The MediaStore URI (`capture.mediaStoreUri`) remains in metadata.json for diagnostic provenance. It must never be used for file resolution by any future import or restore feature — `capture-original.jpg` is the authoritative source.**
 
 ### 5.3 reference.jpg — Unchanged
@@ -149,6 +151,8 @@ A **byte-for-byte copy** of the original reference source file as it was read fr
 - This file is the authoritative original-quality reference source for future re-render and export workflows
 
 **The reference source URI (`reference.sourceUri`) remains in metadata.json for diagnostic provenance. It must never be used for file resolution by any future import or restore feature — `reference-source-original.<ext>` is the authoritative source.**
+
+**Privacy mode exception:** When the `strip_originals_metadata` setting is ON, `reference-source-original.<ext>` is written at full resolution without EXIF, GPS, camera, or device metadata. The file extension may change (e.g., `.heic` → `.jpg`) when format conversion is required to remove metadata reliably. See `SESSION_ORIGINALS_PRIVACY_V1.md` for the complete specification and format matrix.
 
 ### 5.6 metadata.json — Updated (v5)
 

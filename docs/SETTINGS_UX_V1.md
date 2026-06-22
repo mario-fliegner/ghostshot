@@ -107,8 +107,7 @@ The current intended Settings structure is:
 2. Overlay & Compare
 3. Appearance
 4. GPS Guidance
-
-No additional categories are currently planned.
+5. Privacy
 
 Current implemented settings:
 - Keep Screen Awake
@@ -117,6 +116,9 @@ Current implemented settings:
 - Auto-Open Compare After Capture
 - Recreation Guidance (GPS; Category 4)
 - Live direction arrow (GPS sub-toggle; Category 4; planned — depends on Recreation Guidance; defined in `GPS_RECREATION_SYSTEM_V1.md`)
+
+Planned settings (Category 5 — Privacy):
+- Strip metadata from stored originals (DataStore key: `strip_originals_metadata`; default OFF; full specification: `SESSION_ORIGINALS_PRIVACY_V1.md §9`)
 
 Reserved but not yet implemented settings/features:
 - Hide Reference Peek Hint
