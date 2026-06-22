@@ -21,8 +21,9 @@ import android.graphics.Shader
  *  3. Reference bitmap — fill semantics (covers full comparison area)
  *  4. Capture bitmap — composited over reference with gradient soft-transition zone
  *  5. 1 px white core line at sliderX
- *  6. SameView handle at divider centre (filled SameViewAccent circle + white arrows)
- *  7. Comparison border (1 px #17202F rounded rect)
+ *  6. SameView handle at divider centre — white circle + blue arrows + white outer ring,
+ *     matching the CompareScreen handle visual
+ *  7. Comparison border (1 px #17202F)
  *  8. Caption (delegated to caller)
  *
  * Explicit distinction from VideoExport: the handle is included here (SHARE_COMPARISON_IMAGE_V1.md
@@ -43,14 +44,18 @@ internal class SliderRenderStrategy(
         isAntiAlias = false
     }
     private val handleFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ACCENT_COLOR
+        color = Color.WHITE
         style = Paint.Style.FILL
     }
     private val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
+        color = ACCENT_COLOR
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
+    }
+    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.STROKE
     }
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = COMPARISON_BG_COLOR
@@ -97,11 +102,22 @@ internal class SliderRenderStrategy(
         // 5. 1 px white core line at exact divider position.
         canvas.drawLine(sliderX, dims.compTop, sliderX, dims.compBottom, corePaint)
 
-        // 6. SameView handle — blue circle with white arrows.
+        // 6. SameView handle — white circle + blue arrows + white outer ring.
         val handleDiam = (minOf(cW, cH) * 0.12f).coerceAtLeast(40f)
         val handleR = handleDiam / 2f
         val hcx = sliderX
         val hcy = dims.compTop + cH / 2f
+
+        // Outer ring: two arcs with gaps at top/bottom so the divider line flows through.
+        val ringThickness = handleDiam * (2f / 48f)
+        val ringGap = handleDiam * (1f / 48f)
+        val ringR = handleR + ringGap + ringThickness / 2f
+        ringPaint.strokeWidth = ringThickness
+        val ringOval = RectF(hcx - ringR, hcy - ringR, hcx + ringR, hcy + ringR)
+        canvas.drawArc(ringOval, 102f, 156f, false, ringPaint)  // left half
+        canvas.drawArc(ringOval, 282f, 156f, false, ringPaint)  // right half
+
+        // White circle filled, then blue arrows on top.
         canvas.drawCircle(hcx, hcy, handleR, handleFillPaint)
         drawArrows(canvas, hcx, hcy, handleDiam)
 
@@ -115,7 +131,7 @@ internal class SliderRenderStrategy(
     }
 
     /**
-     * Draws white ◀ ▶ arrows centred at (cx, cy) scaled to [diameter].
+     * Draws blue (ACCENT_COLOR) ◀ ▶ arrows centred at (cx, cy) scaled to [diameter].
      * Geometry mirrors the CompareScreen handle arrows (CompareScreen.kt CompareDivider).
      */
     private fun drawArrows(canvas: Canvas, cx: Float, cy: Float, diameter: Float) {

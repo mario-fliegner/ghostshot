@@ -22,7 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -91,11 +93,18 @@ fun ShareComparisonPreview(
         val availableW = maxWidth
         val safeRatio = if (viewportRatio > 0f) viewportRatio else (9f / 16f)
 
+        // Uniform outer canvas padding on all four sides — makes the dark canvas visible
+        // around the comparison area, consistent regardless of caption state.
+        // Defined here so compH can use it for the Side-by-side slot-width calculation.
+        val outerPad = 4.dp
+
         // Preview fills the full card width. Comparison height is style-dependent:
         // - Slider uses the full available width per image (crop-fill), so height follows
         //   the full-width viewport ratio.
         // - Side by side gives each image only half the width (fit-fill), so the natural
-        //   image height is halfW / ratio. This avoids empty dark space above/below the images.
+        //   image height is halfW / ratio. The actual image slot width is reduced by the
+        //   Column's left+right outerPad, so compH must be based on (availableW - 2*outerPad)/2
+        //   to match ContentScale.Fit exactly and avoid visible letterboxing above/below images.
         val compW: Dp = availableW
         val compH: Dp = when (style) {
             ShareComparisonStyle.SLIDER ->
@@ -103,7 +112,7 @@ fun ShareComparisonPreview(
                     .coerceAtMost(availableW * 1.5f)              // narrow-portrait safety
                     .coerceAtMost(MAX_PREVIEW_COMPARISON_HEIGHT_DP.dp)
             ShareComparisonStyle.SIDE_BY_SIDE ->
-                ((availableW / 2) / safeRatio)                    // half width → half-width fit height
+                (((availableW - outerPad * 2) / 2) / safeRatio)  // actual slot width → exact fit height
                     .coerceAtMost(MAX_PREVIEW_COMPARISON_HEIGHT_DP.dp)
         }
 
@@ -119,10 +128,6 @@ fun ShareComparisonPreview(
             2    -> 33.dp   // 6 dp gap + ~27 dp two text lines
             else -> 46.dp   // 6 dp gap + ~40 dp three text lines
         }
-
-        // Uniform outer canvas padding on all four sides — makes the dark canvas visible
-        // around the comparison area, consistent regardless of caption state.
-        val outerPad = 4.dp
 
         val totalH: Dp = (outerPad + compH + captionTotalH + outerPad)
             .coerceAtMost(MAX_TOTAL_PREVIEW_HEIGHT_DP.dp) // 550dp absolute backstop
@@ -214,14 +219,35 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
                 strokeWidth = 1.dp.toPx()
             )
         }
-        // SameView handle — blue circle with white arrows, same geometry as export renderer
+        // SameView handle — white circle with blue arrows and outer ring, matching CompareScreen.
         val handleSize = minOf(compW.value * 0.15f, compH.value * 0.20f, 36f).dp
+        val ringGap = 1.dp
+        val ringThickness = 2.dp
+        val ringCanvasSize = handleSize + (ringGap + ringThickness) * 2
+
+        // 1. Outer ring: two arcs with gaps at top/bottom where the divider line flows through.
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(ringCanvasSize)
+        ) {
+            val strokePx = ringThickness.toPx()
+            val inset = strokePx / 2f
+            val arcTopLeft = Offset(inset, inset)
+            val arcSize = Size(size.width - strokePx, size.height - strokePx)
+            val gapDeg = 12f
+            drawArc(Color.White, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+            drawArc(Color.White, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+        }
+
+        // 2. White circle with blue arrows on top.
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(handleSize)
+                .shadow(3.dp, CircleShape)
                 .clip(CircleShape)
-                .background(SameViewAccent),
+                .background(Color.White),
             contentAlignment = Alignment.Center
         ) {
             androidx.compose.foundation.Canvas(modifier = Modifier.size(handleSize)) {
@@ -246,8 +272,8 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
                     lineTo(cx + off + depth, cy)
                     lineTo(cx + off - depth, cy + halfH)
                 }
-                drawPath(leftPath, Color.White, style = arrowStroke)
-                drawPath(rightPath, Color.White, style = arrowStroke)
+                drawPath(leftPath, SameViewAccent, style = arrowStroke)
+                drawPath(rightPath, SameViewAccent, style = arrowStroke)
             }
         }
     }

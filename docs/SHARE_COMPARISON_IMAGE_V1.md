@@ -99,7 +99,7 @@ These decisions are final and must not be re-evaluated during implementation.
 | FD-03 | Renderer input: `reference.jpg` and `capture.jpg` from the compare session; `metadata.json` for caption |
 | FD-04 | Two styles: **Slider** (50/50) and **Side by side** |
 | FD-05 | No watermark, no app branding overlay on the comparison content. The SameView slider handle in the Slider style is a visual identity element, not a watermark — it is part of the comparison presentation, not overlaid marketing content. |
-| FD-17 | Slider style includes the SameView handle (filled `SameViewAccent` circle + white directional arrows) at the fixed 50/50 divider position. Handle is purely visual; no interactivity; no dynamic position; no accessibility action. Video Export (VIDEO_EXPORT_V1.md §16.1) is explicitly unaffected. |
+| FD-17 | Slider style includes the SameView handle (white filled circle + `SameViewAccent` directional arrows + white outer ring with top/bottom gaps) at the fixed 50/50 divider position, matching the CompareScreen handle visual. Handle is purely visual; no interactivity; no dynamic position; no accessibility action. Video Export (VIDEO_EXPORT_V1.md §16.1) is explicitly unaffected. |
 | FD-06 | No GPS coordinates in the exported JPEG (no EXIF GPS tags) |
 | FD-07 | No platform picker in the app. Android Share Sheet opens only on explicit user tap on `[Share]` |
 | FD-08 | Output format: JPEG at 92% quality for both Standard and Original quality tiers |
@@ -200,10 +200,9 @@ SameView comparison images immediately recognizable.
 - Divider: gradient soft-transition zone + 1 px white core line (identical to
   `CompareSliderRenderEngine` divider specification at `sliderPos = 0.5`)
 - **Handle: rendered at the divider center, vertically centered in the comparison area**
-  - Filled circle in `SameViewAccent` (#4F8CFF)
-  - White left-arrow icon (◀) and right-arrow icon (▶) inside the circle
-  - Size and proportions match the `CompareScreen` handle — scaled proportionally to canvas
-    resolution to maintain visual consistency across Standard and Original quality exports
+  - White filled circle with `SameViewAccent` (#4F8CFF) left-arrow (◀) and right-arrow (▶) icons
+  - White outer ring (two arcs with top/bottom gaps where the divider line flows through)
+  - Matches the CompareScreen handle visual exactly; scaled proportionally to canvas resolution
   - Purely visual: no interactivity, no accessibility action, no dynamic position
   - Position is always the fixed 50 % horizontal center; the current slider position in
     `CompareScreen` is never used and never influences the handle position
@@ -366,10 +365,10 @@ For the Slider style (fixed at `sliderPos = 0.5`):
 5. Draw 1 px white core line at `sliderX = comparisonWidth / 2`
 6. Draw SameView handle at the divider center:
    - Position: `x = sliderX`, `y = comparisonHeight / 2` (vertically centered in comparison area)
-   - Filled circle in `SameViewAccent` (#4F8CFF); radius scales proportionally with canvas
-     resolution (same relative size as `CompareScreen` handle at display resolution)
-   - Draw white left-arrow (◀) and right-arrow (▶) icons inside the circle; same layout
-     as `CompareScreen` handle icons
+   - White outer ring (two arcs, 12° gaps at top/bottom); ring thickness and gap scale proportionally
+   - White filled circle; radius scales proportionally with canvas resolution
+   - `SameViewAccent` (#4F8CFF) left-arrow (◀) and right-arrow (▶) inside the circle; same
+     geometry as `CompareScreen` handle arrows
    - Handle is drawn on top of all comparison content and the divider line
 7. Draw comparison border
 8. Draw caption (if active)

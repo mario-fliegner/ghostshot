@@ -208,7 +208,7 @@
     <!-- Vergleich teilen-Screen -->
     <string name="share_comparison_screen_title">Vergleich teilen</string>
     <string name="share_comparison_style_label">Stil</string>
-    <string name="share_comparison_style_slider">Slider</string>
+    <string name="share_comparison_style_slider">Splitansicht</string>
     <string name="share_comparison_style_side_by_side">Nebeneinander</string>
     <string name="share_comparison_extras_label">Extras</string>
     <string name="share_comparison_quality_label">Qualität</string>

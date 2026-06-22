@@ -221,7 +221,7 @@
     <!-- Share Comparison Image screen -->
     <string name="share_comparison_screen_title">Share comparison</string>
     <string name="share_comparison_style_label">Style</string>
-    <string name="share_comparison_style_slider">Slider</string>
+    <string name="share_comparison_style_slider">Split view</string>
     <string name="share_comparison_style_side_by_side">Side by side</string>
     <string name="share_comparison_extras_label">Extras</string>
     <string name="share_comparison_quality_label">Quality</string>
