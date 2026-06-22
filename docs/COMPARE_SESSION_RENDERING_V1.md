@@ -57,12 +57,27 @@ The compare system must NOT prioritize:
 
 # Session File Structure
 
-Each session stores:
+Schema version 5 sessions store:
+
+capture.jpg
+capture-original.jpg
+reference.jpg
+reference-original.jpg
+reference-source-original.[ext]
+metadata.json
+
+`[ext]` is the format-specific extension determined at session creation time from the reference source MIME type
+(e.g. `.jpg`, `.heic`, `.png` — full policy in `SESSION_ORIGINALS_V1.md §6`).
+
+Schema version 2–4 sessions store the original four files:
 
 capture.jpg
 reference.jpg
 reference-original.jpg
 metadata.json
+
+The two new files (`capture-original.jpg` and `reference-source-original.[ext]`) are provenance-only files
+defined in `SESSION_ORIGINALS_V1.md`. They must never be used in compare rendering. They must never be used in compare rendering. The compare pipeline is identical for all schema versions.
 
 ---
 
@@ -143,6 +158,60 @@ reference-original.jpg exists for:
 - future premium features
 
 reference-original.jpg must NOT be used in normal compare rendering.
+
+---
+
+## capture-original.jpg
+
+The byte-for-byte copy of the file saved to `Pictures/SameView` via MediaStore.
+
+This file is:
+
+- a raw byte-copy of the committed MediaStore entry
+- written by streaming `ContentResolver.openInputStream(captureMediaStoreUri)` directly to disk
+- not re-encoded, not re-compressed, not re-rendered
+
+This is NOT the same as capture.jpg. capture.jpg is re-encoded from the in-memory bitmap at quality 90. capture-original.jpg is the quality-95 MediaStore file with all EXIF tags intact.
+
+capture-original.jpg exists for:
+
+- original-quality export and print
+- future HQ re-render workflows
+- portable import/restore without MediaStore dependency
+
+capture-original.jpg must NOT be used in compare rendering.
+
+capture-original.jpg is present only in schema version 5 sessions. Its absence in v2–v4 sessions is not an error.
+
+Full specification: `SESSION_ORIGINALS_V1.md §5.2`.
+
+---
+
+## reference-source-original.[ext]
+
+The byte-for-byte copy of the original reference source file read from the picker or SAF URI.
+
+`[ext]` is the format-specific extension determined from the MIME type at session creation time (see `SESSION_ORIGINALS_V1.md §6`).
+
+This file is:
+
+- a raw byte-copy of the URI stream
+- not decoded, not EXIF-oriented, not re-encoded, not JPEG-normalized
+- written by streaming `ContentResolver.openInputStream(resolvedUri)` directly to disk
+
+This is NOT the same as reference-original.jpg. reference-original.jpg is decoded, EXIF-oriented, and re-encoded as JPEG quality 90. reference-source-original.[ext] is the unmodified original bytes.
+
+reference-source-original.[ext] exists for:
+
+- re-rendering at full original quality
+- future HQ export and print
+- portable import/restore without picker URI dependency
+
+reference-source-original.[ext] must NOT be used in compare rendering.
+
+reference-source-original.[ext] is present only in schema version 5 sessions. Its absence in v2–v4 sessions is not an error.
+
+Full specification: `SESSION_ORIGINALS_V1.md §5.5` and `§6`.
 
 ---
 
@@ -245,9 +314,24 @@ The compare must later reproduce THIS frozen state.
 
 ---
 
-## Step 3 — Capture Image Save
+## Step 3 — Secure Source Originals (v5 only)
 
-capture.jpg is saved from the camera pipeline.
+Before any bitmap decoding or rendering, the two source originals are secured by byte-for-byte copy:
+
+1. `capture-original.jpg` — streamed from `captureMediaStoreUri` (the committed MediaStore file)
+2. `reference-source-original.[ext]` — streamed from the resolved reference URI
+
+These copies are IO-only operations with no bitmap work. They are performed first so that the original source bytes are secured before any memory-intensive rendering begins.
+
+The format-specific extension for `reference-source-original.[ext]` is determined from the reference source MIME type at this step.
+
+This step is specific to schema version 5 sessions. For v2–v4 sessions this step does not exist.
+
+---
+
+## Step 4 — Capture Image Save
+
+capture.jpg is saved from the in-memory bitmap.
 
 capture.jpg remains the full compare capture result.
 
@@ -255,7 +339,7 @@ capture.jpg must NEVER be cropped smaller because of reference image limitations
 
 ---
 
-## Step 4 — Reference Original Save
+## Step 5 — Reference Original Save
 
 The original reference source is:
 
@@ -267,13 +351,13 @@ Then stored as:
 
 reference-original.jpg
 
-This file remains the full reference source.
+This file remains the full oriented reference for rendering purposes.
 
 No overlay transforms are applied to reference-original.jpg.
 
 ---
 
-## Step 5 — Render reference.jpg
+## Step 6 — Render reference.jpg
 
 reference.jpg is rendered from:
 
@@ -290,16 +374,27 @@ reference.jpg becomes the canonical compare reference image.
 
 ---
 
-## Step 6 — Final Session Commit
+## Step 7 — Final Session Commit
 
-Only after ALL required files are successfully written:
+Only after ALL required files are successfully written may the session become visible in the library.
 
+Required files for v5 sessions:
+
+- capture-original.jpg
+- reference-source-original.[ext]
 - capture.jpg
-- reference.jpg
 - reference-original.jpg
+- reference.jpg
 - metadata.json
 
-may the session become visible in the library.
+Required files for v2–v4 sessions:
+
+- capture.jpg
+- reference-original.jpg
+- reference.jpg
+- metadata.json
+
+metadata.json is always written last. The session directory is not visible to SessionScanner until metadata.json exists and is parseable.
 
 Partial sessions are invalid.
 
@@ -515,11 +610,20 @@ If any required file fails:
 - no broken library entry may exist
 - metadata.json must not reference missing files
 
-Required files:
+Required files for v5 sessions:
+
+- capture-original.jpg
+- reference-source-original.[ext]
+- capture.jpg
+- reference-original.jpg
+- reference.jpg
+- metadata.json
+
+Required files for v2–v4 sessions:
 
 - capture.jpg
-- reference.jpg
 - reference-original.jpg
+- reference.jpg
 - metadata.json
 
 Partial sessions are invalid.
@@ -579,7 +683,9 @@ This architecture intentionally preserves compatibility for:
 
 without changing the core compare pipeline later.
 
-The V1 session backup export (`SESSION_BACKUP_EXPORT_V1.md`) is the first implementation of the "export features" compatibility target listed above. All four session files — including `reference-original.jpg`, which was explicitly designed for export and re-editing workflows — are included unchanged in every session backup.
+The V1 session backup export (`SESSION_BACKUP_EXPORT_V1.md`) is the first implementation of the "export features" compatibility target listed above. All session files are included unchanged in every session backup using a metadata-driven file list from the `files.*` block.
+
+The Session Originals feature (`SESSION_ORIGINALS_V1.md`) is the second implementation step, adding `capture-original.jpg` and `reference-source-original.[ext]` to enable full-fidelity re-render and original-quality export without MediaStore or picker URI dependency.
 
 ---
 

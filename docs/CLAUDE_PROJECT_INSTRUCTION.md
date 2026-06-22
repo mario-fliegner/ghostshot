@@ -85,13 +85,17 @@ Rules:
 Each successful capture with an active reference image can create an internal compare session.
 
 - Location: `filesDir/sessions/<sessionId>/`
-- Contents: `capture.jpg`, `reference.jpg`, `metadata.json`
-- `metadata.json` stores schema version, `sessionTimestampMs`, file names, capture MediaStore URI, reference picker URI, and optional GPS location fields (`captureLocation`, `referenceLocation`)
+- Schema version 5 contents: `capture.jpg`, `capture-original.jpg`, `reference.jpg`, `reference-original.jpg`, `reference-source-original.[ext]`, `metadata.json`
+- `capture-original.jpg` is a byte-for-byte copy of the MediaStore capture file
+- `reference-source-original.[ext]` is a byte-for-byte copy of the reference source (extension from MIME type)
+- Schema versions 2–4 contain only: `capture.jpg`, `reference.jpg`, `reference-original.jpg`, `metadata.json`
+- `metadata.json` stores schema version, session identity, file references, capture geometry, GPS fields, and user content — full v5 schema in `SESSION_METADATA_V1.md §6.6`
 - Session ID is the directory name, formatted as `YYYY-MM-DD_HH-mm-ss`
-- `SessionStorage` writes sessions
-- `SessionScanner` reads sessions
+- `SessionStorage` writes sessions; current schema version is 5
+- `SessionScanner` reads sessions; `SUPPORTED_VERSIONS` accepts {2, 3, 4, 5}
 - `SessionDeleter` deletes sessions and validates session IDs against the sessions root
 - Session write is best-effort and must not block or invalidate the main MediaStore capture save
+- Full session originals specification: `SESSION_ORIGINALS_V1.md`
 
 ### Comparison Output Decision
 

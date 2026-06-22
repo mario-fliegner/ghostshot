@@ -141,6 +141,9 @@ reference.sourceUri       Source URI of the reference image at time of selection
 
 These fields are included in backups for diagnostic value but must be treated as informational by importers. See `SESSION_BACKUP_EXPORT_V1.md` §5.2.
 
+**Note on `reference.sourceDisplayName` (implementation history):**
+In schema versions 2–4, the reference source URI was written under the key `reference.sourceDisplayName` — a misnomer, since the stored value is a full content URI, not a display name. In v5, this field is written as `reference.sourceUri` (the correct name). Readers that need the reference source URI must try `reference.sourceUri` first, then fall back to `reference.sourceDisplayName` for v2–v4 sessions. `reference.sourceDisplayName` must not be written in v5 sessions.
+
 ### Category 4 — User Content (Mutable After Save)
 
 These fields may be created, updated, or removed after session save via explicit user action. The compare rendering pipeline must never depend on any of these fields. Their presence or absence must not affect `CompareScreen` image rendering.
@@ -166,11 +169,15 @@ additional.source       Enum: "sameview" | "website" | "import" | "api"
 
 ---
 
-## 5. Current Metadata Model (Schema v3)
+## 5. Metadata Model History
 
 ### 5.1 Schema Version
 
-The current production schema is version 3. `SessionScanner.SUPPORTED_VERSIONS` accepts versions 2 and 3. Version 2 sessions remain fully readable; GPS and title fields are absent and treated as optional.
+The current production schema is **version 4**. `SessionScanner.SUPPORTED_VERSIONS` accepts versions 2, 3, and 4. The **v4 nested block structure is documented in §6** and is the authoritative current implementation.
+
+**Schema version 5** adds the two session original files and corrects the `reference.sourceDisplayName` field name. It is specified in §7 of this document and in `SESSION_ORIGINALS_V1.md`.
+
+The v3 flat-structure documentation below (§5.2) is preserved as historical context.
 
 ### 5.2 Current Flat Structure
 
@@ -198,21 +205,25 @@ referenceLocation           Object?    Optional GPS EXIF from reference image (s
 
 ### 5.3 Schema Version History
 
-| Version | Added Fields | Notes |
+| Version | Added Fields / Changes | Notes |
 | --- | --- | --- |
 | 1 | Initial schema | Geometry and file references only |
 | 2 | `sessionTimestampMs`, MediaStore URI, reference URI | Session identity and device-local provenance |
 | 3 | `captureLocation`, `referenceLocation`, `title` | GPS and user title support |
+| 4 | Nested blocks: `session`, `files`, `capture`, `reference`, `content`, `location`, `additional` | Structured metadata, user content, favorites, visibility; `reference.date` auto-population; see §6 |
+| 5 | `files.captureOriginal`, `files.referenceSourceOriginal`; `reference.sourceUri` (replaces `reference.sourceDisplayName`); `reference.sourceMimeType` | Session originals; field name correction; see §7 and `SESSION_ORIGINALS_V1.md` |
+
+`SessionScanner.SUPPORTED_VERSIONS` must accept all versions listed: {2, 3, 4, 5}.
 
 ---
 
-## 6. Target Metadata Model (v4)
+## 6. Metadata Model (v4) — Current Production
 
 ### 6.1 Design Direction: Nested Blocks
 
-The v4 schema introduces nested blocks for new fields. Existing flat fields from v3 are preserved unchanged at the top level for backward compatibility. Migrating existing flat fields into nested blocks is a separate future decision (see Section 15.4).
+The v4 schema introduces nested blocks for new fields. Existing flat fields from v3 are preserved unchanged at the top level for backward compatibility.
 
-The nested block structure is the intended long-term direction. New fields introduced in v4 and beyond are added within their respective blocks, not as flat top-level fields.
+The nested block structure is the long-term direction. New fields introduced in v5 continue this pattern.
 
 ### 6.2 v4 Block Structure
 
@@ -339,9 +350,110 @@ The decision of when to stop writing legacy flat fields is an implementation dec
 
 ### 6.5 Schema Version Implication
 
-v4 introduces new nested blocks. This is a forward-compatible additive change for readers that follow the unknown-field-tolerance rule (Section 15.5). Schema version must be incremented to 4 to signal the new structure.
+v4 introduced nested blocks (implemented). `SessionScanner.SUPPORTED_VERSIONS` accepts {2, 3, 4, 5}.
 
-`SessionScanner.SUPPORTED_VERSIONS` must be updated to accept version 4. Versions 2 and 3 must continue to be accepted.
+---
+
+### 6.6 Schema v5 — Session Originals
+
+### 6.6.1 v5 Changes
+
+Schema version 5 introduces three additive changes within the existing block structure:
+
+**`files` block — two new fields:**
+
+```text
+files.captureOriginal           String    Filename of the capture source original (always "capture-original.jpg")
+files.referenceSourceOriginal   String    Filename of the reference source original (e.g. "reference-source-original.heic")
+```
+
+Both fields are required in v5 sessions. Their absence in a v5 session is treated as a corrupt session by `SessionScanner`.
+
+**`reference` block — field rename and new field:**
+
+`reference.sourceDisplayName` (v2–v4 misnomer) is **not written** in v5 sessions.
+It is replaced by:
+
+```text
+reference.sourceUri      String?   Source URI of the reference image (device-local, non-portable)
+reference.sourceMimeType String?   MIME type of the reference source at picker time (e.g. "image/heic")
+```
+
+Readers that need the reference source URI for display or diagnostic purposes must read `reference.sourceUri` first, falling back to `reference.sourceDisplayName` for v2–v4 sessions.
+
+### 6.6.2 v5 Block Structure (complete)
+
+All v4 fields are unchanged. v5 adds:
+
+```text
+version                       Integer    Schema version (5)
+
+--- files block (updated in v5) ---
+files.capture                 String     "capture.jpg"
+files.captureOriginal         String     "capture-original.jpg"           ← NEW in v5
+files.reference               String     "reference.jpg"
+files.referenceOriginal       String     "reference-original.jpg"
+files.referenceSourceOriginal String     "reference-source-original.[ext]" ← NEW in v5
+
+--- reference block (updated in v5) ---
+reference.sourceUri           String?    Source URI — replaces sourceDisplayName  ← NEW in v5
+reference.sourceMimeType      String?    MIME type of source (e.g. "image/heic")   ← NEW in v5
+reference.date                String?    (unchanged)
+reference.dateSource          String?    (unchanged)
+reference.userEdited          Boolean?   (unchanged)
+```
+
+All other blocks (`session`, `capture`, `content`, `location`, `additional`, `viewport`, `overlay`, `rendering`, GPS fields) are unchanged from v4.
+
+### 6.6.3 v5 Example
+
+```json
+{
+  "version": 5,
+  "session": { "id": "2026-07-01_10-00-00", "createdAtMs": 1751359200000 },
+  "files": {
+    "capture": "capture.jpg",
+    "captureOriginal": "capture-original.jpg",
+    "reference": "reference.jpg",
+    "referenceOriginal": "reference-original.jpg",
+    "referenceSourceOriginal": "reference-source-original.heic"
+  },
+  "capture": {
+    "timestampMs": 1751359200000,
+    "mediaStoreUri": "content://media/external/images/media/5678"
+  },
+  "reference": {
+    "sourceUri": "content://com.google.android.apps.photos.../...",
+    "sourceMimeType": "image/heic",
+    "date": "2008-06",
+    "dateSource": "exif",
+    "userEdited": false
+  },
+  "viewport": { "width": 1080, "height": 1920, "orientation": "PORTRAIT" },
+  "overlay": { "scale": 1.0, "offsetX": 0.0, "offsetY": 0.0, "displayMode": "COMPARE_WITH_PREVIEW" },
+  "rendering": { "referenceBackgroundColor": "#17202F", "referenceJpegQuality": 90 },
+  "additional": { "isFavorite": false, "visibility": "private", "source": "sameview" }
+}
+```
+
+### 6.6.4 v5 Scanner Validation
+
+`SessionScanner.SUPPORTED_VERSIONS` must include 5.
+
+For `version == 5`, `SessionScanner.validateUnsafe()` additionally validates:
+
+- `files.captureOriginal` is present and non-empty
+- `files.captureOriginal` passes `isSafeFilename()`
+- `File(sessionDir, files.captureOriginal).exists()`
+- `files.referenceSourceOriginal` is present and non-empty
+- `files.referenceSourceOriginal` passes `isSafeFilename()`
+- `File(sessionDir, files.referenceSourceOriginal).exists()`
+
+For versions 2–4, these checks do not apply.
+
+### 6.6.5 Backward Compatibility
+
+Sessions at versions 2–4 are unchanged and remain fully valid. The `files` block in v2–v4 sessions contains three entries; v5 sessions contain five entries. The scanner, backup exporter, and all existing features handle both correctly.
 
 ---
 

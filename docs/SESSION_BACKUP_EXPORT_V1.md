@@ -70,7 +70,21 @@ The backup is a standard ZIP file using `java.util.zip.ZipOutputStream` with MIM
 
 ### 4.2 Session Directory Structure Inside the ZIP
 
-Each session in the ZIP is represented as a subdirectory named after the session ID:
+Each session in the ZIP is represented as a subdirectory named after the session ID. The file set depends on the session schema version.
+
+**Schema version 5 session:**
+
+```
+<sessionId>/
+├── capture.jpg
+├── capture-original.jpg
+├── reference.jpg
+├── reference-original.jpg
+├── reference-source-original.[ext]
+└── metadata.json
+```
+
+**Schema version 2–4 session:**
 
 ```
 <sessionId>/
@@ -80,18 +94,22 @@ Each session in the ZIP is represented as a subdirectory named after the session
 └── metadata.json
 ```
 
+`[ext]` is the format-specific extension stored in `files.referenceSourceOriginal` in `metadata.json` (e.g. `.jpg`, `.heic`).
+
 The session directory name **must** equal the session ID as stored in `metadata.json` under `session.id`. A future importer uses this equality as a consistency check.
 
 ### 4.3 Single-Session ZIP
 
-A backup of exactly one session contains one subdirectory:
+A backup of exactly one v5 session contains one subdirectory:
 
 ```
 SameView_2026-05-15_14-30-00.zip
 └── 2026-05-15_14-30-00/
     ├── capture.jpg
+    ├── capture-original.jpg
     ├── reference.jpg
     ├── reference-original.jpg
+    ├── reference-source-original.heic
     └── metadata.json
 ```
 
@@ -103,8 +121,10 @@ A backup of two or more sessions contains one subdirectory per session:
 SameView_Backup_2026-06-01_10-00-00.zip
 ├── 2026-05-15_14-30-00/
 │   ├── capture.jpg
+│   ├── capture-original.jpg
 │   ├── reference.jpg
 │   ├── reference-original.jpg
+│   ├── reference-source-original.heic
 │   └── metadata.json
 └── 2026-05-16_09-15-00/
     ├── capture.jpg
@@ -113,6 +133,8 @@ SameView_Backup_2026-06-01_10-00-00.zip
     └── metadata.json
 ```
 
+Sessions may be at different schema versions. The example above shows one v5 session (with originals) and one older session (without). The exporter handles both via metadata-driven file discovery (§6.3a).
+
 Session order within the ZIP is unspecified. A future importer must not rely on ZIP entry order.
 
 ### 4.5 File Content Rules
@@ -120,8 +142,10 @@ Session order within the ZIP is unspecified. A future importer must not rely on 
 **Strict no-modification rule.** All files are written into the ZIP exactly as they exist on disk:
 
 - `capture.jpg`: byte-for-byte copy. No re-encoding, no quality change, no resize, no EXIF modification.
+- `capture-original.jpg`: byte-for-byte copy.
 - `reference.jpg`: byte-for-byte copy.
 - `reference-original.jpg`: byte-for-byte copy.
+- `reference-source-original.[ext]`: byte-for-byte copy. The extension matches the original source format.
 - `metadata.json`: written as-is from disk.
 
 No transformation of any kind is applied during export.
@@ -145,29 +169,27 @@ These filenames are passed as `initialFileName` to `ACTION_CREATE_DOCUMENT`. The
 
 ### 5.1 Full Export — No Stripping
 
-The complete `metadata.json` is written into the ZIP without modification. No fields are removed, no values are changed. This includes:
+The complete `metadata.json` is written into the ZIP without modification. No fields are removed, no values are changed. This includes all blocks present in the session:
 
-- Schema version (`version`)
-- Session block (`session.id`, `session.createdAtMs`)
-- Files block (`files.capture`, `files.reference`, `files.referenceOriginal`)
-- Content block (optional `content.title`, `content.description`, `content.tags`)
-- Capture block (`capture.mediaStoreUri`)
-- Reference block (`reference.sourceDisplayName`, dimensions, EXIF orientation)
-- Viewport block (`viewport.width`, `viewport.height`, `viewport.orientation`)
-- Overlay block (`overlay.scale`, `overlay.offsetX`, `overlay.offsetY`, `overlay.displayMode`)
-- Rendering block (`rendering.referenceBackgroundColor`, `rendering.referenceJpegQuality`)
-- Optional GPS fields (`captureLocation`, `referenceLocation`)
+**v2–v4 sessions:** schema version, session block, files block (`files.capture`, `files.reference`, `files.referenceOriginal`), capture block, reference block (with `reference.sourceDisplayName` in v2–v4), viewport, overlay, rendering, optional GPS fields, optional content/location/additional blocks.
+
+**v5 sessions (additional):** `files.captureOriginal`, `files.referenceSourceOriginal`, `reference.sourceUri` (replaces `reference.sourceDisplayName`), `reference.sourceMimeType`.
+
+All fields are written as-is from disk. No field stripping, no GPS removal, no URI redaction.
 
 ### 5.2 Device-Local Fields
 
 Two fields in `metadata.json` contain URIs specific to the device on which the session was created. These fields are included in the export because removing them would violate full-fidelity backup principles. They may have diagnostic or future-reference value.
 
-| Field path | Type | Device-local — not portable |
-|---|---|---|
-| `capture.mediaStoreUri` | String (URI) | Points to the captured photo in `Pictures/SameView/` on the creating device. Meaningless on another device or after gallery cleanup. |
-| `reference.sourceDisplayName` | String (URI) | Points to the reference image source on the creating device (e.g., a Google Photos provider URI). Not resolvable on another device. |
+| Field path | Version | Type | Device-local — not portable |
+| --- | --- | --- | --- |
+| `capture.mediaStoreUri` | v2–v5 | String (URI) | Points to the captured photo in `Pictures/SameView/` on the creating device. Meaningless on another device or after gallery cleanup. |
+| `reference.sourceDisplayName` | v2–v4 | String (URI) | **Misnomer.** Contains a full content URI, not a display name. Points to the reference image source on the creating device. Not resolvable on another device. |
+| `reference.sourceUri` | v5+ | String (URI) | Correct field name for the reference source URI. Same semantics as `reference.sourceDisplayName`. Device-local, non-portable. |
 
-**Contract for future importers:** These fields must be treated as informational metadata only. An importer must not attempt to resolve these URIs on the importing device. Missing or unresolvable values for these fields must not cause import failure.
+**Note on the `sourceDisplayName` misnomer:** In v2–v4, this field stores a full content URI under an incorrect name. In v5, the field is written as `reference.sourceUri`. Both fields refer to the same data; the rename is a correction only.
+
+**Contract for future importers:** These fields must be treated as informational metadata only. An importer must not attempt to resolve these URIs on the importing device. Missing or unresolvable values for these fields must not cause import failure. A v5 session is fully importable from the files in the ZIP alone, without any URI access.
 
 ### 5.3 GPS Data
 
@@ -179,7 +201,7 @@ No GPS-specific warning dialog is displayed before export. The backup is a trust
 
 ### 5.4 Schema Version Contract
 
-`metadata.json` contains a `version` integer field (currently `4`). This field is the authoritative schema version for future import compatibility.
+`metadata.json` contains a `version` integer field (currently `5` for new sessions). This field is the authoritative schema version for future import compatibility.
 
 **Rule for the development team:** The `version` field must be incremented whenever a breaking change is introduced to the `metadata.json` schema. Minor additions (new optional fields) do not require a version increment but must be additive and non-breaking. `SessionScanner.SUPPORTED_VERSIONS` must be kept up to date with the accepted version set.
 
@@ -189,8 +211,8 @@ A future import implementation must follow these rules:
 
 1. **Directory-based session discovery**: each top-level subdirectory of the ZIP that contains a parseable `metadata.json` with a `version` field is a candidate session. No ZIP-level index file is required.
 2. **Unknown field tolerance**: unknown fields anywhere in `metadata.json` — at any nesting level — must be silently ignored. This is the forward compatibility guarantee for future schema evolution.
-3. **Device-local field treatment**: `capture.mediaStoreUri` and `reference.sourceDisplayName` must not be used for file resolution on the importing device. All session files are resolved exclusively from within the ZIP.
-4. **Version validation**: an importer must accept versions 2, 3, and 4. An importer encountering an unknown version must reject that session with an explicit, user-visible error, not a silent skip.
+3. **Device-local field treatment**: `capture.mediaStoreUri`, `reference.sourceDisplayName` (v2–v4), and `reference.sourceUri` (v5) must not be used for file resolution on the importing device. All session files are resolved exclusively from the `files.*` block and the ZIP contents.
+4. **Version validation**: an importer must accept versions 2, 3, 4, and 5. An importer encountering an unknown version must reject that session with an explicit, user-visible error, not a silent skip.
 5. **Optional field tolerance**: absent optional fields (`captureLocation`, `referenceLocation`, `content.title`) must not cause import failure.
 
 ---
@@ -218,14 +240,20 @@ FileProvider preparation (RELEASE_HARDENING_AUDIT Block D, finding S-02) is **no
 
 The implementation must stream session file content directly to the SAF-provided `OutputStream`. No intermediate temporary file is required or permitted.
 
-Required approach:
-1. `contentResolver.openOutputStream(destinationUri)` provides the target output stream
-2. Wrap in `BufferedOutputStream` for write performance
-3. Wrap in `ZipOutputStream`
-4. For each session file: add a `ZipEntry` with the correct entry path (`<sessionId>/filename`), open the source file with a `FileInputStream`, copy in fixed-size chunks to the ZipOutputStream entry, close the entry
-5. Close `ZipOutputStream` after all entries are written (writes the ZIP end-of-central-directory record)
+**Metadata-driven file discovery (replaces hardcoded file list):**
 
-Chunk-based file copying (not full-file in-memory loads) is required to avoid OOM on large session files.
+Before writing each session, the exporter reads `metadata.json` from the session directory and collects all filenames from the `files.*` block. This produces the per-session file list. `metadata.json` itself is always included. This approach handles version-specific file sets (v2–v4: 3+1 files; v5: 5+1 files) and variable extensions (e.g. `reference-source-original.heic`) without hardcoded filenames.
+
+Required approach:
+
+1. Pre-validation: for each session, parse `metadata.json`, collect filenames from `files.*`, verify each file exists on disk. Abort before writing if any file is missing.
+2. `contentResolver.openOutputStream(destinationUri)` provides the target output stream
+3. Wrap in `BufferedOutputStream` for write performance
+4. Wrap in `ZipOutputStream`
+5. For each session, for each file in the metadata-driven file list: add a `ZipEntry` with the correct entry path (`<sessionId>/filename`), open the source file with a `FileInputStream`, copy in fixed-size chunks to the ZipOutputStream entry, close the entry
+6. Close `ZipOutputStream` after all entries are written (writes the ZIP end-of-central-directory record)
+
+Chunk-based file copying (not full-file in-memory loads) is required to avoid OOM on large session files, especially v5 sessions containing full-resolution original files.
 
 ### 6.4 Background Execution
 
@@ -439,17 +467,22 @@ This section documents what a future import feature must implement to correctly 
 ### 11.1 Session Discovery Algorithm
 
 A future importer reads the ZIP and identifies top-level subdirectories. For each subdirectory:
+
 1. Check for a `metadata.json` file inside the subdirectory
 2. Parse `metadata.json` as JSON; skip on parse failure
 3. Read the `version` field; reject if version is unknown
 4. Validate required fields (`session.id`, `session.createdAtMs`, `files.capture`, `files.reference`)
 5. Verify that `session.id` matches the subdirectory name; skip on mismatch
-6. Verify that the referenced files (`files.capture`, `files.reference`, `files.referenceOriginal`) exist in the subdirectory
-7. Accept as a valid importable session
+6. Collect all filenames from the `files.*` block of `metadata.json`
+7. Verify that each collected file exists in the ZIP subdirectory
+8. For version 5: additionally verify `files.captureOriginal` and `files.referenceSourceOriginal` are present in `files.*` and exist in the ZIP
+9. Accept as a valid importable session
 
 No ZIP-level index or manifest file is involved.
 
 ### 11.2 Required Files per Importable Session
+
+**Version 2–4 sessions:**
 
 | File | Required | Notes |
 |---|---|---|
@@ -458,15 +491,24 @@ No ZIP-level index or manifest file is involved.
 | `<sessionId>/reference-original.jpg` | Yes | EXIF-oriented original reference |
 | `<sessionId>/metadata.json` | Yes | Session metadata |
 
+**Version 5 sessions (additional):**
+
+| File | Required | Notes |
+|---|---|---|
+| `<sessionId>/capture-original.jpg` | Yes | Byte-copy of MediaStore capture |
+| `<sessionId>/reference-source-original.[ext]` | Yes | Byte-copy of reference source; filename from `files.referenceSourceOriginal` |
+
 A session with any missing required file must not be imported.
 
 ### 11.3 Device-Local Field Handling
 
 An importer must explicitly ignore:
-- `capture.mediaStoreUri` — do not attempt to access any file at this URI on the importing device
-- `reference.sourceDisplayName` — do not attempt to access any file at this URI on the importing device
 
-The absence of valid URIs for these fields must not cause import failure. A session is fully importable from the four files in the ZIP alone.
+- `capture.mediaStoreUri` — do not attempt to resolve this URI on the importing device
+- `reference.sourceDisplayName` (v2–v4) — do not attempt to resolve this URI on the importing device
+- `reference.sourceUri` (v5) — do not attempt to resolve this URI on the importing device
+
+The absence of valid URIs for these fields must not cause import failure. A session is fully importable from the files in the ZIP alone. The `files.*` block in `metadata.json` is the authoritative file manifest.
 
 ### 11.4 Session ID Constraint
 
@@ -506,7 +548,7 @@ Documented in Section 7.3. Not in scope for this specification.
 |---|---|
 | 1 | Single-session ZIP contains exactly one subdirectory with the correct session ID |
 | 2 | Multi-session ZIP contains the correct number of subdirectories, one per selected session |
-| 3 | Each subdirectory in the ZIP contains all four required files |
+| 3 | Each subdirectory in the ZIP contains all files declared in `files.*` plus `metadata.json` (version-aware: 4 files for v2–v4, 6 files for v5) |
 | 4 | Files in the ZIP are byte-identical copies of the source files |
 | 5 | Single-session suggested filename matches `SameView_<sessionId>.zip` |
 | 6 | Multi-session suggested filename matches `SameView_Backup_<timestamp>.zip` |
