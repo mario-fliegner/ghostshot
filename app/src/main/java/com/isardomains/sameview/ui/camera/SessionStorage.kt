@@ -637,12 +637,23 @@ internal object SessionStorage {
     }
 
     /**
-     * Applies [MediaStore.setRequireOriginal] for `media`-authority content URIs so that
-     * the byte-copy receives the original file rather than a transcoded version.
-     * Falls back to the plain [uri] on any exception or for non-media URIs.
+     * Applies [MediaStore.setRequireOriginal] for classic MediaStore image URIs
+     * (authority "media", path NOT starting with "/picker/") so that the byte-copy
+     * receives the original file rather than a transcoded version.
+     *
+     * Photo Picker URIs (Android 13+) also carry authority "media" but their path
+     * starts with "/picker/". They do NOT support setRequireOriginal: on Android 16,
+     * the method succeeds in appending "?requireOriginal=1" to the URI, but the picker
+     * provider then rejects the modified URI in openInputStream with
+     * "Require Original is not supported for Picker URI", causing the session save to fail.
+     * Such URIs are returned unchanged so openInputStream receives the original picker URI.
+     *
+     * Falls back to the plain [uri] on any exception from [MediaStore.setRequireOriginal]
+     * itself, or for non-media URIs.
      */
-    private fun resolveSourceUri(uri: Uri): Uri {
+    internal fun resolveSourceUri(uri: Uri): Uri {
         if (uri.scheme != "content" || uri.authority != "media") return uri
+        if (uri.path?.startsWith("/picker/") == true) return uri
         return try {
             MediaStore.setRequireOriginal(uri)
         } catch (_: UnsupportedOperationException) {
