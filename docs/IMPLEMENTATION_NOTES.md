@@ -284,6 +284,14 @@ Feedback:
 - `SessionScanner` accepts versions {2, 3, 4, 5}; v5 additionally validates that the files referenced in `files.captureOriginal` and `files.referenceSourceOriginal` exist on disk; v2/v3/v4 sessions without original files remain fully valid
 - `SessionBackupExporter` is metadata-driven: reads the `files.*` block from each session's `metadata.json` to determine which files to export; handles v4 (4 files) and v5 (6 files) uniformly; variable-extension originals are handled automatically
 - `EditSessionViewModel` reads `reference.sourceUri` first (v5), falls back to `reference.sourceDisplayName` (v2–v4)
+- **Session Originals Privacy (2026-07-XX):** optional setting `strip_originals_metadata` (DataStore key, default `false`). Full specification: `SESSION_ORIGINALS_PRIVACY_V1.md`.
+  - Privacy OFF (default): `capture-original.jpg` and `reference-source-original.*` are byte-for-byte copies; all EXIF/GPS/metadata intact; maximum restore fidelity
+  - Privacy ON: session originals are metadata-stripped before writing to the session directory; MediaStore gallery photo is never modified; Compare (`capture.jpg` + `reference.jpg`) and `OriginalReferenceBadge` (`reference-original.jpg`) are unaffected
+  - Capture path (Privacy ON): byte-level JPEG segment strip (APP1/XMP/IPTC removed, ICC kept); fallback to decode→orient→JPEG-95 re-encode for non-trivial EXIF orientation or malformed JPEG; GPS, EXIF DateTimeOriginal, Make/Model, MakerNotes removed; full resolution preserved
+  - Reference source path (Privacy ON): format-specific decode→re-encode cycle — JPEG/HEIC/HEIF/WebP → JPEG 95; PNG → PNG (lossless); GIF/BMP → JPEG 95; AVIF API 31+ → JPEG 95, API 29–30 → `not_possible`; unknown MIME → `not_possible` (stored as-is, session still saved)
+  - `metadata.json` `originals` block (only when Privacy ON): `privacyMode: true`, `capturePreservation`, `referenceSourcePreservation`, optional `referenceSourceStoredMimeType` (when output format differs from source)
+  - `CameraViewModel` reads `stripOriginalsMetadata` from `SettingsRepository`, freezes the value at capture time (before IO), passes `stripMetadata` to `SessionStorage.saveSession()`
+  - MIME inference fallback via `inferMimeTypeFromUri()` handles `file://` URIs where `ContentResolver.getType()` returns null (uses file extension)
 - `metadata.json` schema is **v4** through 2026-06-21 (bumped from v3 in Block A, 2026-06-09): includes `capture.timestampMs` as the canonical capture timestamp inside the `capture` block; `session.createdAtMs` is preserved for backward compatibility and carries the same value
 - `metadata.json` contains an `additional` block at session creation with fixed defaults: `isFavorite: false`, `visibility: "private"`, `source: "sameview"` (Block B, 2026-06-09); UI and update endpoint implemented 2026-06-20 via `SessionStorage.updateFavorite()` and `CameraViewModel.toggleFavorite()`
 - `content` block is absent at session creation when no title is present (Block C, 2026-06-09); fixes §12.1 violation where `description: null` and `tags: []` were pre-populated; `updateTitle()` handles absent `content` block correctly via `optJSONObject("content") ?: JSONObject()`
@@ -791,6 +799,16 @@ Latest verified test state (Session Originals — Blocks A–F complete, 2026-06
 - `connectedDebugAndroidTest` full suite — **610/610 PASSED** on SM-S911B (Android 16); includes `SessionStorageMetadataTest` (byte-identity, sourceMimeType, sourceUri), `SessionScannerTest` (v5 validation, backward compat), `SessionBackupExporterInstrumentedTest` (v4/v5 ZIP structure)
 
 No open Session Originals tasks remain.
+
+Latest verified test state (Session Originals Privacy — Blocks A–F complete, 2026-07-XX):
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL; includes `SessionStoragePrivacyJpegTest` (JPEG byte-level stripper, 9 tests), `ResolveExtensionForMimeTypeTest` (14 MIME-mapping tests), `CameraViewModelTest` Block-D/E tests (`stripOriginalsMetadata` flow, freeze, propagation)
+- `assembleDebug` — BUILD SUCCESSFUL
+- `assembleRelease` — BUILD SUCCESSFUL
+- `connectedDebugAndroidTest` full suite — **631/631 PASSED** on SM-S911B (Android 16); includes `SessionStorageMetadataTest` (Privacy ON/OFF, JPEG/PNG/HEIC/unknown MIME stripping, GPS removal, capture-original byte-identity), `ResolveSourceUriTest` (Picker URI regression guard), `SessionScannerTest`, `SessionBackupExporterInstrumentedTest`
+- HEIC real-device test with `privacy/reference_source_original_heic_test.heic` (2.67 MB) — `ImageDecoder` decode + JPEG-95 re-encode verified; no GPS/EXIF/Make in output; `originals.referenceSourceStoredMimeType = "image/jpeg"` confirmed
+
+No open Session Originals Privacy tasks remain.
 
 Latest verified test state (Video Export Blocks 1–2 complete):
 

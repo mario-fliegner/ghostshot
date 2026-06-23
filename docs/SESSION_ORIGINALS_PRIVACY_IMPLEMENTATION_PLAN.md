@@ -8,17 +8,15 @@ Specification: `SESSION_ORIGINALS_PRIVACY_V1.md`
 
 This plan does NOT modify compare rendering, CompareScreen, VideoExport, ShareComparisonImage, CameraScreen overlay, GPS Guidance behavior, or any UI component beyond SettingsScreen.
 
-Implementation is **blocked** until `SESSION_ORIGINALS_PRIVACY_V1.md` has received explicit user approval.
+**Implementation complete** — all blocks A–F verified and merged. See IMPLEMENTATION_NOTES.md for final test state.
 
 ---
 
 ## Prerequisites
 
-Before implementation begins, confirm:
-
-- [ ] `SESSION_ORIGINALS_PRIVACY_V1.md` is approved
-- [ ] JPEG quality value (95) is confirmed as final
-- [ ] All existing tests are green before any change begins
+- [x] `SESSION_ORIGINALS_PRIVACY_V1.md` is approved
+- [x] JPEG quality value (95) is confirmed as final
+- [x] All existing tests are green before any change begins
 
 ---
 
