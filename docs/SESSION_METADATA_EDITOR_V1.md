@@ -909,9 +909,13 @@ This section documents the Session Branding card added to `EditSessionScreen` as
 
 ### 21.1 Card Position
 
-The Branding card is inserted between the **Current photo card** and the **Location card**:
+The Branding card is the **last card** in `EditSessionScreen`, after the Location card:
 
-Card order: Session → Reference photo → Current photo → **Branding** → Location
+Card order: Session → Reference photo → Current photo → Location → **Branding**
+
+**Note:** The original `SESSION_BRANDING_V1.md §12.1` placed Branding before Location.
+This was revised: Location is session metadata; Branding is an export presentation
+option. Export options come after metadata fields.
 
 ### 21.2 Card Contents
 

@@ -22,7 +22,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.io.File
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -135,6 +137,18 @@ class SettingsViewModel @Inject constructor(
 
     private val _hasBranding = MutableStateFlow(globalBrandingRepository.hasBranding())
     val hasBranding: StateFlow<Boolean> = _hasBranding.asStateFlow()
+
+    /**
+     * The current global branding [File] (handle.png), or null when no branding is set.
+     * Used by [SettingsScreen] to render the branding preview circle.
+     */
+    val globalBrandingFile: StateFlow<File?> = _hasBranding
+        .map { has -> if (has) globalBrandingRepository.getBrandingFile() else null }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            if (globalBrandingRepository.hasBranding()) globalBrandingRepository.getBrandingFile() else null
+        )
 
     /** Injectable for unit tests: decodes a URI to a Bitmap using the app ContentResolver. */
     internal var imageDecoder: (Uri) -> Bitmap = { uri ->

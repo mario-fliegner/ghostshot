@@ -700,10 +700,14 @@ The sheet's save destination is determined by the caller:
 
 ### 12.1 Card Position
 
-A new **Branding card** is added to `EditSessionScreen`, between the Current photo card
-and the Location card.
+A new **Branding card** is added to `EditSessionScreen` as the **last card**, after the
+Location card.
 
-Card order: Session → Reference photo → Current photo → **Branding** → Location
+Card order: Session → Reference photo → Current photo → Location → **Branding**
+
+**Rationale:** Location is session metadata (factual record of where/when the shoot
+happened). Branding is an export presentation option. Keeping metadata fields together
+and export options last produces a more logical editing flow.
 
 ### 12.2 Card Contents
 

@@ -74,6 +74,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.sameview.R
 import com.isardomains.sameview.branding.BuiltinBrandingSymbol
+import com.isardomains.sameview.ui.branding.BrandingPreviewCircle
 import com.isardomains.sameview.ui.settings.BuiltinSymbolPickerDialog
 import com.isardomains.sameview.ui.settings.SettingsCard
 import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
@@ -125,6 +126,7 @@ fun EditSessionScreen(
     val captureTimestampMs by viewModel.captureTimestampMs.collectAsStateWithLifecycle()
     val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
     val hasGlobalBranding by viewModel.hasGlobalBranding.collectAsStateWithLifecycle()
+    val sessionBrandingFile by viewModel.sessionBrandingFile.collectAsStateWithLifecycle()
 
     // ── UI derivations ─────────────────────────────────────────────────────────
     val context = LocalContext.current
@@ -467,7 +469,45 @@ fun EditSessionScreen(
                 }
             }
 
-            // ── Branding card ─────────────────────────────────────────────────
+            // ── Location card ─────────────────────────────────────────────────
+            SettingsCard(title = stringResource(R.string.edit_session_card_location)) {
+                OutlinedTextField(
+                    value = locationDisplayName,
+                    onValueChange = viewModel::onLocationDisplayNameChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_place_name)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_place_name)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_session_place_name_field")
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = locationCity,
+                    onValueChange = viewModel::onLocationCityChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_city)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_city)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_session_city_field")
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = locationCountry,
+                    onValueChange = viewModel::onLocationCountryChanged,
+                    label = { Text(stringResource(R.string.edit_session_field_country)) },
+                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_country)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_session_country_field")
+                )
+            }
+
+            // ── Branding card (after Location — SESSION_BRANDING_V1.md §12.1 deviation) ───
+            // Product decision: Branding is an export presentation option, not a session
+            // metadata field. Location is metadata → comes first. Branding comes last.
             SettingsCard(title = stringResource(R.string.edit_session_card_branding)) {
                 if (!hasBranding) {
                     Text(
@@ -515,6 +555,16 @@ fun EditSessionScreen(
                         }
                     }
                 } else {
+                    // Preview circle — shows the active branding asset.
+                    sessionBrandingFile?.let { file ->
+                        BrandingPreviewCircle(
+                            brandingFile = file,
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                                .testTag("edit_session_branding_preview")
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -541,42 +591,6 @@ fun EditSessionScreen(
                         }
                     }
                 }
-            }
-
-            // ── Location card ─────────────────────────────────────────────────
-            SettingsCard(title = stringResource(R.string.edit_session_card_location)) {
-                OutlinedTextField(
-                    value = locationDisplayName,
-                    onValueChange = viewModel::onLocationDisplayNameChanged,
-                    label = { Text(stringResource(R.string.edit_session_field_place_name)) },
-                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_place_name)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                    modifier = Modifier.fillMaxWidth().testTag("edit_session_place_name_field")
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = locationCity,
-                    onValueChange = viewModel::onLocationCityChanged,
-                    label = { Text(stringResource(R.string.edit_session_field_city)) },
-                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_city)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                    modifier = Modifier.fillMaxWidth().testTag("edit_session_city_field")
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = locationCountry,
-                    onValueChange = viewModel::onLocationCountryChanged,
-                    label = { Text(stringResource(R.string.edit_session_field_country)) },
-                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_country)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    modifier = Modifier.fillMaxWidth().testTag("edit_session_country_field")
-                )
             }
             } // inner Column
         } // outer Column

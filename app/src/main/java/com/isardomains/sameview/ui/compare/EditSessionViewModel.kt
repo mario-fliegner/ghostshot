@@ -21,8 +21,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -453,6 +456,19 @@ class EditSessionViewModel @Inject constructor(
      * Does NOT affect [isDirty] and is never reverted by "Discard changes".
      */
     val hasBranding: StateFlow<Boolean> = _hasBranding.asStateFlow()
+
+    /**
+     * The session's branding-handle.png [File], or null when no branding is set.
+     * Used by [EditSessionScreen] to render the branding preview circle.
+     * Derived from [hasBranding] so it updates immediately after each branding operation.
+     */
+    val sessionBrandingFile: StateFlow<File?> = _hasBranding
+        .map { has ->
+            if (has) File(context.filesDir, "sessions/$sessionId/branding-handle.png")
+                .takeIf { it.isFile }
+            else null
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _hasGlobalBranding = MutableStateFlow(false)
     /**

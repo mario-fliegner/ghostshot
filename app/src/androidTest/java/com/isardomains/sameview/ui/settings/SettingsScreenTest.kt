@@ -59,6 +59,7 @@ class SettingsScreenTest {
         stripOriginalsMetadata: Boolean = false,
         onStripOriginalsMetadataChanged: (Boolean) -> Unit = {},
         hasBranding: Boolean = false,
+        globalBrandingFile: java.io.File? = null,
         onChooseImage: () -> Unit = {},
         onChooseSymbol: (BuiltinBrandingSymbol) -> Unit = {},
         onRemoveBranding: () -> Unit = {},
@@ -91,6 +92,7 @@ class SettingsScreenTest {
                         stripOriginalsMetadata = stripOriginalsMetadata,
                         onStripOriginalsMetadataChanged = onStripOriginalsMetadataChanged,
                         hasBranding = hasBranding,
+                        globalBrandingFile = globalBrandingFile,
                         onChooseImage = onChooseImage,
                         onChooseSymbol = onChooseSymbol,
                         onRemoveBranding = onRemoveBranding,
@@ -468,5 +470,29 @@ class SettingsScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(true, called)
+    }
+
+    @Test
+    fun brandingPreview_isNotVisible_whenNoBranding() {
+        setContent(hasBranding = false, globalBrandingFile = null)
+        composeRule.onNodeWithTag("settings_branding_preview").assertDoesNotExist()
+    }
+
+    @Test
+    fun brandingPreview_isVisible_whenBrandingSet() {
+        // Write a synthetic branding PNG in cacheDir so the File exists.
+        val brandingFile = java.io.File(context.cacheDir, "test_branding_preview.png")
+        val bmp = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bmp).apply { drawColor(android.graphics.Color.RED) }
+        java.io.FileOutputStream(brandingFile).use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bmp.recycle()
+
+        setContent(hasBranding = true, globalBrandingFile = brandingFile)
+
+        composeRule.onNodeWithTag("settings_branding_preview")
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        brandingFile.delete()
     }
 }

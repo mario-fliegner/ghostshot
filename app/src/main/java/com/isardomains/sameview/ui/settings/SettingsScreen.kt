@@ -59,9 +59,12 @@ import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.sameview.R
+import androidx.compose.ui.graphics.ColorFilter
 import com.isardomains.sameview.branding.BuiltinBrandingSymbol
+import com.isardomains.sameview.ui.branding.BrandingPreviewCircle
 import com.isardomains.sameview.ui.camera.GridType
 import com.isardomains.sameview.ui.theme.SameViewSettingsCardSurface
+import java.io.File
 import com.isardomains.sameview.ui.theme.SameViewSettingsControlOutline
 import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
@@ -81,6 +84,7 @@ fun SettingsScreen(
     val liveDirectionArrow by viewModel.liveDirectionArrow.collectAsStateWithLifecycle()
     val stripOriginalsMetadata by viewModel.stripOriginalsMetadata.collectAsStateWithLifecycle()
     val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
+    val globalBrandingFile by viewModel.globalBrandingFile.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     var showRationaleDialog by remember { mutableStateOf(false) }
@@ -171,6 +175,7 @@ fun SettingsScreen(
         stripOriginalsMetadata = stripOriginalsMetadata,
         onStripOriginalsMetadataChanged = viewModel::onStripOriginalsMetadataChanged,
         hasBranding = hasBranding,
+        globalBrandingFile = globalBrandingFile,
         onChooseImage = {
             imageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         },
@@ -201,6 +206,7 @@ internal fun SettingsScreenContent(
     stripOriginalsMetadata: Boolean = false,
     onStripOriginalsMetadataChanged: (Boolean) -> Unit = {},
     hasBranding: Boolean = false,
+    globalBrandingFile: File? = null,
     onChooseImage: () -> Unit = {},
     onChooseSymbol: (BuiltinBrandingSymbol) -> Unit = {},
     onRemoveBranding: () -> Unit = {},
@@ -335,6 +341,16 @@ internal fun SettingsScreenContent(
                 )
             }
             SettingsCard(title = stringResource(R.string.settings_branding_section_title)) {
+                // Preview circle — visible only when branding is set.
+                if (globalBrandingFile != null) {
+                    BrandingPreviewCircle(
+                        brandingFile = globalBrandingFile,
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                            .testTag("settings_branding_preview")
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 Text(
                     text = stringResource(R.string.settings_branding_description),
                     style = MaterialTheme.typography.bodySmall,
@@ -494,6 +510,7 @@ internal fun BuiltinSymbolPickerDialog(
                         Image(
                             painter = painterResource(symbol.drawableRes),
                             contentDescription = symbol.id,
+                            colorFilter = ColorFilter.tint(SameViewSettingsLabelText),
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -513,3 +530,4 @@ internal fun BuiltinSymbolPickerDialog(
         }
     )
 }
+

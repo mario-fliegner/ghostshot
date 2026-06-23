@@ -141,7 +141,7 @@
 
     <!-- Settings: Branding -->
     <string name="settings_branding_section_title">Standard-Branding für neue Vergleiche</string>
-    <string name="settings_branding_description">Logo oder Symbol für neue Vergleiche hinzufügen</string>
+    <string name="settings_branding_description">Wird als Schieberegler-Handle in geteilten Vergleichen angezeigt. Neue Vergleiche erhalten dieses Branding standardmäßig.</string>
     <string name="settings_branding_choose_image">Bild auswählen</string>
     <string name="settings_branding_choose_symbol">Symbol auswählen</string>
     <string name="settings_branding_remove">Branding entfernen</string>

@@ -146,7 +146,7 @@
 
     <!-- Settings: Branding -->
     <string name="settings_branding_section_title">Default branding for new sessions</string>
-    <string name="settings_branding_description">Add a logo or symbol to new sessions</string>
+    <string name="settings_branding_description">Shown as the slider handle in shared comparison images. New sessions start with this branding by default.</string>
     <string name="settings_branding_choose_image">Choose image</string>
     <string name="settings_branding_choose_symbol">Choose symbol</string>
     <string name="settings_branding_remove">Remove branding</string>

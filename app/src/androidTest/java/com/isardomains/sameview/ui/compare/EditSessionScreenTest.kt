@@ -602,4 +602,36 @@ class EditSessionScreenTest {
         // Save button must still be disabled (branding change is not form-dirty)
         composeRule.onNodeWithTag("edit_session_save_button").assertIsNotEnabled()
     }
+
+    @Test
+    fun brandingPreview_isNotVisible_whenNoSessionBranding() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_branding_preview").assertDoesNotExist()
+    }
+
+    @Test
+    fun brandingPreview_isVisible_whenSessionHasBranding() {
+        setEditSessionContent(createSessionWithBranding())
+
+        composeRule.onNodeWithTag("edit_session_branding_preview")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun brandingCard_isAfterLocationCard() {
+        // Scrolling order: Location fields appear before Branding card.
+        setEditSessionContent(createSessionWithBranding())
+
+        // Country field is the last Location field
+        composeRule.onNodeWithTag("edit_session_country_field")
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        // Branding card appears after Location (reachable by further scrolling)
+        composeRule.onNodeWithTag("edit_session_branding_remove")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
 }
