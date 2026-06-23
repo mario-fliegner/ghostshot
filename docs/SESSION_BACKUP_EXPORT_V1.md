@@ -72,6 +72,19 @@ The backup is a standard ZIP file using `java.util.zip.ZipOutputStream` with MIM
 
 Each session in the ZIP is represented as a subdirectory named after the session ID. The file set depends on the session schema version.
 
+**Schema version 6 session (with branding):**
+
+```text
+<sessionId>/
+├── capture.jpg
+├── capture-original.jpg
+├── reference.jpg
+├── reference-original.jpg
+├── reference-source-original.[ext]
+├── branding-handle.png           (optional — present only when session has branding)
+└── metadata.json
+```
+
 **Schema version 5 session:**
 
 ```

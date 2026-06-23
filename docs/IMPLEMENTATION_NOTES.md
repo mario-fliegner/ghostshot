@@ -1230,3 +1230,29 @@ No open Block 5 tasks remain.
 | `testDebugUnitTest` | PASSED |
 | `assembleDebug` | BUILD SUCCESSFUL |
 | `assembleRelease` | BUILD SUCCESSFUL |
+---
+
+### Session Branding V1 — Blocks 0–4 (2026-07-XX)
+
+Full specification: `SESSION_BRANDING_V1.md`
+Implementation plan: `SESSION_BRANDING_IMPLEMENTATION_PLAN.md`
+
+**Block 0 — Metadata v6 Foundation:** `SessionBranding`, `SessionBrandingMeta` data classes; `METADATA_VERSION` bumped to 6; `SUPPORTED_VERSIONS` extended to include 6; v6 scanner validation for `files.brandingHandle`; `ScannedSession.branding: SessionBranding?`. 684/684 unit tests, 647/647 instrumentation tests.
+
+**Block 1 — Image Assets + Normalizer:** 6 custom VectorDrawables; `BrandingNormalizer` (Bitmap → 512×512 RGBA PNG, metadata-clean by construction); `BuiltinBrandingSymbol` enum; `BuiltinSymbolRenderer`. 10/10 + 9/9 instrumentation tests.
+
+**Block 2 — GlobalBrandingRepository:** File-based global branding at `filesDir/branding/handle.png` + `handle-meta.json`. `hasBranding()` requires both files present and meta parseable. Atomicity via `Files.move(REPLACE_EXISTING)`.
+
+**Architecture note (Block 2→4 change):** `GlobalBrandingRepository.setBranding()` and `removeBranding()` are suspend but perform **no internal IO dispatching**. The caller is responsible for dispatching to an IO context. Changed in Block 4 for JVM testability. Threading contract documented in `GlobalBrandingRepository` KDoc.
+
+**Block 3 — Session Branding Storage:** `SessionStorage` extended with `updateSessionBranding()`, `removeSessionBranding()`, `copyGlobalBrandingToSession()`; `saveSession()` auto-copies global branding on session creation (fail-soft). 20/20 instrumentation tests.
+
+**Block 4 — Global Settings Branding UI:** `SettingsModule` provides `GlobalBrandingRepository` as Hilt singleton; `SettingsViewModel` injected with repository + branding functions; `SettingsScreen` shows "Default branding for new sessions" card. `BuiltinSymbolPickerDialog` is `internal` for reuse. 689/689 unit tests, 35/35 `SettingsScreenTest`.
+
+**Block 5 — Edit Session Branding Card:** `EditSessionViewModel` extended with `GlobalBrandingRepository` injection, `hasBranding`/`hasGlobalBranding` StateFlows, `brandingError` SharedFlow (separate from `events` to avoid `MainActivity` interference), and four immediate-write branding functions: `onImageUriSelectedForBranding()`, `onSetSessionBrandingFromSymbol()`, `onRemoveSessionBranding()`, `onCopyFromGlobalBranding()`. Branding changes do NOT set `isDirty` and are NOT reverted by "Discard changes". New Branding card added between Current photo card and Location card in `EditSessionScreen`. Productional rule enforced: no Global-Branding fallback after removal. 696/696 unit tests, 36/36 `EditSessionScreenTest` on SM-S911B (Android 16).
+
+**Block 6 — Share Comparison Image Integration:** New `BrandingHandleRenderer` (`internal object`, `branding` package, no Compose dependencies, reusable for future Video Export). `ShareRenderConfig` extended with `useBranding: Boolean = false`. `SliderRenderStrategy` receives `brandingBitmap: Bitmap? = null`; standard handle extracted to `drawStandardHandle()`; branding path calls `BrandingHandleRenderer.draw()` at 1.5× standard diameter. `ShareImageRenderer` decodes `branding-handle.png` from `sessionDir` (never from global branding). `ShareComparisonViewModel` gains `hasBranding`/`useBranding` StateFlows, injectable `brandingFileChecker`, `onToggleUseBranding()`. "Use branding" toggle placed in Style card between segment control and preview (Option B: toggle always active; Side-by-side shows informational note). `ShareComparisonPreview` renders branding handle via `AsyncImage` + Compose DrawScope (matching export semantics). 709/709 unit tests, 12/12 `ShareComparisonScreenTest`, 11/11 `ShareImageRendererInstrumentedTest` (includes I-12 pixel-difference test) on SM-S911B.
+
+**Block 7 — Final Verification:** `assembleRelease` BUILD SUCCESSFUL. Full `connectedDebugAndroidTest` 711/711 PASSED on SM-S911B (Android 16) — 0 failures, 0 regressions. TODO comment `// TODO VIDEO_BRANDING: Check sessionDir for branding-handle.png...` added to `CompareSliderRenderEngine.kt` per `SESSION_BRANDING_V1.md §16`. I-12 pixel-difference test implemented and verified.
+
+**Block 8 — Documentation Updates:** `SESSION_METADATA_V1.md` §5.3 + §6.5 + §6.7 updated to v6. `SESSION_BACKUP_EXPORT_V1.md` §4.2 v6 structure added. `SESSION_METADATA_EDITOR_V1.md` §21 Branding card added. `SETTINGS_UX_V1.md` §5 + §11 updated. `SHARE_COMPARISON_IMAGE_V1.md` FD-17 extended + FD-18 added. `VIDEO_EXPORT_V1.md` §33 Future Compatibility added. `CLAUDE_PROJECT_INSTRUCTION.md` Session Storage section updated to schema v6 and `SUPPORTED_VERSIONS` {2,3,4,5,6}. `IMPLEMENTATION_NOTES.md` Blocks 5–8 documented.

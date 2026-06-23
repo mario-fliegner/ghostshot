@@ -108,6 +108,7 @@ The current intended Settings structure is:
 3. Appearance
 4. GPS Guidance
 5. Privacy
+6. Branding
 
 Current implemented settings:
 - Keep Screen Awake
@@ -116,9 +117,8 @@ Current implemented settings:
 - Auto-Open Compare After Capture
 - Recreation Guidance (GPS; Category 4)
 - Live direction arrow (GPS sub-toggle; Category 4; planned — depends on Recreation Guidance; defined in `GPS_RECREATION_SYSTEM_V1.md`)
-
-Planned settings (Category 5 — Privacy):
-- Strip metadata from stored originals (DataStore key: `strip_originals_metadata`; default OFF; full specification: `SESSION_ORIGINALS_PRIVACY_V1.md §9`)
+- Strip metadata from stored originals (Category 5 — Privacy; DataStore key: `strip_originals_metadata`; default OFF; full specification: `SESSION_ORIGINALS_PRIVACY_V1.md §9`)
+- Default branding for new sessions (Category 6 — Branding; file-based; see §11)
 
 Reserved but not yet implemented settings/features:
 - Hide Reference Peek Hint
@@ -430,3 +430,33 @@ The long-term goal is:
 - optional power features without UI chaos
 
 Settings should support this goal — not compete with it.
+
+---
+
+## 11. Branding
+
+### 11.1 Default Branding for New Sessions
+
+**Status:** Implemented. Full specification: `SESSION_BRANDING_V1.md`.
+
+**Category:** 6 — Branding
+
+**Purpose:** Allow users to set a logo or built-in symbol that is automatically copied into new sessions when they are created. This becomes the session branding used in Share Comparison Image exports.
+
+**Storage:** File-based — `filesDir/branding/handle.png` + `filesDir/branding/handle-meta.json`. No DataStore key. File existence = branding set.
+
+**Default:** No branding set.
+
+**UI location:** Settings screen, new "Default branding for new sessions" card below the Privacy card.
+
+**Actions:**
+
+- **Choose image** — Android Photo Picker; selected image is decoded, normalized to 512×512 RGBA PNG, and stored. Source URI is never persisted.
+- **Choose symbol** — AlertDialog showing 6 built-in symbols (heart, star, camera, home, pin, fire). Renders the selected symbol to a clean 512×512 PNG.
+- **Remove branding** — visible only when branding is set; deletes both branding files.
+
+**Important:** Global branding is only a **template** for new sessions. It does **not** affect existing sessions. Removing global branding does not change any existing session.
+
+**Built-in symbols (V1):** `heart`, `star`, `camera`, `home`, `pin`, `fire` — implemented as custom VectorDrawable assets; no `material-icons-extended` dependency.
+
+**Privacy:** All branding assets are metadata-clean. The normalized PNG contains no EXIF, GPS, XMP, IPTC, or MakerNotes. Source URI and filename are never stored.

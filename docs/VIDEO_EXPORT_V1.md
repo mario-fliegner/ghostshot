@@ -1785,3 +1785,26 @@ All user-facing text uses string resources. New keys required for this feature:
 ### 32.14 Out of Scope
 
 Reverse geocoding, GPS-based auto-fill, location search, or any network operation. These are forbidden by `GPS_RECREATION_SYSTEM_V1.md §12`.
+
+---
+
+## 33. Future Compatibility — Session Branding
+
+**Session branding is NOT implemented for video export in V1.**
+
+The architecture is prepared so that future video branding requires no structural changes:
+
+1. `branding-handle.png` already exists in each session folder when the user has set session branding (Session Branding V1).
+2. `CompareSliderRenderEngine` has access to `sessionDir` via `VideoRenderConfig`.
+3. A future implementation can check `File(sessionDir, "branding-handle.png").isFile` and, if present, decode and render it in the video slider handle using `BrandingHandleRenderer` from `com.isardomains.sameview.branding`.
+
+The hook point in `CompareSliderRenderEngine.kt` is marked with a TODO comment:
+
+```kotlin
+// TODO VIDEO_BRANDING: Check sessionDir for branding-handle.png and render it here
+// instead of the standard arrows. See SESSION_BRANDING_V1.md §16.
+```
+
+The existing `BrandingEndcardRenderer` (the `#MadeWithSameView` endcard, controlled by `BRANDING_ENABLED` DataStore key) is a separate surface and is **not affected** by session branding.
+
+Full session branding specification: `SESSION_BRANDING_V1.md §16`.

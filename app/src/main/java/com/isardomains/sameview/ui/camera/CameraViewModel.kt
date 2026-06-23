@@ -22,6 +22,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.sameview.BuildConfig
 import com.isardomains.sameview.R
+import com.isardomains.sameview.branding.GlobalBrandingRepository
 import com.isardomains.sameview.storage.SessionBackupExporter
 import com.isardomains.sameview.ui.settings.LibraryFilter
 import com.isardomains.sameview.ui.settings.LibrarySortOrder
@@ -246,6 +247,10 @@ class CameraViewModel @Inject constructor(
 
     private var sessionFavoriteUpdater: (File, String, Boolean) -> Boolean =
         { root, id, fav -> SessionStorage.updateFavorite(root, id, fav) }
+
+    /** Injectable for unit tests; default resolves global branding from filesDir at call time. */
+    internal var globalBrandingRepository: GlobalBrandingRepository =
+        GlobalBrandingRepository(File(context.filesDir, "branding"))
 
     private var sessionBackupExporter: (File, List<String>, Uri, ContentResolver?) -> SessionBackupExporter.BackupResult = { root, ids, uri, cr ->
         if (cr == null) {
@@ -873,7 +878,8 @@ class CameraViewModel @Inject constructor(
                             capturedBitmap = corrected,
                             snapshot = snapshot,
                             captureMediaStoreUri = savedUri,
-                            stripMetadata = stripMetadataForSession
+                            stripMetadata = stripMetadataForSession,
+                            globalBrandingRepository = globalBrandingRepository
                         )
                         val sessions = scanSavedSessionsSafely()
                         _uiState.update { it.copy(savedSessions = sessions) }

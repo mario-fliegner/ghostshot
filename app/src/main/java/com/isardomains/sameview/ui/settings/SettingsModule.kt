@@ -10,11 +10,13 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.isardomains.sameview.branding.GlobalBrandingRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -30,6 +32,11 @@ object SettingsModule {
             ),
             produceFile = { context.preferencesDataStoreFile("sameview_settings") }
         )
+
+    @Provides
+    @Singleton
+    fun provideGlobalBrandingRepository(@ApplicationContext context: Context): GlobalBrandingRepository =
+        GlobalBrandingRepository(File(context.filesDir, "branding"))
 
     @Provides
     @Singleton

@@ -208,4 +208,40 @@ class ShareRenderConfigTest {
         assertTrue("3-line canvas (${threeLineDims.canvasH}) > 1-line (${oneLineDims.canvasH})",
             threeLineDims.canvasH > oneLineDims.canvasH)
     }
+
+    // ── useBranding field ─────────────────────────────────────────────────────
+
+    @Test
+    fun shareRenderConfig_useBranding_defaultFalse() {
+        val config = ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.STANDARD,
+            captionData = null,
+            sessionDir = java.io.File("/fake"),
+            exportTimestamp = "20260101_120000"
+        )
+        assertFalse("useBranding must default to false", config.useBranding)
+    }
+
+    @Test
+    fun shareRenderConfig_useBranding_canBeSetTrue() {
+        val config = ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.STANDARD,
+            captionData = null,
+            sessionDir = java.io.File("/fake"),
+            exportTimestamp = "20260101_120000",
+            useBranding = true
+        )
+        assertTrue("useBranding must be true when set", config.useBranding)
+    }
+
+    @Test
+    fun computeCanvasDimensions_unaffectedByUseBranding() {
+        // useBranding lives in ShareRenderConfig but does not change canvas geometry
+        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
+        assertEquals(1080, dims.compW)
+        assertEquals(1920, dims.compH)
+        // Canvas geometry is identical regardless of useBranding — it is a rendering flag only
+    }
 }

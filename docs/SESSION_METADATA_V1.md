@@ -212,8 +212,9 @@ referenceLocation           Object?    Optional GPS EXIF from reference image (s
 | 3 | `captureLocation`, `referenceLocation`, `title` | GPS and user title support |
 | 4 | Nested blocks: `session`, `files`, `capture`, `reference`, `content`, `location`, `additional` | Structured metadata, user content, favorites, visibility; `reference.date` auto-population; see §6 |
 | 5 | `files.captureOriginal`, `files.referenceSourceOriginal`; `reference.sourceUri` (replaces `reference.sourceDisplayName`); `reference.sourceMimeType` | Session originals; field name correction; see §7 and `SESSION_ORIGINALS_V1.md` |
+| 6 | `files.brandingHandle` (optional); new top-level `branding` block (`handleFile`, `type`, `builtinId?`, `updatedAtMs`) | Session branding for Share Comparison Image; see §6.7 and `SESSION_BRANDING_V1.md` |
 
-`SessionScanner.SUPPORTED_VERSIONS` must accept all versions listed: {2, 3, 4, 5}.
+`SessionScanner.SUPPORTED_VERSIONS` must accept all versions listed: {2, 3, 4, 5, 6}.
 
 ---
 
@@ -350,7 +351,7 @@ The decision of when to stop writing legacy flat fields is an implementation dec
 
 ### 6.5 Schema Version Implication
 
-v4 introduced nested blocks (implemented). `SessionScanner.SUPPORTED_VERSIONS` accepts {2, 3, 4, 5}.
+v4 introduced nested blocks (implemented). `SessionScanner.SUPPORTED_VERSIONS` accepts {2, 3, 4, 5, 6}.
 
 ---
 
@@ -454,6 +455,69 @@ For versions 2–4, these checks do not apply.
 ### 6.6.5 Backward Compatibility
 
 Sessions at versions 2–4 are unchanged and remain fully valid. The `files` block in v2–v4 sessions contains three entries; v5 sessions contain five entries. The scanner, backup exporter, and all existing features handle both correctly.
+
+---
+
+### 6.7 Schema v6 — Session Branding
+
+#### 6.7.1 v6 Changes
+
+Schema version 6 introduces session branding support: an optional `branding` block and an optional `files.brandingHandle` entry. All v5 fields are unchanged.
+
+**`files` block — one new optional field:**
+
+```text
+files.brandingHandle   String   Filename of the normalized 512×512 RGBA PNG branding asset
+                                (always "branding-handle.png"). Optional — absent when no branding.
+```
+
+**New optional `branding` block:**
+
+```text
+branding.handleFile    String    "branding-handle.png"
+branding.type          String    "image" | "builtin"
+branding.builtinId     String?   Built-in symbol ID (e.g. "heart", "fire"); null when type = "image"
+branding.updatedAtMs   Long      Last branding update in milliseconds since Unix epoch
+```
+
+Both `files.brandingHandle` and the `branding` block are optional. A v6 session without branding omits both fields. Sessions at versions 2–5 remain fully valid.
+
+**Privacy:** `branding-handle.png` is always metadata-clean (no EXIF, GPS, XMP). The `branding` block stores only provenance metadata — no source URI, filename, or EXIF-derived fields. Full specification: `SESSION_BRANDING_V1.md`.
+
+#### 6.7.2 v6 Scanner Validation
+
+For `version == 6`, `SessionScanner.validateUnsafe()` additionally validates (when present):
+
+- `files.brandingHandle` passes `isSafeFilename()`
+- `File(sessionDir, files.brandingHandle).exists()`
+
+An absent `files.brandingHandle` is valid (no branding). Inconsistency between `files.brandingHandle` and the `branding` block is tolerated; the session is accepted but treated as having no branding.
+
+#### 6.7.3 v6 Example
+
+```json
+{
+  "version": 6,
+  "files": {
+    "capture": "capture.jpg",
+    "captureOriginal": "capture-original.jpg",
+    "reference": "reference.jpg",
+    "referenceOriginal": "reference-original.jpg",
+    "referenceSourceOriginal": "reference-source-original.jpg",
+    "brandingHandle": "branding-handle.png"
+  },
+  "branding": {
+    "handleFile": "branding-handle.png",
+    "type": "builtin",
+    "builtinId": "fire",
+    "updatedAtMs": 1752924600000
+  }
+}
+```
+
+#### 6.7.4 Backward Compatibility
+
+Sessions at versions 2–5 are unchanged and remain fully valid.
 
 ---
 

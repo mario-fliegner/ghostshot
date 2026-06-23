@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +40,7 @@ import coil.compose.AsyncImage
 import com.isardomains.sameview.image.ShareCaptionData
 import com.isardomains.sameview.image.ShareComparisonStyle
 import com.isardomains.sameview.ui.theme.SameViewAccent
+import com.isardomains.sameview.ui.theme.SameViewSettingsControlOutline
 import java.io.File
 
 private val CanvasBackground = Color(0xFF0D1424)
@@ -83,6 +85,12 @@ fun ShareComparisonPreview(
     captionData: ShareCaptionData?,
     sessionDir: File,
     viewportRatio: Float,
+    /**
+     * When true and a branding-handle.png exists in [sessionDir], the Slider preview
+     * shows a branding handle instead of the standard SameView handle.
+     * No effect on Side by side style (which has no handle).
+     */
+    useBranding: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -153,7 +161,7 @@ fun ShareComparisonPreview(
                 ) {
                     when (style) {
                         ShareComparisonStyle.SLIDER ->
-                            SliderPreviewContent(sessionDir, compW, compH)
+                            SliderPreviewContent(sessionDir, compW, compH, useBranding)
                         ShareComparisonStyle.SIDE_BY_SIDE ->
                             SideBySidePreviewContent(sessionDir)
                     }
@@ -175,7 +183,12 @@ fun ShareComparisonPreview(
 // ── Slider preview ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
+private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp, useBranding: Boolean = false) {
+    // Resolve branding file once; null = no branding → standard handle.
+    val brandingFile = remember(sessionDir, useBranding) {
+        if (useBranding) File(sessionDir, "branding-handle.png").takeIf { it.isFile } else null
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Reference fills full area (base layer)
         AsyncImage(
@@ -219,61 +232,105 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp) {
                 strokeWidth = 1.dp.toPx()
             )
         }
-        // SameView handle — white circle with blue arrows and outer ring, matching CompareScreen.
-        val handleSize = minOf(compW.value * 0.15f, compH.value * 0.20f, 36f).dp
-        val ringGap = 1.dp
-        val ringThickness = 2.dp
-        val ringCanvasSize = handleSize + (ringGap + ringThickness) * 2
+        // Handle — branding or standard SameView.
+        val standardHandleSize = minOf(compW.value * 0.15f, compH.value * 0.20f, 36f).dp
 
-        // 1. Outer ring: two arcs with gaps at top/bottom where the divider line flows through.
-        androidx.compose.foundation.Canvas(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(ringCanvasSize)
-        ) {
-            val strokePx = ringThickness.toPx()
-            val inset = strokePx / 2f
-            val arcTopLeft = Offset(inset, inset)
-            val arcSize = Size(size.width - strokePx, size.height - strokePx)
-            val gapDeg = 12f
-            drawArc(Color.White, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
-            drawArc(Color.White, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
-        }
+        if (brandingFile != null) {
+            // ── Branding handle ────────────────────────────────────────────────
+            // 1.5× standard size; SameViewAccent ring; #F5F7FA circle; logo at 72%.
+            val brandingHandleSize = (standardHandleSize.value * 1.5f)
+                .coerceAtMost(54f).dp
+            val ringGap = 1.dp
+            val ringThickness = 2.dp
+            val brandingRingCanvasSize = brandingHandleSize + (ringGap + ringThickness) * 2
 
-        // 2. White circle with blue arrows on top.
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(handleSize)
-                .shadow(3.dp, CircleShape)
-                .clip(CircleShape)
-                .background(Color.White),
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.foundation.Canvas(modifier = Modifier.size(handleSize)) {
-                val unit = size.width / 48f
-                val cx = size.width / 2f
-                val cy = size.height / 2f
-                val off = unit * 9f
-                val depth = unit * 4f
-                val halfH = unit * 7f
-                val arrowStroke = Stroke(
-                    width = unit * 2.5f,
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+            // Outer ring: SameViewAccent two arcs.
+            androidx.compose.foundation.Canvas(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(brandingRingCanvasSize)
+            ) {
+                val strokePx = ringThickness.toPx()
+                val inset = strokePx / 2f
+                val arcTopLeft = Offset(inset, inset)
+                val arcSize = Size(size.width - strokePx, size.height - strokePx)
+                drawArc(SameViewAccent, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+                drawArc(SameViewAccent, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+            }
+
+            // Inner circle (#F5F7FA) with branding logo.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(brandingHandleSize)
+                    .shadow(3.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF5F7FA)),
+                contentAlignment = Alignment.Center
+            ) {
+                val logoSize = brandingHandleSize * 0.72f
+                AsyncImage(
+                    model = brandingFile,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(logoSize)
                 )
-                val leftPath = Path().apply {
-                    moveTo(cx - off + depth, cy - halfH)
-                    lineTo(cx - off - depth, cy)
-                    lineTo(cx - off + depth, cy + halfH)
+            }
+        } else {
+            // ── Standard SameView handle ───────────────────────────────────────
+            val ringGap = 1.dp
+            val ringThickness = 2.dp
+            val ringCanvasSize = standardHandleSize + (ringGap + ringThickness) * 2
+
+            // Outer ring: white, two arcs with 12° gaps.
+            androidx.compose.foundation.Canvas(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(ringCanvasSize)
+            ) {
+                val strokePx = ringThickness.toPx()
+                val inset = strokePx / 2f
+                val arcTopLeft = Offset(inset, inset)
+                val arcSize = Size(size.width - strokePx, size.height - strokePx)
+                drawArc(Color.White, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+                drawArc(Color.White, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+            }
+
+            // White circle with blue arrows.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(standardHandleSize)
+                    .shadow(3.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.foundation.Canvas(modifier = Modifier.size(standardHandleSize)) {
+                    val unit = size.width / 48f
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val off = unit * 9f
+                    val depth = unit * 4f
+                    val halfH = unit * 7f
+                    val arrowStroke = Stroke(
+                        width = unit * 2.5f,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        join = androidx.compose.ui.graphics.StrokeJoin.Round
+                    )
+                    val leftPath = Path().apply {
+                        moveTo(cx - off + depth, cy - halfH)
+                        lineTo(cx - off - depth, cy)
+                        lineTo(cx - off + depth, cy + halfH)
+                    }
+                    val rightPath = Path().apply {
+                        moveTo(cx + off - depth, cy - halfH)
+                        lineTo(cx + off + depth, cy)
+                        lineTo(cx + off - depth, cy + halfH)
+                    }
+                    drawPath(leftPath, SameViewAccent, style = arrowStroke)
+                    drawPath(rightPath, SameViewAccent, style = arrowStroke)
                 }
-                val rightPath = Path().apply {
-                    moveTo(cx + off - depth, cy - halfH)
-                    lineTo(cx + off + depth, cy)
-                    lineTo(cx + off - depth, cy + halfH)
-                }
-                drawPath(leftPath, SameViewAccent, style = arrowStroke)
-                drawPath(rightPath, SameViewAccent, style = arrowStroke)
             }
         }
     }

@@ -44,17 +44,33 @@ class ShareImageRenderer {
             val capBitmap = BitmapFactory.decodeFile(capFile.absolutePath)
                 ?: throw IOException("Cannot decode capture.jpg in ${config.sessionDir.name}")
 
+            // Branding bitmap: only for Slider style and when useBranding=true.
+            // Loaded from session-local branding-handle.png — never from global branding.
+            // On decode failure: null → standard handle rendered; no crash, no user error.
+            val brandingBitmap: Bitmap? = if (config.style == ShareComparisonStyle.SLIDER && config.useBranding) {
+                val brandingFile = File(config.sessionDir, "branding-handle.png")
+                if (brandingFile.isFile) {
+                    try {
+                        BitmapFactory.decodeFile(brandingFile.absolutePath)
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else null
+            } else null
+
             val canvas = Bitmap.createBitmap(dims.canvasW, dims.canvasH, Bitmap.Config.ARGB_8888)
             try {
                 when (config.style) {
                     ShareComparisonStyle.SLIDER ->
-                        SliderRenderStrategy(dims, refBitmap, capBitmap).render(Canvas(canvas), config.captionData)
+                        SliderRenderStrategy(dims, refBitmap, capBitmap, brandingBitmap)
+                            .render(Canvas(canvas), config.captionData)
                     ShareComparisonStyle.SIDE_BY_SIDE ->
                         SideBySideRenderStrategy(dims, refBitmap, capBitmap).render(Canvas(canvas), config.captionData)
                 }
             } finally {
                 refBitmap.recycle()
                 capBitmap.recycle()
+                brandingBitmap?.recycle()
             }
 
             Pair(canvas, buildDisplayName(config.exportTimestamp, config.style))

@@ -11,6 +11,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.Shader
+import com.isardomains.sameview.branding.BrandingHandleRenderer
 
 /**
  * Renders the Slider (50/50) comparison style onto a canvas.
@@ -32,7 +33,13 @@ import android.graphics.Shader
 internal class SliderRenderStrategy(
     private val dims: CanvasDimensions,
     private val reference: Bitmap,
-    private val capture: Bitmap
+    private val capture: Bitmap,
+    /**
+     * Decoded branding handle bitmap (from branding-handle.png in the session directory).
+     * When non-null, the branding handle is drawn instead of the standard SameView handle.
+     * When null, the standard white-circle + arrows handle is rendered.
+     */
+    private val brandingBitmap: Bitmap? = null
 ) {
     private val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
@@ -102,24 +109,19 @@ internal class SliderRenderStrategy(
         // 5. 1 px white core line at exact divider position.
         canvas.drawLine(sliderX, dims.compTop, sliderX, dims.compBottom, corePaint)
 
-        // 6. SameView handle — white circle + blue arrows + white outer ring.
-        val handleDiam = (minOf(cW, cH) * 0.12f).coerceAtLeast(40f)
-        val handleR = handleDiam / 2f
+        // 6. Handle — branding or standard SameView.
+        val standardHandleDiam = (minOf(cW, cH) * 0.12f).coerceAtLeast(40f)
         val hcx = sliderX
         val hcy = dims.compTop + cH / 2f
 
-        // Outer ring: two arcs with gaps at top/bottom so the divider line flows through.
-        val ringThickness = handleDiam * (2f / 48f)
-        val ringGap = handleDiam * (1f / 48f)
-        val ringR = handleR + ringGap + ringThickness / 2f
-        ringPaint.strokeWidth = ringThickness
-        val ringOval = RectF(hcx - ringR, hcy - ringR, hcx + ringR, hcy + ringR)
-        canvas.drawArc(ringOval, 102f, 156f, false, ringPaint)  // left half
-        canvas.drawArc(ringOval, 282f, 156f, false, ringPaint)  // right half
-
-        // White circle filled, then blue arrows on top.
-        canvas.drawCircle(hcx, hcy, handleR, handleFillPaint)
-        drawArrows(canvas, hcx, hcy, handleDiam)
+        if (brandingBitmap != null) {
+            // Branding handle: 1.5× standard diameter, SameViewAccent ring, #F5F7FA circle.
+            val brandingDiam = standardHandleDiam * 1.5f
+            BrandingHandleRenderer.draw(canvas, hcx, hcy, brandingDiam, brandingBitmap)
+        } else {
+            // Standard SameView handle: white circle + blue arrows + white outer ring.
+            drawStandardHandle(canvas, hcx, hcy, standardHandleDiam)
+        }
 
         // 7. Comparison border — drawn last so it sits on top of image content.
         canvas.drawRect(compRect, borderPaint)
@@ -128,6 +130,23 @@ internal class SliderRenderStrategy(
         if (captionData != null && captionData.hasContent) {
             CaptionRenderer(dims, captionData).render(canvas)
         }
+    }
+
+    /**
+     * Draws the standard SameView handle: white outer ring (two arcs), white filled circle,
+     * and blue [ACCENT_COLOR] left/right arrows. Geometry mirrors CompareScreen.
+     */
+    private fun drawStandardHandle(canvas: Canvas, cx: Float, cy: Float, diameter: Float) {
+        val radius = diameter / 2f
+        val ringThickness = diameter * (2f / 48f)
+        val ringGap = diameter * (1f / 48f)
+        val ringR = radius + ringGap + ringThickness / 2f
+        ringPaint.strokeWidth = ringThickness
+        val ringOval = RectF(cx - ringR, cy - ringR, cx + ringR, cy + ringR)
+        canvas.drawArc(ringOval, 102f, 156f, false, ringPaint)
+        canvas.drawArc(ringOval, 282f, 156f, false, ringPaint)
+        canvas.drawCircle(cx, cy, radius, handleFillPaint)
+        drawArrows(canvas, cx, cy, diameter)
     }
 
     /**

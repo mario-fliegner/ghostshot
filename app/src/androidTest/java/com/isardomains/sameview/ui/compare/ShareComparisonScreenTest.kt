@@ -31,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -149,7 +151,7 @@ class ShareComparisonScreenTest {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private fun launch(onBack: () -> Unit = {}) {
+    private fun launch(onBack: () -> Unit = {}, hasBranding: Boolean = false) {
         wakeDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario?.onActivity { activity ->
@@ -160,11 +162,54 @@ class ShareComparisonScreenTest {
             }
             activity.setContent {
                 SameViewTheme {
-                    ShareComparisonScreenStub(onBack = onBack)
+                    ShareComparisonScreenStub(onBack = onBack, hasBranding = hasBranding)
                 }
             }
         }
         composeRule.waitForIdle()
+    }
+
+    // ── Branding toggle tests ─────────────────────────────────────────────────
+
+    @Test
+    fun brandingToggle_isVisible_inStyleCard() {
+        launch()
+        composeRule.onNodeWithTag("share_comparison_toggle_branding").assertIsDisplayed()
+    }
+
+    @Test
+    fun brandingToggle_isDisabled_whenNoBranding() {
+        launch(hasBranding = false)
+        // Disabled = not clickable; asserting it exists but is not enabled
+        composeRule.onNodeWithTag("share_comparison_toggle_branding")
+            .assertIsDisplayed()
+            .assertIsNotEnabled()
+    }
+
+    @Test
+    fun brandingToggle_isEnabled_whenSessionHasBranding() {
+        launch(hasBranding = true)
+        composeRule.onNodeWithTag("share_comparison_toggle_branding")
+            .assertIsDisplayed()
+            .assertIsEnabled()
+    }
+
+    @Test
+    fun brandingHintText_addBrandingInEditSession_visibleWhenNoBranding() {
+        launch(hasBranding = false)
+        composeRule.onNodeWithText(
+            context.getString(R.string.share_comparison_branding_hint_edit_session)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun brandingToggle_canBeTapped_whenBrandingPresent() {
+        launch(hasBranding = true)
+        // Toggle starts ON when hasBranding=true; tap should switch it
+        composeRule.onNodeWithTag("share_comparison_toggle_branding").performClick()
+        composeRule.waitForIdle()
+        // Still displayed after toggle
+        composeRule.onNodeWithTag("share_comparison_toggle_branding").assertIsDisplayed()
     }
 
     private fun wakeDevice() {
@@ -180,9 +225,14 @@ class ShareComparisonScreenTest {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ShareComparisonScreenStub(onBack: () -> Unit) {
+private fun ShareComparisonScreenStub(
+    onBack: () -> Unit,
+    hasBranding: Boolean = false,
+    initialUseBranding: Boolean = hasBranding
+) {
     var style by remember { mutableStateOf(ShareComparisonStyle.SLIDER) }
     var quality by remember { mutableStateOf(ShareQuality.STANDARD) }
+    var useBranding by remember { mutableStateOf(initialUseBranding) }
 
     val styles = listOf(ShareComparisonStyle.SLIDER, ShareComparisonStyle.SIDE_BY_SIDE)
     val qualities = listOf(ShareQuality.STANDARD, ShareQuality.ORIGINAL)
@@ -210,7 +260,7 @@ private fun ShareComparisonScreenStub(onBack: () -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Style card
+            // Style card (mirrors ShareComparisonScreen: segment + branding toggle)
             SettingsCard(title = stringResource(R.string.share_comparison_style_label)) {
                 SameViewSegmentControl(
                     items = styles.map {
@@ -225,6 +275,25 @@ private fun ShareComparisonScreenStub(onBack: () -> Unit) {
                     onItemSelected = { style = styles[it] },
                     modifier = Modifier.testTag("share_comparison_style_control")
                 )
+                SettingsSwitchRow(
+                    label = stringResource(R.string.share_comparison_branding_label),
+                    checked = useBranding,
+                    enabled = hasBranding,
+                    onCheckedChange = { useBranding = it },
+                    testTag = "share_comparison_toggle_branding"
+                )
+                // Hint text below toggle — mirrors InfoToggleRow in the real screen.
+                val hintText = if (!hasBranding)
+                    stringResource(R.string.share_comparison_branding_hint_edit_session)
+                else if (style == ShareComparisonStyle.SIDE_BY_SIDE)
+                    stringResource(R.string.share_comparison_branding_hint_slider_only)
+                else null
+                if (hintText != null) {
+                    androidx.compose.material3.Text(
+                        text = hintText,
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                    )
+                }
             }
             // Extras card
             SettingsCard(title = stringResource(R.string.share_comparison_extras_label)) {

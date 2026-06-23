@@ -91,6 +91,25 @@ class ShareComparisonViewModel @Inject constructor(
     private val _isRendering = MutableStateFlow(false)
     val isRendering: StateFlow<Boolean> = _isRendering.asStateFlow()
 
+    // ── Branding state ─────────────────────────────────────────────────────────
+
+    /** True when branding-handle.png exists in this session's directory. */
+    private val _hasBranding = MutableStateFlow(false)
+    val hasBranding: StateFlow<Boolean> = _hasBranding.asStateFlow()
+
+    /**
+     * Controls whether the branding handle is drawn in Slider exports.
+     * Default: ON when [hasBranding] is true; OFF when no branding.
+     * Not persisted — resets to the default each time the screen is opened.
+     */
+    private val _useBranding = MutableStateFlow(false)
+    val useBranding: StateFlow<Boolean> = _useBranding.asStateFlow()
+
+    /** Toggles [useBranding]. Only meaningful when [hasBranding] is true. */
+    fun onToggleUseBranding() {
+        _useBranding.value = !_useBranding.value
+    }
+
     // ── Metadata-derived state ─────────────────────────────────────────────────
 
     /** Width ÷ height ratio of the session viewport; used for preview sizing. */
@@ -134,6 +153,14 @@ class ShareComparisonViewModel @Inject constructor(
         ShareImageRenderer().render(config, resolver)
     }
 
+    /**
+     * Override in tests to check branding file existence without a real filesystem.
+     * Defaults to checking whether branding-handle.png is a regular file in [sessionDir].
+     */
+    internal var brandingFileChecker: (File) -> Boolean = { sessionDir ->
+        java.io.File(sessionDir, "branding-handle.png").isFile
+    }
+
     /** Override in tests with an unconfined/test dispatcher. */
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
@@ -152,6 +179,9 @@ class ShareComparisonViewModel @Inject constructor(
         viewModelScope.launch {
             val sessionDir = File(context.filesDir, "sessions/$sessionId")
             val snapshot = withContext(ioDispatcher) { metadataReader(sessionDir) }
+            val hasBranding = withContext(ioDispatcher) { brandingFileChecker(sessionDir) }
+            _hasBranding.value = hasBranding
+            _useBranding.value = hasBranding  // default: ON when branding present
 
             val title = snapshot.title?.trim()?.takeIf { it.isNotEmpty() }
             val dateLine = computeDateLine(snapshot.referenceDate, snapshot.captureTimestampMs)
@@ -204,7 +234,8 @@ class ShareComparisonViewModel @Inject constructor(
                     quality = _quality.value,
                     captionData = buildCaptionData(),
                     sessionDir = File(context.filesDir, "sessions/$sessionId"),
-                    exportTimestamp = ts
+                    exportTimestamp = ts,
+                    useBranding = _useBranding.value && _hasBranding.value
                 )
                 val uri = withContext(ioDispatcher) {
                     shareRunner(config, context.contentResolver)

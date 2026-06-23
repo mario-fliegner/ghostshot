@@ -77,6 +77,8 @@ fun ShareComparisonScreen(
     val locationEnabled by viewModel.locationEnabled.collectAsStateWithLifecycle()
     val isRendering by viewModel.isRendering.collectAsStateWithLifecycle()
     val sessionViewportRatio by viewModel.sessionViewportRatio.collectAsStateWithLifecycle()
+    val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
+    val useBranding by viewModel.useBranding.collectAsStateWithLifecycle()
 
     val isTitleDateAvailable by viewModel.isTitleDateAvailable.collectAsStateWithLifecycle()
     val isLocationAvailable by viewModel.isLocationAvailable.collectAsStateWithLifecycle()
@@ -173,12 +175,31 @@ fun ShareComparisonScreen(
                         onItemSelected = { viewModel.onStyleChanged(styles[it]) },
                         modifier = Modifier.testTag("share_comparison_style_control")
                     )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    // ── Use branding toggle ─────────────────────────────────────
+                    // Always visible. Enabled only when session has branding.
+                    // Side by side: toggle active but note indicates Slider-only effect (Option B).
+                    val brandingHintText = when {
+                        !hasBranding -> stringResource(R.string.share_comparison_branding_hint_edit_session)
+                        style == ShareComparisonStyle.SIDE_BY_SIDE -> stringResource(R.string.share_comparison_branding_hint_slider_only)
+                        else -> null
+                    }
+                    InfoToggleRow(
+                        label = stringResource(R.string.share_comparison_branding_label),
+                        checked = useBranding,
+                        enabled = hasBranding,
+                        onCheckedChange = { viewModel.onToggleUseBranding() },
+                        previewText = null,
+                        hintText = brandingHintText ?: "",
+                        testTag = "share_comparison_toggle_branding"
+                    )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     ShareComparisonPreview(
                         style = style,
                         captionData = previewCaptionData,
                         sessionDir = sessionDir,
-                        viewportRatio = sessionViewportRatio
+                        viewportRatio = sessionViewportRatio,
+                        useBranding = useBranding && hasBranding
                     )
                 }
 

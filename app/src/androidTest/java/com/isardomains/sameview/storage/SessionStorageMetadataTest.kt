@@ -158,9 +158,9 @@ class SessionStorageMetadataTest {
     }
 
     @Test
-    fun metadataFile_containsVersion5() {
+    fun metadataFile_containsVersion6() {
         val json = readMetadata(saveTestSession())
-        assertEquals(5, json.getInt("version"))
+        assertEquals(6, json.getInt("version"))
     }
 
     @Test

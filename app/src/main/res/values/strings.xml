@@ -144,6 +144,15 @@
     <string name="settings_strip_originals_metadata_title">Remove metadata from originals</string>
     <string name="settings_strip_originals_metadata_description">Stores full-resolution session originals without EXIF, GPS, camera or device metadata. Original file formats may be converted when required.</string>
 
+    <!-- Settings: Branding -->
+    <string name="settings_branding_section_title">Default branding for new sessions</string>
+    <string name="settings_branding_description">Add a logo or symbol to new sessions</string>
+    <string name="settings_branding_choose_image">Choose image</string>
+    <string name="settings_branding_choose_symbol">Choose symbol</string>
+    <string name="settings_branding_remove">Remove branding</string>
+    <string name="settings_branding_builtin_symbols_title">Built-in symbols</string>
+    <string name="settings_branding_load_error">Couldn\'t load image</string>
+
     <!-- About -->
     <string name="about_screen_title">About</string>
     <string name="about_back">Back</string>
@@ -235,6 +244,9 @@
     <string name="share_comparison_quality_original_note">Full session resolution, larger file</string>
     <string name="share_comparison_action_share">Share</string>
     <string name="share_comparison_error_render_failed">Could not create image</string>
+    <string name="share_comparison_branding_label">Use branding</string>
+    <string name="share_comparison_branding_hint_edit_session">Add branding in Edit session.</string>
+    <string name="share_comparison_branding_hint_slider_only">Only applied to slider style</string>
 
     <!-- Create Video — Entry point (CompareScreen top app bar; accessed via Export menu) -->
     <string name="create_video_entry_content_description">Create video</string>
@@ -279,6 +291,12 @@
     <string name="edit_session_card_session">Session</string>
     <string name="edit_session_card_reference_photo">Reference photo</string>
     <string name="edit_session_card_current_photo">Current photo</string>
+    <string name="edit_session_card_branding">Branding</string>
+    <string name="edit_session_branding_none">No branding for this session.</string>
+    <string name="edit_session_branding_change">Change branding</string>
+    <string name="edit_session_branding_remove">Remove branding</string>
+    <string name="edit_session_branding_copy_global">Copy from default branding</string>
+    <string name="edit_session_branding_error">Couldn\'t update branding</string>
     <string name="edit_session_card_location">Location</string>
     <!-- Edit Session — form fields -->
     <string name="edit_session_field_title">Title</string>

@@ -85,14 +85,15 @@ Rules:
 Each successful capture with an active reference image can create an internal compare session.
 
 - Location: `filesDir/sessions/<sessionId>/`
-- Schema version 5 contents: `capture.jpg`, `capture-original.jpg`, `reference.jpg`, `reference-original.jpg`, `reference-source-original.[ext]`, `metadata.json`
+- Schema version 6 contents: `capture.jpg`, `capture-original.jpg`, `reference.jpg`, `reference-original.jpg`, `reference-source-original.[ext]`, `metadata.json`, and optionally `branding-handle.png` (when session has branding)
 - `capture-original.jpg` is a byte-for-byte copy of the MediaStore capture file
 - `reference-source-original.[ext]` is a byte-for-byte copy of the reference source (extension from MIME type)
+- `branding-handle.png` (optional, v6 only): normalized 512×512 RGBA PNG branding asset; present only when session branding is set; always metadata-clean
 - Schema versions 2–4 contain only: `capture.jpg`, `reference.jpg`, `reference-original.jpg`, `metadata.json`
-- `metadata.json` stores schema version, session identity, file references, capture geometry, GPS fields, and user content — full v5 schema in `SESSION_METADATA_V1.md §6.6`
+- `metadata.json` stores schema version, session identity, file references, capture geometry, GPS fields, user content, and optional branding block — full v6 schema in `SESSION_METADATA_V1.md §6.7` and `SESSION_BRANDING_V1.md §9`
 - Session ID is the directory name, formatted as `YYYY-MM-DD_HH-mm-ss`
-- `SessionStorage` writes sessions; current schema version is 5
-- `SessionScanner` reads sessions; `SUPPORTED_VERSIONS` accepts {2, 3, 4, 5}
+- `SessionStorage` writes sessions; current schema version is 6
+- `SessionScanner` reads sessions; `SUPPORTED_VERSIONS` accepts {2, 3, 4, 5, 6}
 - `SessionDeleter` deletes sessions and validates session IDs against the sessions root
 - Session write is best-effort and must not block or invalidate the main MediaStore capture save
 - Full session originals specification: `SESSION_ORIGINALS_V1.md`

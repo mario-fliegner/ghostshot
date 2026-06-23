@@ -81,6 +81,8 @@ class CompareSliderRenderEngine(
 
                 // 1 px core line at exact divider position for orientation
                 canvas.drawLine(sliderX, 0f, sliderX, h, corePaint)
+                // TODO VIDEO_BRANDING: Check sessionDir for branding-handle.png and render it here
+                // instead of the standard arrows. See SESSION_BRANDING_V1.md §16.
             }
         }
     }

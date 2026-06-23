@@ -139,6 +139,15 @@
     <string name="settings_strip_originals_metadata_title">Metadaten aus Originalen entfernen</string>
     <string name="settings_strip_originals_metadata_description">Speichert Session-Originale in voller Auflösung ohne EXIF-, GPS-, Kamera- oder Geräteinformationen. Ursprüngliche Dateiformate können dabei bei Bedarf konvertiert werden.</string>
 
+    <!-- Settings: Branding -->
+    <string name="settings_branding_section_title">Standard-Branding für neue Vergleiche</string>
+    <string name="settings_branding_description">Logo oder Symbol für neue Vergleiche hinzufügen</string>
+    <string name="settings_branding_choose_image">Bild auswählen</string>
+    <string name="settings_branding_choose_symbol">Symbol auswählen</string>
+    <string name="settings_branding_remove">Branding entfernen</string>
+    <string name="settings_branding_builtin_symbols_title">Integrierte Symbole</string>
+    <string name="settings_branding_load_error">Bild konnte nicht geladen werden</string>
+
     <!-- About -->
     <string name="about_screen_title">Über SameView</string>
     <string name="about_back">Zurück</string>
@@ -222,6 +231,9 @@
     <string name="share_comparison_quality_original_note">Originalauflösung, größere Datei</string>
     <string name="share_comparison_action_share">Teilen</string>
     <string name="share_comparison_error_render_failed">Bild konnte nicht erstellt werden</string>
+    <string name="share_comparison_branding_label">Branding verwenden</string>
+    <string name="share_comparison_branding_hint_edit_session">Branding in Sitzung bearbeiten hinzufügen.</string>
+    <string name="share_comparison_branding_hint_slider_only">Nur bei Slider-Stil angewendet</string>
 
     <!-- Video erstellen — Einstiegspunkt (CompareScreen Titelleiste; über Export-Menü erreichbar) -->
     <string name="create_video_entry_content_description">Video erstellen</string>
@@ -260,6 +272,12 @@
     <string name="edit_session_card_session">Vergleiche</string>
     <string name="edit_session_card_reference_photo">Referenzfoto</string>
     <string name="edit_session_card_current_photo">Aktuelles Foto</string>
+    <string name="edit_session_card_branding">Branding</string>
+    <string name="edit_session_branding_none">Kein Branding für diese Sitzung.</string>
+    <string name="edit_session_branding_change">Branding ändern</string>
+    <string name="edit_session_branding_remove">Branding entfernen</string>
+    <string name="edit_session_branding_copy_global">Standard-Branding übernehmen</string>
+    <string name="edit_session_branding_error">Branding konnte nicht gesetzt werden</string>
     <string name="edit_session_card_location">Aufnahmeort</string>
     <!-- Session bearbeiten — Formularfelder -->
     <string name="edit_session_field_title">Titel</string>

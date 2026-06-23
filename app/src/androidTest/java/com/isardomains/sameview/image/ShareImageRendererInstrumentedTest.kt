@@ -206,6 +206,130 @@ class ShareImageRendererInstrumentedTest {
     private fun nowTimestamp(): String =
         SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
 
+    // ── Branding tests ────────────────────────────────────────────────────────
+
+    @Test
+    fun branding_useBrandingTrue_withBrandingFile_rendersWithoutCrash() {
+        writeSyntheticBrandingPng(File(sessionDir, "branding-handle.png"))
+        val config = ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.STANDARD,
+            captionData = null,
+            sessionDir = sessionDir,
+            exportTimestamp = nowTimestamp(),
+            useBranding = true
+        )
+        val uri = render(config)
+        assertJpegExistsInMediaStore(uri)
+    }
+
+    /**
+     * I-12: Verifies that branding ON produces a visually different result from branding OFF.
+     * Samples a 10×10 pixel region at the handle centre (mid-image) from both exports.
+     * At least one pixel must differ — the branding logo (#CC3232 fill) vs the standard white
+     * circle will always differ in this region.
+     */
+    @Test
+    fun i12_branding_useBrandingTrue_renderedOutputDiffersFromStandardHandle() {
+        writeSyntheticBrandingPng(File(sessionDir, "branding-handle.png"))
+        val ts1 = "20260701_100001"
+        val ts2 = "20260701_100002"
+
+        val uriWithBranding = render(ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.STANDARD,
+            captionData = null,
+            sessionDir = sessionDir,
+            exportTimestamp = ts1,
+            useBranding = true
+        ))
+        val uriWithoutBranding = render(ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.STANDARD,
+            captionData = null,
+            sessionDir = sessionDir,
+            exportTimestamp = ts2,
+            useBranding = false
+        ))
+
+        // Decode both exports back to Bitmaps for comparison.
+        val bmpWith = resolver.openInputStream(uriWithBranding)?.use {
+            android.graphics.BitmapFactory.decodeStream(it)
+        } ?: error("Cannot decode branding export")
+        val bmpWithout = resolver.openInputStream(uriWithoutBranding)?.use {
+            android.graphics.BitmapFactory.decodeStream(it)
+        } ?: error("Cannot decode standard export")
+
+        // Sample a 10×10 region at the image centre where the handle is drawn.
+        val cx = bmpWith.width / 2
+        val cy = bmpWith.height / 2
+        val sampleSize = 10
+        var differenceFound = false
+        outer@ for (dy in 0 until sampleSize) {
+            for (dx in 0 until sampleSize) {
+                if (bmpWith.getPixel(cx + dx, cy + dy) != bmpWithout.getPixel(cx + dx, cy + dy)) {
+                    differenceFound = true
+                    break@outer
+                }
+            }
+        }
+
+        bmpWith.recycle()
+        bmpWithout.recycle()
+
+        assertTrue(
+            "Branding ON export must differ from branding OFF export in handle region",
+            differenceFound
+        )
+    }
+
+    @Test
+    fun branding_useBrandingFalse_rendersStandardHandle_withoutCrash() {
+        writeSyntheticBrandingPng(File(sessionDir, "branding-handle.png"))
+        val config = ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.STANDARD,
+            captionData = null,
+            sessionDir = sessionDir,
+            exportTimestamp = nowTimestamp(),
+            useBranding = false
+        )
+        val uri = render(config)
+        assertJpegExistsInMediaStore(uri)
+    }
+
+    @Test
+    fun branding_useBrandingTrue_missingBrandingFile_fallsBackToStandardHandle() {
+        // branding-handle.png intentionally absent — must not crash
+        val config = ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.STANDARD,
+            captionData = null,
+            sessionDir = sessionDir,
+            exportTimestamp = nowTimestamp(),
+            useBranding = true
+        )
+        val uri = render(config)
+        assertJpegExistsInMediaStore(uri)
+    }
+
+    @Test
+    fun branding_sideBySide_useBrandingTrue_noHandleRendered() {
+        writeSyntheticBrandingPng(File(sessionDir, "branding-handle.png"))
+        val config = ShareRenderConfig(
+            style = ShareComparisonStyle.SIDE_BY_SIDE,
+            quality = ShareQuality.STANDARD,
+            captionData = null,
+            sessionDir = sessionDir,
+            exportTimestamp = nowTimestamp(),
+            useBranding = true  // no effect on Side by side — must not crash
+        )
+        val uri = render(config)
+        assertJpegExistsInMediaStore(uri)
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
     private fun writeSyntheticSession(dir: File) {
         writeSyntheticJpeg(File(dir, "reference.jpg"), Color.rgb(80, 120, 180))
         writeSyntheticJpeg(File(dir, "capture.jpg"), Color.rgb(180, 120, 80))
@@ -218,6 +342,13 @@ class ShareImageRendererInstrumentedTest {
         val bmp = Bitmap.createBitmap(200, 300, Bitmap.Config.ARGB_8888)
         Canvas(bmp).apply { drawColor(fillColor) }
         FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        bmp.recycle()
+    }
+
+    private fun writeSyntheticBrandingPng(file: File) {
+        val bmp = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+        Canvas(bmp).apply { drawColor(Color.rgb(200, 50, 50)) }
+        FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bmp.recycle()
     }
 }

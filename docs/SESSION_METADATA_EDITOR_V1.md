@@ -900,3 +900,61 @@ when the screen is open). No conditional visibility rule is needed.
 
 Implementation block: `Block F.3` in
 `FAVORITES_AND_LIBRARY_FILTERS_V1_IMPLEMENTATION_PLAN.md`
+
+---
+
+## 21. Branding Card
+
+This section documents the Session Branding card added to `EditSessionScreen` as part of Session Branding V1. Full specification: `SESSION_BRANDING_V1.md §12`.
+
+### 21.1 Card Position
+
+The Branding card is inserted between the **Current photo card** and the **Location card**:
+
+Card order: Session → Reference photo → Current photo → **Branding** → Location
+
+### 21.2 Card Contents
+
+**When session has no branding:**
+
+- Text: "No branding for this session."
+- Buttons: "Choose image" | "Choose symbol"
+- "Copy from default branding" — visible only when the session has NO branding AND global branding exists
+
+**When session has branding:**
+
+- Buttons: "Change branding" | "Remove branding"
+- (No "Copy from default branding" — session already has branding)
+
+### 21.3 Immediate Write Behavior
+
+Branding changes in Edit Session write **immediately** — they do NOT go through the form Save flow:
+
+- `isDirty` is NOT affected by branding changes
+- The Save button state is NOT affected
+- "Discard changes" does NOT revert branding changes
+- Branding changes take effect the moment the user confirms the selection
+
+This matches the Favourite star behavior (§20.4/§20.5).
+
+### 21.4 No Global-Branding Fallback
+
+After `removeSessionBranding()`:
+
+- The session has no branding — permanently
+- Global Branding is NOT automatically applied
+- "Copy from default branding" becomes visible (if global branding exists), requiring an explicit user action
+
+Session branding is always the single source of truth. Global branding is only a template for new sessions.
+
+### 21.5 Built-in Symbol Picker
+
+"Choose symbol" and "Choose image" both open a symbol/image picker (AlertDialog with a 2×3 grid of 6 built-in symbols). The 6 symbols are: `heart`, `star`, `camera`, `home`, `pin`, `fire`. Selection immediately writes `branding-handle.png` to the session folder and updates `metadata.json`.
+
+### 21.6 Testing Requirements
+
+- Branding card visible in Edit Session
+- "No branding for this session." visible when no branding set
+- "Copy from default branding" visible only when `!hasBranding && hasGlobalBranding`
+- "Change branding" and "Remove branding" visible when branding present
+- Remove does NOT set `isDirty` / does NOT enable Save button

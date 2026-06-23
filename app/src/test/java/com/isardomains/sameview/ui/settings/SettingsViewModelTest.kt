@@ -1,5 +1,8 @@
 package com.isardomains.sameview.ui.settings
 
+import android.content.Context
+import com.isardomains.sameview.branding.BuiltinBrandingSymbol
+import com.isardomains.sameview.branding.GlobalBrandingRepository
 import com.isardomains.sameview.ui.camera.GridType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -13,15 +16,23 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
+
+    @get:Rule
+    val tempFolder = TemporaryFolder()
 
     private lateinit var repository: SettingsRepository
     private lateinit var locationPermissionChecker: LocationPermissionChecker
@@ -29,12 +40,15 @@ class SettingsViewModelTest {
     private lateinit var keepScreenOnFlow: MutableStateFlow<Boolean>
     private lateinit var recreationGuidanceFlow: MutableStateFlow<Boolean>
     private lateinit var viewModel: SettingsViewModel
+    private lateinit var brandingRepository: GlobalBrandingRepository
+    private val mockContext: Context = mock()
 
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         repository = mock()
         locationPermissionChecker = mock()
+        brandingRepository = GlobalBrandingRepository(File(tempFolder.root, "branding"))
         gridTypeFlow = MutableStateFlow(GridType.RULE_OF_THIRDS)
         keepScreenOnFlow = MutableStateFlow(true)
         recreationGuidanceFlow = MutableStateFlow(false)
@@ -46,7 +60,8 @@ class SettingsViewModelTest {
         whenever(repository.liveDirectionArrow).thenReturn(MutableStateFlow(false))
         whenever(repository.stripOriginalsMetadata).thenReturn(MutableStateFlow(false))
         whenever(locationPermissionChecker.isGranted()).thenReturn(false)
-        viewModel = SettingsViewModel(repository, locationPermissionChecker)
+        viewModel = SettingsViewModel(repository, locationPermissionChecker, brandingRepository, mockContext)
+            .also { it.ioDispatcher = UnconfinedTestDispatcher() }
     }
 
     @After
@@ -207,7 +222,8 @@ class SettingsViewModelTest {
     fun stripOriginalsMetadata_updatesWhenRepositoryFlowChanges() = runTest {
         val stripFlow = MutableStateFlow(false)
         whenever(repository.stripOriginalsMetadata).thenReturn(stripFlow)
-        viewModel = SettingsViewModel(repository, locationPermissionChecker)
+        viewModel = SettingsViewModel(repository, locationPermissionChecker, brandingRepository, mockContext)
+            .also { it.ioDispatcher = UnconfinedTestDispatcher() }
 
         val collected = mutableListOf<Boolean>()
         val job = launch { viewModel.stripOriginalsMetadata.collect { collected.add(it) } }
@@ -217,5 +233,70 @@ class SettingsViewModelTest {
 
         assertEquals(true, collected.last())
         job.cancel()
+    }
+
+    // ── Branding tests ────────────────────────────────────────────────────────
+
+    @Test
+    fun hasBranding_false_initiallyWhenNoBrandingSet() {
+        assertFalse(viewModel.hasBranding.value)
+    }
+
+    @Test
+    fun onSetBrandingFromSymbol_updatesBrandingAndSetsHasBrandingTrue() = runTest {
+        val fakePng = ByteArray(64) { 0x01 }
+        viewModel.builtinSymbolRenderer = { fakePng }
+
+        viewModel.onSetBrandingFromSymbol(BuiltinBrandingSymbol.HEART)
+        advanceUntilIdle()
+
+        assertTrue("hasBranding must be true after setting branding", viewModel.hasBranding.value)
+        assertTrue("Global branding repository must have branding set", brandingRepository.hasBranding())
+        assertEquals("builtin", brandingRepository.getBrandingMeta()?.type)
+        assertEquals("heart", brandingRepository.getBrandingMeta()?.builtinId)
+    }
+
+    @Test
+    fun onSetBrandingFromImage_updatesBrandingAndSetsHasBrandingTrue() = runTest {
+        val fakePng = ByteArray(64) { 0x02 }
+        viewModel.imageDecoder = { mock() }
+        viewModel.brandingNormalizer = { fakePng }
+
+        viewModel.onImageUriSelected(mock())
+        advanceUntilIdle()
+
+        assertTrue("hasBranding must be true after image branding", viewModel.hasBranding.value)
+        assertTrue(brandingRepository.hasBranding())
+        assertEquals("image", brandingRepository.getBrandingMeta()?.type)
+    }
+
+    @Test
+    fun onSetBrandingFromSymbol_rendererThrows_emitsBrandingLoadFailed() = runTest {
+        viewModel.builtinSymbolRenderer = { throw RuntimeException("render failed") }
+
+        val events = mutableListOf<SettingsUiEvent>()
+        val job = launch(Dispatchers.Main.immediate) { viewModel.uiEvents.collect { events.add(it) } }
+
+        viewModel.onSetBrandingFromSymbol(BuiltinBrandingSymbol.STAR)
+        advanceUntilIdle()
+
+        assertTrue("BrandingLoadFailed event must be emitted", events.any { it is SettingsUiEvent.BrandingLoadFailed })
+        assertFalse("hasBranding must remain false on error", viewModel.hasBranding.value)
+        job.cancel()
+    }
+
+    @Test
+    fun onRemoveBranding_setsHasBrandingFalse() = runTest {
+        val fakePng = ByteArray(64) { 0x03 }
+        viewModel.builtinSymbolRenderer = { fakePng }
+        viewModel.onSetBrandingFromSymbol(BuiltinBrandingSymbol.FIRE)
+        advanceUntilIdle()
+        assertTrue(viewModel.hasBranding.value)
+
+        viewModel.onRemoveBranding()
+        advanceUntilIdle()
+
+        assertFalse("hasBranding must be false after removeBranding", viewModel.hasBranding.value)
+        assertFalse("Global branding repository must have no branding", brandingRepository.hasBranding())
     }
 }

@@ -68,6 +68,7 @@ class ShareComparisonViewModelTest {
         // picks up these overrides when it runs (StandardTestDispatcher pattern).
         vm.ioDispatcher = Dispatchers.Main
         vm.metadataReader = metadataReader
+        // brandingFileChecker defaults to { false } on the VM — override per test if needed.
         return vm
     }
 
@@ -364,5 +365,142 @@ class ShareComparisonViewModelTest {
 
         val event = viewModel.events.first()
         assertTrue("Should emit ShowSnackbar", event is ShareComparisonEvent.ShowSnackbar)
+    }
+
+    // ── Branding state ────────────────────────────────────────────────────────
+
+    @Test
+    fun hasBranding_false_whenBrandingFileNotPresent() = runTest {
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { false }
+        advanceUntilIdle()
+        assertFalse(viewModel.hasBranding.value)
+    }
+
+    @Test
+    fun hasBranding_true_whenBrandingFilePresent() = runTest {
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { true }
+        advanceUntilIdle()
+        assertTrue(viewModel.hasBranding.value)
+    }
+
+    @Test
+    fun useBranding_defaultFalse_whenNoBrandingFile() = runTest {
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { false }
+        advanceUntilIdle()
+        assertFalse("useBranding default must be false when no branding", viewModel.useBranding.value)
+    }
+
+    @Test
+    fun useBranding_defaultTrue_whenBrandingFilePresent() = runTest {
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { true }
+        advanceUntilIdle()
+        assertTrue("useBranding default must be true when branding is present", viewModel.useBranding.value)
+    }
+
+    @Test
+    fun onToggleUseBranding_flipsUseBranding() = runTest {
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { true }
+        advanceUntilIdle()
+        assertTrue(viewModel.useBranding.value)
+
+        viewModel.onToggleUseBranding()
+        assertFalse("useBranding must flip to false", viewModel.useBranding.value)
+
+        viewModel.onToggleUseBranding()
+        assertTrue("useBranding must flip back to true", viewModel.useBranding.value)
+    }
+
+    @Test
+    fun onShare_config_containsCorrectUseBranding_whenBrandingPresent() = runTest {
+        var capturedConfig: ShareRenderConfig? = null
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { true }
+        viewModel.shareRunner = { config, _ ->
+            capturedConfig = config
+            fakeUri
+        }
+        advanceUntilIdle()
+
+        viewModel.onShare()
+        advanceUntilIdle()
+
+        assertNotNull("Config must be captured", capturedConfig)
+        assertTrue("useBranding must be true in config", capturedConfig!!.useBranding)
+    }
+
+    @Test
+    fun onShare_config_useBrandingFalse_whenNoBranding() = runTest {
+        var capturedConfig: ShareRenderConfig? = null
+        viewModel = createViewModel()
+        // brandingFileChecker defaults to { false } — no change needed
+        viewModel.shareRunner = { config, _ ->
+            capturedConfig = config
+            fakeUri
+        }
+        advanceUntilIdle()
+
+        viewModel.onShare()
+        advanceUntilIdle()
+
+        assertNotNull(capturedConfig)
+        assertFalse("useBranding must be false in config when no branding", capturedConfig!!.useBranding)
+    }
+
+    @Test
+    fun onToggleUseBranding_thenOnShare_config_useBrandingFalse() = runTest {
+        var capturedConfig: ShareRenderConfig? = null
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { true }
+        viewModel.shareRunner = { config, _ ->
+            capturedConfig = config
+            fakeUri
+        }
+        advanceUntilIdle()
+
+        // Toggle OFF
+        viewModel.onToggleUseBranding()
+        viewModel.onShare()
+        advanceUntilIdle()
+
+        assertFalse("useBranding must be false in config after toggle OFF", capturedConfig!!.useBranding)
+    }
+
+    @Test
+    fun useBranding_notPersisted_resetsToDefaultOnLoadMetadata() = runTest {
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { true }
+        advanceUntilIdle()
+        assertTrue(viewModel.useBranding.value)
+
+        viewModel.onToggleUseBranding()
+        assertFalse(viewModel.useBranding.value)
+
+        // Re-load metadata resets useBranding to hasBranding default
+        viewModel.loadMetadata()
+        advanceUntilIdle()
+        assertTrue("useBranding must reset to hasBranding default after reload", viewModel.useBranding.value)
+    }
+
+    // ── Branding × Style regression test ──────────────────────────────────────
+
+    @Test
+    fun useBranding_survivesSwitchToSideBySideAndBack() = runTest {
+        viewModel = createViewModel()
+        viewModel.brandingFileChecker = { true }
+        advanceUntilIdle()
+        assertTrue("useBranding default true when branding present", viewModel.useBranding.value)
+
+        // Switch to Side by side
+        viewModel.onStyleChanged(ShareComparisonStyle.SIDE_BY_SIDE)
+        assertTrue("useBranding must survive style switch to Side by side", viewModel.useBranding.value)
+
+        // Switch back to Slider
+        viewModel.onStyleChanged(ShareComparisonStyle.SLIDER)
+        assertTrue("useBranding must survive style switch back to Slider", viewModel.useBranding.value)
     }
 }

@@ -2,6 +2,9 @@ package com.isardomains.sameview.ui.compare
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +33,8 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +50,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,6 +73,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.sameview.R
+import com.isardomains.sameview.branding.BuiltinBrandingSymbol
+import com.isardomains.sameview.ui.settings.BuiltinSymbolPickerDialog
 import com.isardomains.sameview.ui.settings.SettingsCard
 import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
@@ -115,6 +123,8 @@ fun EditSessionScreen(
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     val captureTimestampMs by viewModel.captureTimestampMs.collectAsStateWithLifecycle()
+    val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
+    val hasGlobalBranding by viewModel.hasGlobalBranding.collectAsStateWithLifecycle()
 
     // ── UI derivations ─────────────────────────────────────────────────────────
     val context = LocalContext.current
@@ -139,6 +149,34 @@ fun EditSessionScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showSavingDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showBrandingSymbolDialog by remember { mutableStateOf(false) }
+
+    // ── Branding photo picker launcher ─────────────────────────────────────────
+    val brandingImageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) viewModel.onImageUriSelectedForBranding(uri)
+    }
+
+    // ── Branding error snackbar ────────────────────────────────────────────────
+    val snackbarHostState = remember { SnackbarHostState() }
+    val brandingErrorMessage = stringResource(R.string.edit_session_branding_error)
+    LaunchedEffect(Unit) {
+        viewModel.brandingError.collect {
+            snackbarHostState.showSnackbar(brandingErrorMessage)
+        }
+    }
+
+    // ── Branding symbol picker dialog ──────────────────────────────────────────
+    if (showBrandingSymbolDialog) {
+        BuiltinSymbolPickerDialog(
+            onSymbolSelected = { symbol ->
+                showBrandingSymbolDialog = false
+                viewModel.onSetSessionBrandingFromSymbol(symbol)
+            },
+            onDismiss = { showBrandingSymbolDialog = false }
+        )
+    }
 
     // ── Back handling ──────────────────────────────────────────────────────────
     BackHandler(enabled = isSaving || isDirty) {
@@ -215,6 +253,7 @@ fun EditSessionScreen(
     // ── Screen scaffold ────────────────────────────────────────────────────────
     Scaffold(
         modifier = modifier.testTag("edit_session_screen_root"),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -423,6 +462,82 @@ fun EditSessionScreen(
                                     color = SameViewSettingsLabelText
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            // ── Branding card ─────────────────────────────────────────────────
+            SettingsCard(title = stringResource(R.string.edit_session_card_branding)) {
+                if (!hasBranding) {
+                    Text(
+                        text = stringResource(R.string.edit_session_branding_none),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SameViewSettingsSecondaryText,
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .testTag("edit_session_branding_none_text")
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextButton(
+                            onClick = {
+                                brandingImageLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("edit_session_branding_choose_image")
+                        ) {
+                            Text(stringResource(R.string.settings_branding_choose_image))
+                        }
+                        TextButton(
+                            onClick = { showBrandingSymbolDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("edit_session_branding_choose_symbol")
+                        ) {
+                            Text(stringResource(R.string.settings_branding_choose_symbol))
+                        }
+                    }
+                    if (hasGlobalBranding) {
+                        TextButton(
+                            onClick = { viewModel.onCopyFromGlobalBranding() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("edit_session_branding_copy_global")
+                        ) {
+                            Text(stringResource(R.string.edit_session_branding_copy_global))
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextButton(
+                            onClick = {
+                                brandingImageLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("edit_session_branding_change")
+                        ) {
+                            Text(stringResource(R.string.edit_session_branding_change))
+                        }
+                        TextButton(
+                            onClick = { viewModel.onRemoveSessionBranding() },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("edit_session_branding_remove")
+                        ) {
+                            Text(stringResource(R.string.edit_session_branding_remove))
                         }
                     }
                 }

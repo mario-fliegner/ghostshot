@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -16,6 +17,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.sameview.R
+import com.isardomains.sameview.branding.BuiltinBrandingSymbol
 import com.isardomains.sameview.ui.camera.GridType
 import com.isardomains.sameview.ui.theme.SameViewTheme
 import org.junit.After
@@ -56,6 +58,10 @@ class SettingsScreenTest {
         showLocationPermissionDeniedHint: Boolean = false,
         stripOriginalsMetadata: Boolean = false,
         onStripOriginalsMetadataChanged: (Boolean) -> Unit = {},
+        hasBranding: Boolean = false,
+        onChooseImage: () -> Unit = {},
+        onChooseSymbol: (BuiltinBrandingSymbol) -> Unit = {},
+        onRemoveBranding: () -> Unit = {},
         onBack: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -84,6 +90,10 @@ class SettingsScreenTest {
                         showLocationPermissionDeniedHint = showLocationPermissionDeniedHint,
                         stripOriginalsMetadata = stripOriginalsMetadata,
                         onStripOriginalsMetadataChanged = onStripOriginalsMetadataChanged,
+                        hasBranding = hasBranding,
+                        onChooseImage = onChooseImage,
+                        onChooseSymbol = onChooseSymbol,
+                        onRemoveBranding = onRemoveBranding,
                         onBack = onBack
                     )
                 }
@@ -377,5 +387,86 @@ class SettingsScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(true, received)
+    }
+
+    // ── Branding section tests ─────────────────────────────────────────────────
+
+    @Test
+    fun branding_sectionTitle_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_branding_section_title))
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun branding_descriptionText_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_branding_description))
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun branding_chooseImageButton_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithTag("settings_branding_choose_image")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun branding_chooseSymbolButton_isDisplayed() {
+        setContent()
+
+        composeRule.onNodeWithTag("settings_branding_choose_symbol")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun branding_removeButton_notVisible_whenNoBranding() {
+        setContent(hasBranding = false)
+
+        // The remove button must not exist in the composition when hasBranding = false
+        composeRule.onNodeWithTag("settings_branding_remove").assertDoesNotExist()
+    }
+
+    @Test
+    fun branding_removeButton_isVisible_whenBrandingSet() {
+        setContent(hasBranding = true)
+
+        composeRule.onNodeWithTag("settings_branding_remove")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun branding_chooseImage_callsCallback() {
+        var called = false
+        setContent(onChooseImage = { called = true })
+
+        composeRule.onNodeWithTag("settings_branding_choose_image")
+            .performScrollTo()
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, called)
+    }
+
+    @Test
+    fun branding_removeButton_callsCallback_whenClicked() {
+        var called = false
+        setContent(hasBranding = true, onRemoveBranding = { called = true })
+
+        composeRule.onNodeWithTag("settings_branding_remove")
+            .performScrollTo()
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, called)
     }
 }

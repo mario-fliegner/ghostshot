@@ -18,7 +18,15 @@ data class ShareRenderConfig(
     val quality: ShareQuality,
     val captionData: ShareCaptionData?,
     val sessionDir: File,
-    val exportTimestamp: String
+    val exportTimestamp: String,
+    /**
+     * When true and the session contains a valid branding-handle.png, the Slider export
+     * renders a branding handle instead of the standard SameView handle.
+     *
+     * No effect on Side by side style (which has no handle).
+     * Defaults to false; not persisted between export sessions.
+     */
+    val useBranding: Boolean = false
 )
 
 /** Resolved canvas and comparison-area dimensions, pre-computed before bitmap allocation. */

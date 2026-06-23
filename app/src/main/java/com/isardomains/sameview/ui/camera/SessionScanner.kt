@@ -19,7 +19,8 @@ data class ScannedSession(
     val locationDisplayName: String? = null,
     val locationCity: String? = null,
     val locationCountry: String? = null,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val branding: SessionBranding? = null
 )
 
 internal object SessionScanner {
@@ -27,7 +28,7 @@ internal object SessionScanner {
     private const val TAG = "SessionScanner"
     private const val SESSIONS_DIR = "sessions"
     private const val METADATA_FILE = "metadata.json"
-    private val SUPPORTED_VERSIONS = setOf(2, 3, 4, 5)
+    private val SUPPORTED_VERSIONS = setOf(2, 3, 4, 5, 6)
 
     fun scan(context: Context): List<ScannedSession> = scan(File(context.filesDir, SESSIONS_DIR))
 
@@ -152,10 +153,10 @@ internal object SessionScanner {
 
         // v5: additionally validate the two original files declared in the files block.
         // Versions 2, 3, and 4 are not affected by these checks.
-        if (version == 5) {
+        if (version == 5 || version == 6) {
             val captureOriginalFile = filesObj.optString("captureOriginal", "")
             if (captureOriginalFile.isEmpty()) {
-                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.captureOriginal missing or empty in v5") }
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.captureOriginal missing or empty in v$version") }
                 return null
             }
             if (!isSafeFilename(captureOriginalFile)) {
@@ -169,7 +170,7 @@ internal object SessionScanner {
 
             val referenceSourceOriginalFile = filesObj.optString("referenceSourceOriginal", "")
             if (referenceSourceOriginalFile.isEmpty()) {
-                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.referenceSourceOriginal missing or empty in v5") }
+                if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.referenceSourceOriginal missing or empty in v$version") }
                 return null
             }
             if (!isSafeFilename(referenceSourceOriginalFile)) {
@@ -179,6 +180,21 @@ internal object SessionScanner {
             if (!File(sessionDir, referenceSourceOriginalFile).let { it.exists() && it.isFile }) {
                 if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.referenceSourceOriginal $referenceSourceOriginalFile not found on disk") }
                 return null
+            }
+        }
+
+        // v6: validate optional files.brandingHandle when present.
+        if (version == 6) {
+            val brandingHandleFile = filesObj.optString("brandingHandle", "")
+            if (brandingHandleFile.isNotEmpty()) {
+                if (!isSafeFilename(brandingHandleFile)) {
+                    if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.brandingHandle is unsafe — $brandingHandleFile") }
+                    return null
+                }
+                if (!File(sessionDir, brandingHandleFile).let { it.exists() && it.isFile }) {
+                    if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: files.brandingHandle $brandingHandleFile not found on disk") }
+                    return null
+                }
             }
         }
 
@@ -196,6 +212,33 @@ internal object SessionScanner {
         val additionalObj: JSONObject? = json.optJSONObject("additional")
         val isFavorite: Boolean = additionalObj?.optBoolean("isFavorite", false) ?: false
 
+        // Read branding block (v6 sessions only; null for v2–v5).
+        // Inconsistency (branding block present but files.brandingHandle absent, or vice versa)
+        // is tolerated: treated as no branding without rejecting the session.
+        val branding: SessionBranding? = if (version >= 6) {
+            val brandingObj = json.optJSONObject("branding")
+            val hasBrandingFile = filesObj.optString("brandingHandle", "").isNotEmpty()
+            if (brandingObj != null && hasBrandingFile) {
+                try {
+                    val handleFile = brandingObj.getString("handleFile")
+                    val type = brandingObj.getString("type")
+                    val builtinId = brandingObj.optString("builtinId", "").ifEmpty { null }
+                    val updatedAtMs = brandingObj.getLong("updatedAtMs")
+                    SessionBranding(handleFile = handleFile, type = type, builtinId = builtinId, updatedAtMs = updatedAtMs)
+                } catch (_: Exception) {
+                    if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: branding block malformed — treating as no branding") }
+                    null
+                }
+            } else {
+                if (brandingObj != null || hasBrandingFile) {
+                    if (BuildConfig.DEBUG) { Log.d(TAG, "Session $id: branding block/file inconsistency — treating as no branding") }
+                }
+                null
+            }
+        } else {
+            null
+        }
+
         return ScannedSession(
             sessionId = id,
             timestamp = timestamp,
@@ -206,7 +249,8 @@ internal object SessionScanner {
             locationDisplayName = locationDisplayName,
             locationCity = locationCity,
             locationCountry = locationCountry,
-            isFavorite = isFavorite
+            isFavorite = isFavorite,
+            branding = branding
         )
     }
 

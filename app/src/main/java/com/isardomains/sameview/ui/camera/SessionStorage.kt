@@ -13,7 +13,11 @@ import android.provider.MediaStore
 import android.util.Log
 import com.isardomains.sameview.AppConstants
 import com.isardomains.sameview.BuildConfig
+import com.isardomains.sameview.branding.GlobalBranding
+import com.isardomains.sameview.branding.GlobalBrandingRepository
 import org.json.JSONObject
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -70,7 +74,9 @@ internal object SessionStorage {
     private const val FILE_REFERENCE_ORIGINAL = "reference-original.jpg"
     private const val FILE_CAPTURE_ORIGINAL = "capture-original.jpg"
     private const val FILE_REFERENCE_SOURCE_ORIGINAL_BASE = "reference-source-original"
-    private const val METADATA_VERSION = 5
+    internal const val FILE_BRANDING_HANDLE = "branding-handle.png"
+    private const val FILE_BRANDING_HANDLE_TMP = "branding-handle-new.png"
+    private const val METADATA_VERSION = 6
     private const val JPEG_QUALITY = 90
     private const val JPEG_QUALITY_PRIVACY = 95
 
@@ -89,14 +95,16 @@ internal object SessionStorage {
         capturedBitmap: Bitmap,
         snapshot: CaptureSessionSnapshot,
         captureMediaStoreUri: Uri,
-        stripMetadata: Boolean = false
+        stripMetadata: Boolean = false,
+        globalBrandingRepository: GlobalBrandingRepository? = null
     ) = saveSession(
         context = context,
         sessionsRoot = File(context.filesDir, SESSIONS_DIR),
         capturedBitmap = capturedBitmap,
         snapshot = snapshot,
         captureMediaStoreUri = captureMediaStoreUri,
-        stripMetadata = stripMetadata
+        stripMetadata = stripMetadata,
+        globalBranding = globalBrandingRepository?.getBranding()
     )
 
     internal fun saveSession(
@@ -105,7 +113,8 @@ internal object SessionStorage {
         capturedBitmap: Bitmap,
         snapshot: CaptureSessionSnapshot,
         captureMediaStoreUri: Uri,
-        stripMetadata: Boolean = false
+        stripMetadata: Boolean = false,
+        globalBranding: GlobalBranding? = null
     ): SavedSessionRef? {
         val sessionTimestampMs = System.currentTimeMillis()
         val baseName = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date(sessionTimestampMs))
@@ -118,7 +127,15 @@ internal object SessionStorage {
             val referenceSourceOriginalResult = writeReferenceSourceOriginal(context, snapshot.referenceImageUri, sessionDir, stripMetadata)
             writeCapture(capturedBitmap, sessionDir, snapshot.gpsSnapshot)
             writeReferenceOriginalAndReference(context, snapshot, sessionDir)
-            writeMetadata(sessionDir, sessionTimestampMs, snapshot, captureMediaStoreUri, captureOriginalFilename, referenceSourceOriginalResult, stripMetadata)
+            // Branding copy: fail-soft — a failure here never aborts the session save.
+            val brandingCopied = globalBranding?.let { branding ->
+                writeBrandingHandleToSession(sessionDir, branding)
+            } ?: false
+            writeMetadata(
+                sessionDir, sessionTimestampMs, snapshot, captureMediaStoreUri,
+                captureOriginalFilename, referenceSourceOriginalResult, stripMetadata,
+                brandingData = if (brandingCopied) globalBranding else null
+            )
             if (BuildConfig.DEBUG) { Log.d(TAG, "Session saved") }
             return SavedSessionRef(
                 sessionId = sessionDir.name,
@@ -358,6 +375,177 @@ internal object SessionStorage {
         }
     }
 
+    // ── Branding update functions ──────────────────────────────────────────────
+
+    /**
+     * Builds the JSON object written to the `branding` block of metadata.json.
+     *
+     * @param handleFile  Filename of the branding handle PNG in the session directory.
+     * @param meta        Type and optional built-in symbol ID.
+     * @param updatedAtMs Timestamp for the update in milliseconds since Unix epoch.
+     */
+    private fun buildBrandingJson(handleFile: String, meta: SessionBrandingMeta, updatedAtMs: Long): JSONObject =
+        JSONObject().apply {
+            put("handleFile", handleFile)
+            put("type", meta.type)
+            if (meta.builtinId != null) put("builtinId", meta.builtinId)
+            put("updatedAtMs", updatedAtMs)
+        }
+
+    /**
+     * Writes [brandingPng] as the session branding handle PNG and updates metadata.json.
+     *
+     * Write order for atomicity:
+     * 1. Write [brandingPng] to a temp file in the session directory.
+     * 2. [Files.move] temp → [FILE_BRANDING_HANDLE] (atomic replace on Linux/Android).
+     * 3. Only after the file is in place: update metadata.json.
+     *
+     * Returns false on invalid [sessionId], path traversal, missing metadata.json, or any
+     * IO/security error. Existing session files and metadata are never corrupted on failure.
+     */
+    fun updateSessionBranding(
+        sessionsRoot: File,
+        sessionId: String,
+        brandingPng: ByteArray,
+        type: String,
+        builtinId: String?
+    ): Boolean {
+        return try {
+            val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
+            val metadataFile = File(sessionDir, "metadata.json")
+            if (!metadataFile.exists()) return false
+
+            val json = try {
+                JSONObject(metadataFile.readText())
+            } catch (e: Exception) {
+                return false
+            }
+
+            // Write PNG atomically via temp file.
+            val tmpFile = File(sessionDir, FILE_BRANDING_HANDLE_TMP)
+            try {
+                tmpFile.writeBytes(brandingPng)
+                Files.move(tmpFile.toPath(), File(sessionDir, FILE_BRANDING_HANDLE).toPath(), StandardCopyOption.REPLACE_EXISTING)
+            } catch (e: Exception) {
+                tmpFile.delete()
+                return false
+            }
+
+            // PNG is in place — update metadata.
+            val filesObj = json.optJSONObject("files") ?: JSONObject()
+            filesObj.put("brandingHandle", FILE_BRANDING_HANDLE)
+            json.put("files", filesObj)
+
+            val meta = SessionBrandingMeta(type = type, builtinId = builtinId)
+            json.put("branding", buildBrandingJson(FILE_BRANDING_HANDLE, meta, System.currentTimeMillis()))
+
+            metadataFile.writeText(json.toString())
+            true
+        } catch (e: SecurityException) {
+            false
+        } catch (e: IOException) {
+            false
+        }
+    }
+
+    /**
+     * Removes session branding from both metadata.json and the filesystem.
+     *
+     * Removal order for safety:
+     * 1. Remove `files.brandingHandle` and the `branding` block from metadata.json first.
+     *    This ensures the scanner never sees a reference to a missing file.
+     * 2. Delete [FILE_BRANDING_HANDLE] from the session directory.
+     *    If deletion fails, the orphan file is harmless (no metadata reference remains).
+     *
+     * Returns false on invalid [sessionId], path traversal, missing metadata.json, or any
+     * IO/security error. Does NOT fall back to global branding — removal is permanent until
+     * the user explicitly re-adds branding via [updateSessionBranding] or [copyGlobalBrandingToSession].
+     */
+    fun removeSessionBranding(sessionsRoot: File, sessionId: String): Boolean {
+        return try {
+            val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
+            val metadataFile = File(sessionDir, "metadata.json")
+            if (!metadataFile.exists()) return false
+
+            val json = try {
+                JSONObject(metadataFile.readText())
+            } catch (e: Exception) {
+                return false
+            }
+
+            // Step 1: remove from metadata first (safety: no dangling file reference).
+            val filesObj = json.optJSONObject("files")
+            if (filesObj != null) {
+                filesObj.remove("brandingHandle")
+                json.put("files", filesObj)
+            }
+            json.remove("branding")
+            metadataFile.writeText(json.toString())
+
+            // Step 2: delete the branding file. Failure leaves an orphan — acceptable.
+            File(sessionDir, FILE_BRANDING_HANDLE).delete()
+            true
+        } catch (e: SecurityException) {
+            false
+        } catch (e: IOException) {
+            false
+        }
+    }
+
+    /**
+     * Copies the current global branding into an existing session.
+     *
+     * This is the "Copy from default branding" operation: an explicit one-time copy
+     * with no live link. After this call the session branding is independent — future
+     * changes to global branding do NOT affect this session.
+     *
+     * Returns false if [globalBranding] is not provided (null at call site), the session
+     * directory or metadata.json is missing, or any IO/security error occurs.
+     * Does NOT fall back to any other branding source.
+     */
+    fun copyGlobalBrandingToSession(
+        sessionsRoot: File,
+        sessionId: String,
+        globalBranding: GlobalBranding
+    ): Boolean {
+        return try {
+            val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
+            val metadataFile = File(sessionDir, "metadata.json")
+            if (!metadataFile.exists()) return false
+
+            val json = try {
+                JSONObject(metadataFile.readText())
+            } catch (e: Exception) {
+                return false
+            }
+
+            // Write PNG atomically via temp file.
+            val tmpFile = File(sessionDir, FILE_BRANDING_HANDLE_TMP)
+            try {
+                globalBranding.file.inputStream().use { input ->
+                    tmpFile.outputStream().use { output -> input.copyTo(output) }
+                }
+                Files.move(tmpFile.toPath(), File(sessionDir, FILE_BRANDING_HANDLE).toPath(), StandardCopyOption.REPLACE_EXISTING)
+            } catch (e: Exception) {
+                tmpFile.delete()
+                return false
+            }
+
+            // PNG is in place — update metadata.
+            val filesObj = json.optJSONObject("files") ?: JSONObject()
+            filesObj.put("brandingHandle", FILE_BRANDING_HANDLE)
+            json.put("files", filesObj)
+            json.put("branding", buildBrandingJson(FILE_BRANDING_HANDLE, globalBranding.meta, System.currentTimeMillis()))
+
+            metadataFile.writeText(json.toString())
+            true
+        } catch (e: SecurityException) {
+            false
+        } catch (e: IOException) {
+            false
+        }
+    }
+
     private fun resolveDirectSessionDir(sessionsRoot: File, sessionId: String): File? {
         if (sessionId.isEmpty()) return null
         if (sessionId == "." || sessionId == "..") return null
@@ -507,6 +695,28 @@ internal object SessionStorage {
         }
     }
 
+    /**
+     * Copies the global branding handle PNG into [sessionDir] as [FILE_BRANDING_HANDLE].
+     *
+     * Returns true on success, false on any IO failure (fail-soft: session creation continues
+     * without branding when this returns false).
+     */
+    private fun writeBrandingHandleToSession(sessionDir: File, globalBranding: GlobalBranding): Boolean {
+        return try {
+            val dest = File(sessionDir, FILE_BRANDING_HANDLE)
+            globalBranding.file.inputStream().use { input ->
+                dest.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) { Log.w(TAG, "Branding copy failed (non-fatal): ${e.message}") }
+            File(sessionDir, FILE_BRANDING_HANDLE).delete()
+            false
+        }
+    }
+
     private fun writeMetadata(
         sessionDir: File,
         sessionTimestampMs: Long,
@@ -514,7 +724,8 @@ internal object SessionStorage {
         captureMediaStoreUri: Uri,
         captureOriginalFilename: String,
         referenceSourceOriginalResult: ReferenceSourceOriginalResult,
-        stripMetadata: Boolean = false
+        stripMetadata: Boolean = false,
+        brandingData: GlobalBranding? = null
     ) {
         val orientation = if (snapshot.viewportWidth > snapshot.viewportHeight) "LANDSCAPE" else "PORTRAIT"
         val json = JSONObject().apply {
@@ -529,6 +740,7 @@ internal object SessionStorage {
                 put("reference", FILE_REFERENCE)
                 put("referenceOriginal", FILE_REFERENCE_ORIGINAL)
                 put("referenceSourceOriginal", referenceSourceOriginalResult.filename)
+                if (brandingData != null) put("brandingHandle", FILE_BRANDING_HANDLE)
             })
             put("capture", JSONObject().apply {
                 put("timestampMs", sessionTimestampMs)
@@ -607,6 +819,10 @@ internal object SessionStorage {
                         put("referenceSourceStoredMimeType", storedMime)
                     }
                 })
+            }
+            // branding block — only written when global branding was successfully copied.
+            if (brandingData != null) {
+                put("branding", buildBrandingJson(FILE_BRANDING_HANDLE, brandingData.meta, sessionTimestampMs))
             }
         }
         File(sessionDir, "metadata.json").writeText(json.toString())
