@@ -23,7 +23,7 @@ This document defines:
 
 This document does NOT define:
 - Metadata storage implementation (defined in `SESSION_METADATA_V1.md`)
-- Storage write functions (defined in `SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md`)
+- Storage write functions (defined in `implementation_plans/historic/SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md`)
 - Compare rendering (defined in `COMPARE_SESSION_RENDERING_V1.md`)
 - Compare flow and navigation contracts (defined in `COMPARE_FLOW_V1.md`)
 - GPS recreation system (defined in `GPS_RECREATION_SYSTEM_V1.md`)
@@ -899,7 +899,7 @@ when the screen is open). No conditional visibility rule is needed.
 ### 20.10 Implementation Reference
 
 Implementation block: `Block F.3` in
-`FAVORITES_AND_LIBRARY_FILTERS_V1_IMPLEMENTATION_PLAN.md`
+`implementation_plans/historic/FAVORITES_AND_LIBRARY_FILTERS_V1_IMPLEMENTATION_PLAN.md`
 
 ---
 

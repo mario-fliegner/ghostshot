@@ -639,8 +639,8 @@ Ziel: Edge-Cases absichern, Privacy-Dokumentation finalisieren, Outdoor-Validati
 Betroffene Bereiche:
 
 Neue Testfälle (unit + instrumentation)
-docs/IMPLEMENTATION_NOTES.md — GPS Recreation System als implemented dokumentieren
-docs/CLAUDE_PROJECT_INSTRUCTION.md — ACCESS_FINE_LOCATION in Permissions-Abschnitt ergänzen
+../../IMPLEMENTATION_NOTES.md — GPS Recreation System als implemented dokumentieren
+../../CLAUDE_PROJECT_INSTRUCTION.md — ACCESS_FINE_LOCATION in Permissions-Abschnitt ergänzen
 Play-Store-Metadaten (extern)
 Neue Tests:
 

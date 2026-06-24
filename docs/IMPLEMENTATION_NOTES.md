@@ -190,13 +190,13 @@ Active compare session lifecycle — fully implemented:
 ### Share Comparison Image
 
 Full specification: `SHARE_COMPARISON_IMAGE_V1.md`
-Implementation plan: `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`
+Implementation plan: `implementation_plans/historic/SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`
 
 **Status: Specification and implementation plan complete (2026-06-21). Not yet implemented.**
 
 Block A completed (2026-06-21): scope addendum written in `CLAUDE_PROJECT_INSTRUCTION.md` — Share Comparison Image and Create Video declared in scope as session post-processing export features; capture pipeline restrictions clarified; out-of-scope boundaries (cloud, social media integrations, server) preserved.
 
-Slider handle product decision resolved (2026-06-21): Slider export style includes the SameView handle (see `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md §4`).
+Slider handle product decision resolved (2026-06-21): Slider export style includes the SameView handle (see `implementation_plans/historic/SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md §4`).
 
 Block 1 completed (2026-06-21): CompareScreen TopAppBar restructured — dedicated Create Video icon replaced by Export icon (`Icons.Outlined.Share`); Export dropdown with "Share image" (item 1) and "Share video" (item 2); test tags `compare_screen_export_button`, `compare_screen_export_share_item`, `compare_screen_export_create_video_item`; 5 existing Create Video tests migrated to Export flow; `onShareComparisonImage` no-op placeholder wired in MainActivity; `testDebugUnitTest` PASSED; `assembleDebug` BUILD SUCCESSFUL.
 
@@ -218,7 +218,7 @@ Block 4 completed (2026-06-21) — **Share Comparison Image fully implemented an
 ### Video Export
 
 Full specification: `VIDEO_EXPORT_V1.md`
-Implementation plan: `VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
+Implementation plan: `implementation_plans/historic/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md`
 
 MP4 export infrastructure implemented and verified (Blocks 1–2 Completed). Create Video flow implemented and verified (Blocks 3+4 Completed). High Quality export implemented and verified (Block 5 Completed). Branding endcard implemented and verified (Block 6 Completed). Block 7 Final Verification completed — manual device smoke test passed on SM-S911B (2026-06-10). Block 9 Flash Mode completed (2026-06-17). All Video Export blocks complete:
 
@@ -382,7 +382,7 @@ These are robustness/polish items, not known Closed Testing blockers.
 ### Session Metadata Editor
 
 Full specification: `SESSION_METADATA_EDITOR_V1.md`
-Implementation plan: `SESSION_METADATA_EDITOR_IMPLEMENTATION_PLAN.md`
+Implementation plan: `implementation_plans/historic/SESSION_METADATA_EDITOR_IMPLEMENTATION_PLAN.md`
 
 Block A completed (2026-06-09):
 
@@ -1217,7 +1217,7 @@ No open Block 5 tasks remain.
 | `ui/settings/SettingsRepository.kt` | `prefs[Keys.BRANDING_ENABLED] ?: true` → `?: false`; Kommentar aktualisiert |
 | `ui/settings/SettingsComponents.kt` | Im `icon != null`-Zweig: `labelLarge` → `labelMedium` (12sp); `icon == null`-Zweig unverändert (labelLarge) |
 | `docs/VIDEO_EXPORT_V1.md` | FD-15: "enabled by default" → "disabled by default"; §13.3 Rationale aktualisiert |
-| `docs/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Block 9c in Progress Tracking ergänzt |
+| `docs/implementation_plans/historic/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Block 9c in Progress Tracking ergänzt |
 
 **Branding Default OFF:** Unter dem neuen Branding-Timing-Modell (additive Endcard) würde Default-ON dazu führen, dass Erstnutzer ein Video erhalten, das länger ist als die gewählte Dauer. Default-OFF entspricht der Nutzererwartung.
 
@@ -1235,7 +1235,7 @@ No open Block 5 tasks remain.
 ### Session Branding V1 — Blocks 0–4 (2026-07-XX)
 
 Full specification: `SESSION_BRANDING_V1.md`
-Implementation plan: `SESSION_BRANDING_IMPLEMENTATION_PLAN.md`
+Implementation plan: `implementation_plans/historic/SESSION_BRANDING_IMPLEMENTATION_PLAN.md`
 
 **Block 0 — Metadata v6 Foundation:** `SessionBranding`, `SessionBrandingMeta` data classes; `METADATA_VERSION` bumped to 6; `SUPPORTED_VERSIONS` extended to include 6; v6 scanner validation for `files.brandingHandle`; `ScannedSession.branding: SessionBranding?`. 684/684 unit tests, 647/647 instrumentation tests.
 
@@ -1262,7 +1262,7 @@ Implementation plan: `SESSION_BRANDING_IMPLEMENTATION_PLAN.md`
 ### Session Branding V2 — UX Rework, Blocks 1–5 (2026-07-XX)
 
 Full UX specification: `SESSION_BRANDING_V2_UX_REWORK.md` (approved, final)
-Implementation plan: `SESSION_BRANDING_V2_IMPLEMENTATION_PLAN.md` (approved, final)
+Implementation plan: `implementation_plans/historic/SESSION_BRANDING_V2_IMPLEMENTATION_PLAN.md` (approved, final)
 
 Technical backend (storage, metadata v6, backup, normalization, rendering) is unchanged from V1. All V2 changes are UI-layer only.
 

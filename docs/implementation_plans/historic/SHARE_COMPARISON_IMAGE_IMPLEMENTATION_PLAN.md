@@ -263,7 +263,7 @@ Completed changes:
   galleries, server components, INTERNET permission.
 - Authoritative CompareScreen TopAppBar structure documented (Export icon).
 
-Affected files: `docs/CLAUDE_PROJECT_INSTRUCTION.md`
+Affected files: `../../CLAUDE_PROJECT_INSTRUCTION.md`
 
 Tests required: None
 

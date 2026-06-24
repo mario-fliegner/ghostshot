@@ -18,7 +18,7 @@ Cross-references:
 - `SESSION_ORIGINALS_V1.md` — base specification for session original files
 - `SESSION_METADATA_V1.md` — metadata schema (v5 `originals` block additions)
 - `SETTINGS_UX_V1.md` — Privacy settings category
-- `SESSION_ORIGINALS_PRIVACY_IMPLEMENTATION_PLAN.md` — implementation blocks
+- `implementation_plans/historic/SESSION_ORIGINALS_PRIVACY_IMPLEMENTATION_PLAN.md` — implementation blocks
 - `SESSION_BACKUP_EXPORT_V1.md` — backup behavior
 
 ---
@@ -364,4 +364,4 @@ When privacy mode is ON, the backed-up `capture-original.jpg` and `reference-sou
 | `SESSION_METADATA_V1.md` | The new `originals` block is an additive extension to the v5 schema. |
 | `SETTINGS_UX_V1.md` | New Privacy category (category 5) added. Setting defined per §9. |
 | `SESSION_BACKUP_EXPORT_V1.md` | No change to backup logic. Backup exports what is on disk. |
-| `SESSION_ORIGINALS_PRIVACY_IMPLEMENTATION_PLAN.md` | Block-by-block implementation guide. |
+| `implementation_plans/historic/SESSION_ORIGINALS_PRIVACY_IMPLEMENTATION_PLAN.md` | Block-by-block implementation guide. |

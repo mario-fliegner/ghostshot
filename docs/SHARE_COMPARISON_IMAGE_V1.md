@@ -1391,7 +1391,7 @@ The following are explicitly excluded from V1 and must not be pre-implemented:
 | `COMPARE_FLOW_V1.md` | `CompareScreen` TopAppBar is modified. `computeCompareLabels()` reused. §5 out-of-scope items superseded by scope addendum in `CLAUDE_PROJECT_INSTRUCTION.md`. |
 | `VIDEO_EXPORT_V1.md` | Caption logic (§31, §32), location priority logic, and MediaStore IS_PENDING pattern are directly reused. The Export dropdown replaces the standalone Create Video icon. |
 | `SESSION_METADATA_V1.md` | Caption reads `content.title`, `reference.date`, `capture.timestampMs`, `location.*`. No new metadata fields. |
-| `SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md` | All required metadata fields (`content.title`, `reference.date`, `capture.timestampMs`, `location.*`) are available from the v4 schema. |
+| `implementation_plans/historic/SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md` | All required metadata fields (`content.title`, `reference.date`, `capture.timestampMs`, `location.*`) are available from the v4 schema. |
 | `CLAUDE_PROJECT_INSTRUCTION.md` | Requires scope addendum (§4 of this document) before implementation. |
 | `RESPONSIVE_LAYOUT_SYSTEM_V1.md` | `ShareComparisonScreen` is a form+preview screen; Expanded max-width 680 dp applies (Block 3 pattern). |
 | `SESSION_BACKUP_EXPORT_V1.md` | Not affected. Backup remains in overflow menu (⋮). |

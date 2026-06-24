@@ -838,9 +838,9 @@ Animierte Modus-Vorschau in der Configuring-State-Card implementieren: Compose-o
 |---|---|
 | `app/src/main/java/com/isardomains/sameview/ui/video/VideoModePreview.kt` | Neu |
 | `app/src/main/java/com/isardomains/sameview/ui/video/CreateVideoScreen.kt` | Geändert |
-| `docs/VIDEO_EXPORT_V1.md` | Geändert |
-| `docs/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Geändert |
-| `docs/IMPLEMENTATION_NOTES.md` | Geändert |
+| `../../VIDEO_EXPORT_V1.md` | Geändert |
+| `docs/implementation_plans/historic/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Geändert |
+| `../../IMPLEMENTATION_NOTES.md` | Geändert |
 
 #### Explicit Non-Changes
 
@@ -898,8 +898,8 @@ Den Rendering-State des Create Video Flows mit einer formattreuen, animierten Vo
 | `app/src/test/java/com/isardomains/sameview/ui/video/CreateVideoViewModelTest.kt` | Geändert |
 | `app/src/main/res/values/strings.xml` | Geändert |
 | `app/src/main/res/values-de/strings.xml` | Geändert |
-| `docs/VIDEO_EXPORT_V1.md` | Geändert |
-| `docs/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Geändert |
+| `../../VIDEO_EXPORT_V1.md` | Geändert |
+| `docs/implementation_plans/historic/VIDEO_EXPORT_IMPLEMENTATION_PLAN.md` | Geändert |
 
 #### Nicht geändert
 

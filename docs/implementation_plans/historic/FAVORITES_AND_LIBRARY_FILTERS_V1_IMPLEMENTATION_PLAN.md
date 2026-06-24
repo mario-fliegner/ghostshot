@@ -1274,7 +1274,7 @@ instrumentation test suite. Confirm release build. Document any residual risks.
 
 | File | Change |
 |---|---|
-| `docs/IMPLEMENTATION_NOTES.md` | Update Compare Library section; add new DataStore keys; note Select All behavior change; note `ScannedSession.isFavorite` field |
+| `../../IMPLEMENTATION_NOTES.md` | Update Compare Library section; add new DataStore keys; note Select All behavior change; note `ScannedSession.isFavorite` field |
 
 No production source code is changed in this block.
 
@@ -1435,7 +1435,7 @@ All files expected to be modified across all blocks:
 - `app/src/test/.../ui/settings/SettingsRepositoryTest.kt` (create if not present)
 
 **Documentation:**
-- `docs/IMPLEMENTATION_NOTES.md`
+- `../../IMPLEMENTATION_NOTES.md`
 
 **Not modified (explicitly):**
 - `SessionStorage.saveSession()` — no changes to session creation path

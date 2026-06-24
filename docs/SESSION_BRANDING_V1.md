@@ -27,7 +27,7 @@ This specification covers:
 This document does NOT cover:
 - Live Compare Screen behavior (unchanged — see §14)
 - Video export implementation (future only — see §16)
-- Full implementation sequencing (see `SESSION_BRANDING_IMPLEMENTATION_PLAN.md`)
+- Full implementation sequencing (see `implementation_plans/historic/SESSION_BRANDING_IMPLEMENTATION_PLAN.md`)
 
 ---
 

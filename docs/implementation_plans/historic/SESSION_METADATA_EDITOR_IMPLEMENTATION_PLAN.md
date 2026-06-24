@@ -758,8 +758,8 @@ Unify sentence case across all visible text, correct placeholders to use concret
 |---|---|
 | `app/src/main/java/com/isardomains/sameview/ui/compare/EditSessionScreen.kt` | Modified |
 | `app/src/main/res/values/strings.xml` | Modified |
-| `docs/SESSION_METADATA_EDITOR_IMPLEMENTATION_PLAN.md` | Modified |
-| `docs/IMPLEMENTATION_NOTES.md` | Modified |
+| `docs/implementation_plans/historic/SESSION_METADATA_EDITOR_IMPLEMENTATION_PLAN.md` | Modified |
+| `../../IMPLEMENTATION_NOTES.md` | Modified |
 
 ### Unchanged
 

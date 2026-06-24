@@ -23,7 +23,7 @@ Cross-references:
 - Rendering contract: `COMPARE_SESSION_RENDERING_V1.md`
 - Metadata schema: `SESSION_METADATA_V1.md`
 - Backup export: `SESSION_BACKUP_EXPORT_V1.md`
-- Implementation: `SESSION_ORIGINALS_IMPLEMENTATION_PLAN.md`
+- Implementation: `implementation_plans/historic/SESSION_ORIGINALS_IMPLEMENTATION_PLAN.md`
 
 ---
 
@@ -353,6 +353,6 @@ These are documented intent, not current implementation requirements:
 | `COMPARE_SESSION_RENDERING_V1.md` | Authoritative for the rendering contract. `capture-original.jpg` and `reference-source-original.<ext>` are added to the session file structure. The compare rendering pipeline is unchanged. |
 | `SESSION_METADATA_V1.md` | Defines the v5 schema fields that reference the new files. `files.captureOriginal`, `files.referenceSourceOriginal`, `reference.sourceUri`, and `reference.sourceMimeType` are introduced in v5. |
 | `SESSION_BACKUP_EXPORT_V1.md` | Backup includes all session files declared in `files.*`. V5 sessions include 2 additional files. The exporter uses a metadata-driven file list. |
-| `SESSION_ORIGINALS_IMPLEMENTATION_PLAN.md` | Defines the implementation blocks for this feature. |
+| `implementation_plans/historic/SESSION_ORIGINALS_IMPLEMENTATION_PLAN.md` | Defines the implementation blocks for this feature. |
 | `CLAUDE_PROJECT_INSTRUCTION.md` | "Session Storage Contents" section is updated to list the v5 file set. |
 | `IMPLEMENTATION_NOTES.md` | Must be updated after implementation is verified on device. |

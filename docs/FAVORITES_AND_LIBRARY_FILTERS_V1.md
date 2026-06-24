@@ -40,7 +40,7 @@ This document does NOT define:
 | Document | Relationship |
 |---|---|
 | `SESSION_METADATA_V1.md` | Defines `additional.isFavorite` field semantics and ownership |
-| `SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md` | Defines `additional` block creation at session save time |
+| `implementation_plans/historic/SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md` | Defines `additional` block creation at session save time |
 | `COMPARE_FLOW_V1.md` | Defines CompareScreen and CompareLibraryScreen navigation contracts |
 | `SETTINGS_UX_V1.md` | Governs settings architecture; filter and sort are not settings-screen entries |
 | `IMPLEMENTATION_NOTES.md` | Tracks verified implementation state; must be updated after completion |
@@ -91,7 +91,7 @@ The following decisions are final. They must not be re-evaluated during implemen
 ### 4.1 Existing Schema — `additional.isFavorite`
 
 `additional.isFavorite` is defined in `SESSION_METADATA_V1.md §10.1` and implemented
-in `SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md Block B`.
+in `implementation_plans/historic/SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md Block B`.
 
 Current state:
 - Every new session created by the app sets `additional.isFavorite = false`
@@ -913,7 +913,7 @@ This is the third Favorites entry point in the app. The unified mental model:
 **Authoritative detail spec:** `SESSION_METADATA_EDITOR_V1.md §20` (added as part of
 this decision)
 
-**Implementation:** Block F.3 in `FAVORITES_AND_LIBRARY_FILTERS_V1_IMPLEMENTATION_PLAN.md`
+**Implementation:** Block F.3 in `implementation_plans/historic/FAVORITES_AND_LIBRARY_FILTERS_V1_IMPLEMENTATION_PLAN.md`
 (required before Block G)
 
 ---
@@ -923,7 +923,7 @@ this decision)
 | Specification | Relationship |
 |---|---|
 | `SESSION_METADATA_V1.md` | Defines `additional.isFavorite` as a Category 4 (User Content, mutable) field. This spec implements the UI and storage write path for that field. |
-| `SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md` | Block B implemented the `additional` block at session creation. `updateFavorite()` follows the same patterns as `updateTitle()`, `updateLocation()`, `updateReferenceDate()`. |
+| `implementation_plans/historic/SESSION_METADATA_V4_IMPLEMENTATION_PLAN.md` | Block B implemented the `additional` block at session creation. `updateFavorite()` follows the same patterns as `updateTitle()`, `updateLocation()`, `updateReferenceDate()`. |
 | `COMPARE_FLOW_V1.md` | The CompareScreen TopAppBar action area (§5.1 of VIDEO_EXPORT_V1.md) is extended by this spec to include the Favorite star. The CompareLibraryScreen (§30) is extended with the star on tiles, the overflow menu, and filter/sort behavior. |
 | `COMPARE_SESSION_RENDERING_V1.md` | Not affected. Favorites have no rendering role. The compare pipeline is architecturally isolated from all user content fields. |
 | `SESSION_BACKUP_EXPORT_V1.md` | Not affected. `isFavorite` is already included in backups via the full-fidelity rule. No ZIP structure change. |

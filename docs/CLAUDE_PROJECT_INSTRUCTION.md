@@ -677,7 +677,7 @@ Fully implemented. Specification: `VIDEO_EXPORT_V1.md`. Entry point: CompareScre
 
 ##### Share Comparison Image (JPEG session export)
 
-New feature. Specification: `SHARE_COMPARISON_IMAGE_V1.md`. Implementation plan: `SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`. Entry point: CompareScreen Export icon → "Share image". Output: JPEG in `Pictures/SameView` via MediaStore. Android Share Sheet on explicit user tap only.
+New feature. Specification: `SHARE_COMPARISON_IMAGE_V1.md`. Implementation plan: `implementation_plans/historic/SHARE_COMPARISON_IMAGE_IMPLEMENTATION_PLAN.md`. Entry point: CompareScreen Export icon → "Share image". Output: JPEG in `Pictures/SameView` via MediaStore. Android Share Sheet on explicit user tap only.
 
 Both features:
 
