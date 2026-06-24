@@ -903,21 +903,49 @@ Implementation block: `Block F.3` in
 
 ---
 
-## 21. Branding Card
+## 21. Logo Card
 
-This section documents the Session Branding card added to `EditSessionScreen` as part of Session Branding V1. Full specification: `SESSION_BRANDING_V1.md §12`.
+> **V2 UX REWORK APPLIED (2026-07-XX).** The Branding card was redesigned and renamed to
+> the Logo card as part of Session Branding V2. The authoritative V2 specification is
+> `SESSION_BRANDING_V2_UX_REWORK.md §3`. The V2 UX is fully implemented. The V1 original
+> specification below is retained as historical record.
 
-### 21.1 Card Position
+### 21.V2 Implemented State
+
+Card title: **"Logo"**. Last card in `EditSessionScreen`, after Location.
+
+**Always-visible description:** "Appears in the slider handle when sharing this comparison."
+
+**Empty state (no logo):**
+
+- Placeholder circle 64 dp (`SameViewAccent` ring, `#F5F7FA` fill, `AddPhotoAlternate` icon)
+- Text: "No logo for this comparison." (test tag: `edit_session_logo_none_text`)
+- Button "Use your default logo" — conditional on `!hasBranding && hasGlobalBranding`
+- Buttons: "Choose photo" | "Use a symbol" — always visible
+
+**Populated state (logo set):**
+
+- `BrandingPreviewCircle` 64 dp (test tag: `edit_session_logo_preview`)
+- Type label: "Symbol: [Name]" for built-in symbols; no label for photo logos
+- Buttons: "Choose photo" | "Use a symbol" — always visible (direct replacement, no remove-first)
+- Button: "Remove logo" — full-width, below the actions row
+
+**Key V2 behavioral changes from V1:**
+
+- "Change branding" (image-only) **removed**; replaced by always-visible symmetric actions
+- "Copy from default branding" **renamed** to "Use your default logo"
+- Both "Choose photo" and "Use a symbol" always visible in populated state — eliminates
+  the V1 asymmetric model where switching logo type required remove → re-add
+- `EditSessionViewModel` extended with `sessionLogoType: StateFlow<String?>` and
+  `sessionLogoBuiltinId: StateFlow<String?>` — updated after every branding write
+
+### 21.1 Card Position (V1 original — position unchanged in V2)
 
 The Branding card is the **last card** in `EditSessionScreen`, after the Location card:
 
-Card order: Session → Reference photo → Current photo → Location → **Branding**
+Card order: Session → Reference photo → Current photo → Location → **Branding/Logo**
 
-**Note:** The original `SESSION_BRANDING_V1.md §12.1` placed Branding before Location.
-This was revised: Location is session metadata; Branding is an export presentation
-option. Export options come after metadata fields.
-
-### 21.2 Card Contents
+### 21.2 Card Contents (V1 original — superseded by §21.V2)
 
 **When session has no branding:**
 
@@ -930,9 +958,9 @@ option. Export options come after metadata fields.
 - Buttons: "Change branding" | "Remove branding"
 - (No "Copy from default branding" — session already has branding)
 
-### 21.3 Immediate Write Behavior
+### 21.3 Immediate Write Behavior (unchanged in V2)
 
-Branding changes in Edit Session write **immediately** — they do NOT go through the form Save flow:
+Branding/logo changes in Edit Session write **immediately** — they do NOT go through the form Save flow:
 
 - `isDirty` is NOT affected by branding changes
 - The Save button state is NOT affected
@@ -941,24 +969,30 @@ Branding changes in Edit Session write **immediately** — they do NOT go throug
 
 This matches the Favourite star behavior (§20.4/§20.5).
 
-### 21.4 No Global-Branding Fallback
+### 21.4 No Global-Branding Fallback (unchanged in V2)
 
 After `removeSessionBranding()`:
 
 - The session has no branding — permanently
 - Global Branding is NOT automatically applied
-- "Copy from default branding" becomes visible (if global branding exists), requiring an explicit user action
+- "Use your default logo" becomes visible (if global branding exists), requiring an explicit user action
 
 Session branding is always the single source of truth. Global branding is only a template for new sessions.
 
-### 21.5 Built-in Symbol Picker
+### 21.5 Symbol Picker (V1 original — replaced by BrandingSymbolPickerSheet in V2)
 
-"Choose symbol" and "Choose image" both open a symbol/image picker (AlertDialog with a 2×3 grid of 6 built-in symbols). The 6 symbols are: `heart`, `star`, `camera`, `home`, `pin`, `fire`. Selection immediately writes `branding-handle.png` to the session folder and updates `metadata.json`.
+V1: "Choose symbol" and "Choose image" both open a symbol/image picker (AlertDialog with
+a 2×3 grid of 6 built-in symbols).
 
-### 21.6 Testing Requirements
+V2: `BrandingSymbolPickerSheet` (ModalBottomSheet) with 56 dp handle-style symbol preview
+cells. The 6 symbols remain: `heart`, `star`, `camera`, `home`, `pin`, `fire`.
 
-- Branding card visible in Edit Session
-- "No branding for this session." visible when no branding set
-- "Copy from default branding" visible only when `!hasBranding && hasGlobalBranding`
-- "Change branding" and "Remove branding" visible when branding present
+### 21.6 Testing Requirements (V2 state)
+
+- Logo card visible in Edit Session (card title "Logo")
+- Placeholder circle visible when no logo set; preview circle visible when logo set
+- "Use your default logo" visible only when `!hasBranding && hasGlobalBranding`
+- "Choose photo" and "Use a symbol" visible in both empty and populated states
+- "Remove logo" visible only when logo set
+- "Change branding" button does NOT exist (assertDoesNotExist)
 - Remove does NOT set `isDirty` / does NOT enable Save button

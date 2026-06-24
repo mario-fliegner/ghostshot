@@ -2,6 +2,8 @@
 package com.isardomains.sameview.ui.compare
 
 import android.content.Intent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -10,10 +12,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +42,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -51,6 +61,8 @@ import com.isardomains.sameview.ui.settings.SameViewSegmentControl
 import com.isardomains.sameview.ui.settings.SameViewSegmentItem
 import com.isardomains.sameview.ui.settings.SettingsCard
 import com.isardomains.sameview.ui.settings.SettingsSwitchRow
+import com.isardomains.sameview.ui.branding.BrandingPreviewCircle
+import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
 import java.io.File
 
@@ -92,6 +104,9 @@ fun ShareComparisonScreen(
 
     val sessionDir = remember(viewModel.sessionId) {
         File(context.filesDir, "sessions/${viewModel.sessionId}")
+    }
+    val sessionBrandingFile = remember(sessionDir) {
+        File(sessionDir, "branding-handle.png")
     }
 
     // Caption data for live preview — mirrors what will be passed to the renderer
@@ -176,24 +191,6 @@ fun ShareComparisonScreen(
                         modifier = Modifier.testTag("share_comparison_style_control")
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    // ── Use branding toggle ─────────────────────────────────────
-                    // Always visible. Enabled only when session has branding.
-                    // Side by side: toggle active but note indicates Slider-only effect (Option B).
-                    val brandingHintText = when {
-                        !hasBranding -> stringResource(R.string.share_comparison_branding_hint_edit_session)
-                        style == ShareComparisonStyle.SIDE_BY_SIDE -> stringResource(R.string.share_comparison_branding_hint_slider_only)
-                        else -> null
-                    }
-                    InfoToggleRow(
-                        label = stringResource(R.string.share_comparison_branding_label),
-                        checked = useBranding,
-                        enabled = hasBranding,
-                        onCheckedChange = { viewModel.onToggleUseBranding() },
-                        previewText = null,
-                        hintText = brandingHintText ?: "",
-                        testTag = "share_comparison_toggle_branding"
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     ShareComparisonPreview(
                         style = style,
                         captionData = previewCaptionData,
@@ -201,6 +198,64 @@ fun ShareComparisonScreen(
                         viewportRatio = sessionViewportRatio,
                         useBranding = useBranding && hasBranding
                     )
+                }
+
+                // ── Logo on handle card (V2 — Slider only) ───────────────────
+                if (style == ShareComparisonStyle.SLIDER) {
+                    SettingsCard(title = stringResource(R.string.share_comparison_logo_card_title)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        ) {
+                            if (!hasBranding) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFF5F7FA))
+                                        .border(2.dp, SameViewAccent, CircleShape)
+                                        .testTag("share_comparison_logo_placeholder"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.AddPhotoAlternate,
+                                        contentDescription = null,
+                                        tint = SameViewSettingsSecondaryText,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = stringResource(R.string.share_comparison_logo_none),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = SameViewSettingsSecondaryText
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.share_comparison_logo_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = SameViewSettingsSecondaryText
+                                    )
+                                }
+                            } else {
+                                Box(modifier = Modifier.alpha(if (useBranding) 1f else 0.4f)) {
+                                    BrandingPreviewCircle(
+                                        brandingFile = sessionBrandingFile,
+                                        modifier = Modifier.testTag("share_comparison_logo_preview")
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Box(modifier = Modifier.weight(1f)) {
+                                    SettingsSwitchRow(
+                                        label = stringResource(R.string.share_comparison_logo_show),
+                                        checked = useBranding,
+                                        onCheckedChange = { viewModel.onToggleUseBranding() },
+                                        testTag = "share_comparison_toggle_logo"
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // ── Extras card ───────────────────────────────────────────────

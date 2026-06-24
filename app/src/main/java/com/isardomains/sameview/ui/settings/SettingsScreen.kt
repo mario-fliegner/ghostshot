@@ -5,10 +5,8 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,12 +15,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -33,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -52,21 +49,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.sameview.R
-import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Color
 import com.isardomains.sameview.branding.BuiltinBrandingSymbol
 import com.isardomains.sameview.ui.branding.BrandingPreviewCircle
+import com.isardomains.sameview.ui.branding.BrandingSymbolPickerSheet
 import com.isardomains.sameview.ui.camera.GridType
-import com.isardomains.sameview.ui.theme.SameViewSettingsCardSurface
 import java.io.File
-import com.isardomains.sameview.ui.theme.SameViewSettingsControlOutline
-import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
+import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -90,7 +85,7 @@ fun SettingsScreen(
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showPermissionDeniedHint by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val brandingLoadError = stringResource(R.string.settings_branding_load_error)
+    val brandingLoadError = stringResource(R.string.settings_logo_load_error)
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -214,15 +209,15 @@ internal fun SettingsScreenContent(
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     onBack: () -> Unit
 ) {
-    var showSymbolDialog by remember { mutableStateOf(false) }
+    var showSymbolSheet by remember { mutableStateOf(false) }
 
-    if (showSymbolDialog) {
-        BuiltinSymbolPickerDialog(
+    if (showSymbolSheet) {
+        BrandingSymbolPickerSheet(
             onSymbolSelected = { symbol ->
-                showSymbolDialog = false
+                showSymbolSheet = false
                 onChooseSymbol(symbol)
             },
-            onDismiss = { showSymbolDialog = false }
+            onDismiss = { showSymbolSheet = false }
         )
     }
 
@@ -340,23 +335,51 @@ internal fun SettingsScreenContent(
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
-            SettingsCard(title = stringResource(R.string.settings_branding_section_title)) {
-                // Preview circle — visible only when branding is set.
-                if (globalBrandingFile != null) {
-                    BrandingPreviewCircle(
-                        brandingFile = globalBrandingFile,
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
-                            .testTag("settings_branding_preview")
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+            SettingsCard(title = stringResource(R.string.settings_logo_section_title)) {
                 Text(
-                    text = stringResource(R.string.settings_branding_description),
+                    text = stringResource(R.string.settings_logo_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = SameViewSettingsSecondaryText,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    if (globalBrandingFile == null) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF5F7FA))
+                                .border(2.dp, SameViewAccent, CircleShape)
+                                .testTag("settings_logo_placeholder"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.AddPhotoAlternate,
+                                contentDescription = null,
+                                tint = SameViewSettingsSecondaryText,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    } else {
+                        BrandingPreviewCircle(
+                            brandingFile = globalBrandingFile,
+                            modifier = Modifier.testTag("settings_logo_preview")
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (globalBrandingFile == null)
+                            stringResource(R.string.settings_logo_none)
+                        else
+                            stringResource(R.string.settings_logo_current),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SameViewSettingsSecondaryText
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -366,17 +389,17 @@ internal fun SettingsScreenContent(
                         onClick = onChooseImage,
                         modifier = Modifier
                             .weight(1f)
-                            .testTag("settings_branding_choose_image")
+                            .testTag("settings_logo_choose_photo")
                     ) {
-                        Text(stringResource(R.string.settings_branding_choose_image))
+                        Text(stringResource(R.string.settings_logo_choose_photo))
                     }
                     TextButton(
-                        onClick = { showSymbolDialog = true },
+                        onClick = { showSymbolSheet = true },
                         modifier = Modifier
                             .weight(1f)
-                            .testTag("settings_branding_choose_symbol")
+                            .testTag("settings_logo_use_symbol")
                     ) {
-                        Text(stringResource(R.string.settings_branding_choose_symbol))
+                        Text(stringResource(R.string.settings_logo_use_symbol))
                     }
                 }
                 if (hasBranding) {
@@ -384,9 +407,9 @@ internal fun SettingsScreenContent(
                         onClick = onRemoveBranding,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("settings_branding_remove")
+                            .testTag("settings_logo_remove")
                     ) {
-                        Text(stringResource(R.string.settings_branding_remove))
+                        Text(stringResource(R.string.settings_logo_remove))
                     }
                 }
             }
@@ -475,59 +498,4 @@ private fun StripOriginalsMetadataRow(
     )
 }
 
-/**
- * AlertDialog that presents the 6 built-in branding symbols in a 2-column grid.
- * Tapping a symbol calls [onSymbolSelected] and dismisses the dialog.
- *
- * Marked `internal` so it can be reused from [EditSessionScreen] without duplication.
- */
-@Composable
-internal fun BuiltinSymbolPickerDialog(
-    onSymbolSelected: (BuiltinBrandingSymbol) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_branding_builtin_symbols_title)) },
-        text = {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                items(BuiltinBrandingSymbol.entries) { symbol ->
-                    Column(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(SameViewSettingsCardSurface)
-                            .border(1.dp, SameViewSettingsControlOutline, RoundedCornerShape(8.dp))
-                            .clickable { onSymbolSelected(symbol) }
-                            .padding(12.dp)
-                            .testTag("settings_branding_symbol_${symbol.id}"),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Image(
-                            painter = painterResource(symbol.drawableRes),
-                            contentDescription = symbol.id,
-                            colorFilter = ColorFilter.tint(SameViewSettingsLabelText),
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = symbol.id.replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = SameViewSettingsLabelText
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(android.R.string.cancel))
-            }
-        }
-    )
-}
 

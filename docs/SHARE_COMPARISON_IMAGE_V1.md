@@ -100,7 +100,7 @@ These decisions are final and must not be re-evaluated during implementation.
 | FD-04 | Two styles: **Slider** (50/50) and **Side by side** |
 | FD-05 | No watermark, no app branding overlay on the comparison content. The SameView slider handle in the Slider style is a visual identity element, not a watermark — it is part of the comparison presentation, not overlaid marketing content. |
 | FD-17 | Slider style includes the SameView handle at the fixed 50/50 divider position. **Standard handle** (default): white filled circle + `SameViewAccent` directional arrows + white outer ring with top/bottom gaps. **Branding handle** (when session has branding and "Use branding" toggle is ON): `SameViewAccent` outer ring + `#F5F7FA` circle + session `branding-handle.png` logo centered at 72% of circle diameter; handle is 1.5× the standard handle diameter. Handle is purely visual; no interactivity; no dynamic position; no accessibility action. Video Export (VIDEO_EXPORT_V1.md §16.1) is explicitly unaffected. |
-| FD-18 | "Use branding" toggle in the Style card, between the style segment control and the preview. Always visible. Enabled only when the session has a valid `branding-handle.png`. Default: ON when branding is present, OFF when absent. Toggle is NOT persisted. Side-by-side style: toggle is active but has no visual effect (no handle in Side-by-side). Branding comes exclusively from the session — never from Global Branding or any fallback. |
+| FD-18 | **V2 UX REWORK APPLIED (2026-07-XX). See `SESSION_BRANDING_V2_UX_REWORK.md §4` for the authoritative V2 specification.** V2 implemented state: A dedicated "Logo on handle" `SettingsCard` is placed between the Style card and the Information card. The card is rendered only when Slider style is selected; it is completely absent when Side-by-side is selected (no disabled state, no disclaimer). Empty state: placeholder circle + informational text "No logo for this comparison." + "Add one in Edit session." — no editing actions. Populated state: `BrandingPreviewCircle` (40% alpha when toggle OFF) + `SettingsSwitchRow` labeled "Show logo" (test tag: `share_comparison_toggle_logo`). Toggle NOT persisted; defaults ON when logo present. Logo management belongs to Settings and Edit Session — Share Comparison is export-behavior only. V1 original: toggle inside Style card, always visible, enabled/disabled based on `hasBranding`, side-by-side showed toggle with "Only applied to slider style" hint. |
 | FD-06 | No GPS coordinates in the exported JPEG (no EXIF GPS tags) |
 | FD-07 | No platform picker in the app. Android Share Sheet opens only on explicit user tap on `[Share]` |
 | FD-08 | Output format: JPEG at 92% quality for both Standard and Original quality tiers |
@@ -686,6 +686,47 @@ Configuring  →  [Share tap]  →  brief in-button progress  →  Share Sheet o
 Back navigation from Configuring closes `ShareComparisonScreen` and returns to `CompareScreen`.
 
 ### 15.3 Configuring State Layout
+
+> **V2 UX REWORK APPLIED (2026-07-XX).** A dedicated "Logo on handle" card was added
+> between the Style card and the Information card. See `SESSION_BRANDING_V2_UX_REWORK.md §4`.
+
+**V2 implemented layout:**
+
+```
+TopAppBar:  ← Back   "Share comparison"
+
+┌─────────────────────────────────────────────┐
+│ Style                                       │  ← SettingsCard
+│ [ Slider ]  [ Side by side ]                │  ← SameViewSegmentControl
+│ ─────────────────────────────────────────── │  ← HorizontalDivider (within card)
+│ [ Live preview — session aspect ratio ]     │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐  ← SettingsCard; Slider only, absent in SbS
+│ Logo on handle                              │
+│ [placeholder/preview circle]  No logo …    │  ← empty state
+│   or [circle]  [○] Show logo               │  ← populated state (toggle)
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│ Information                                 │  ← SettingsCard
+│ [x] Title                                   │  ← SettingsSwitchRow
+│     My grandparents                         │  ← preview line
+│ [x] Date                                    │  ← SettingsSwitchRow
+│     2008 → 2026                             │  ← preview line
+│ [ ] Location                                │  ← SettingsSwitchRow
+│     Munich, Germany                         │  ← preview line
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│ Quality                                     │  ← SettingsCard
+│ [ Standard ]  [ Original ]                  │  ← SameViewSegmentControl
+└─────────────────────────────────────────────┘
+
+[ Share ]                                        ← full-width Button; navigationBarsPadding()
+```
+
+**V1 original layout (superseded — no separate Logo card, toggle was inside Style card):**
 
 ```
 TopAppBar:  ← Back   "Share comparison"

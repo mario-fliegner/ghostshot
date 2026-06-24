@@ -915,4 +915,110 @@ class EditSessionViewModelTest {
         advanceUntilIdle()
         assertFalse(vm.hasGlobalBranding.value)
     }
+
+    // ── sessionLogoType / sessionLogoBuiltinId ────────────────────────────────
+
+    @Test
+    fun sessionLogoType_isNull_whenNoBranding() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "", hasBranding = false)
+        }
+        advanceUntilIdle()
+        assertNull(vm.sessionLogoType.value)
+    }
+
+    @Test
+    fun sessionLogoType_isImage_whenPhotoBrandingSet() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "image")
+        }
+        advanceUntilIdle()
+        assertEquals("image", vm.sessionLogoType.value)
+    }
+
+    @Test
+    fun sessionLogoType_isBuiltin_andBuiltinId_whenSymbolBrandingSet() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "builtin", brandingBuiltinId = "heart")
+        }
+        advanceUntilIdle()
+        assertEquals("builtin", vm.sessionLogoType.value)
+        assertEquals("heart", vm.sessionLogoBuiltinId.value)
+    }
+
+    @Test
+    fun sessionLogoBuiltinId_isNull_whenNoBranding() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "", hasBranding = false)
+        }
+        advanceUntilIdle()
+        assertNull(vm.sessionLogoBuiltinId.value)
+    }
+
+    @Test
+    fun sessionLogoBuiltinId_matchesSymbolId_whenSymbolSet() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "builtin", brandingBuiltinId = "star")
+        }
+        advanceUntilIdle()
+        assertEquals("star", vm.sessionLogoBuiltinId.value)
+    }
+
+    @Test
+    fun sessionLogoType_updatesToImage_afterChoosePhoto() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        val fakeUri: android.net.Uri = mock()
+        vm.imageDecoder = { _ -> mock<android.graphics.Bitmap>() }
+        vm.brandingNormalizer = { _ -> ByteArray(0) }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
+        advanceUntilIdle()
+
+        vm.onImageUriSelectedForBranding(fakeUri)
+        advanceUntilIdle()
+
+        assertEquals("image", vm.sessionLogoType.value)
+        assertNull(vm.sessionLogoBuiltinId.value)
+    }
+
+    @Test
+    fun sessionLogoType_updatesToBuiltin_afterChooseSymbol() = runTest(testDispatcher) {
+        val vm = createViewModel()
+        vm.builtinSymbolRenderer = { _ -> ByteArray(0) }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
+        advanceUntilIdle()
+
+        vm.onSetSessionBrandingFromSymbol(BuiltinBrandingSymbol.FIRE)
+        advanceUntilIdle()
+
+        assertEquals("builtin", vm.sessionLogoType.value)
+        assertEquals("fire", vm.sessionLogoBuiltinId.value)
+    }
+
+    @Test
+    fun sessionLogoType_resetsToNull_afterRemove() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "image")
+        }
+        vm.sessionBrandingRemover = { _, _ -> true }
+        advanceUntilIdle()
+
+        vm.onRemoveSessionBranding()
+        advanceUntilIdle()
+
+        assertNull(vm.sessionLogoType.value)
+    }
+
+    @Test
+    fun sessionLogoBuiltinId_resetsToNull_afterRemove() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "builtin", brandingBuiltinId = "heart")
+        }
+        vm.sessionBrandingRemover = { _, _ -> true }
+        advanceUntilIdle()
+
+        vm.onRemoveSessionBranding()
+        advanceUntilIdle()
+
+        assertNull(vm.sessionLogoBuiltinId.value)
+    }
 }

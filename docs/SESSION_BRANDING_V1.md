@@ -647,15 +647,50 @@ export time:
 
 ---
 
-## 11. Global Settings — Branding Section
+## 11. Global Settings — Logo Section
 
-### 11.1 Screen Placement
+> **V2 UX REWORK APPLIED (2026-07-XX).** The Settings UI for global branding was redesigned as
+> part of Session Branding V2. The authoritative V2 specification is
+> `SESSION_BRANDING_V2_UX_REWORK.md §2`. The V2 UX is fully implemented. The V1 original
+> specification below is retained as historical record.
+
+### 11.V2 Implemented State
+
+The Settings section is titled **"Your logo"** and sits below the Privacy section.
+
+```
+Your logo
+──────────────────────────────────────────────────
+Shown in the slider handle when sharing comparison images.
+Copied to new sessions automatically.
+
+[placeholder/preview circle 64dp]  No logo set / Your current logo
+
+[ Choose photo ]    [ Use a symbol ]
+
+[ Remove logo ]   ← visible only when logo is set
+```
+
+**Key V2 behaviors:**
+
+- Description text is always visible (both empty and populated states)
+- Placeholder circle (64 dp, `SameViewAccent` ring, `#F5F7FA` fill, `AddPhotoAlternate` icon)
+  shown when no logo is set
+- `BrandingPreviewCircle` shown when logo is set
+- "Choose photo" and "Use a symbol" always visible — act as add or replace
+- Symbol picker: `BrandingSymbolPickerSheet` (ModalBottomSheet with 56 dp handle-style
+  symbol previews, replaces `BuiltinSymbolPickerDialog` AlertDialog)
+- String keys: `settings_logo_section_title`, `settings_logo_description`,
+  `settings_logo_none`, `settings_logo_current`, `settings_logo_choose_photo`,
+  `settings_logo_use_symbol`, `settings_logo_remove`, `settings_logo_load_error`
+
+### 11.1 Screen Placement (V1 original)
 
 A new **"Branding"** section is added to the Settings screen, below the Privacy section.
 
 Section heading: "Default branding for new sessions" (sentence case per project rules)
 
-### 11.2 Section Contents
+### 11.2 Section Contents (V1 original — superseded)
 
 ```
 Default branding for new sessions
@@ -669,14 +704,14 @@ Default branding for new sessions
 Info text: "Automatically added to new sessions. Existing sessions are not changed."
 ```
 
-### 11.3 Preview Circle
+### 11.3 Preview Circle (V1 original)
 
 A 64 dp circle previews the current branding:
 - If global branding is set: renders the `handle.png` logo on `#F5F7FA` circle
   with `SameViewAccent` outer ring (matches the export appearance)
 - If not set: shows a placeholder with "No branding" text or an empty circle
 
-### 11.4 BrandingPickerSheet (shared component)
+### 11.4 BrandingPickerSheet (V1 original — replaced by BrandingSymbolPickerSheet in V2)
 
 `BrandingPickerSheet` is a bottom sheet composable used in both Global Settings and
 Edit Session. It has two tabs:
@@ -696,9 +731,47 @@ The sheet's save destination is determined by the caller:
 
 ---
 
-## 12. Edit Session — Branding Card
+## 12. Edit Session — Logo Card
 
-### 12.1 Card Position
+> **V2 UX REWORK APPLIED (2026-07-XX).** The Edit Session branding card was redesigned as
+> part of Session Branding V2. The authoritative V2 specification is
+> `SESSION_BRANDING_V2_UX_REWORK.md §3`. The V2 UX is fully implemented. The V1 original
+> specification below is retained as historical record.
+
+### 12.V2 Implemented State
+
+Card title: **"Logo"** (replaces "Branding"). Last card, after Location.
+
+```
+Logo
+──────────────────────────────────────────────────
+Appears in the slider handle when sharing this comparison.
+
+[placeholder/preview circle 64dp]  No logo for this comparison.
+                                    (or: "Photo" / "Symbol: Heart" when set)
+
+[ Use your default logo ]    ← conditional: !hasBranding && hasGlobalBranding
+
+[ Choose photo ]    [ Use a symbol ]   ← always visible in both states
+
+[ Remove logo ]   ← visible only when logo is set
+```
+
+**Key V2 behaviors:**
+
+- "Choose photo" and "Use a symbol" always visible regardless of current logo state
+  (symmetric — eliminates V1 asymmetric model where "Change branding" was image-only)
+- Switching logo type (photo → symbol, symbol → photo) requires no intermediate removal
+- Type label: "Symbol: [Name]" shown for builtin symbols; no label for photo logos (product decision)
+- "Copy from default branding" renamed to "Use your default logo"
+- "Change branding" button removed
+- `EditSessionViewModel` extended with `sessionLogoType: StateFlow<String?>` and
+  `sessionLogoBuiltinId: StateFlow<String?>` — updated after every write operation
+- String keys: `edit_session_card_logo`, `edit_session_logo_description`,
+  `edit_session_logo_none`, `edit_session_logo_type_symbol`, `edit_session_logo_use_default`,
+  `edit_session_logo_choose_photo`, `edit_session_logo_use_symbol`, `edit_session_logo_remove`
+
+### 12.1 Card Position (V1 original)
 
 A new **Branding card** is added to `EditSessionScreen` as the **last card**, after the
 Location card.
@@ -709,7 +782,7 @@ Card order: Session → Reference photo → Current photo → Location → **Bra
 happened). Branding is an export presentation option. Keeping metadata fields together
 and export options last produces a more logical editing flow.
 
-### 12.2 Card Contents
+### 12.2 Card Contents (V1 original — superseded)
 
 **When session has branding:**
 ```
@@ -732,16 +805,15 @@ No branding set for this session.
   [Copy from default branding]  → visible only when global branding exists
 ```
 
-### 12.3 Branding Card and Dirty State
+### 12.3 Branding Card and Dirty State (unchanged in V2)
 
 Changes to session branding in the Edit Session screen:
-- Are written **immediately** when the user confirms the selection in `BrandingPickerSheet`
-  (not waiting for the Save button)
+
+- Are written **immediately** (not waiting for the Save button)
 - Do NOT affect `isDirty` or the Save button state
 - Are NOT reverted by "Discard changes" for other form fields
 
-This matches the behavior of the Favorite star (§20 in `SESSION_METADATA_EDITOR_V1.md`):
-some actions take effect immediately, independent of the form save flow.
+This matches the behavior of the Favorite star (§20 in `SESSION_METADATA_EDITOR_V1.md`).
 
 Rationale: branding is a file operation (copy/delete PNG file + metadata update). It is
 conceptually separate from text metadata editing. Immediate write eliminates the risk of
@@ -779,7 +851,32 @@ All three functions follow the existing path traversal protection pattern.
 
 ## 13. Share Comparison Image Integration
 
-### 13.1 Use Branding Toggle
+> **V2 UX REWORK APPLIED (2026-07-XX) — §13.1–13.3.** The Share Comparison branding
+> UX was redesigned as part of Session Branding V2. The authoritative V2 specification
+> is `SESSION_BRANDING_V2_UX_REWORK.md §4`. The V2 UX is fully implemented. §13.4–13.6
+> (rendering logic) are unchanged. The V1 original UX spec below is retained as historical
+> record.
+
+### 13.V2 Implemented State
+
+A dedicated **"Logo on handle"** card is placed between the Style card and the
+Information card in `ShareComparisonScreen`.
+
+- **Visibility:** Card rendered only when Slider style is selected. When Side-by-side
+  is selected, the card is **completely absent** — no disabled state, no disclaimer.
+- **Empty state** (no session logo): placeholder circle 64 dp + "No logo for this
+  comparison." + "Add one in Edit session." — informational only, no editing actions.
+- **Populated state** (logo set): `BrandingPreviewCircle` at 40% alpha when toggle OFF,
+  full opacity when ON; `SettingsSwitchRow` labeled "Show logo" with test tag
+  `share_comparison_toggle_logo`.
+- **Toggle:** Not persisted. Defaults ON when logo present, OFF when absent.
+- **No editing actions in Share Comparison** — logo management belongs to Settings
+  and Edit Session exclusively.
+- String keys: `share_comparison_logo_card_title`, `share_comparison_logo_none`,
+  `share_comparison_logo_hint`, `share_comparison_logo_show`.
+- `sessionBrandingFile` derived in screen from `sessionDir`; no ViewModel change needed.
+
+### 13.1 Use Branding Toggle (V1 original — superseded by §13.V2)
 
 A "Use branding" toggle is added to `ShareComparisonScreen`.
 
@@ -797,12 +894,12 @@ When disabled (no session branding), an info text is shown below the toggle:
 **Note:** The toggle follows `FD-15` from `SHARE_COMPARISON_IMAGE_V1.md` — it is NOT
 persisted. It resets to the default (ON when branding present) each time the screen opens.
 
-### 13.2 Toggle Placement
+### 13.2 Toggle Placement (V1 original — superseded by §13.V2)
 
 The "Use branding" toggle is placed in the style/options section of `ShareComparisonScreen`,
 below the style selection (Slider / Side by side).
 
-### 13.3 Side by Side Style
+### 13.3 Side by Side Style (V1 original — superseded by §13.V2)
 
 The branding toggle applies only to the **Slider** style. Side by side has no slider
 handle and therefore shows no branding, regardless of the toggle state.

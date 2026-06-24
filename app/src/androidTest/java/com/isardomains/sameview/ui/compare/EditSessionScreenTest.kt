@@ -521,117 +521,276 @@ class EditSessionScreenTest {
         return sessionId
     }
 
-    // ── Branding card structure ───────────────────────────────────────────────
+    // ── Logo card structure (V2) ──────────────────────────────────────────────
 
     @Test
-    fun brandingCard_isVisible() {
+    fun logoCard_isVisible() {
         setEditSessionContent(createEmptySession())
 
-        composeRule.onNodeWithText(context.getString(R.string.edit_session_card_branding))
+        composeRule.onNodeWithText(context.getString(R.string.edit_session_card_logo))
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun brandingCard_noBrandingText_isVisible_whenNoSessionBranding() {
+    fun logoCard_noneText_isVisible_whenNoSessionBranding() {
         setEditSessionContent(createEmptySession())
 
-        composeRule.onNodeWithTag("edit_session_branding_none_text")
+        composeRule.onNodeWithTag("edit_session_logo_none_text")
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun brandingCard_chooseImageButton_isVisible_whenNoSessionBranding() {
+    fun logoCard_choosePhotoButton_isVisible_whenNoSessionBranding() {
         setEditSessionContent(createEmptySession())
 
-        composeRule.onNodeWithTag("edit_session_branding_choose_image")
+        composeRule.onNodeWithTag("edit_session_logo_choose_photo")
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun brandingCard_chooseSymbolButton_isVisible_whenNoSessionBranding() {
+    fun logoCard_useSymbolButton_isVisible_whenNoSessionBranding() {
         setEditSessionContent(createEmptySession())
 
-        composeRule.onNodeWithTag("edit_session_branding_choose_symbol")
+        composeRule.onNodeWithTag("edit_session_logo_use_symbol")
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun brandingCard_copyGlobalButton_notVisible_whenNoGlobalBranding() {
-        // No global branding set → button must not exist
+    fun logoCard_useDefaultButton_notVisible_whenNoGlobalBranding() {
         setEditSessionContent(createEmptySession())
 
-        composeRule.onNodeWithTag("edit_session_branding_copy_global").assertDoesNotExist()
+        composeRule.onNodeWithTag("edit_session_logo_use_default").assertDoesNotExist()
     }
 
     @Test
-    fun brandingCard_changeAndRemove_visible_whenSessionHasBranding() {
+    fun logoCard_chooseAndRemove_visible_whenSessionHasBranding() {
         setEditSessionContent(createSessionWithBranding())
 
-        composeRule.onNodeWithTag("edit_session_branding_change")
+        composeRule.onNodeWithTag("edit_session_logo_choose_photo")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithTag("edit_session_branding_remove")
+        composeRule.onNodeWithTag("edit_session_logo_remove")
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun brandingCard_noBrandingText_notVisible_whenSessionHasBranding() {
+    fun logoCard_noneText_notVisible_whenSessionHasBranding() {
         setEditSessionContent(createSessionWithBranding())
 
-        composeRule.onNodeWithTag("edit_session_branding_none_text").assertDoesNotExist()
+        composeRule.onNodeWithTag("edit_session_logo_none_text").assertDoesNotExist()
     }
 
     @Test
-    fun brandingCard_remove_doesNotSetSaveButtonEnabled() {
+    fun logoCard_remove_doesNotSetSaveButtonEnabled() {
         setEditSessionContent(createSessionWithBranding())
 
-        // Save button starts disabled
         composeRule.onNodeWithTag("edit_session_save_button").assertIsNotEnabled()
 
-        // Tap remove branding
-        composeRule.onNodeWithTag("edit_session_branding_remove")
+        composeRule.onNodeWithTag("edit_session_logo_remove")
             .performScrollTo()
             .performClick()
         composeRule.waitForIdle()
 
-        // Save button must still be disabled (branding change is not form-dirty)
         composeRule.onNodeWithTag("edit_session_save_button").assertIsNotEnabled()
     }
 
     @Test
-    fun brandingPreview_isNotVisible_whenNoSessionBranding() {
+    fun logoPlaceholder_isVisible_whenNoSessionBranding() {
         setEditSessionContent(createEmptySession())
 
-        composeRule.onNodeWithTag("edit_session_branding_preview").assertDoesNotExist()
+        composeRule.onNodeWithTag("edit_session_logo_placeholder")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("edit_session_logo_preview").assertDoesNotExist()
     }
 
     @Test
-    fun brandingPreview_isVisible_whenSessionHasBranding() {
+    fun logoPreview_isVisible_whenSessionHasBranding() {
         setEditSessionContent(createSessionWithBranding())
 
-        composeRule.onNodeWithTag("edit_session_branding_preview")
+        composeRule.onNodeWithTag("edit_session_logo_preview")
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun brandingCard_isAfterLocationCard() {
-        // Scrolling order: Location fields appear before Branding card.
+    fun logoCard_isAfterLocationCard() {
         setEditSessionContent(createSessionWithBranding())
 
-        // Country field is the last Location field
         composeRule.onNodeWithTag("edit_session_country_field")
             .performScrollTo()
             .assertIsDisplayed()
 
-        // Branding card appears after Location (reachable by further scrolling)
-        composeRule.onNodeWithTag("edit_session_branding_remove")
+        composeRule.onNodeWithTag("edit_session_logo_remove")
             .performScrollTo()
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_useSymbol_opensSheet() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_logo_use_symbol")
+            .performScrollTo()
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(
+            context.getString(R.string.branding_symbol_picker_title)
+        ).assertIsDisplayed()
+    }
+
+    // ── Logo card V2 new behaviors ────────────────────────────────────────────
+
+    @Test
+    fun logoCard_placeholderCircle_visibleWhenNoBranding() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_logo_placeholder")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_previewCircle_visibleWhenBrandingSet() {
+        setEditSessionContent(createSessionWithBranding())
+
+        composeRule.onNodeWithTag("edit_session_logo_preview")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_noTypeLabel_forPhoto_whenPhotoBrandingSet() {
+        // Per product decision: photo logos show no type label
+        setEditSessionContent(createSessionWithBranding())
+
+        composeRule.onNodeWithTag("edit_session_logo_type_label").assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_typeLabel_showsSymbolHeart_whenHeartBrandingSet() {
+        setEditSessionContent(createSessionWithSymbolBranding("heart"))
+
+        val expected = context.getString(R.string.edit_session_logo_type_symbol, "Heart")
+        composeRule.onNodeWithTag("edit_session_logo_type_label")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(expected)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_useDefaultLogo_visibleWhenNoBrandingAndGlobalExists() {
+        val brandingDir = File(context.filesDir, "branding")
+        brandingDir.mkdirs()
+        File(brandingDir, "handle.png").writeBytes(ByteArray(64) { 0xFF.toByte() })
+        File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
+
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_logo_use_default")
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        brandingDir.deleteRecursively()
+    }
+
+    @Test
+    fun logoCard_useDefaultLogo_hiddenWhenNoBrandingAndNoGlobal() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_logo_use_default").assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_useDefaultLogo_hiddenWhenBrandingAlreadySet() {
+        setEditSessionContent(createSessionWithBranding())
+
+        composeRule.onNodeWithTag("edit_session_logo_use_default").assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_choosePhoto_visibleInEmptyState() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_logo_choose_photo")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_choosePhoto_visibleInPopulatedState() {
+        setEditSessionContent(createSessionWithBranding())
+
+        composeRule.onNodeWithTag("edit_session_logo_choose_photo")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_useSymbol_visibleInEmptyState() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_logo_use_symbol")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_useSymbol_visibleInPopulatedState() {
+        setEditSessionContent(createSessionWithBranding())
+
+        composeRule.onNodeWithTag("edit_session_logo_use_symbol")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_removeLogo_hiddenWhenNoBranding() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_logo_remove").assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_removeLogo_visibleWhenBrandingSet() {
+        setEditSessionContent(createSessionWithBranding())
+
+        composeRule.onNodeWithTag("edit_session_logo_remove")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_noChangeBrandingButton_exists() {
+        setEditSessionContent(createSessionWithBranding())
+
+        composeRule.onNodeWithTag("edit_session_branding_change").assertDoesNotExist()
+    }
+
+    /** Creates a session with builtin symbol branding (type = "builtin", builtinId = [symbolId]). */
+    private fun createSessionWithSymbolBranding(symbolId: String): String {
+        val sessionId = createSession()
+        val sessionDir = File(context.filesDir, "sessions/$sessionId")
+        File(sessionDir, "branding-handle.png").writeBytes(ByteArray(64) { 0xBB.toByte() })
+        val metaFile = File(sessionDir, "metadata.json")
+        val json = org.json.JSONObject(metaFile.readText())
+        val filesObj = json.optJSONObject("files") ?: org.json.JSONObject()
+        filesObj.put("brandingHandle", "branding-handle.png")
+        json.put("files", filesObj)
+        json.put("branding", org.json.JSONObject().apply {
+            put("handleFile", "branding-handle.png")
+            put("type", "builtin")
+            put("builtinId", symbolId)
+            put("updatedAtMs", 1000L)
+        })
+        metaFile.writeText(json.toString())
+        return sessionId
     }
 }

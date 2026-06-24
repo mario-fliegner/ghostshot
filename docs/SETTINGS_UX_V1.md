@@ -118,7 +118,7 @@ Current implemented settings:
 - Recreation Guidance (GPS; Category 4)
 - Live direction arrow (GPS sub-toggle; Category 4; planned — depends on Recreation Guidance; defined in `GPS_RECREATION_SYSTEM_V1.md`)
 - Strip metadata from stored originals (Category 5 — Privacy; DataStore key: `strip_originals_metadata`; default OFF; full specification: `SESSION_ORIGINALS_PRIVACY_V1.md §9`)
-- Default branding for new sessions (Category 6 — Branding; file-based; see §11)
+- Your logo (Category 6 — Logo; file-based; see §11)
 
 Reserved but not yet implemented settings/features:
 - Hide Reference Peek Hint
@@ -433,30 +433,41 @@ Settings should support this goal — not compete with it.
 
 ---
 
-## 11. Branding
+## 11. Logo
 
-### 11.1 Default Branding for New Sessions
+> **V2 UX REWORK APPLIED (2026-07-XX).** The Settings logo section was redesigned as part
+> of Session Branding V2. The authoritative V2 specification is
+> `SESSION_BRANDING_V2_UX_REWORK.md §2`. The V2 UX is fully implemented.
 
-**Status:** Implemented. Full specification: `SESSION_BRANDING_V1.md`.
+### 11.1 Your Logo
 
-**Category:** 6 — Branding
+**Status:** Implemented. Full specification: `SESSION_BRANDING_V2_UX_REWORK.md §2` (V2 UX).
+Technical specification: `SESSION_BRANDING_V1.md §1–10` (storage, metadata, rendering — unchanged).
 
-**Purpose:** Allow users to set a logo or built-in symbol that is automatically copied into new sessions when they are created. This becomes the session branding used in Share Comparison Image exports.
+**Category:** 6 — Logo
 
-**Storage:** File-based — `filesDir/branding/handle.png` + `filesDir/branding/handle-meta.json`. No DataStore key. File existence = branding set.
+**Purpose:** Allow users to set a logo or built-in symbol that is automatically copied into new sessions when they are created. This becomes the session logo used in the slider handle of Share Comparison Image exports.
 
-**Default:** No branding set.
+**Storage:** File-based — `filesDir/branding/handle.png` + `filesDir/branding/handle-meta.json`. No DataStore key. File existence = logo set. Unchanged from V1.
 
-**UI location:** Settings screen, new "Default branding for new sessions" card below the Privacy card.
+**Default:** No logo set.
+
+**UI location:** Settings screen, "Your logo" card below the Privacy card.
+
+**Section title:** "Your logo" (replaces V1 "Default branding for new sessions")
+
+**Description (always visible):** "Shown in the slider handle when sharing comparison images. Copied to new sessions automatically."
 
 **Actions:**
 
-- **Choose image** — Android Photo Picker; selected image is decoded, normalized to 512×512 RGBA PNG, and stored. Source URI is never persisted.
-- **Choose symbol** — AlertDialog showing 6 built-in symbols (heart, star, camera, home, pin, fire). Renders the selected symbol to a clean 512×512 PNG.
-- **Remove branding** — visible only when branding is set; deletes both branding files.
+- **Choose photo** — Android Photo Picker; selected image normalized to 512×512 RGBA PNG, stored. Source URI never persisted.
+- **Use a symbol** — `BrandingSymbolPickerSheet` (ModalBottomSheet) showing 6 built-in symbols as handle-style previews. Replaces V1 `BuiltinSymbolPickerDialog` (AlertDialog).
+- **Remove logo** — visible only when logo is set; deletes both branding files.
 
-**Important:** Global branding is only a **template** for new sessions. It does **not** affect existing sessions. Removing global branding does not change any existing session.
+Both "Choose photo" and "Use a symbol" are always visible regardless of current logo state — they act as add or replace actions.
 
-**Built-in symbols (V1):** `heart`, `star`, `camera`, `home`, `pin`, `fire` — implemented as custom VectorDrawable assets; no `material-icons-extended` dependency.
+**Important:** The global logo is only a **template** for new sessions. It does **not** affect existing sessions. Removing the global logo does not change any existing session.
 
-**Privacy:** All branding assets are metadata-clean. The normalized PNG contains no EXIF, GPS, XMP, IPTC, or MakerNotes. Source URI and filename are never stored.
+**Built-in symbols:** `heart`, `star`, `camera`, `home`, `pin`, `fire` — custom VectorDrawable assets; no `material-icons-extended` dependency. Unchanged from V1.
+
+**Privacy:** All logo assets are metadata-clean. The normalized PNG contains no EXIF, GPS, XMP, IPTC, or MakerNotes. Source URI and filename are never stored.

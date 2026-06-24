@@ -8,9 +8,16 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -151,7 +158,11 @@ class ShareComparisonScreenTest {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private fun launch(onBack: () -> Unit = {}, hasBranding: Boolean = false) {
+    private fun launch(
+        onBack: () -> Unit = {},
+        hasBranding: Boolean = false,
+        initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER
+    ) {
         wakeDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario?.onActivity { activity ->
@@ -162,54 +173,104 @@ class ShareComparisonScreenTest {
             }
             activity.setContent {
                 SameViewTheme {
-                    ShareComparisonScreenStub(onBack = onBack, hasBranding = hasBranding)
+                    ShareComparisonScreenStub(
+                        onBack = onBack,
+                        hasBranding = hasBranding,
+                        initialStyle = initialStyle
+                    )
                 }
             }
         }
         composeRule.waitForIdle()
     }
 
-    // ── Branding toggle tests ─────────────────────────────────────────────────
+    // ── Logo card tests (V2) ─────────────────────────────────────────────────
 
     @Test
-    fun brandingToggle_isVisible_inStyleCard() {
+    fun logoCard_visible_whenSliderSelected() {
+        launch(hasBranding = false)
+
+        composeRule.onNodeWithText(context.getString(R.string.share_comparison_logo_card_title))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_absent_whenSideBySideSelected() {
+        launch(initialStyle = ShareComparisonStyle.SIDE_BY_SIDE)
+
+        composeRule.onNodeWithText(context.getString(R.string.share_comparison_logo_card_title))
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_emptyState_whenNoBranding() {
+        launch(hasBranding = false)
+
+        composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.share_comparison_logo_none))
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.share_comparison_logo_hint))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_populatedState_whenBrandingSet() {
+        launch(hasBranding = true)
+
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_toggle_logo").assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_toggle_showsLogo_label() {
+        launch(hasBranding = true)
+
+        composeRule.onNodeWithText(context.getString(R.string.share_comparison_logo_show))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_noBrandingToggle_insideStyleCard() {
         launch()
-        composeRule.onNodeWithTag("share_comparison_toggle_branding").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("share_comparison_toggle_branding").assertDoesNotExist()
     }
 
     @Test
-    fun brandingToggle_isDisabled_whenNoBranding() {
-        launch(hasBranding = false)
-        // Disabled = not clickable; asserting it exists but is not enabled
-        composeRule.onNodeWithTag("share_comparison_toggle_branding")
-            .assertIsDisplayed()
-            .assertIsNotEnabled()
+    fun logoCard_noSliderOnlyHint_visible() {
+        launch()
+
+        composeRule.onNodeWithText("Only applied to slider style").assertDoesNotExist()
     }
 
     @Test
-    fun brandingToggle_isEnabled_whenSessionHasBranding() {
+    fun logoCard_disappears_onSwitchToSideBySide() {
         launch(hasBranding = true)
-        composeRule.onNodeWithTag("share_comparison_toggle_branding")
-            .assertIsDisplayed()
-            .assertIsEnabled()
-    }
 
-    @Test
-    fun brandingHintText_addBrandingInEditSession_visibleWhenNoBranding() {
-        launch(hasBranding = false)
         composeRule.onNodeWithText(
-            context.getString(R.string.share_comparison_branding_hint_edit_session)
-        ).assertIsDisplayed()
+            context.getString(R.string.share_comparison_style_side_by_side)
+        ).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.share_comparison_logo_card_title))
+            .assertDoesNotExist()
     }
 
     @Test
-    fun brandingToggle_canBeTapped_whenBrandingPresent() {
+    fun logoCard_reappears_onSwitchBackToSlider() {
         launch(hasBranding = true)
-        // Toggle starts ON when hasBranding=true; tap should switch it
-        composeRule.onNodeWithTag("share_comparison_toggle_branding").performClick()
+
+        composeRule.onNodeWithText(
+            context.getString(R.string.share_comparison_style_side_by_side)
+        ).performClick()
         composeRule.waitForIdle()
-        // Still displayed after toggle
-        composeRule.onNodeWithTag("share_comparison_toggle_branding").assertIsDisplayed()
+
+        composeRule.onNodeWithText(
+            context.getString(R.string.share_comparison_style_slider)
+        ).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("share_comparison_toggle_logo").assertIsDisplayed()
     }
 
     private fun wakeDevice() {
@@ -218,7 +279,7 @@ class ShareComparisonScreenTest {
     }
 }
 
-// ── Structural test stub ────────────────────────────────────────────────────────
+// ── Structural test stub (V2) ───────────────────────────────────────────────────
 // Renders the same card/control structure as ShareComparisonScreen without Hilt.
 // Tests verify that the correct nodes, labels, and test tags are present and
 // interactive. ViewModel-level behavior is covered by ShareComparisonViewModelTest.
@@ -228,9 +289,10 @@ class ShareComparisonScreenTest {
 private fun ShareComparisonScreenStub(
     onBack: () -> Unit,
     hasBranding: Boolean = false,
-    initialUseBranding: Boolean = hasBranding
+    initialUseBranding: Boolean = hasBranding,
+    initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER
 ) {
-    var style by remember { mutableStateOf(ShareComparisonStyle.SLIDER) }
+    var style by remember { mutableStateOf(initialStyle) }
     var quality by remember { mutableStateOf(ShareQuality.STANDARD) }
     var useBranding by remember { mutableStateOf(initialUseBranding) }
 
@@ -260,7 +322,7 @@ private fun ShareComparisonScreenStub(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Style card (mirrors ShareComparisonScreen: segment + branding toggle)
+            // Style card — segment only (no branding toggle in V2)
             SettingsCard(title = stringResource(R.string.share_comparison_style_label)) {
                 SameViewSegmentControl(
                     items = styles.map {
@@ -275,24 +337,46 @@ private fun ShareComparisonScreenStub(
                     onItemSelected = { style = styles[it] },
                     modifier = Modifier.testTag("share_comparison_style_control")
                 )
-                SettingsSwitchRow(
-                    label = stringResource(R.string.share_comparison_branding_label),
-                    checked = useBranding,
-                    enabled = hasBranding,
-                    onCheckedChange = { useBranding = it },
-                    testTag = "share_comparison_toggle_branding"
-                )
-                // Hint text below toggle — mirrors InfoToggleRow in the real screen.
-                val hintText = if (!hasBranding)
-                    stringResource(R.string.share_comparison_branding_hint_edit_session)
-                else if (style == ShareComparisonStyle.SIDE_BY_SIDE)
-                    stringResource(R.string.share_comparison_branding_hint_slider_only)
-                else null
-                if (hintText != null) {
-                    androidx.compose.material3.Text(
-                        text = hintText,
-                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall
-                    )
+            }
+            // Logo on handle card (V2 — Slider only)
+            if (style == ShareComparisonStyle.SLIDER) {
+                SettingsCard(title = stringResource(R.string.share_comparison_logo_card_title)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (!hasBranding) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .testTag("share_comparison_logo_placeholder"),
+                                contentAlignment = Alignment.Center
+                            ) {}
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.share_comparison_logo_none),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Text(
+                                    text = stringResource(R.string.share_comparison_logo_hint),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .testTag("share_comparison_logo_preview")
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Box(modifier = Modifier.weight(1f)) {
+                                SettingsSwitchRow(
+                                    label = stringResource(R.string.share_comparison_logo_show),
+                                    checked = useBranding,
+                                    onCheckedChange = { useBranding = it },
+                                    testTag = "share_comparison_toggle_logo"
+                                )
+                            }
+                        }
+                    }
                 }
             }
             // Extras card

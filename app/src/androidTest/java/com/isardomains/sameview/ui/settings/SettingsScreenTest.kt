@@ -391,13 +391,13 @@ class SettingsScreenTest {
         assertEquals(true, received)
     }
 
-    // ── Branding section tests ─────────────────────────────────────────────────
+    // ── Logo section tests (V2) ───────────────────────────────────────────────
 
     @Test
     fun branding_sectionTitle_isDisplayed() {
         setContent()
 
-        composeRule.onNodeWithText(context.getString(R.string.settings_branding_section_title))
+        composeRule.onNodeWithText(context.getString(R.string.settings_logo_section_title))
             .performScrollTo()
             .assertIsDisplayed()
     }
@@ -406,25 +406,25 @@ class SettingsScreenTest {
     fun branding_descriptionText_isDisplayed() {
         setContent()
 
-        composeRule.onNodeWithText(context.getString(R.string.settings_branding_description))
+        composeRule.onNodeWithText(context.getString(R.string.settings_logo_description))
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun branding_chooseImageButton_isDisplayed() {
+    fun branding_choosePhotoButton_isDisplayed() {
         setContent()
 
-        composeRule.onNodeWithTag("settings_branding_choose_image")
+        composeRule.onNodeWithTag("settings_logo_choose_photo")
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun branding_chooseSymbolButton_isDisplayed() {
+    fun branding_useSymbolButton_isDisplayed() {
         setContent()
 
-        composeRule.onNodeWithTag("settings_branding_choose_symbol")
+        composeRule.onNodeWithTag("settings_logo_use_symbol")
             .performScrollTo()
             .assertIsDisplayed()
     }
@@ -433,25 +433,24 @@ class SettingsScreenTest {
     fun branding_removeButton_notVisible_whenNoBranding() {
         setContent(hasBranding = false)
 
-        // The remove button must not exist in the composition when hasBranding = false
-        composeRule.onNodeWithTag("settings_branding_remove").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings_logo_remove").assertDoesNotExist()
     }
 
     @Test
     fun branding_removeButton_isVisible_whenBrandingSet() {
         setContent(hasBranding = true)
 
-        composeRule.onNodeWithTag("settings_branding_remove")
+        composeRule.onNodeWithTag("settings_logo_remove")
             .performScrollTo()
             .assertIsDisplayed()
     }
 
     @Test
-    fun branding_chooseImage_callsCallback() {
+    fun branding_choosePhoto_callsCallback() {
         var called = false
         setContent(onChooseImage = { called = true })
 
-        composeRule.onNodeWithTag("settings_branding_choose_image")
+        composeRule.onNodeWithTag("settings_logo_choose_photo")
             .performScrollTo()
             .performClick()
         composeRule.waitForIdle()
@@ -464,7 +463,7 @@ class SettingsScreenTest {
         var called = false
         setContent(hasBranding = true, onRemoveBranding = { called = true })
 
-        composeRule.onNodeWithTag("settings_branding_remove")
+        composeRule.onNodeWithTag("settings_logo_remove")
             .performScrollTo()
             .performClick()
         composeRule.waitForIdle()
@@ -473,14 +472,17 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun brandingPreview_isNotVisible_whenNoBranding() {
+    fun logoPlaceholder_isVisible_whenNoBranding() {
         setContent(hasBranding = false, globalBrandingFile = null)
-        composeRule.onNodeWithTag("settings_branding_preview").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("settings_logo_placeholder")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("settings_logo_preview").assertDoesNotExist()
     }
 
     @Test
-    fun brandingPreview_isVisible_whenBrandingSet() {
-        // Write a synthetic branding PNG in cacheDir so the File exists.
+    fun logoPreview_isVisible_whenBrandingSet() {
         val brandingFile = java.io.File(context.cacheDir, "test_branding_preview.png")
         val bmp = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
         android.graphics.Canvas(bmp).apply { drawColor(android.graphics.Color.RED) }
@@ -489,10 +491,127 @@ class SettingsScreenTest {
 
         setContent(hasBranding = true, globalBrandingFile = brandingFile)
 
-        composeRule.onNodeWithTag("settings_branding_preview")
+        composeRule.onNodeWithTag("settings_logo_preview")
             .performScrollTo()
             .assertIsDisplayed()
 
         brandingFile.delete()
+    }
+
+    // ── Logo section tests — V2 new behaviors ────────────────────────────────
+
+    @Test
+    fun brandingCard_descriptionAlwaysVisible_whenNoBranding() {
+        setContent(hasBranding = false, globalBrandingFile = null)
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_logo_description))
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun brandingCard_descriptionAlwaysVisible_whenBrandingSet() {
+        val brandingFile = java.io.File(context.cacheDir, "test_desc_branding.png")
+        val bmp = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bmp).apply { drawColor(android.graphics.Color.BLUE) }
+        java.io.FileOutputStream(brandingFile).use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bmp.recycle()
+
+        setContent(hasBranding = true, globalBrandingFile = brandingFile)
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_logo_description))
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        brandingFile.delete()
+    }
+
+    @Test
+    fun brandingCard_placeholderCircle_visibleWhenNoBranding() {
+        setContent(hasBranding = false, globalBrandingFile = null)
+
+        composeRule.onNodeWithTag("settings_logo_placeholder")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun brandingCard_previewCircle_visibleWhenBrandingSet() {
+        val brandingFile = java.io.File(context.cacheDir, "test_preview_branding.png")
+        val bmp = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bmp).apply { drawColor(android.graphics.Color.GREEN) }
+        java.io.FileOutputStream(brandingFile).use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bmp.recycle()
+
+        setContent(hasBranding = true, globalBrandingFile = brandingFile)
+
+        composeRule.onNodeWithTag("settings_logo_preview")
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        brandingFile.delete()
+    }
+
+    @Test
+    fun brandingCard_choosePhoto_alwaysVisible() {
+        val brandingFile = java.io.File(context.cacheDir, "test_choose_photo_branding.png")
+        val bmp = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bmp).apply { drawColor(android.graphics.Color.CYAN) }
+        java.io.FileOutputStream(brandingFile).use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bmp.recycle()
+
+        setContent(hasBranding = true, globalBrandingFile = brandingFile)
+
+        composeRule.onNodeWithTag("settings_logo_choose_photo")
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        brandingFile.delete()
+    }
+
+    @Test
+    fun brandingCard_useSymbol_alwaysVisible() {
+        val brandingFile = java.io.File(context.cacheDir, "test_use_symbol_branding.png")
+        val bmp = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bmp).apply { drawColor(android.graphics.Color.MAGENTA) }
+        java.io.FileOutputStream(brandingFile).use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bmp.recycle()
+
+        setContent(hasBranding = true, globalBrandingFile = brandingFile)
+
+        composeRule.onNodeWithTag("settings_logo_use_symbol")
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        brandingFile.delete()
+    }
+
+    @Test
+    fun brandingCard_removeLogo_hiddenWhenNoBranding() {
+        setContent(hasBranding = false)
+
+        composeRule.onNodeWithTag("settings_logo_remove").assertDoesNotExist()
+    }
+
+    @Test
+    fun brandingCard_removeLogo_visibleWhenBrandingSet() {
+        setContent(hasBranding = true)
+
+        composeRule.onNodeWithTag("settings_logo_remove")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun branding_useSymbolButton_opensSheet() {
+        setContent()
+
+        composeRule.onNodeWithTag("settings_logo_use_symbol")
+            .performScrollTo()
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.branding_symbol_picker_title))
+            .assertIsDisplayed()
     }
 }

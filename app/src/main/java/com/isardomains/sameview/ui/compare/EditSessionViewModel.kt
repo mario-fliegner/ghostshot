@@ -63,7 +63,9 @@ internal data class InitialSessionFields(
     val captureTimestampMs: Long = 0L,
     val referenceSourceDisplayName: String = "",
     val isFavorite: Boolean = false,
-    val hasBranding: Boolean = false
+    val hasBranding: Boolean = false,
+    val brandingType: String? = null,
+    val brandingBuiltinId: String? = null
 )
 
 /**
@@ -277,6 +279,7 @@ class EditSessionViewModel @Inject constructor(
             val captureObj = json.optJSONObject("capture")
             val locationObj = json.optJSONObject("location")
             val additionalObj = json.optJSONObject("additional")
+            val brandingObj = json.optJSONObject("branding")
             InitialSessionFields(
                 title = contentObj?.optString("title", "") ?: "",
                 description = contentObj?.optString("description", "") ?: "",
@@ -296,7 +299,9 @@ class EditSessionViewModel @Inject constructor(
                     val brandingHandle = filesObj?.optString("brandingHandle", "")?.takeIf { it.isNotEmpty() }
                     brandingHandle != null &&
                         File(File(sessionsRoot, sId), brandingHandle).let { it.exists() && it.isFile }
-                }
+                },
+                brandingType = brandingObj?.optString("type", "")?.takeIf { it.isNotEmpty() },
+                brandingBuiltinId = brandingObj?.optString("builtinId", "")?.takeIf { it.isNotEmpty() }
             )
         }
 
@@ -324,6 +329,8 @@ class EditSessionViewModel @Inject constructor(
                 _referenceSourceDisplayName.value = fields.referenceSourceDisplayName
                 _isFavorite.value = fields.isFavorite
                 _hasBranding.value = fields.hasBranding
+                _sessionLogoType.value = fields.brandingType
+                _sessionLogoBuiltinId.value = fields.brandingBuiltinId
                 _hasGlobalBranding.value = withContext(ioDispatcher) {
                     globalBrandingRepository.hasBranding()
                 }
@@ -477,6 +484,14 @@ class EditSessionViewModel @Inject constructor(
      */
     val hasGlobalBranding: StateFlow<Boolean> = _hasGlobalBranding.asStateFlow()
 
+    private val _sessionLogoType = MutableStateFlow<String?>(null)
+    /** Current branding type ("image" | "builtin" | null). Updated after each branding operation. */
+    val sessionLogoType: StateFlow<String?> = _sessionLogoType.asStateFlow()
+
+    private val _sessionLogoBuiltinId = MutableStateFlow<String?>(null)
+    /** Built-in symbol id when [sessionLogoType] is "builtin", null otherwise. */
+    val sessionLogoBuiltinId: StateFlow<String?> = _sessionLogoBuiltinId.asStateFlow()
+
     /** Emitted (as a [Unit]) when a branding operation fails. Collected by [EditSessionScreen]. */
     private val _brandingError = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val brandingError: SharedFlow<Unit> = _brandingError.asSharedFlow()
@@ -528,6 +543,8 @@ class EditSessionViewModel @Inject constructor(
                 val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "image", null)
                 if (ok) {
                     _hasBranding.value = true
+                    _sessionLogoType.value = "image"
+                    _sessionLogoBuiltinId.value = null
                 } else {
                     _brandingError.emit(Unit)
                 }
@@ -550,6 +567,8 @@ class EditSessionViewModel @Inject constructor(
                 val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "builtin", symbol.id)
                 if (ok) {
                     _hasBranding.value = true
+                    _sessionLogoType.value = "builtin"
+                    _sessionLogoBuiltinId.value = symbol.id
                 } else {
                     _brandingError.emit(Unit)
                 }
@@ -570,6 +589,8 @@ class EditSessionViewModel @Inject constructor(
             val ok = sessionBrandingRemover(sessionsRoot, sessionId)
             if (ok) {
                 _hasBranding.value = false
+                _sessionLogoType.value = null
+                _sessionLogoBuiltinId.value = null
             } else {
                 _brandingError.emit(Unit)
             }
@@ -593,6 +614,8 @@ class EditSessionViewModel @Inject constructor(
             val ok = sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
             if (ok) {
                 _hasBranding.value = true
+                _sessionLogoType.value = globalBranding.meta.type
+                _sessionLogoBuiltinId.value = globalBranding.meta.builtinId
             } else {
                 _brandingError.emit(Unit)
             }
