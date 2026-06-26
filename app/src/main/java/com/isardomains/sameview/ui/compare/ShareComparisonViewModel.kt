@@ -16,6 +16,7 @@ import com.isardomains.sameview.branding.BuiltinBrandingSymbol
 import com.isardomains.sameview.branding.BuiltinSymbolRenderer
 import com.isardomains.sameview.branding.GlobalBranding
 import com.isardomains.sameview.branding.GlobalBrandingRepository
+import com.isardomains.sameview.ui.camera.SessionBrandingMeta
 import com.isardomains.sameview.image.ShareCaptionData
 import com.isardomains.sameview.image.ShareComparisonStyle
 import com.isardomains.sameview.image.ShareImageRenderer
@@ -65,7 +66,9 @@ internal data class ShareMetadataSnapshot(
     val locationCity: String?,
     val locationCountry: String?,
     /** Width ÷ height of the session viewport; defaults to portrait 9:16. */
-    val viewportRatio: Float = 9f / 16f
+    val viewportRatio: Float = 9f / 16f,
+    /** Parsed from metadata.json → branding block. Used at init to derive [isUsingGlobalDefault]. */
+    val brandingMeta: SessionBrandingMeta? = null
 )
 
 // ── ViewModel ──────────────────────────────────────────────────────────────────
@@ -140,6 +143,27 @@ class ShareComparisonViewModel @Inject constructor(
     fun onToggleUseBranding() {
         _useBranding.value = !_useBranding.value
     }
+
+    /**
+     * True when the current session logo originated from the global default and has not been
+     * replaced by a user-chosen photo or symbol since this screen was opened.
+     *
+     * Used to hide the "Use default logo" button when pressing it would overwrite the session
+     * logo with an identical copy — i.e. when it cannot perform a meaningful change.
+     *
+     * Set to true:
+     *   - when the auto-copy from global fires at screen open (session had no branding)
+     *   - when [onUseDefaultLogo] succeeds
+     *   - at init, when session already has a builtin logo whose type and builtinId match the
+     *     current global default (reliable for symbols; photo logos are conservative → false)
+     *
+     * Set to false:
+     *   - when [onImageUriSelectedForBranding] succeeds
+     *   - when [onSetSessionBrandingFromSymbol] succeeds
+     *   - when [onRemoveSessionBranding] succeeds
+     */
+    private val _isUsingGlobalDefault = MutableStateFlow(false)
+    val isUsingGlobalDefault: StateFlow<Boolean> = _isUsingGlobalDefault.asStateFlow()
 
     /**
      * True when global branding exists. Read once at init — plain val, not reactive StateFlow.
@@ -298,6 +322,16 @@ class ShareComparisonViewModel @Inject constructor(
             if (existingBitmap != null) {
                 _previewBrandingBitmap.value = existingBitmap
                 _useBranding.value = true
+                // Derive isUsingGlobalDefault for builtin symbols: compare session meta with global meta.
+                // Reliable for builtin symbols (deterministic output). Photo logos (type="image") have no
+                // stored content hash, so they default to false — the button stays visible as a safe fallback.
+                val globalMeta = withContext(ioDispatcher) { globalBrandingRepository.getBrandingMeta() }
+                val sessionMeta = snapshot.brandingMeta
+                _isUsingGlobalDefault.value = globalMeta != null && sessionMeta != null &&
+                    sessionMeta.type == "builtin" &&
+                    globalMeta.type == "builtin" &&
+                    sessionMeta.builtinId != null &&
+                    sessionMeta.builtinId == globalMeta.builtinId
             } else {
                 // Auto-copy global default when session has no branding.
                 val globalBranding = withContext(ioDispatcher) { globalBrandingRepository.getBranding() }
@@ -317,6 +351,7 @@ class ShareComparisonViewModel @Inject constructor(
                             _brandingVersion.value += 1
                             _sessionBrandingChanged.emit(Unit)
                         }
+                        _isUsingGlobalDefault.value = true
                     }
                 }
             }
@@ -368,9 +403,12 @@ class ShareComparisonViewModel @Inject constructor(
                 val sessionsRoot = File(context.filesDir, "sessions")
                 val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "image", null)
                 if (ok) {
-                    // Decode preview from the bytes that were just written — no Coil, no disk re-read.
+                    // Only enable Show logo if this is the first logo being added.
+                    // If the user turned Show logo OFF and then chose a new photo, the toggle stays OFF.
+                    val wasEmpty = _previewBrandingBitmap.value == null
                     _previewBrandingBitmap.value = previewBitmapFromBytes(bytes)
-                    _useBranding.value = true
+                    if (wasEmpty) _useBranding.value = true
+                    _isUsingGlobalDefault.value = false
                     _brandingVersion.value += 1
                     _sessionBrandingChanged.emit(Unit)
                 } else _brandingError.emit(Unit)
@@ -389,8 +427,10 @@ class ShareComparisonViewModel @Inject constructor(
                 val sessionsRoot = File(context.filesDir, "sessions")
                 val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "builtin", symbol.id)
                 if (ok) {
+                    val wasEmpty = _previewBrandingBitmap.value == null
                     _previewBrandingBitmap.value = previewBitmapFromBytes(bytes)
-                    _useBranding.value = true
+                    if (wasEmpty) _useBranding.value = true
+                    _isUsingGlobalDefault.value = false
                     _brandingVersion.value += 1
                     _sessionBrandingChanged.emit(Unit)
                 } else _brandingError.emit(Unit)
@@ -409,6 +449,7 @@ class ShareComparisonViewModel @Inject constructor(
             if (ok) {
                 _previewBrandingBitmap.value = null   // clears hasBranding via derived StateFlow
                 _useBranding.value = false
+                _isUsingGlobalDefault.value = false
                 _sessionBrandingChanged.emit(Unit)
             } else _brandingError.emit(Unit)
         }
@@ -427,9 +468,11 @@ class ShareComparisonViewModel @Inject constructor(
             val ok = sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
             if (ok) {
                 // Decode preview from the global file that was just copied to the session.
+                val wasEmpty = _previewBrandingBitmap.value == null
                 val preview = previewBitmapFromFile(globalBranding.file)
                 _previewBrandingBitmap.value = preview
-                _useBranding.value = preview != null
+                if (wasEmpty && preview != null) _useBranding.value = true
+                _isUsingGlobalDefault.value = true
                 _brandingVersion.value += 1
                 _sessionBrandingChanged.emit(Unit)
             } else _brandingError.emit(Unit)
@@ -540,9 +583,13 @@ class ShareComparisonViewModel @Inject constructor(
             val vw = json.optJSONObject("viewport")?.optInt("width", 0) ?: 0
             val vh = json.optJSONObject("viewport")?.optInt("height", 0) ?: 0
             val viewportRatio = if (vw > 0 && vh > 0) vw.toFloat() / vh.toFloat() else 9f / 16f
+            val brandingBlock = json.optJSONObject("branding")
+            val brandingType = brandingBlock?.optString("type", null)?.takeIf { it.isNotEmpty() }
+            val brandingBuiltinId = brandingBlock?.optString("builtinId", null)?.takeIf { it.isNotEmpty() }
+            val brandingMeta = if (brandingType != null) SessionBrandingMeta(brandingType, brandingBuiltinId) else null
             ShareMetadataSnapshot(
                 title, referenceDate, captureTimestampMs,
-                locationDisplayName, locationCity, locationCountry, viewportRatio
+                locationDisplayName, locationCity, locationCountry, viewportRatio, brandingMeta
             )
         } catch (_: Exception) {
             ShareMetadataSnapshot(null, null, 0L, null, null, null)

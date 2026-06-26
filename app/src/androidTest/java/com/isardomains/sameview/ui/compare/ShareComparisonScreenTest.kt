@@ -165,6 +165,7 @@ class ShareComparisonScreenTest {
         onBack: () -> Unit = {},
         hasBranding: Boolean = false,
         hasGlobalBranding: Boolean = false,
+        isUsingGlobalDefault: Boolean = false,
         initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER
     ) {
         wakeDevice()
@@ -181,6 +182,7 @@ class ShareComparisonScreenTest {
                         onBack = onBack,
                         hasBranding = hasBranding,
                         hasGlobalBranding = hasGlobalBranding,
+                        isUsingGlobalDefault = isUsingGlobalDefault,
                         initialStyle = initialStyle
                     )
                 }
@@ -447,6 +449,132 @@ class ShareComparisonScreenTest {
         composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
     }
 
+    // ── Issue 1: "Use default logo" meaningful visibility ─────────────────────
+    // Button must be absent when it cannot perform a meaningful change.
+
+    @Test
+    fun useDefaultLogo_hidden_whenAlreadyUsingDefault() {
+        // Global exists, but session already uses the global default — button must be hidden.
+        launch(hasBranding = true, hasGlobalBranding = true, isUsingGlobalDefault = true)
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertDoesNotExist()
+    }
+
+    @Test
+    fun useDefaultLogo_visible_whenGlobalExistsAndSessionDiffers() {
+        // Global exists and session is NOT using it — button must be visible.
+        launch(hasBranding = true, hasGlobalBranding = true, isUsingGlobalDefault = false)
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertIsDisplayed()
+    }
+
+    @Test
+    fun useDefaultLogo_absent_inEmptyState_whenAlreadyUsingDefault() {
+        // Empty state + using global default (e.g. after auto-copy that failed to decode).
+        launch(hasBranding = false, hasGlobalBranding = true, isUsingGlobalDefault = true)
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertDoesNotExist()
+    }
+
+    // ── Issue 3: Remove logo available when Show logo is OFF (regression guard) ─
+
+    @Test
+    fun removeLogoStillAvailable_whenShowLogoOff() {
+        // populated state with Show logo OFF — Remove logo must still be present.
+        launch(hasBranding = true, initialStyle = ShareComparisonStyle.SLIDER)
+        // initialUseBranding defaults to hasBranding=true; toggle it off via click.
+        composeRule.onNodeWithTag("share_comparison_toggle_logo").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("share_comparison_logo_remove").assertIsDisplayed()
+    }
+
+    // ── Issue 1 live: button visibility updates immediately without screen reopen ─
+
+    private var liveBrandingState2 = mutableStateOf(false)
+    private var liveIsUsingGlobalDefault = mutableStateOf(false)
+
+    private fun launchWithLiveStates(
+        initialHasBranding: Boolean,
+        initialIsUsingGlobalDefault: Boolean = false
+    ) {
+        liveBrandingState2 = mutableStateOf(initialHasBranding)
+        liveIsUsingGlobalDefault = mutableStateOf(initialIsUsingGlobalDefault)
+        wakeDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                val h by liveBrandingState2
+                val u by liveIsUsingGlobalDefault
+                SameViewTheme {
+                    ShareComparisonScreenStub(
+                        onBack = {},
+                        hasBranding = h,
+                        hasGlobalBranding = true,
+                        isUsingGlobalDefault = u
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun useDefaultLogo_hiddenImmediately_afterUseDefault() {
+        // Start: session differs from global → button visible. Use default → button disappears.
+        launchWithLiveStates(initialHasBranding = true, initialIsUsingGlobalDefault = false)
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertIsDisplayed()
+
+        composeRule.runOnUiThread { liveIsUsingGlobalDefault.value = true }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertDoesNotExist()
+    }
+
+    @Test
+    fun useDefaultLogo_visible_afterChoosingPhoto() {
+        // Start: isUsingGlobalDefault=true → button hidden. Choose photo → button appears.
+        launchWithLiveStates(initialHasBranding = true, initialIsUsingGlobalDefault = true)
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertDoesNotExist()
+
+        composeRule.runOnUiThread { liveIsUsingGlobalDefault.value = false }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertIsDisplayed()
+    }
+
+    @Test
+    fun useDefaultLogo_visible_afterChoosingSymbol() {
+        // Same pattern as photo — symbol selection also clears isUsingGlobalDefault.
+        launchWithLiveStates(initialHasBranding = true, initialIsUsingGlobalDefault = true)
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertDoesNotExist()
+
+        composeRule.runOnUiThread { liveIsUsingGlobalDefault.value = false }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertIsDisplayed()
+    }
+
+    @Test
+    fun useDefaultLogo_visibility_updatesWithoutScreenReopen() {
+        // Cycle: not-using → button visible; use default → button hidden; choose photo → button visible.
+        launchWithLiveStates(initialHasBranding = true, initialIsUsingGlobalDefault = false)
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertIsDisplayed()
+
+        composeRule.runOnUiThread { liveIsUsingGlobalDefault.value = true }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertDoesNotExist()
+
+        composeRule.runOnUiThread { liveIsUsingGlobalDefault.value = false }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertIsDisplayed()
+    }
+
     private fun wakeDevice() {
         InstrumentationRegistry.getInstrumentation().uiAutomation
             .executeShellCommand("input keyevent KEYCODE_WAKEUP")
@@ -465,6 +593,7 @@ private fun ShareComparisonScreenStub(
     onBack: () -> Unit,
     hasBranding: Boolean = false,
     hasGlobalBranding: Boolean = false,
+    isUsingGlobalDefault: Boolean = false,
     initialUseBranding: Boolean = hasBranding,
     initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER
 ) {
@@ -556,7 +685,7 @@ private fun ShareComparisonScreenStub(
                                     .testTag("share_comparison_logo_use_symbol")
                             ) { Text(stringResource(R.string.share_comparison_logo_use_symbol)) }
                         }
-                        if (hasGlobalBranding) {
+                        if (hasGlobalBranding && !isUsingGlobalDefault) {
                             androidx.compose.material3.TextButton(
                                 onClick = {},
                                 modifier = Modifier
@@ -575,6 +704,7 @@ private fun ShareComparisonScreenStub(
                                     .size(64.dp)
                                     .testTag("share_comparison_logo_preview")
                             )
+                            Spacer(modifier = Modifier.width(16.dp))
                             Box(modifier = Modifier.weight(1f)) {
                                 SettingsSwitchRow(
                                     label = stringResource(R.string.share_comparison_logo_show),
@@ -605,7 +735,7 @@ private fun ShareComparisonScreenStub(
                                     .testTag("share_comparison_logo_use_symbol")
                             ) { Text(stringResource(R.string.share_comparison_logo_use_symbol)) }
                         }
-                        if (hasGlobalBranding) {
+                        if (hasGlobalBranding && !isUsingGlobalDefault) {
                             androidx.compose.material3.TextButton(
                                 onClick = {},
                                 modifier = Modifier

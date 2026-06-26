@@ -99,6 +99,7 @@ fun ShareComparisonScreen(
     val sessionViewportRatio by viewModel.sessionViewportRatio.collectAsStateWithLifecycle()
     val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
     val useBranding by viewModel.useBranding.collectAsStateWithLifecycle()
+    val isUsingGlobalDefault by viewModel.isUsingGlobalDefault.collectAsStateWithLifecycle()
     val previewBrandingBitmap by viewModel.previewBrandingBitmap.collectAsStateWithLifecycle()
 
     val isTitleDateAvailable by viewModel.isTitleDateAvailable.collectAsStateWithLifecycle()
@@ -295,7 +296,7 @@ fun ShareComparisonScreen(
                                     Text(stringResource(R.string.share_comparison_logo_use_symbol))
                                 }
                             }
-                            if (viewModel.hasGlobalBranding) {
+                            if (viewModel.hasGlobalBranding && !isUsingGlobalDefault) {
                                 TextButton(
                                     onClick = { viewModel.onUseDefaultLogo() },
                                     modifier = Modifier
@@ -319,6 +320,7 @@ fun ShareComparisonScreen(
                                         )
                                     }
                                 }
+                                Spacer(modifier = Modifier.width(16.dp))
                                 Box(modifier = Modifier.weight(1f)) {
                                     SettingsSwitchRow(
                                         label = stringResource(R.string.share_comparison_logo_show),
@@ -356,7 +358,7 @@ fun ShareComparisonScreen(
                                     Text(stringResource(R.string.share_comparison_logo_use_symbol))
                                 }
                             }
-                            if (viewModel.hasGlobalBranding) {
+                            if (viewModel.hasGlobalBranding && !isUsingGlobalDefault) {
                                 TextButton(
                                     onClick = { viewModel.onUseDefaultLogo() },
                                     modifier = Modifier

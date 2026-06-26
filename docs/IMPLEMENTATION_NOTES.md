@@ -1277,3 +1277,45 @@ Technical backend (storage, metadata v6, backup, normalization, rendering) is un
 **Block 5 — String cleanup and BuiltinSymbolPickerDialog removal:** `BuiltinSymbolPickerDialog` composable (56 lines) removed from `SettingsScreen.kt`. 11 now-unused imports removed (kept `AlertDialog` — still used by location permission rationale dialog). 16 deprecated string keys removed from `strings.xml` and `strings-de.xml` (7 `settings_branding_*` including `settings_branding_builtin_symbols_title`, 3 `share_comparison_branding_*`, 6 `edit_session_branding_*`). Test `logoCard_noSliderOnlyHint_visible()` updated to use hardcoded literal `"Only applied to slider style"` before string key removal. `assembleDebug` BUILD SUCCESSFUL — compile-time verification of zero remaining deprecated key references. Full `connectedDebugAndroidTest` 751/751 PASSED on SM-S911B (Android 16).
 
 **V2 Final State — Test counts post-V2:** `testDebugUnitTest` all green. `connectedDebugAndroidTest` 751/751 PASSED. Net new instrumentation tests: +16 `BrandingSymbolPickerSheetTest` (new class), +38 `EditSessionScreenTest` (14 added + block updates), +4 `ShareComparisonScreenTest` (net new logo tests).
+
+---
+
+### Session Branding V2 — Logo Card UX Refinement (2026-06-26)
+
+Three approved UX refinements applied to the Logo card in `ShareComparisonScreen`. No changes to persistence, export renderer, or SettingsScreen.
+
+**Issue 1 — "Use default logo" meaningful visibility:**
+
+`_isUsingGlobalDefault: MutableStateFlow<Boolean>` added to `ShareComparisonViewModel`. Tracks whether the current session logo originated from the global default and has not been replaced by a user action. The button is now visible only when `hasGlobalBranding && !isUsingGlobalDefault`.
+
+Derivation analysis: pure metadata comparison works reliably for builtin symbols (`type = "builtin"` + `builtinId` match). Photo logos (`type = "image"`) have no stored content hash — metadata comparison is not sufficient. A dedicated StateFlow is the correct approach: it tracks operational intent rather than trying to infer it from file content. Metadata comparison is used as a best-effort initialiser when the session already has branding on screen open (covers the common builtin case when re-opening a previously branded session).
+
+State transitions:
+
+- `true`: auto-copy fires at init; `onUseDefaultLogo()` succeeds; session builtin meta matches global builtin meta at init.
+- `false`: `onImageUriSelectedForBranding()` succeeds; `onSetSessionBrandingFromSymbol()` succeeds; `onRemoveSessionBranding()` succeeds; session meta is photo or mismatches global at init.
+
+`ShareMetadataSnapshot` extended with `brandingMeta: SessionBrandingMeta? = null`. `readMetadata()` reads `metadata.json → branding` block to populate it. No new storage writes.
+
+**Issue 2 — Logo replacement must not modify Show logo toggle:**
+
+"Choose photo", "Use a symbol", and "Use default logo" now only set `_useBranding = true` when adding the **first** logo (transitioning from no-logo to has-logo state). When replacing an existing logo, the toggle is left unchanged. `wasEmpty = _previewBrandingBitmap.value == null` check applied before setting the new bitmap in all three write paths.
+
+**Issue 4 — Preview row spacing:**
+
+`Spacer(modifier = Modifier.width(16.dp))` added between the preview circle Box and the Show logo switch row Box in the populated Zone 1 of `ShareComparisonScreen`. Matches the empty-state spacer at 16 dp to account for the heavier visual weight of the switch widget.
+
+**Files changed:** `ShareComparisonViewModel.kt`, `ShareComparisonScreen.kt`
+
+**Tests — new unit tests in `ShareComparisonViewModelTest` (+19):** `isUsingGlobalDefault_false_initially`, `isUsingGlobalDefault_true_afterAutoCopy`, `isUsingGlobalDefault_true_whenExistingBuiltinMatchesGlobal`, `isUsingGlobalDefault_false_whenExistingBuiltinDiffersFromGlobal`, `isUsingGlobalDefault_false_afterPhotoSelected`, `isUsingGlobalDefault_false_afterSymbolSelected`, `isUsingGlobalDefault_true_afterUseDefault`, `isUsingGlobalDefault_false_afterRemove`, `choosePhoto_setsUseBrandingTrue_whenFirstLogoAdded`, `choosePhoto_doesNotModifyUseBranding_whenAlreadyEnabled`, `chooseSymbol_setsUseBrandingTrue_whenFirstLogoAdded`, `chooseSymbol_doesNotModifyUseBranding_whenAlreadyEnabled`, `useDefaultLogo_setsUseBrandingTrue_whenFirstLogoAdded`, `useDefaultLogo_doesNotModifyUseBranding_whenAlreadyEnabled`, `removeLogoAvailable_whenShowLogoOff`, plus 4 existing `brandingVersion` and `sessionBrandingChanged` tests that continue to cover the write paths (no changes needed).
+
+**Tests — new instrumentation tests in `ShareComparisonScreenTest` (+8):** `useDefaultLogo_hidden_whenAlreadyUsingDefault`, `useDefaultLogo_visible_whenGlobalExistsAndSessionDiffers`, `useDefaultLogo_absent_inEmptyState_whenAlreadyUsingDefault`, `removeLogoStillAvailable_whenShowLogoOff`, `useDefaultLogo_hiddenImmediately_afterUseDefault`, `useDefaultLogo_visible_afterChoosingPhoto`, `useDefaultLogo_visible_afterChoosingSymbol`, `useDefaultLogo_visibility_updatesWithoutScreenReopen`.
+
+**Existing tests updated:** `ShareComparisonScreenStub` — added `isUsingGlobalDefault: Boolean = false` parameter; button visibility changed from `hasGlobalBranding` to `hasGlobalBranding && !isUsingGlobalDefault`; 16 dp spacer added to populated Zone 1. `launch()` helper extended with `isUsingGlobalDefault: Boolean = false`. Pre-existing tests `logoCard_emptyState_useDefaultLogo_visible_whenGlobalExists` and `logoCard_populated_useDefaultLogo_visible_whenGlobalExists` continue to pass because `isUsingGlobalDefault` defaults to `false`.
+
+**Test results (2026-06-26):**
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL; 740/740 PASSED (was 669; +71 net new `ShareComparisonViewModelTest`)
+- `ShareComparisonScreenTest` (`connectedDebugAndroidTest`) — **36/36 PASSED** on SM-S911B (Android 16); was 16+4=20 after V2 Blocks 4–5; +16 net new tests in this session
+
+**Issue 3 (no change):** `onRemoveSessionBranding()` behavior unchanged. "Remove logo" is always available when `hasBranding == true`, regardless of `useBranding`. Confirmed by `removeLogoAvailable_whenShowLogoOff` regression guard. Manual device verification still required for spacing (Issue 4) and for the live button visibility update (Issue 1 in the production ViewModel flow).
