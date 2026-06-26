@@ -97,6 +97,7 @@ fun ShareComparisonScreen(
     val sessionViewportRatio by viewModel.sessionViewportRatio.collectAsStateWithLifecycle()
     val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
     val useBranding by viewModel.useBranding.collectAsStateWithLifecycle()
+    val brandingVersion by viewModel.brandingVersion.collectAsStateWithLifecycle()
 
     val isTitleDateAvailable by viewModel.isTitleDateAvailable.collectAsStateWithLifecycle()
     val isLocationAvailable by viewModel.isLocationAvailable.collectAsStateWithLifecycle()
@@ -112,7 +113,9 @@ fun ShareComparisonScreen(
     val sessionDir = remember(viewModel.sessionId) {
         File(context.filesDir, "sessions/${viewModel.sessionId}")
     }
-    val sessionBrandingFile = remember(sessionDir) {
+    // brandingVersion is included so recomposition is forced after every successful file write,
+    // allowing Coil to receive a new ImageRequest with a fresh memoryCacheKey.
+    val sessionBrandingFile = remember(sessionDir, brandingVersion) {
         File(sessionDir, "branding-handle.png")
     }
 
@@ -229,7 +232,8 @@ fun ShareComparisonScreen(
                         captionData = previewCaptionData,
                         sessionDir = sessionDir,
                         viewportRatio = sessionViewportRatio,
-                        useBranding = useBranding && hasBranding
+                        useBranding = useBranding && hasBranding,
+                        brandingVersion = brandingVersion
                     )
                 }
 
@@ -310,7 +314,8 @@ fun ShareComparisonScreen(
                                 Box(modifier = Modifier.alpha(if (useBranding) 1f else 0.4f)) {
                                     BrandingPreviewCircle(
                                         brandingFile = sessionBrandingFile,
-                                        modifier = Modifier.testTag("share_comparison_logo_preview")
+                                        modifier = Modifier.testTag("share_comparison_logo_preview"),
+                                        brandingVersion = brandingVersion
                                     )
                                 }
                                 Box(modifier = Modifier.weight(1f)) {

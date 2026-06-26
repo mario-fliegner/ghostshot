@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -15,8 +16,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import java.io.File
 
 /**
@@ -29,14 +32,31 @@ import java.io.File
  * handle uses the same visual language as the standard SameView handle (white ring, white
  * circle). Only the inner content changes — logo instead of arrows.
  *
+ * @param brandingVersion Incremented by [ShareComparisonViewModel] after every successful
+ * branding file write. Used as the Coil memory cache key suffix so that replacing
+ * branding-handle.png does not serve the stale cached bitmap for the unchanged path.
+ * Defaults to 0; callers that don't override (e.g. SettingsScreen) are unaffected because
+ * the global logo file path never changes mid-session.
+ *
  * Used in [com.isardomains.sameview.ui.settings.SettingsScreen] (global branding)
  * and [com.isardomains.sameview.ui.compare.ShareComparisonScreen] (session branding).
  */
 @Composable
 fun BrandingPreviewCircle(
     brandingFile: File,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    brandingVersion: Int = 0
 ) {
+    val context = LocalContext.current
+    // Build a fresh ImageRequest every time brandingVersion changes. The memoryCacheKey
+    // includes the version so Coil bypasses its in-memory cache for the new file content.
+    val imageRequest = remember(brandingFile, brandingVersion) {
+        ImageRequest.Builder(context)
+            .data(brandingFile)
+            .memoryCacheKey("${brandingFile.absolutePath}-$brandingVersion")
+            .build()
+    }
+
     Box(
         modifier = modifier.size(64.dp),
         contentAlignment = Alignment.Center
@@ -51,7 +71,7 @@ fun BrandingPreviewCircle(
             contentAlignment = Alignment.Center
         ) {
             AsyncImage(
-                model = brandingFile,
+                model = imageRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(46.dp)

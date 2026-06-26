@@ -141,6 +141,22 @@ class ShareComparisonViewModel @Inject constructor(
     private val _sessionBrandingChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     val sessionBrandingChanged: SharedFlow<Unit> = _sessionBrandingChanged.asSharedFlow()
 
+    /**
+     * Incremented after every successful branding file write. Used by [ShareComparisonScreen]
+     * to bust Coil's memory cache and force [BrandingPreviewCircle] and [SliderPreviewContent]
+     * to reload the new branding-handle.png.
+     *
+     * Without this counter, overriding logo A with logo B causes no StateFlow emission
+     * ([_hasBranding] and [_useBranding] are already true), so no recomposition occurs and
+     * Coil serves the stale cached bitmap for the unchanged file path.
+     *
+     * [onRemoveSessionBranding] does NOT increment — [hasBranding] already transitions
+     * false → true on removal, which triggers recomposition and removes the image from the
+     * composition tree entirely (no cache busting needed).
+     */
+    private val _brandingVersion = MutableStateFlow(0)
+    val brandingVersion: StateFlow<Int> = _brandingVersion.asStateFlow()
+
     // ── Metadata-derived state ─────────────────────────────────────────────────
 
     /** Width ÷ height ratio of the session viewport; used for preview sizing. */
@@ -259,6 +275,7 @@ class ShareComparisonViewModel @Inject constructor(
                     if (copied) {
                         _hasBranding.value = true
                         _useBranding.value = true
+                        _brandingVersion.value += 1
                         _sessionBrandingChanged.emit(Unit)
                     }
                 }
@@ -313,6 +330,7 @@ class ShareComparisonViewModel @Inject constructor(
                 if (ok) {
                     _hasBranding.value = true
                     _useBranding.value = true
+                    _brandingVersion.value += 1
                     _sessionBrandingChanged.emit(Unit)
                 } else _brandingError.emit(Unit)
             } catch (_: Exception) { _brandingError.emit(Unit) }
@@ -332,6 +350,7 @@ class ShareComparisonViewModel @Inject constructor(
                 if (ok) {
                     _hasBranding.value = true
                     _useBranding.value = true
+                    _brandingVersion.value += 1
                     _sessionBrandingChanged.emit(Unit)
                 } else _brandingError.emit(Unit)
             } catch (_: Exception) { _brandingError.emit(Unit) }
@@ -368,6 +387,7 @@ class ShareComparisonViewModel @Inject constructor(
             if (ok) {
                 _hasBranding.value = true
                 _useBranding.value = true
+                _brandingVersion.value += 1
                 _sessionBrandingChanged.emit(Unit)
             } else _brandingError.emit(Unit)
         }

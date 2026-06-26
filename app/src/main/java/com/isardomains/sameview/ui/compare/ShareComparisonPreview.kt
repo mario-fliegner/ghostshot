@@ -36,7 +36,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.isardomains.sameview.image.ShareCaptionData
 import com.isardomains.sameview.image.ShareComparisonStyle
 import com.isardomains.sameview.ui.theme.SameViewAccent
@@ -91,6 +93,12 @@ fun ShareComparisonPreview(
      * No effect on Side by side style (which has no handle).
      */
     useBranding: Boolean = false,
+    /**
+     * Incremented by [ShareComparisonViewModel] after every successful branding file write.
+     * Used to bust Coil's memory cache for branding-handle.png so the Slider preview shows
+     * the new logo immediately without requiring a toggle or screen reopen.
+     */
+    brandingVersion: Int = 0,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -161,7 +169,7 @@ fun ShareComparisonPreview(
                 ) {
                     when (style) {
                         ShareComparisonStyle.SLIDER ->
-                            SliderPreviewContent(sessionDir, compW, compH, useBranding)
+                            SliderPreviewContent(sessionDir, compW, compH, useBranding, brandingVersion)
                         ShareComparisonStyle.SIDE_BY_SIDE ->
                             SideBySidePreviewContent(sessionDir)
                     }
@@ -183,9 +191,18 @@ fun ShareComparisonPreview(
 // ── Slider preview ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp, useBranding: Boolean = false) {
-    // Resolve branding file once; null = no branding → standard handle.
-    val brandingFile = remember(sessionDir, useBranding) {
+private fun SliderPreviewContent(
+    sessionDir: File,
+    compW: Dp,
+    compH: Dp,
+    useBranding: Boolean = false,
+    brandingVersion: Int = 0
+) {
+    val context = LocalContext.current
+    // Resolve branding file each time brandingVersion changes (file was overwritten).
+    // brandingVersion is included in the key so this block re-executes after every write,
+    // producing a fresh File reference that carries a new Coil memoryCacheKey below.
+    val brandingFile = remember(sessionDir, useBranding, brandingVersion) {
         if (useBranding) File(sessionDir, "branding-handle.png").takeIf { it.isFile } else null
     }
 
@@ -271,8 +288,14 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp, useBran
                 contentAlignment = Alignment.Center
             ) {
                 val logoSize = brandingHandleSize * 0.72f
+                val brandingRequest = remember(brandingFile, brandingVersion) {
+                    ImageRequest.Builder(context)
+                        .data(brandingFile)
+                        .memoryCacheKey("${brandingFile?.absolutePath}-$brandingVersion")
+                        .build()
+                }
                 AsyncImage(
-                    model = brandingFile,
+                    model = brandingRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.size(logoSize)

@@ -514,6 +514,139 @@ class ShareComparisonViewModelTest {
         assertTrue("useBranding must survive style switch back to Slider", viewModel.useBranding.value)
     }
 
+    // ── brandingVersion — In-Screen Coil Cache Buster ─────────────────────────
+    // Sichert ab, dass brandingVersion nach jedem erfolgreichen Schreibvorgang erhöht wird.
+    // Ohne diesen Zähler löst das Überschreiben von Logo A durch Logo B keine StateFlow-
+    // Emission aus (_hasBranding/_useBranding bleiben true), und Compose recomposiert nicht.
+    // Auch wenn Recomposition eintreten würde, liefert Coil den gecachten Bitmap für den
+    // unveränderten Dateipfad zurück. brandingVersion dient als memoryCacheKey-Suffix.
+
+    @Test
+    fun brandingVersion_initiallyZero() = runTest {
+        val vm = createViewModel()
+        assertEquals(0, vm.brandingVersion.value)
+    }
+
+    @Test
+    fun brandingVersion_increments_afterSuccessfulSymbolOverride() = runTest {
+        val vm = createViewModel()
+        val fakePng = ByteArray(32) { 0x01 }
+        vm.builtinSymbolRenderer = { _ -> fakePng }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
+        advanceUntilIdle()
+        val versionBefore = vm.brandingVersion.value
+
+        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.HEART)
+        advanceUntilIdle()
+
+        assertEquals("brandingVersion must increment after symbol write", versionBefore + 1, vm.brandingVersion.value)
+    }
+
+    @Test
+    fun brandingVersion_increments_afterSuccessfulPhotoOverride() = runTest {
+        val vm = createViewModel()
+        val fakePng = ByteArray(32) { 0x02 }
+        vm.imageDecoder = { _ -> mock() }
+        vm.brandingNormalizer = { _ -> fakePng }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
+        advanceUntilIdle()
+        val versionBefore = vm.brandingVersion.value
+
+        vm.onImageUriSelectedForBranding(fakeUri)
+        advanceUntilIdle()
+
+        assertEquals("brandingVersion must increment after photo write", versionBefore + 1, vm.brandingVersion.value)
+    }
+
+    @Test
+    fun brandingVersion_increments_afterSuccessfulUseDefault() = runTest {
+        val brandingDir = java.io.File(tempFolder.root, "branding").also { it.mkdirs() }
+        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
+        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
+        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
+        val vm = createViewModel(globalBrandingRepository = globalRepo)
+        vm.sessionBrandingCopier = { _, _, _ -> true }
+        advanceUntilIdle()
+        val versionBefore = vm.brandingVersion.value
+
+        vm.onUseDefaultLogo()
+        advanceUntilIdle()
+
+        assertEquals("brandingVersion must increment after use-default write", versionBefore + 1, vm.brandingVersion.value)
+    }
+
+    @Test
+    fun brandingVersion_increments_afterAutoCopyFromGlobal() = runTest {
+        // init already queues loadMetadata(); just override the copier and advance.
+        // (Calling vm.loadMetadata() explicitly would run it a second time and push the
+        //  version to 2, because brandingFileChecker still returns false after the first copy.)
+        val brandingDir = java.io.File(tempFolder.root, "branding").also { it.mkdirs() }
+        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
+        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
+        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
+        val vm = createViewModel(globalBrandingRepository = globalRepo)
+        vm.sessionBrandingCopier = { _, _, _ -> true }
+
+        advanceUntilIdle()
+
+        assertEquals("brandingVersion must be 1 after auto-copy on first open", 1, vm.brandingVersion.value)
+    }
+
+    @Test
+    fun brandingVersion_doesNotIncrement_onWriteFailure() = runTest {
+        val vm = createViewModel()
+        val fakePng = ByteArray(32) { 0x03 }
+        vm.builtinSymbolRenderer = { _ -> fakePng }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> false }
+        advanceUntilIdle()
+        val versionBefore = vm.brandingVersion.value
+
+        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.STAR)
+        advanceUntilIdle()
+
+        assertEquals("brandingVersion must NOT increment on write failure", versionBefore, vm.brandingVersion.value)
+    }
+
+    @Test
+    fun brandingVersion_doesNotIncrement_afterRemove() = runTest {
+        // Remove sets hasBranding=false which itself triggers recomposition;
+        // no version bump needed because the image is no longer shown.
+        val vm = createViewModel()
+        vm.brandingFileChecker = { true }
+        vm.sessionBrandingRemover = { _, _ -> true }
+        advanceUntilIdle()
+        val versionBefore = vm.brandingVersion.value
+
+        vm.onRemoveSessionBranding()
+        advanceUntilIdle()
+
+        assertEquals("brandingVersion must NOT increment on remove (hasBranding=false is the signal)",
+            versionBefore, vm.brandingVersion.value)
+    }
+
+    @Test
+    fun brandingVersion_multipleChanges_emitEachTime() = runTest {
+        // Fall 5: Mehrfache Änderungen hintereinander — jede muss die Version erhöhen.
+        val vm = createViewModel()
+        val fakePng = ByteArray(32) { 0x04 }
+        vm.builtinSymbolRenderer = { _ -> fakePng }
+        vm.imageDecoder = { _ -> mock() }
+        vm.brandingNormalizer = { _ -> fakePng }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
+        advanceUntilIdle()
+        val start = vm.brandingVersion.value
+
+        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.STAR)
+        advanceUntilIdle()
+        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.FIRE)
+        advanceUntilIdle()
+        vm.onImageUriSelectedForBranding(fakeUri)
+        advanceUntilIdle()
+
+        assertEquals("brandingVersion must increment once per successful write (3 writes = +3)",
+            start + 3, vm.brandingVersion.value)
+    }
+
     // ── sessionBrandingChanged — Library-Refresh-Signal ────────────────────────
     // Sichert ab, dass nach jeder erfolgreichen Branding-Operation das Signal emittiert
     // wird, damit CameraViewModel.refreshSavedSessions() ausgelöst werden kann.
