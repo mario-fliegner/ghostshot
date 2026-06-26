@@ -2,7 +2,7 @@
 
 ## Document Status
 
-**Status:** Final — implementation-ready.
+**Status:** Final — implementation-ready. Architecture Corrected Edition.
 
 This document is the **authoritative UX specification** for Session Branding V2 in SameView.
 
@@ -16,11 +16,29 @@ It supersedes all branding-related UX content in the following documents. It doe
 | `SETTINGS_UX_V1.md` | §11 |
 
 The following are **unchanged and remain authoritative:**
-- All storage architecture (V1 §1–§10, §14–§20)
-- Metadata schema v6
+- All storage architecture (V1 §1–§10, §14–§20), with the exception that session-level branding files are no longer created (§3.4 remains valid for existing sessions)
+- Metadata schema v6 (existing sessions remain valid; no new session branding files are written)
 - Backup integration
 - Rendering pipeline
 - Repository architecture
+
+---
+
+## Architecture Summary — Corrected Edition
+
+The original V2 design distributed branding management across three screens (Settings, Edit Session, Share Comparison). Real-world testing revealed this created confusion: users had to understand two separate ownership levels (global vs. session) before they could reliably brand a comparison export.
+
+**The corrected architecture has two ownership levels, not three:**
+
+| Surface | Owns |
+|---|---|
+| Settings | Global default branding |
+| Share Comparison | Session branding — reads, writes, and manages `branding-handle.png` |
+| Edit Session | **Nothing branding-related** |
+
+The persistence model is unchanged: session branding is stored in `branding-handle.png` inside the session folder. Sessions remain 100% self-contained and reproducible. Backups include the branding asset automatically via the existing metadata-driven file list.
+
+**What changes is UI ownership only:** branding management moves from Edit Session to Share Comparison. The global default branding serves as the starting point when a session has no branding yet. The user's choice — whether to keep the global default, select a different logo, or remove branding — is written to the session folder immediately, exactly as the V1 Edit Session behavior did.
 
 ---
 
@@ -37,11 +55,11 @@ All user-facing text uses "logo." The word "branding" does not appear in any str
 | "Choose image" | "Choose photo" |
 | "Choose symbol" | "Use a symbol" |
 | "Remove" / "Remove branding" | "Remove logo" |
-| "Copy from default branding" | "Use your default logo" |
+| "Copy from default branding" | *(removed — concept no longer exists)* |
 | "Change branding" | *(removed — replaced by symmetric actions)* |
 | "Use branding" | "Show logo" |
 | "No branding for this session." | "No logo for this comparison." |
-| "Add branding in Edit session." | "Add one in Edit session." |
+| "Add branding in Edit session." | *(removed — user adds directly in Share Comparison)* |
 | "Only applied in slider style." | *(removed — section is absent in side-by-side)* |
 
 ### String resource keys — new
@@ -49,30 +67,23 @@ All user-facing text uses "logo." The word "branding" does not appear in any str
 | Key | Value |
 |---|---|
 | `settings_logo_section_title` | "Your logo" |
-| `settings_logo_description` | "Shown in the slider handle when sharing comparison images. Copied to new sessions automatically." |
+| `settings_logo_description` | "Shown in the slider handle when sharing comparison images. Copied into new comparisons automatically." |
 | `settings_logo_none` | "No logo set" |
 | `settings_logo_current` | "Your current logo" |
 | `settings_logo_choose_photo` | "Choose photo" |
 | `settings_logo_use_symbol` | "Use a symbol" |
 | `settings_logo_remove` | "Remove logo" |
 | `settings_logo_load_error` | "Couldn't load logo" |
-| `edit_session_card_logo` | "Logo" |
-| `edit_session_logo_description` | "Appears in the slider handle when sharing this comparison." |
-| `edit_session_logo_none` | "No logo for this comparison." |
-| `edit_session_logo_type_photo` | "Photo" |
-| `edit_session_logo_type_symbol` | "Symbol: %s" |
-| `edit_session_logo_use_default` | "Use your default logo" |
-| `edit_session_logo_choose_photo` | "Choose photo" |
-| `edit_session_logo_use_symbol` | "Use a symbol" |
-| `edit_session_logo_remove` | "Remove logo" |
-| `edit_session_logo_error` | "Couldn't set logo" |
 | `share_comparison_logo_card_title` | "Logo on handle" |
 | `share_comparison_logo_none` | "No logo for this comparison." |
-| `share_comparison_logo_hint` | "Add one in Edit session." |
 | `share_comparison_logo_show` | "Show logo" |
+| `share_comparison_logo_choose_photo` | "Choose photo" |
+| `share_comparison_logo_use_symbol` | "Use a symbol" |
+| `share_comparison_logo_remove` | "Remove logo" |
+| `share_comparison_logo_error` | "Couldn't set logo" |
 | `branding_symbol_picker_title` | "Choose a symbol" |
 
-### Symbol display names (for type indicator in Edit Session)
+### Symbol display names
 
 | Symbol ID | Display name |
 |---|---|
@@ -85,9 +96,13 @@ All user-facing text uses "logo." The word "branding" does not appear in any str
 
 ### Strings deprecated by V2
 
-The following V1 keys must be removed after V2 is implemented:
+The following V1 keys must be removed after V2 is fully implemented:
 
 `settings_branding_section_title`, `settings_branding_description`, `settings_branding_choose_image`, `settings_branding_choose_symbol`, `settings_branding_remove`, `settings_branding_load_error`, `edit_session_card_branding`, `edit_session_branding_none`, `edit_session_branding_change`, `edit_session_branding_remove`, `edit_session_branding_copy_global`, `edit_session_branding_error`, `share_comparison_branding_label`, `share_comparison_branding_hint_edit_session`, `share_comparison_branding_hint_slider_only`.
+
+The following previously-added V2 keys are also removed under the corrected architecture:
+
+`edit_session_card_logo`, `edit_session_logo_description`, `edit_session_logo_none`, `edit_session_logo_type_photo`, `edit_session_logo_type_symbol`, `edit_session_logo_use_default`, `edit_session_logo_choose_photo`, `edit_session_logo_use_symbol`, `edit_session_logo_remove`, `edit_session_logo_error`, `share_comparison_logo_hint`.
 
 All corresponding `values-de` keys are also deprecated.
 
@@ -97,7 +112,7 @@ All corresponding `values-de` keys are also deprecated.
 
 ### Responsibility
 
-Settings manages the **global default logo only**. The global logo is automatically copied into new sessions at creation time. It has no effect on sessions that already exist.
+Settings manages the **global default logo** only. The global logo is automatically used as the starting export logo whenever the user opens Share Comparison. It has no effect on exports that are already in progress or have been completed.
 
 ### Section title
 
@@ -112,8 +127,8 @@ Your logo
 │  Your logo                                       │
 │                                                  │
 │  Shown in the slider handle when sharing         │
-│  comparison images. Copied to new sessions       │
-│  automatically.                                  │
+│  comparison images. Copied into new              │
+│  comparisons automatically.                      │
 │                                                  │
 │  ┌──────────┐                                    │
 │  │  [icon]  │  No logo set                       │
@@ -131,8 +146,8 @@ Your logo
 │  Your logo                                       │
 │                                                  │
 │  Shown in the slider handle when sharing         │
-│  comparison images. Copied to new sessions       │
-│  automatically.                                  │
+│  comparison images. Copied into new              │
+│  comparisons automatically.                      │
 │                                                  │
 │  ┌──────────┐                                    │
 │  │  [logo]  │  Your current logo                 │
@@ -149,7 +164,7 @@ Your logo
 
 **Description text**
 Always visible in both states. Positioned immediately below the card title. Style: `bodySmall` / `SameViewSettingsSecondaryText`. Padding: 4 dp horizontal.
-String: `settings_logo_description`.
+String: `settings_logo_description`. Note: the description wording reflects that the global default is copied into a session when Share Comparison first opens for a session without branding — the same self-containment model as V1.
 
 **Placeholder circle (empty state)**
 - Size: 64 dp
@@ -169,35 +184,22 @@ Both circles are accompanied by a short label to their right:
 - Populated: `settings_logo_current` — "Your current logo"
 - Style: `bodySmall` / `SameViewSettingsSecondaryText`
 
-**"Choose photo" button**
-- `TextButton`
+**"Choose photo" and "Use a symbol" buttons**
+- `TextButton`, side by side in a `Row` with equal `weight(1f)`
 - Always visible, regardless of whether a logo is currently set
-- When no logo: adds a new logo
-- When logo exists: replaces it
-- On tap: opens Photo Picker. On successful selection: logo normalized and saved; placeholder transitions to preview circle immediately
-- String: `settings_logo_choose_photo`
-
-**"Use a symbol" button**
-- `TextButton`
-- Always visible, regardless of whether a logo is currently set
-- When no logo: adds a new logo
-- When logo exists: replaces it
-- On tap: opens `BrandingSymbolPickerSheet`. On selection: logo saved; placeholder transitions to preview circle immediately
-- String: `settings_logo_use_symbol`
-
-Both buttons displayed side by side in a `Row` with equal `weight(1f)`.
+- When no logo: adds a new logo; When logo exists: replaces it
+- String keys: `settings_logo_choose_photo`, `settings_logo_use_symbol`
 
 **"Remove logo" button**
 - `TextButton`, full width
 - Visible **only** when a logo is currently set
-- On tap: logo deleted; preview circle transitions to placeholder; "Remove logo" button disappears
+- On tap: logo deleted; preview circle transitions to placeholder
 - No confirmation dialog
 - String: `settings_logo_remove`
 
 ### Interaction rules
 
 - All changes are immediate writes. No Save button, no confirmation.
-- "Choose photo" and "Use a symbol" function identically in empty and populated states — they add or replace.
 - State transitions are immediate: the circle updates the moment the selection completes.
 - On normalization failure: show snackbar `settings_logo_load_error`. No state change.
 
@@ -205,142 +207,24 @@ Both buttons displayed side by side in a `Row` with equal `weight(1f)`.
 
 ## 3. Edit Session Screen UX
 
-### Responsibility
+### Logo responsibility
 
-Edit Session manages the **session-specific logo** for one comparison. Changes affect only this session. They do not affect the global default and do not affect any other session.
+**Edit Session has no logo management responsibility in this architecture.**
 
-### Card position
+The Logo card has been removed from Edit Session. Edit Session manages only:
+- Session title and description
+- Reference photo date
+- Location fields
 
-Last card in the form. After the Location card.
+The card order is: Session → Reference photo → Current photo → Location.
 
-Order: Session → Reference photo → Current photo → Location → **Logo**
+No branding UI, no branding workflow, no branding-related actions exist in Edit Session.
 
-This position is unchanged from V1.
+### Rationale for removal
 
-### Card title
+Under the original V2 design, session-specific branding required users to understand a two-level ownership model (global default vs. session override). This created confusion in testing: users were not sure whether changing branding in Edit Session would affect other sessions, and they could not predict what would happen when they opened Share Comparison after setting branding in Edit Session.
 
-```
-Logo
-```
-
-String: `edit_session_card_logo`.
-
-### Supporting description
-
-Always visible in both states, immediately below the card title:
-
-```
-Appears in the slider handle when sharing this comparison.
-```
-
-Style: `bodySmall` / `SameViewSettingsSecondaryText`. String: `edit_session_logo_description`.
-
-### Layout — Empty state, no global logo
-
-```
-┌──────────────────────────────────────────────────┐
-│  Logo                                            │
-│                                                  │
-│  Appears in the slider handle when sharing       │
-│  this comparison.                                │
-│                                                  │
-│  ┌──────────┐                                    │
-│  │  [icon]  │  No logo for this comparison.      │
-│  └──────────┘                                    │
-│                                                  │
-│  [ Choose photo ]  [ Use a symbol ]              │
-│                                                  │
-└──────────────────────────────────────────────────┘
-```
-
-### Layout — Empty state, global logo exists
-
-```
-┌──────────────────────────────────────────────────┐
-│  Logo                                            │
-│                                                  │
-│  Appears in the slider handle when sharing       │
-│  this comparison.                                │
-│                                                  │
-│  ┌──────────┐                                    │
-│  │  [icon]  │  No logo for this comparison.      │
-│  └──────────┘                                    │
-│                                                  │
-│  [ Use your default logo ]                       │
-│                                                  │
-│  [ Choose photo ]  [ Use a symbol ]              │
-│                                                  │
-└──────────────────────────────────────────────────┘
-```
-
-### Layout — Populated state
-
-```
-┌──────────────────────────────────────────────────┐
-│  Logo                                            │
-│                                                  │
-│  Appears in the slider handle when sharing       │
-│  this comparison.                                │
-│                                                  │
-│  ┌──────────┐                                    │
-│  │  [logo]  │  Photo                             │
-│  └──────────┘  (or: Symbol: Heart)               │
-│                                                  │
-│  [ Choose photo ]  [ Use a symbol ]              │
-│                                                  │
-│  [ Remove logo ]                                 │
-│                                                  │
-└──────────────────────────────────────────────────┘
-```
-
-### Element specifications
-
-**Placeholder circle**
-Identical to Settings placeholder circle: 64 dp, 2 dp `SameViewAccent` border, `#F5F7FA` fill, 24 dp image-add icon in `SameViewSettingsSecondaryText`.
-
-**Preview circle**
-`BrandingPreviewCircle` at 64 dp. Same as Settings.
-
-**State label (beside circle)**
-- Empty: `edit_session_logo_none` — "No logo for this comparison."
-- Populated (photo logo): `edit_session_logo_type_photo` — "Photo"
-- Populated (symbol logo): `edit_session_logo_type_symbol` — "Symbol: [Name]" where [Name] is the symbol's display name (Heart, Star, Camera, Home, Pin, Fire), derived from `branding.builtinId` in session metadata
-- Style: `bodySmall` / `SameViewSettingsSecondaryText`
-
-**"Use your default logo" button**
-- `TextButton`, full width
-- Visibility condition: `!hasBranding && hasGlobalBranding`
-- Positioned between the circle row and the "Choose photo" / "Use a symbol" row
-- On tap: calls `copyGlobalBrandingToSession()`. Logo applied immediately; placeholder transitions to preview circle; type indicator updates; "Use your default logo" disappears; "Remove logo" appears
-- String: `edit_session_logo_use_default`
-
-**"Choose photo" and "Use a symbol" buttons**
-- `TextButton`, side by side, equal weight
-- **Always visible in both empty and populated states**
-- In populated state: act as direct replacement — the current logo is replaced without a remove step
-- "Choose photo": opens Photo Picker. String: `edit_session_logo_choose_photo`
-- "Use a symbol": opens `BrandingSymbolPickerSheet`. String: `edit_session_logo_use_symbol`
-
-**"Remove logo" button**
-- `TextButton`, full width
-- Visible **only** when a logo is set
-- On tap: logo deleted immediately; card transitions to empty state
-- No confirmation dialog
-- String: `edit_session_logo_remove`
-
-### Critical behavioral rules
-
-- Logo changes write **immediately**. They are outside the form's Save/Discard flow.
-- `isDirty` is **not** modified by logo changes.
-- The Save button state is **not** modified by logo changes.
-- Discarding form field changes does **not** revert logo changes.
-- This behavior matches the Favorites star (§20, `SESSION_METADATA_EDITOR_V1.md`).
-
-### The symmetric action fix
-
-V1 populated state: "Change branding" (image only) + "Remove branding". Switching from photo to symbol required: Remove → then Use a symbol.
-
-V2 populated state: "Choose photo" + "Use a symbol" both visible. Direct replacement. No intermediate removal required. This applies to all four switching directions: photo→photo, photo→symbol, symbol→photo, symbol→symbol.
+The corrected architecture eliminates this ambiguity. Logo management sits in exactly two places: Settings (global default) and Share Comparison (session logo).
 
 ---
 
@@ -348,7 +232,29 @@ V2 populated state: "Choose photo" + "Use a symbol" both visible. Direct replace
 
 ### Responsibility
 
-Share Comparison controls **export behavior only**: whether the session logo is applied to the current export instance. It does not add, change, or remove logos. Logo management belongs to Settings and Edit Session.
+Share Comparison controls both **export behavior** and **session branding** for the current session. It reads and writes the session's `branding-handle.png` directly — the same file the export renderer uses. It does not modify the global default branding in Settings.
+
+### Session branding and reproducibility
+
+Session branding is stored in `branding-handle.png` inside the session folder. This is the same V1 persistence model. Sessions are 100% self-contained: the branding image is included in backups, survives device migration, and is independent of the current state of global Settings.
+
+Changing or removing the global default in Settings after a session has been branded has no effect on that session.
+
+### Logo initialization on screen open
+
+When Share Comparison opens for a session:
+
+1. **Session already has branding** (`branding-handle.png` exists): the session branding is loaded and shown. `hasBranding = true`. The global default has no effect.
+
+2. **Session has no branding AND global branding exists**: the global branding is copied into the session folder as `branding-handle.png` immediately. After the copy, the session has branding. `hasBranding = true`. The user sees the logo in the card and may keep it, replace it, or remove it.
+
+3. **Session has no branding AND no global branding**: the card shows the empty state. `hasBranding = false`. The user may add a logo using the action buttons.
+
+The global branding is **only consulted at initialization** when the session has no branding. It is never consulted again during the same or future Share Comparison sessions for that session. The global default is never modified by any action in Share Comparison.
+
+### Logo write behavior
+
+All logo actions in Share Comparison write to the session folder immediately — there is no Save button and no confirmation. This is the same immediate-write pattern the V1 branding feature used in Edit Session, relocated to Share Comparison.
 
 ### Position in screen
 
@@ -356,7 +262,7 @@ A dedicated "Logo on handle" card, positioned **between the Style card and the I
 
 Full card order:
 1. Style card (Slider / Side-by-side + preview)
-2. **Logo on handle** ← V2 addition (Slider only)
+2. **Logo on handle** ← Slider only
 3. Information card (Title / Date / Location)
 4. Quality card (Standard / Original)
 5. Share button
@@ -367,7 +273,7 @@ The Logo on handle card is rendered **only when the Slider style is selected**.
 
 When Side-by-side is selected: the card is absent. No placeholder. No disabled state. No message. Absent.
 
-When the user switches from Slider to Side-by-side, the card disappears. When they switch back to Slider, the card reappears with its previous toggle state.
+When the user switches from Slider to Side-by-side, the card disappears. When they switch back to Slider, the card reappears with its previous state.
 
 ### Card title
 
@@ -377,7 +283,7 @@ Logo on handle
 
 String: `share_comparison_logo_card_title`.
 
-### Layout — Empty state (session has no logo)
+### Layout — Empty state (session has no branding, no global branding exists)
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -385,19 +291,20 @@ String: `share_comparison_logo_card_title`.
 │                                                  │
 │  ┌──────────┐                                    │
 │  │  [icon]  │  No logo for this comparison.      │
-│  └──────────┘  Add one in Edit session.          │
+│  └──────────┘                                    │
+│                                                  │
+│  [ Choose photo ]  [ Use a symbol ]              │
 │                                                  │
 └──────────────────────────────────────────────────┘
 ```
 
-**No action buttons in the empty state.** The card is informational. Logo management is not Share Comparison's responsibility.
+**No toggle in the empty state.** There is nothing to show or hide.
 
-**Placeholder circle:** 64 dp, same geometry as Settings and Edit Session.
+**Placeholder circle:** 64 dp, same geometry as Settings.
 
-**State text:**
-- Line 1: `share_comparison_logo_none` — "No logo for this comparison."
-- Line 2: `share_comparison_logo_hint` — "Add one in Edit session."
-- Both lines: `bodySmall` / `SameViewSettingsSecondaryText`
+**State text:** `share_comparison_logo_none` — "No logo for this comparison."
+
+**Action buttons:** "Choose photo" and "Use a symbol" are visible in the empty state. Both write to the session folder immediately.
 
 ### Layout — Populated state, toggle ON
 
@@ -408,6 +315,10 @@ String: `share_comparison_logo_card_title`.
 │  ┌──────────┐  [switch ●]  Show logo            │
 │  │  [logo]  │                                    │
 │  └──────────┘                                    │
+│                                                  │
+│  [ Choose photo ]  [ Use a symbol ]              │
+│                                                  │
+│  [ Remove logo ]                                 │
 │                                                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -423,6 +334,10 @@ String: `share_comparison_logo_card_title`.
 │  │  dimmed] │                                    │
 │  └──────────┘                                    │
 │                                                  │
+│  [ Choose photo ]  [ Use a symbol ]              │
+│                                                  │
+│  [ Remove logo ]                                 │
+│                                                  │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -430,7 +345,7 @@ String: `share_comparison_logo_card_title`.
 
 **Preview circle**
 - `BrandingPreviewCircle` at 64 dp when toggle is ON
-- When toggle is OFF: same composable, `alpha = 0.4f`. Communicates that the logo exists but is not applied to this export.
+- When toggle is OFF: same composable, `alpha = 0.4f`
 
 **"Show logo" toggle**
 - `SettingsSwitchRow`, label: `share_comparison_logo_show` — "Show logo"
@@ -438,16 +353,39 @@ String: `share_comparison_logo_card_title`.
 - On change: updates `useBranding` in `ShareComparisonViewModel`; live preview in Style card updates immediately
 - String: `share_comparison_logo_show`
 
-**No change or remove actions.** The only interactive element in the populated Logo card is the toggle.
+**"Choose photo" button**
+- `TextButton`, always visible in both empty and populated states
+- In populated state: replaces the session branding without requiring a remove step
+- On tap: opens Photo Picker. On successful selection: image normalized and written atomically to `<sessionDir>/branding-handle.png`; circle updates immediately
+- String: `share_comparison_logo_choose_photo`
+- **Never modifies global branding.**
+
+**"Use a symbol" button**
+- `TextButton`, always visible in both empty and populated states
+- On tap: opens `BrandingSymbolPickerSheet`. On selection: VectorDrawable rendered and written atomically to `<sessionDir>/branding-handle.png`; circle updates immediately
+- String: `share_comparison_logo_use_symbol`
+- **Never modifies global branding.**
+
+Both buttons displayed side by side in a `Row` with equal `weight(1f)`.
+
+**"Remove logo" button**
+- `TextButton`, full width
+- Visible **only** when session branding is set (`hasBranding == true`)
+- On tap: `branding-handle.png` deleted from session folder; metadata updated; card transitions to empty state; toggle disappears
+- No confirmation dialog
+- String: `share_comparison_logo_remove`
+
+**Error handling**
+- On normalization or write failure: show snackbar `share_comparison_logo_error`. No state change. Existing branding (if any) is preserved.
 
 ### Toggle behavior
 
-- **Default ON** when session has a logo (`sessionBrandingFile != null`)
-- **Default OFF** when session has no logo
-- **Not persisted.** Resets to default each time the screen opens
-- When ON and style is Slider: `SliderRenderStrategy` renders the branded handle
+- **Default ON** when session branding is set (`hasBranding == true`)
+- **Default OFF** when session has no branding
+- **Not persisted.** Resets to the default when the screen re-opens
+- When ON and style is Slider: `SliderRenderStrategy` renders the branded handle using the session `branding-handle.png`
 - When OFF: `SliderRenderStrategy` renders the standard SameView handle
-- State is preserved in `ShareComparisonViewModel` memory when the user switches between Slider and Side-by-side. On return to Slider, the toggle shows the same state it held before the style switch.
+- State is preserved in `ShareComparisonViewModel` memory when the user switches between Slider and Side-by-side within the same screen session
 
 ---
 
@@ -459,7 +397,7 @@ String: `share_comparison_logo_card_title`.
 
 ### Type
 
-`ModalBottomSheet` (Material 3). Replaces `BuiltinSymbolPickerDialog` (AlertDialog).
+`ModalBottomSheet` (Material 3).
 
 ### Layout
 
@@ -492,28 +430,28 @@ Each cell renders the symbol exactly as it will appear in the exported handle:
 - **Preview circle:** 56 dp
 - **Ring:** 2 dp, `SameViewAccent`, two arcs with 12° gaps at top and bottom (matches `BrandingHandleRenderer` geometry)
 - **Fill:** `#F5F7FA`
-- **Symbol icon:** centered, scaled to 72% of circle diameter, `SameViewSettingsLabelText` color
+- **Symbol icon:** centered, scaled to 72% of circle diameter, rendered at the VectorDrawable's native fill color (no `colorFilter` override). The VectorDrawable fill color (`#17202F`) provides correct contrast against `#F5F7FA` and matches the actual export appearance (spec rule P-03).
 - **Name label:** `labelSmall` / `SameViewSettingsLabelText`, sentence case, below the circle
 
 Grid: `LazyVerticalGrid`, `GridCells.Fixed(3)`, `horizontalArrangement = Arrangement.spacedBy(8.dp)`, `verticalArrangement = Arrangement.spacedBy(8.dp)`.
 
 ### Interaction
 
-- Tapping a cell: selection is made → sheet dismisses → logo written to destination → caller UI updates
-- Tapping "Cancel": sheet dismisses → no selection → no change to current logo state
-- Drag down to dismiss: equivalent to Cancel — no selection, no change
+- Tapping a cell: selection is made → sheet dismisses → session branding written to `branding-handle.png` → caller UI updates
+- Tapping "Cancel": sheet dismisses → no selection → no change to current logo
+- Drag down to dismiss: equivalent to Cancel
 
 ### Callers
 
-`BrandingSymbolPickerSheet` is called identically from:
+`BrandingSymbolPickerSheet` is called from:
 - `SettingsScreen` (global logo management)
-- `EditSessionScreen` (session logo management)
+- `ShareComparisonScreen` (session logo management)
 
-Callback signature: `onSymbolSelected: (BuiltinBrandingSymbol) -> Unit`
+Edit Session is **not** a caller. The callback signature is unchanged: `onSymbolSelected: (BuiltinBrandingSymbol) -> Unit`.
 
-### Symbols fixed in V2
+### Symbol color correctness (implementation note)
 
-Six symbols only: heart, star, camera, home, pin, fire. No color customization. No additional symbols. The six custom VectorDrawable assets from V1 are unchanged.
+The `colorFilter = ColorFilter.tint(SameViewSettingsLabelText)` previously applied in the picker was incorrect. `SameViewSettingsLabelText` is `Color(0xFFFFFFFF)` (pure white) — designed for dark background text, not for icons on the light `#F5F7FA` circle. This override made symbols nearly invisible (contrast ~1.07:1) while the actual export rendered the VectorDrawable's native `#17202F` (contrast ~14.6:1), violating rule P-03. The `colorFilter` must not be applied. Symbol icons render at their native VectorDrawable fill color.
 
 ---
 
@@ -529,105 +467,91 @@ Six symbols only: heart, star, camera, home, pin, fire. No color customization. 
 | 4 | "Choose photo" + "Use a symbol" | Equal-weight primary actions |
 | 5 | "Remove logo" | Secondary destructive action, separated below |
 
-### Edit Session — Logo Card
+### Edit Session
 
-| Tier | Element | Rationale |
-|---|---|---|
-| 1 | Circle (placeholder or preview) | User has context from prior screens; visual first |
-| 2 | Type label beside circle | Confirms type of current logo |
-| 3 | "Use your default logo" (conditional) | Fastest path when global default exists |
-| 4 | "Choose photo" + "Use a symbol" | Equal-weight add/replace actions |
-| 5 | "Remove logo" | Secondary destructive action |
+No branding elements. Not applicable.
 
 ### Share Comparison — Logo on Handle
 
 | Tier | Element | Rationale |
 |---|---|---|
 | 1 | Circle (placeholder or dimmed preview) | Immediate visual state |
-| 2 | "Show logo" toggle (populated) | The only interactive element in this card |
-| — | State message + hint (empty) | Informational only |
-
-### Consistency references
-
-| Feature | Primary control | Pattern |
-|---|---|---|
-| Video branding endcard | `SettingsSwitchRow` in CreateVideoScreen | Export option in export screen |
-| Caption toggles | `SettingsSwitchRow` in ShareComparisonScreen | Export option in export screen |
-| Favorites | Star icon, immediate write | Co-located with session, visual-first |
-| GPS Live direction arrow | Disabled `SettingsSwitchRow` when parent OFF | Dependent control correctly disabled |
-| Grid type | `SameViewSegmentControl` in Settings | Persistent camera preference in Settings |
-| **Logo** | **Circle + `TextButton` actions** | **Visual-first, export option in export screen** |
-
-The logo circle serves the same role the Favorites star serves: it is a recognizable visual element that immediately communicates state before the user reads any label.
+| 2 | "Show logo" toggle (populated) | Primary export-behavior control for this render |
+| 3 | "Choose photo" + "Use a symbol" | Add or replace session branding |
+| 4 | "Remove logo" (populated) | Remove session branding entirely |
+| — | Placeholder + state text (empty) | Informational only until action taken |
 
 ---
 
 ## 7. User Journeys
 
-### Journey A — New user creates a default logo
+### Journey A — New user sets a global logo and shares a comparison
 
-1. User opens Settings via the CameraScreen overflow menu.
-2. User scrolls to the "Your logo" section.
-3. User sees the placeholder circle and reads: "Shown in the slider handle when sharing comparison images. Copied to new sessions automatically."
-4. User understands the feature from the description alone — no prior knowledge required.
-5. User taps "Use a symbol."
-6. `BrandingSymbolPickerSheet` opens. User sees six symbols rendered as handle previews — they see exactly how each will look in the export.
-7. User selects Star.
-8. Sheet dismisses. Preview circle appears in the Settings card showing the Star symbol.
-9. User closes Settings and captures a new comparison.
-10. User opens Share Comparison for that session.
-11. "Logo on handle" card is visible (Slider is selected). Preview circle shows the Star. Toggle is ON.
-12. Live preview in the Style card shows the branded handle.
-13. User taps Share. Export contains the Star symbol in the handle.
+1. User opens Settings.
+2. User scrolls to the "Your logo" section. Reads: "Shown in the slider handle when sharing comparison images. Copied into new comparisons automatically."
+3. User taps "Use a symbol." `BrandingSymbolPickerSheet` opens. User sees six symbols as handle previews — they see exactly how each will look.
+4. User selects Star. Sheet dismisses. Preview circle appears showing Star.
+5. User closes Settings and opens Share Comparison for a session that has no existing branding.
+6. Share Comparison copies the global Star symbol into the session folder as `branding-handle.png`.
+7. "Logo on handle" card is visible (Slider selected). Preview circle shows the Star symbol. Toggle is ON.
+8. Live preview in the Style card shows the branded handle.
+9. User taps Share. Export contains the Star symbol in the handle.
+10. If the user later changes or removes the global logo in Settings, this session keeps its Star — the session is self-contained.
 
 ---
 
-### Journey B — User overrides logo for one session
+### Journey B — User overrides the session logo from Share Comparison
 
-1. User has a default Star symbol set in Settings.
-2. User opens a specific session and accesses Edit Session.
-3. Logo card shows the Star symbol preview and type label "Symbol: Star."
-4. User wants to use their company photo logo for this specific session.
-5. User taps "Choose photo."
-6. Photo Picker opens. User selects their company logo.
-7. Photo Picker closes. Preview circle updates immediately — company logo visible. Type label changes to "Photo."
-8. User taps Save for the form fields. Logo change was already written — unaffected by the Save operation.
-9. When this session is shared, it uses the company photo logo.
-10. All other sessions continue to use the Star symbol (their default).
-11. Settings still shows the Star — unchanged.
-
----
-
-### Journey C — User shares a branded comparison
-
-1. User opens Share Comparison for a session that has a logo.
-2. Slider is selected by default. The "Logo on handle" card is visible below the Style card.
-3. Card shows the preview circle and the "Show logo" toggle in the ON state.
-4. The live preview in the Style card shows the branded handle at the center of the comparison.
-5. User switches to Side-by-side to check. The "Logo on handle" card disappears entirely. Live preview shows two plain images. No toggle. No message.
-6. User switches back to Slider. The "Logo on handle" card reappears with the toggle ON, exactly as before.
-7. User taps Share. The export is created with the logo in the handle.
+1. User has a global Star symbol set in Settings.
+2. User opens Share Comparison for a specific session that has no existing branding.
+3. Share Comparison copies the global Star into the session as the starting logo.
+4. "Logo on handle" card shows Star symbol. Toggle is ON.
+5. User wants to use their company photo for this session.
+6. User taps "Choose photo" in the Logo card.
+7. Photo Picker opens. User selects their company logo.
+8. Photo Picker closes. Company logo is normalized and written to `branding-handle.png` in the session folder immediately. Preview circle updates.
+9. User taps Share. This export uses the company photo logo.
+10. The next time Share Comparison is opened for this session, the company photo is already in the session — it is shown as the current logo. The override is persisted.
+11. Settings still shows the Star symbol. Unchanged. Other sessions are unaffected.
 
 ---
 
-### Journey D — User removes the logo from a session
+### Journey C — User adds a logo directly in Share Comparison (no global logo set)
 
-1. User opens Edit Session for a session that has a logo.
-2. Logo card shows preview circle, type label "Photo."
-3. User decides this session should not have a logo.
-4. User taps "Remove logo."
-5. Logo is deleted immediately. Card transitions to empty state: placeholder circle, "No logo for this comparison."
-6. If global branding exists, "Use your default logo" now appears.
-7. Other sessions are unchanged. Settings global logo is unchanged.
-8. User opens Share Comparison for this session.
-9. "Logo on handle" card shows empty state: placeholder circle, "No logo for this comparison. Add one in Edit session."
-10. "Show logo" toggle does not appear — there is no logo to toggle.
+1. User has no global logo set in Settings.
+2. User opens Share Comparison for a session.
+3. "Logo on handle" card shows empty state: placeholder circle, "No logo for this comparison.", "Choose photo" and "Use a symbol" buttons. No toggle.
+4. User taps "Use a symbol." `BrandingSymbolPickerSheet` opens.
+5. User selects Camera. Symbol is rendered and written to the session's `branding-handle.png` immediately.
+6. Card transitions to populated state: Camera preview circle, "Show logo" toggle (ON).
+7. User taps Share. Export contains the Camera symbol in the handle.
+8. Session now has a Camera logo stored. Future exports for this session start with Camera as the current logo.
+9. Global Settings still shows "No logo set." Unchanged.
+
+---
+
+### Journey D — User removes session branding and shares without a logo
+
+1. User opens Share Comparison for a session that already has branding (e.g., a Star symbol from a previous open).
+2. "Logo on handle" card shows the Star. Toggle is ON.
+3. User taps "Remove logo." `branding-handle.png` is deleted from the session folder immediately.
+4. Card transitions to empty state: placeholder circle, "No logo for this comparison." Action buttons appear.
+5. User taps Share. Export is created without any logo — standard SameView handle is rendered.
+6. Global Settings is unchanged. The global Star symbol is not affected.
+7. Next time Share Comparison is opened for this session, it starts in empty state (no session branding). If a global logo exists, it is re-copied as the new starting default.
+
+---
+
+### Journey E — User shares a Side-by-side export
+
+1. User opens Share Comparison. Logo card is visible under Slider.
+2. User switches to Side-by-side. The Logo card disappears entirely. No toggle. No placeholder. No message. The live preview shows two plain images.
+3. User taps Share. Export is created without any logo — branding never applies to Side-by-side.
+4. User switches back to Slider. Logo card reappears with the same state as before the switch.
 
 ---
 
 ## 8. Responsibility Boundaries
-
-These boundaries define which surface owns which action. They must not overlap.
 
 ### Settings
 
@@ -639,45 +563,37 @@ These boundaries define which surface owns which action. They must not overlap.
 - Remove global logo (Remove logo)
 
 **Does not permit:**
-- Any action affecting an existing session's logo
-- Any export behavior control
+- Any action affecting any export configuration
+- Any action on any specific session
 
-**Effect timing:** The global logo is copied into sessions at **creation time only**. Changes to Settings have no effect on sessions that already exist.
+**Effect timing:** The global logo is consulted at Share Comparison screen open time only when the session has no branding. It is copied into the session at that point. Changes to Settings after the copy have no effect on that session.
 
 ---
 
 ### Edit Session
 
-**Owns:** The logo assigned to one specific session.
+**Owns:** Session title, reference date, location.
 
-**Permitted actions:**
-- Add session logo (Choose photo / Use a symbol)
-- Replace session logo (Choose photo / Use a symbol — symmetric, no intermediate removal)
-- Apply global default to this session (Use your default logo)
-- Remove session logo (Remove logo)
-
-**Does not permit:**
-- Any action affecting the global default in Settings
-- Any action affecting any other session
-- Any export behavior control
-
-**Effect timing:** Immediate write. Outside the form's Save/Discard flow.
+**No branding actions.** Branding is not in scope for Edit Session.
 
 ---
 
 ### Share Comparison
 
-**Owns:** Whether the session logo is applied to the current export instance.
+**Owns:** Session branding (`branding-handle.png` in the session folder); whether the logo is applied to the current export.
 
 **Permitted actions:**
-- Toggle logo on/off for the current export (Show logo toggle)
+- Add session branding (Choose photo / Use a symbol)
+- Replace session branding (Choose photo / Use a symbol — symmetric, no intermediate removal)
+- Remove session branding (Remove logo)
+- Copy global default into session as starting logo (automatic, on screen open when session has no branding)
+- Toggle logo on/off for the current export render (Show logo toggle)
 
 **Does not permit:**
-- Adding, replacing, or removing logos
-- Modifying the global default
-- Any action affecting session metadata
+- Modifying the global default in Settings
+- Any action affecting other sessions
 
-**Effect timing:** The toggle state is not persisted. Defaults reset when the screen opens.
+**Effect timing:** Logo writes (`branding-handle.png`) are immediate. The toggle state is not persisted (resets to default on screen re-open).
 
 ---
 
@@ -685,13 +601,14 @@ These boundaries define which surface owns which action. They must not overlap.
 
 | Action | Settings | Edit Session | Share Comparison |
 |---|---|---|---|
-| Add / replace logo | ✓ | ✓ | ✗ |
-| Remove logo | ✓ | ✓ | ✗ |
-| Apply default to session | ✗ | ✓ | ✗ |
+| Add / replace session branding | ✗ | ✗ | ✓ |
+| Remove session branding | ✗ | ✗ | ✓ |
 | Set global default | ✓ | ✗ | ✗ |
+| Copy global → session (auto-init) | ✗ | ✗ | ✓ |
 | Control export toggle | ✗ | ✗ | ✓ |
+| Persist branding to session file | ✗ | ✗ | ✓ |
 | Affect other sessions | ✗ | ✗ | ✗ |
-| Affect existing sessions | ✗ | ✗ | ✗ |
+| Modify global branding file | ✓ | ✗ | ✗ |
 
 ---
 
@@ -701,46 +618,53 @@ These boundaries define which surface owns which action. They must not overlap.
 
 **V-01.** The Logo on handle card in Share Comparison is rendered if and only if the current style is `ShareComparisonStyle.SLIDER`. It is absent for `SIDE_BY_SIDE`. No disabled state, no warning, no placeholder.
 
-**V-02.** "Remove logo" in Settings is visible if and only if a global logo is currently set (`hasBranding == true`).
+**V-02.** "Remove logo" in Settings is visible if and only if a global logo is currently set.
 
-**V-03.** "Remove logo" in Edit Session is visible if and only if the session has a logo (`hasBranding == true`).
+**V-03.** "Remove logo" in Share Comparison is visible if and only if session branding is currently set (`hasBranding == true`).
 
-**V-04.** "Use your default logo" in Edit Session is visible if and only if the session has no logo (`hasBranding == false`) AND the global logo exists (`hasGlobalBranding == true`).
+**V-04.** "Use your default logo" does not exist anywhere in the UI. The concept has been removed.
 
-**V-05.** "Choose photo" and "Use a symbol" are visible at all times in both Settings and Edit Session, regardless of whether a logo is currently set.
+**V-05.** "Choose photo" and "Use a symbol" are visible at all times in both Settings and Share Comparison, regardless of whether a logo is currently set.
 
-**V-06.** The "Show logo" toggle in Share Comparison is visible if and only if `hasBranding == true` (session has a logo). It does not appear in the empty state.
+**V-06.** The "Show logo" toggle in Share Comparison is visible if and only if `hasBranding == true`. It does not appear in the empty state.
+
+**V-07.** Edit Session has no branding-related UI elements of any kind.
 
 ### State rules
 
-**S-01.** The preview circle (`BrandingPreviewCircle`) is shown when a logo is set. The placeholder circle is shown when no logo is set. There is no state where neither circle is shown.
+**S-01.** The preview circle (`BrandingPreviewCircle`) is shown when session branding is set (`branding-handle.png` exists). The placeholder circle is shown when no session branding is set. There is no state where neither circle is shown.
 
 **S-02.** When the "Show logo" toggle is ON, the preview circle in Share Comparison renders at full opacity. When OFF, it renders at 40% opacity (`alpha = 0.4f`).
 
-**S-03.** The `useBranding` state in `ShareComparisonViewModel` defaults to `true` when `sessionBrandingFile != null`, `false` when `sessionBrandingFile == null`.
+**S-03.** The `useBranding` state in `ShareComparisonViewModel` defaults to `true` when session branding is set (`hasBranding == true`), `false` when it is not.
 
-**S-04.** The `useBranding` state is preserved in `ShareComparisonViewModel` memory when the user switches between Slider and Side-by-side styles within the same Share Comparison session. On returning to Slider, the toggle shows the same state it held before the style switch.
+**S-04.** The `useBranding` state is preserved in `ShareComparisonViewModel` memory when the user switches between Slider and Side-by-side styles within the same Share Comparison session. It is not persisted across screen re-opens.
+
+**S-05.** When Share Comparison opens for a session with no branding and a global default exists, the global branding is copied into the session folder as `branding-handle.png` before the screen becomes interactive. After the copy, `hasBranding == true`. The session is self-contained from that point forward.
 
 ### Write rules
 
 **W-01.** All logo writes in Settings are immediate. No Save button, no confirmation.
 
-**W-02.** All logo writes in Edit Session are immediate. They are outside the form's Save/Discard flow. `isDirty` is not affected.
+**W-02.** All branding writes in Share Comparison are immediate and write to `filesDir/sessions/<id>/branding-handle.png`. No writes ever occur to `filesDir/branding/handle.png` (the global default). The toggle state (`useBranding`) is the only Share Comparison state that is not persisted to disk.
 
-**W-03.** "Choose photo" and "Use a symbol" in Settings and Edit Session act as add or replace operations. The caller does not need to remove an existing logo before calling either action. If a logo exists, it is replaced atomically.
+**W-03.** "Choose photo" and "Use a symbol" in Settings and Share Comparison act as add or replace operations. No intermediate removal is required.
 
-**W-04.** The "Remove logo" action in both Settings and Edit Session requires no confirmation dialog. It is immediate.
+**W-04.** The "Remove logo" action in Settings and Share Comparison requires no confirmation dialog.
 
-**W-05.** On any logo write failure: show a snackbar (`settings_logo_load_error` or `edit_session_logo_error`). Do not change the current logo state. No partial update.
+**W-05.** On any logo normalization failure: show a snackbar (`settings_logo_load_error` or `share_comparison_logo_error`). Do not change the current logo state. No partial update.
 
-### Replacement rules
+### Replacement rules (Share Comparison)
 
-**R-01.** Photo → Photo: tap "Choose photo" → new photo replaces existing.
-**R-02.** Photo → Symbol: tap "Use a symbol" → symbol replaces existing photo. No remove step required.
-**R-03.** Symbol → Photo: tap "Choose photo" → new photo replaces existing symbol. No remove step required.
-**R-04.** Symbol → Symbol: tap "Use a symbol" → new symbol replaces existing symbol.
+**R-01.** None → Photo: tap "Choose photo" → photo normalized and written atomically to `branding-handle.png`.
+**R-02.** None → Symbol: tap "Use a symbol" → symbol rendered and written atomically to `branding-handle.png`.
+**R-03.** Photo → Photo: tap "Choose photo" → new photo replaces existing `branding-handle.png`.
+**R-04.** Photo → Symbol: tap "Use a symbol" → symbol replaces photo in `branding-handle.png`. No remove step required.
+**R-05.** Symbol → Photo: tap "Choose photo" → photo replaces symbol in `branding-handle.png`. No remove step required.
+**R-06.** Symbol → Symbol: tap "Use a symbol" → new symbol replaces existing `branding-handle.png`.
+**R-07.** Any → None: tap "Remove logo" → `branding-handle.png` deleted from session folder; metadata updated.
 
-All four replacement directions are available from a single set of consistently visible actions.
+All replacement directions are available from a single consistently-visible set of actions.
 
 ### Slider-only rules
 
@@ -748,164 +672,37 @@ All four replacement directions are available from a single set of consistently 
 
 **L-02.** Logo controls are Slider-only in Share Comparison. The Logo on handle card is absent when Side-by-side is selected.
 
-**L-03.** Session branding files are not affected by the user selecting Side-by-side. The file remains; it is simply not rendered.
-
-**L-04.** No message, warning, or hint about Slider-only behavior is shown anywhere in the UI.
+**L-03.** No message, warning, or hint about Slider-only behavior is shown anywhere in the UI.
 
 ### Preview rules
 
-**P-01.** In the Share Comparison Style card live preview, the branded handle is rendered when `style == SLIDER && useBranding == true && sessionBrandingFile != null`. In all other cases, the standard SameView handle is rendered.
+**P-01.** In the Share Comparison Style card live preview, the branded handle is rendered when `style == SLIDER && useBranding == true && hasBranding == true`. In all other cases, the standard SameView handle is rendered.
 
-**P-02.** The `BrandingPreviewCircle` must render identically in Settings, Edit Session, and Share Comparison — same size (64 dp), same ring color, same fill color, same logo rendering. Visual consistency across all surfaces is required.
+**P-02.** The `BrandingPreviewCircle` must render identically in Settings and Share Comparison — same size (64 dp), same ring color, same fill color, same logo rendering.
 
-**P-03.** Symbol cells in `BrandingSymbolPickerSheet` must render each symbol using the same visual specification as the actual branding handle: `SameViewAccent` ring, `#F5F7FA` fill, symbol at 72% of circle diameter. Preview = export result.
+**P-03.** Symbol cells in `BrandingSymbolPickerSheet` must render each symbol using the same visual specification as the actual branding handle: `SameViewAccent` ring, `#F5F7FA` fill, symbol at 72% of circle diameter, symbol at native VectorDrawable fill color. Preview = export result. No `colorFilter` override.
 
-**P-04.** The placeholder circle must match the `BrandingPreviewCircle` geometry in Settings, Edit Session, and Share Comparison: same 2 dp `SameViewAccent` border, same `#F5F7FA` fill, same `CircleShape`. Only the interior differs.
+**P-04.** The placeholder circle must match the `BrandingPreviewCircle` geometry in Settings and Share Comparison: same 2 dp `SameViewAccent` border, same `#F5F7FA` fill, same `CircleShape`.
 
 ---
 
 ## 10. Implementation Blocks
 
-Each block is independently testable and regression-safe. Blocks build on each other in order.
-
----
-
-### Block 1 — Settings screen wording and layout
-
-**Goal:** Redesign the Settings logo section with V2 title, always-visible description, placeholder circle in empty state, renamed action labels, and "Remove logo" conditional visibility.
-
-**Affected files:**
-- `SettingsScreen.kt`
-- `strings.xml` (EN)
-- `strings-de.xml` (DE)
-
-**Changes:**
-- Card title: `settings_branding_section_title` → `settings_logo_section_title`
-- Add always-visible description (`settings_logo_description`)
-- Placeholder circle composable (64 dp, `SameViewAccent` ring, `#F5F7FA` fill, image-add icon) shown when `!hasBranding`
-- State label beside circle: `settings_logo_none` / `settings_logo_current`
-- Rename "Choose image" → "Choose photo" (`settings_logo_choose_photo`)
-- Rename "Choose symbol" → "Use a symbol" (`settings_logo_use_symbol`)
-- Rename "Remove" → "Remove logo" (`settings_logo_remove`)
-- Add new string keys; deprecate old ones
-
-**Risks:** Low. Layout and string changes only. No ViewModel logic changes. Test tags may change — update accordingly.
-
-**Required tests:**
-- `SettingsScreenTest`: verify new title visible, description always visible, placeholder circle shown when `hasBranding == false`, preview circle shown when `hasBranding == true`, "Remove logo" visible only when `hasBranding == true`, "Choose photo" and "Use a symbol" always visible.
-
----
-
-### Block 2 — Symbol BottomSheet migration
-
-**Goal:** Replace `BuiltinSymbolPickerDialog` (AlertDialog) with `BrandingSymbolPickerSheet` (ModalBottomSheet). Render symbol cells as 56 dp handle previews.
-
-**Affected files:**
-- New: `BrandingSymbolPickerSheet.kt`
-- `SettingsScreen.kt` (replace dialog call with sheet call)
-- `EditSessionScreen.kt` (replace dialog call with sheet call)
-- `strings.xml`: `branding_symbol_picker_title`
-
-**Changes:**
-- New `BrandingSymbolPickerSheet` composable: `ModalBottomSheet`, drag handle, title, 3-column `LazyVerticalGrid`, Cancel `TextButton`
-- Each cell: 56 dp handle-style preview circle (ring + fill + symbol at 72%) + name label
-- Callback: `onSymbolSelected: (BuiltinBrandingSymbol) -> Unit` — same signature as current dialog
-
-**Risks:** Medium. `ModalBottomSheet` dismissal lifecycle differs from `AlertDialog`. Back gesture and drag-down dismissal must not trigger symbol selection. Test both callers.
-
-**Required tests:**
-- `BrandingSymbolPickerSheetTest`: sheet title visible, all 6 symbol cells visible, tapping a cell calls `onSymbolSelected` with correct symbol and dismisses, Cancel button dismisses without calling `onSymbolSelected`, drag-down dismisses without calling `onSymbolSelected`
-- `SettingsScreenTest`: "Use a symbol" tap opens sheet (not dialog)
-- `EditSessionScreenTest`: "Use a symbol" tap opens sheet (not dialog)
-
----
-
-### Block 3 — Edit Session logo card redesign
-
-**Goal:** Implement symmetric action model, type indicator, "Use your default logo" rename, placeholder circle, and correct conditional visibility for all actions.
-
-**Affected files:**
-- `EditSessionScreen.kt`
-- `EditSessionViewModel.kt` (add branding type state)
-- `strings.xml`, `strings-de.xml`
-
-**Changes:**
-- Card title: "Branding" → "Logo" (`edit_session_card_logo`)
-- Add always-visible description (`edit_session_logo_description`)
-- Placeholder circle in empty state (same spec as Block 1)
-- Add type indicator: read `branding.type` and `branding.builtinId` from session metadata during ViewModel `init`; expose as `sessionLogoType: StateFlow<String?>` and `sessionLogoBuiltinId: StateFlow<String?>`
-- "Copy from default branding" → "Use your default logo" (`edit_session_logo_use_default`); visibility condition unchanged
-- Add "Choose photo" + "Use a symbol" to populated state (absent in V1 when branding was set)
-- Remove "Change branding" button entirely
-- "Remove branding" → "Remove logo" (`edit_session_logo_remove`)
-- Update test tags accordingly
-
-**Risks:** Medium. ViewModel addition for type state. Symmetric action model requires that "Choose photo" and "Use a symbol" in populated state call the replace path, not an add path — confirm that existing `onImageUriSelectedForBranding()` and `onSetSessionBrandingFromSymbol()` correctly overwrite existing branding without error.
-
-**Required tests:**
-- `EditSessionViewModelTest`: `sessionLogoType` returns "image" when photo logo set, "builtin" when symbol set, null when no logo
-- `EditSessionScreenTest`: "Choose photo" visible in empty and populated state, "Use a symbol" visible in empty and populated state, type indicator shows "Photo" for `type == "image"`, type indicator shows "Symbol: Heart" for `type == "builtin", builtinId == "heart"`, "Use your default logo" visible only when `!hasBranding && hasGlobalBranding`, "Remove logo" visible only when `hasBranding == true`, placeholder circle visible when no logo, preview circle visible when logo set
-
----
-
-### Block 4 — Share Comparison logo card extraction and redesign
-
-**Goal:** Remove branding toggle from Style card interior. Create standalone "Logo on handle" card. Implement Slider-only conditional rendering. Rename toggle label.
-
-**Affected files:**
-- `ShareComparisonScreen.kt`
-- `strings.xml`, `strings-de.xml`
-
-**Changes:**
-- Remove `InfoToggleRow` for branding from Style card
-- Remove `share_comparison_branding_hint_slider_only` references
-- Add new `SettingsCard` composable "Logo on handle" between Style card and Information card
-- Conditional rendering: `if (style == ShareComparisonStyle.SLIDER) { LogoOnHandleCard(...) }`
-- Empty state: placeholder circle + `share_comparison_logo_none` + `share_comparison_logo_hint`
-- Populated state: `BrandingPreviewCircle` (with conditional `alpha`) + `SettingsSwitchRow` (`share_comparison_logo_show`)
-- `BrandingPreviewCircle` alpha: `if (useBranding) 1f else 0.4f`
-- No ViewModel behavior change — `useBranding` and `hasBranding` StateFlows unchanged
-
-**Risks:** Medium. Scroll height changes (new card). Conditional rendering must be tested for both style states and for the style-switch transition. Verify that removing the branding toggle from the Style card does not break existing `share_comparison_style_control` test tags.
-
-**Required tests:**
-- `ShareComparisonScreenTest`: "Logo on handle" card visible when Slider selected, card absent when Side-by-side selected, placeholder circle visible when `hasBranding == false`, preview circle visible when `hasBranding == true`, "Show logo" toggle present when `hasBranding == true`, toggle absent when `hasBranding == false`, no branding toggle inside Style card, no "Only applied in slider style" string visible, no disabled branding toggle in Side-by-side mode
-
----
-
-### Block 5 — String cleanup
-
-**Goal:** Remove all deprecated V1 branding string keys. Confirm no references remain.
-
-**Affected files:**
-- `strings.xml`
-- `strings-de.xml`
-- Any remaining references to deprecated keys (will surface as compile errors, ensuring completeness)
-
-**Deprecated keys to remove:**
-`settings_branding_section_title`, `settings_branding_description`, `settings_branding_choose_image`, `settings_branding_choose_symbol`, `settings_branding_remove`, `settings_branding_load_error`, `edit_session_card_branding`, `edit_session_branding_none`, `edit_session_branding_change`, `edit_session_branding_remove`, `edit_session_branding_copy_global`, `edit_session_branding_error`, `share_comparison_branding_label`, `share_comparison_branding_hint_edit_session`, `share_comparison_branding_hint_slider_only`.
-
-**Risks:** Low. Compile-time detection ensures completeness — any remaining reference causes a build failure, making this block self-verifying.
-
-**Required tests:** Build must succeed cleanly (`assembleDebug`, `assembleRelease`). No new test cases required.
+Superseded. See `docs/implementation_plans/historic/SESSION_BRANDING_V2_IMPLEMENTATION_PLAN.md` for the corrected implementation plan.
 
 ---
 
 ## 11. Spec Impact
 
-The following specification documents contain sections that are superseded by this document. They must be updated after V2 is implemented.
-
 | Document | Section | What becomes invalid | Reason |
 |---|---|---|---|
-| `SESSION_BRANDING_V1.md` | §11 | Card title, description text, action labels, empty state spec | All superseded by §2 of this document |
-| `SESSION_BRANDING_V1.md` | §12.2 | Card contents (asymmetric state machine, "Change branding" label) | Superseded by §3 of this document |
-| `SESSION_BRANDING_V1.md` | §13.1 | Toggle placement (inside Style card), toggle label ("Use branding"), disabled state with hint | Superseded by §4 of this document |
-| `SESSION_BRANDING_V1.md` | §13.3 | Side-by-side: "toggle present but visually indicates Slider-only" | Superseded by §4 and rule V-01 of this document |
-| `SESSION_METADATA_EDITOR_V1.md` | §21.2 | Card contents (both state definitions, asymmetric actions) | Superseded by §3 of this document |
-| `SESSION_METADATA_EDITOR_V1.md` | §21.5 | Symbol picker as AlertDialog | Superseded by §5 of this document |
-| `SHARE_COMPARISON_IMAGE_V1.md` | FD-18 | Toggle "always visible," side-by-side toggle behavior | Superseded by §4 and §9 of this document |
-| `SHARE_COMPARISON_IMAGE_V1.md` | §15.3 | Screen layout diagram (branding inside Style card) | Superseded by §4 of this document |
+| `SESSION_BRANDING_V1.md` | §11 | Card title, description text, action labels, empty state spec | Superseded by §2 of this document |
+| `SESSION_BRANDING_V1.md` | §12 | Entire Edit Session branding card | Edit Session no longer has branding — §3 of this document |
+| `SESSION_BRANDING_V1.md` | §13.1–13.3 | Toggle placement, toggle behavior, side-by-side behavior | Superseded by §4 of this document |
+| `SESSION_METADATA_EDITOR_V1.md` | §21 | Entire branding card spec | Edit Session no longer has branding |
+| `SHARE_COMPARISON_IMAGE_V1.md` | FD-18 | Toggle-only card replaced by full management card | Superseded by §4 of this document |
+| `SHARE_COMPARISON_IMAGE_V1.md` | §15.3 | Screen layout (Logo card contents) | Superseded by §4 of this document |
 | `SETTINGS_UX_V1.md` | §11.1 | Action labels, description text | Superseded by §2 of this document |
 
 **Documents with no changes required:**
-`SESSION_BACKUP_EXPORT_V1.md`, `COMPARE_FLOW_V1.md`, `RESPONSIVE_LAYOUT_SYSTEM_V1.md`, `SESSION_ORIGINALS_V1.md`, `SESSION_ORIGINALS_PRIVACY_V1.md`, `GPS_RECREATION_SYSTEM_V1.md`, `VIDEO_EXPORT_V1.md`. All technical sections of `SESSION_BRANDING_V1.md` (§1–§10, §14–§20) remain valid and are unaffected.
+`SESSION_BACKUP_EXPORT_V1.md`, `COMPARE_FLOW_V1.md`, `RESPONSIVE_LAYOUT_SYSTEM_V1.md`, `SESSION_ORIGINALS_V1.md`, `SESSION_ORIGINALS_PRIVACY_V1.md`, `GPS_RECREATION_SYSTEM_V1.md`, `VIDEO_EXPORT_V1.md`. All technical sections of `SESSION_BRANDING_V1.md` (§1–§10, §14–§20) remain valid. Metadata schema v6 is unchanged; existing sessions with `branding-handle.png` remain valid and scannable.
