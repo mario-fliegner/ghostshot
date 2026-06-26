@@ -1,7 +1,9 @@
 // path: app/src/main/java/com/isardomains/sameview/ui/branding/BrandingPreviewCircle.kt
 package com.isardomains.sameview.ui.branding
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -14,7 +16,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -79,6 +83,48 @@ fun BrandingPreviewCircle(
         }
         // Ring drawn on top: white, two arcs with 12° gaps.
         // Geometry matches ShareComparisonPreview.kt and BrandingHandleRenderer.kt.
+        Canvas(modifier = Modifier.size(64.dp)) {
+            val strokePx = 2.dp.toPx()
+            val inset = strokePx / 2f
+            val arcTopLeft = Offset(inset, inset)
+            val arcSize = Size(size.width - strokePx, size.height - strokePx)
+            drawArc(Color.White, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+            drawArc(Color.White, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+        }
+    }
+}
+
+/**
+ * Bitmap overload for [ShareComparisonScreen], where the active session branding is held
+ * in memory as a decoded [Bitmap] by [ShareComparisonViewModel.previewBrandingBitmap].
+ *
+ * Renders the logo using [Image] + [BitmapPainter] instead of Coil [AsyncImage] so there
+ * is no file-path cache involvement. When [brandingBitmap] changes to a new object, Compose
+ * detects the [remember] key change and creates a fresh [BitmapPainter] immediately.
+ */
+@Composable
+fun BrandingPreviewCircle(
+    brandingBitmap: Bitmap,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.size(64.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(58.dp)
+                .clip(CircleShape)
+                .background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = remember(brandingBitmap) { BitmapPainter(brandingBitmap.asImageBitmap()) },
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(46.dp)
+            )
+        }
         Canvas(modifier = Modifier.size(64.dp)) {
             val strokePx = 2.dp.toPx()
             val inset = strokePx / 2f

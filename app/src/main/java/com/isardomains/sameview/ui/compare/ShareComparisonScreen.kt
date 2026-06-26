@@ -97,7 +97,7 @@ fun ShareComparisonScreen(
     val sessionViewportRatio by viewModel.sessionViewportRatio.collectAsStateWithLifecycle()
     val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
     val useBranding by viewModel.useBranding.collectAsStateWithLifecycle()
-    val brandingVersion by viewModel.brandingVersion.collectAsStateWithLifecycle()
+    val previewBrandingBitmap by viewModel.previewBrandingBitmap.collectAsStateWithLifecycle()
 
     val isTitleDateAvailable by viewModel.isTitleDateAvailable.collectAsStateWithLifecycle()
     val isLocationAvailable by viewModel.isLocationAvailable.collectAsStateWithLifecycle()
@@ -113,9 +113,8 @@ fun ShareComparisonScreen(
     val sessionDir = remember(viewModel.sessionId) {
         File(context.filesDir, "sessions/${viewModel.sessionId}")
     }
-    val sessionBrandingFile = remember(sessionDir) {
-        File(sessionDir, "branding-handle.png")
-    }
+    // sessionBrandingFile is still used for export (SliderRenderStrategy reads it from sessionDir).
+    // Active UI preview renders from previewBrandingBitmap — not from this File reference.
 
     // ── Branding photo picker launcher ─────────────────────────────────────────
     val brandingImageLauncher = rememberLauncherForActivityResult(
@@ -230,8 +229,7 @@ fun ShareComparisonScreen(
                         captionData = previewCaptionData,
                         sessionDir = sessionDir,
                         viewportRatio = sessionViewportRatio,
-                        useBranding = useBranding && hasBranding,
-                        brandingVersion = brandingVersion
+                        previewBrandingBitmap = if (useBranding) previewBrandingBitmap else null
                     )
                 }
 
@@ -310,11 +308,14 @@ fun ShareComparisonScreen(
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             ) {
                                 Box(modifier = Modifier.alpha(if (useBranding) 1f else 0.4f)) {
-                                    BrandingPreviewCircle(
-                                        brandingFile = sessionBrandingFile,
-                                        modifier = Modifier.testTag("share_comparison_logo_preview"),
-                                        brandingVersion = brandingVersion
-                                    )
+                                    // Use the Bitmap overload — renders from in-memory state,
+                                    // no Coil file-path caching involved.
+                                    previewBrandingBitmap?.let { bitmap ->
+                                        BrandingPreviewCircle(
+                                            brandingBitmap = bitmap,
+                                            modifier = Modifier.testTag("share_comparison_logo_preview")
+                                        )
+                                    }
                                 }
                                 Box(modifier = Modifier.weight(1f)) {
                                     SettingsSwitchRow(

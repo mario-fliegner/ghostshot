@@ -36,9 +36,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.isardomains.sameview.image.ShareCaptionData
 import com.isardomains.sameview.image.ShareComparisonStyle
 import com.isardomains.sameview.ui.theme.SameViewAccent
@@ -94,11 +96,12 @@ fun ShareComparisonPreview(
      */
     useBranding: Boolean = false,
     /**
-     * Incremented by [ShareComparisonViewModel] after every successful branding file write.
-     * Used to bust Coil's memory cache for branding-handle.png so the Slider preview shows
-     * the new logo immediately without requiring a toggle or screen reopen.
+     * The currently active session branding bitmap, decoded in memory by
+     * [ShareComparisonViewModel.previewBrandingBitmap]. Null = render standard handle.
+     * Passing null when [useBranding] is false ensures the standard handle is always shown
+     * when the toggle is off, without any Coil file-path involvement.
      */
-    brandingVersion: Int = 0,
+    previewBrandingBitmap: Bitmap? = null,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -169,7 +172,7 @@ fun ShareComparisonPreview(
                 ) {
                     when (style) {
                         ShareComparisonStyle.SLIDER ->
-                            SliderPreviewContent(sessionDir, compW, compH, useBranding, brandingVersion)
+                            SliderPreviewContent(sessionDir, compW, compH, previewBrandingBitmap)
                         ShareComparisonStyle.SIDE_BY_SIDE ->
                             SideBySidePreviewContent(sessionDir)
                     }
@@ -195,13 +198,8 @@ private fun SliderPreviewContent(
     sessionDir: File,
     compW: Dp,
     compH: Dp,
-    useBranding: Boolean = false,
-    brandingVersion: Int = 0
+    previewBrandingBitmap: Bitmap? = null
 ) {
-    val context = LocalContext.current
-    val brandingFile = remember(sessionDir, useBranding) {
-        if (useBranding) File(sessionDir, "branding-handle.png").takeIf { it.isFile } else null
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Reference fills full area (base layer)
@@ -249,11 +247,12 @@ private fun SliderPreviewContent(
         // Handle — branding or standard SameView.
         val standardHandleSize = minOf(compW.value * 0.15f, compH.value * 0.20f, 36f).dp
 
-        if (brandingFile != null) {
+        if (previewBrandingBitmap != null) {
             // ── Branding handle ────────────────────────────────────────────────
             // Same visual language as the standard handle: white ring, white circle.
-            // Only the inner content changes: logo at 72% instead of arrows.
-            // Handle is 1.5× the standard size (unchanged).
+            // Logo rendered from the in-memory Bitmap via BitmapPainter — no Coil,
+            // no file-path cache. When the bitmap reference changes, remember() creates
+            // a fresh painter immediately without any asynchronous load.
             val brandingHandleSize = (standardHandleSize.value * 1.5f)
                 .coerceAtMost(54f).dp
             val ringGap = 1.dp
@@ -285,14 +284,10 @@ private fun SliderPreviewContent(
                 contentAlignment = Alignment.Center
             ) {
                 val logoSize = brandingHandleSize * 0.72f
-                val brandingRequest = remember(brandingFile, brandingVersion) {
-                    ImageRequest.Builder(context)
-                        .data(brandingFile)
-                        .memoryCacheKey("${brandingFile?.absolutePath}-$brandingVersion")
-                        .build()
-                }
-                AsyncImage(
-                    model = brandingRequest,
+                Image(
+                    painter = remember(previewBrandingBitmap) {
+                        BitmapPainter(previewBrandingBitmap.asImageBitmap())
+                    },
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.size(logoSize)

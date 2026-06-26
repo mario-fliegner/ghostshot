@@ -31,10 +31,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -105,9 +108,25 @@ class ShareComparisonViewModel @Inject constructor(
 
     // ── Branding state ─────────────────────────────────────────────────────────
 
-    /** True when branding-handle.png exists in this session's directory. */
-    private val _hasBranding = MutableStateFlow(false)
-    val hasBranding: StateFlow<Boolean> = _hasBranding.asStateFlow()
+    /**
+     * The single source of truth for the active session branding preview.
+     *
+     * Non-null means this exact decoded [Bitmap] is the current logo.
+     * Null means no logo is set for this session.
+     *
+     * Both the Logo card preview and the Share image preview render from this value —
+     * not from Coil file-path caching — so they can never diverge.
+     *
+     * Updated atomically after every successful branding write (set/remove/copy/auto-init).
+     * Setting this value triggers immediate UI recomposition with no Coil involvement.
+     */
+    private val _previewBrandingBitmap = MutableStateFlow<Bitmap?>(null)
+    val previewBrandingBitmap: StateFlow<Bitmap?> = _previewBrandingBitmap.asStateFlow()
+
+    /** Derived from [previewBrandingBitmap]: true when a logo is currently active. */
+    val hasBranding: StateFlow<Boolean> = _previewBrandingBitmap
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     /**
      * Controls whether the branding handle is drawn in Slider exports.
@@ -138,7 +157,7 @@ class ShareComparisonViewModel @Inject constructor(
      * Uses extraBufferCapacity = 4 so rapid back-to-back branding operations during a single
      * screen session each trigger their own refresh without dropping events.
      */
-    private val _sessionBrandingChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+    private val _sessionBrandingChanged = MutableSharedFlow<Unit>(replay = 1, extraBufferCapacity = 4)
     val sessionBrandingChanged: SharedFlow<Unit> = _sessionBrandingChanged.asSharedFlow()
 
     /**
@@ -201,11 +220,23 @@ class ShareComparisonViewModel @Inject constructor(
     }
 
     /**
-     * Override in tests to check branding file existence without a real filesystem.
-     * Defaults to checking whether branding-handle.png is a regular file in [sessionDir].
+     * Decodes a preview [Bitmap] from a raw PNG [ByteArray] immediately after a write,
+     * without touching disk again. Used after photo-pick and symbol-render writes.
+     * Injectable so unit tests can return a mock [Bitmap] without [android.graphics.BitmapFactory].
      */
-    internal var brandingFileChecker: (File) -> Boolean = { sessionDir ->
-        java.io.File(sessionDir, "branding-handle.png").isFile
+    internal var previewBitmapFromBytes: (ByteArray) -> Bitmap? = { bytes ->
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    }
+
+    /**
+     * Decodes a preview [Bitmap] from a [File] on disk. Used at screen-open time to load
+     * existing session branding, and after global-copy operations.
+     * Injectable so unit tests can return a mock [Bitmap] without a real filesystem.
+     */
+    internal var previewBitmapFromFile: (File) -> Bitmap? = { file ->
+        if (file.exists() && file.isFile)
+            android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+        else null
     }
 
     /** Override in tests with an unconfined/test dispatcher. */
@@ -259,13 +290,16 @@ class ShareComparisonViewModel @Inject constructor(
     internal fun loadMetadata() {
         viewModelScope.launch {
             val sessionDir = File(context.filesDir, "sessions/$sessionId")
+            val sessionBrandingFile = File(sessionDir, "branding-handle.png")
             val snapshot = withContext(ioDispatcher) { metadataReader(sessionDir) }
-            val hasBranding = withContext(ioDispatcher) { brandingFileChecker(sessionDir) }
-            _hasBranding.value = hasBranding
-            _useBranding.value = hasBranding  // default: ON when branding present
 
-            // Auto-copy global default when session has no branding
-            if (!hasBranding) {
+            // Load existing session branding as a decoded Bitmap — the single source of truth.
+            val existingBitmap = withContext(ioDispatcher) { previewBitmapFromFile(sessionBrandingFile) }
+            if (existingBitmap != null) {
+                _previewBrandingBitmap.value = existingBitmap
+                _useBranding.value = true
+            } else {
+                // Auto-copy global default when session has no branding.
                 val globalBranding = withContext(ioDispatcher) { globalBrandingRepository.getBranding() }
                 if (globalBranding != null) {
                     val sessionsRoot = File(context.filesDir, "sessions")
@@ -273,10 +307,16 @@ class ShareComparisonViewModel @Inject constructor(
                         sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
                     }
                     if (copied) {
-                        _hasBranding.value = true
-                        _useBranding.value = true
-                        _brandingVersion.value += 1
-                        _sessionBrandingChanged.emit(Unit)
+                        // Decode from the file that was just written.
+                        val copiedBitmap = withContext(ioDispatcher) {
+                            previewBitmapFromFile(sessionBrandingFile)
+                        }
+                        _previewBrandingBitmap.value = copiedBitmap
+                        _useBranding.value = copiedBitmap != null
+                        if (copiedBitmap != null) {
+                            _brandingVersion.value += 1
+                            _sessionBrandingChanged.emit(Unit)
+                        }
                     }
                 }
             }
@@ -328,7 +368,8 @@ class ShareComparisonViewModel @Inject constructor(
                 val sessionsRoot = File(context.filesDir, "sessions")
                 val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "image", null)
                 if (ok) {
-                    _hasBranding.value = true
+                    // Decode preview from the bytes that were just written — no Coil, no disk re-read.
+                    _previewBrandingBitmap.value = previewBitmapFromBytes(bytes)
                     _useBranding.value = true
                     _brandingVersion.value += 1
                     _sessionBrandingChanged.emit(Unit)
@@ -348,7 +389,7 @@ class ShareComparisonViewModel @Inject constructor(
                 val sessionsRoot = File(context.filesDir, "sessions")
                 val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "builtin", symbol.id)
                 if (ok) {
-                    _hasBranding.value = true
+                    _previewBrandingBitmap.value = previewBitmapFromBytes(bytes)
                     _useBranding.value = true
                     _brandingVersion.value += 1
                     _sessionBrandingChanged.emit(Unit)
@@ -366,7 +407,7 @@ class ShareComparisonViewModel @Inject constructor(
             val sessionsRoot = File(context.filesDir, "sessions")
             val ok = sessionBrandingRemover(sessionsRoot, sessionId)
             if (ok) {
-                _hasBranding.value = false
+                _previewBrandingBitmap.value = null   // clears hasBranding via derived StateFlow
                 _useBranding.value = false
                 _sessionBrandingChanged.emit(Unit)
             } else _brandingError.emit(Unit)
@@ -385,8 +426,10 @@ class ShareComparisonViewModel @Inject constructor(
             val sessionsRoot = File(context.filesDir, "sessions")
             val ok = sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
             if (ok) {
-                _hasBranding.value = true
-                _useBranding.value = true
+                // Decode preview from the global file that was just copied to the session.
+                val preview = previewBitmapFromFile(globalBranding.file)
+                _previewBrandingBitmap.value = preview
+                _useBranding.value = preview != null
                 _brandingVersion.value += 1
                 _sessionBrandingChanged.emit(Unit)
             } else _brandingError.emit(Unit)
@@ -413,7 +456,7 @@ class ShareComparisonViewModel @Inject constructor(
                     captionData = buildCaptionData(),
                     sessionDir = File(context.filesDir, "sessions/$sessionId"),
                     exportTimestamp = ts,
-                    useBranding = _useBranding.value && _hasBranding.value
+                    useBranding = _useBranding.value && (_previewBrandingBitmap.value != null)
                 )
                 val uri = withContext(ioDispatcher) {
                     shareRunner(config, context.contentResolver)

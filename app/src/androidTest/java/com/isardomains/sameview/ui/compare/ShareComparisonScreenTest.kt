@@ -165,8 +165,7 @@ class ShareComparisonScreenTest {
         onBack: () -> Unit = {},
         hasBranding: Boolean = false,
         hasGlobalBranding: Boolean = false,
-        initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER,
-        initialBrandingVersion: Int = 0
+        initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER
     ) {
         wakeDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -182,8 +181,7 @@ class ShareComparisonScreenTest {
                         onBack = onBack,
                         hasBranding = hasBranding,
                         hasGlobalBranding = hasGlobalBranding,
-                        initialStyle = initialStyle,
-                        initialBrandingVersion = initialBrandingVersion
+                        initialStyle = initialStyle
                     )
                 }
             }
@@ -335,20 +333,21 @@ class ShareComparisonScreenTest {
         composeRule.onNodeWithTag("share_comparison_toggle_logo").assertIsDisplayed()
     }
 
-    // ── brandingVersion cache-busting — in-screen refresh ─────────────────────
+    // ── In-screen branding state refresh — single source of truth ──────────────
     // These tests verify that the ACTIVE Share Comparison screen updates immediately
-    // when brandingVersion increments, without closing or reopening the screen.
-    // Strategy: liveBrandingVersion is a MutableState<Int> read inside setContent{}.
-    // Changing it on the UI thread causes the stub to recompose with the new version,
-    // proving that production code driven by brandingVersion StateFlow would also refresh.
+    // when branding state changes, without closing or reopening the screen.
+    // Strategy: liveBrandingState is a MutableState<Boolean?> (null=no logo, non-null=logo).
+    // Changing it on the UI thread causes the stub to recompose, proving that production
+    // code driven by previewBrandingBitmap StateFlow would also refresh correctly.
     //
-    // The version-tagged child Box (see stub) changes tag in sync with the version,
-    // providing a concrete assertion target beyond simple node-existence checks.
+    // The stub renders the populated state (preview node) when hasBranding=true and the
+    // empty state (placeholder node) when hasBranding=false — a direct mapping to the
+    // real ViewModel's hasBranding = (previewBrandingBitmap != null).
 
-    private var liveBrandingVersion = mutableStateOf(0)
+    private var liveBrandingState = mutableStateOf(false)
 
-    private fun launchWithLiveVersion(hasBranding: Boolean = true) {
-        liveBrandingVersion = mutableStateOf(0)
+    private fun launchWithLiveState(initialHasBranding: Boolean = true) {
+        liveBrandingState = mutableStateOf(initialHasBranding)
         wakeDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario?.onActivity { activity ->
@@ -358,14 +357,11 @@ class ShareComparisonScreenTest {
                 activity.setTurnScreenOn(true)
             }
             activity.setContent {
-                // Read liveBrandingVersion inside the composition so the whole subtree
-                // recomposes when the state changes from the test thread.
-                val v by liveBrandingVersion
+                val h by liveBrandingState
                 SameViewTheme {
                     ShareComparisonScreenStub(
                         onBack = {},
-                        hasBranding = hasBranding,
-                        initialBrandingVersion = v
+                        hasBranding = h
                     )
                 }
             }
@@ -375,70 +371,80 @@ class ShareComparisonScreenTest {
 
     @Test
     fun overrideFromGlobalDefault_updatesLogoCard_withoutReopeningScreen() {
-        launchWithLiveVersion(hasBranding = true)
+        // Starts with no logo (empty state). Simulates auto-copy from global setting hasBranding=true.
+        launchWithLiveState(initialHasBranding = false)
+        composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertDoesNotExist()
 
-        // Verify initial state: version 0 node is present
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v0").assertIsDisplayed()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v1").assertDoesNotExist()
-
-        // Simulate what happens after onUseDefaultLogo() succeeds:
-        // brandingVersion increments inside the ACTIVE screen (no close/reopen).
-        composeRule.runOnUiThread { liveBrandingVersion.value++ }
+        // Simulate previewBrandingBitmap becoming non-null → hasBranding=true.
+        composeRule.runOnUiThread { liveBrandingState.value = true }
         composeRule.waitForIdle()
 
-        // Version 1 node appears and version 0 is gone — the active Logo card recomposed.
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v1").assertIsDisplayed()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v0").assertDoesNotExist()
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertDoesNotExist()
     }
 
     @Test
     fun overrideWithSymbol_updatesLogoCard_withoutReopeningScreen() {
-        launchWithLiveVersion(hasBranding = true)
+        // Starts with logo. Override sets a new bitmap — hasBranding stays true but the
+        // preview node remains displayed (content replaced by new Bitmap in production).
+        launchWithLiveState(initialHasBranding = true)
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
 
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v0").assertIsDisplayed()
-
-        // Simulate onSetSessionBrandingFromSymbol() success
-        composeRule.runOnUiThread { liveBrandingVersion.value++ }
+        // Simulate remove then re-add (clear then set new bitmap)
+        composeRule.runOnUiThread { liveBrandingState.value = false }
         composeRule.waitForIdle()
+        composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertIsDisplayed()
 
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v1").assertIsDisplayed()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v0").assertDoesNotExist()
+        composeRule.runOnUiThread { liveBrandingState.value = true }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
     }
 
     @Test
     fun overrideWithPhoto_updatesLogoCard_withoutReopeningScreen() {
-        launchWithLiveVersion(hasBranding = true)
+        launchWithLiveState(initialHasBranding = false)
+        composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertIsDisplayed()
 
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v0").assertIsDisplayed()
-
-        // Simulate onImageUriSelectedForBranding() success
-        composeRule.runOnUiThread { liveBrandingVersion.value++ }
+        composeRule.runOnUiThread { liveBrandingState.value = true }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v1").assertIsDisplayed()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v0").assertDoesNotExist()
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
     }
 
     @Test
-    fun multipleOverrides_eachUpdatesLogoCard_withoutReopeningScreen() {
-        // Fall 5: rapid back-to-back changes — each must produce a distinct recomposition.
-        launchWithLiveVersion(hasBranding = true)
+    fun removeLogo_updatesLogoCard_toEmptyState_immediately() {
+        launchWithLiveState(initialHasBranding = true)
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
 
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v0").assertIsDisplayed()
-
-        composeRule.runOnUiThread { liveBrandingVersion.value++ }  // override #1 → v1
+        // Simulate previewBrandingBitmap = null → hasBranding = false
+        composeRule.runOnUiThread { liveBrandingState.value = false }
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v1").assertIsDisplayed()
 
-        composeRule.runOnUiThread { liveBrandingVersion.value++ }  // override #2 → v2
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v2").assertIsDisplayed()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v1").assertDoesNotExist()
+        composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertDoesNotExist()
+        composeRule.onNodeWithTag("share_comparison_toggle_logo").assertDoesNotExist()
+    }
 
-        composeRule.runOnUiThread { liveBrandingVersion.value++ }  // override #3 → v3
+    @Test
+    fun multipleChanges_eachUpdatesLogoCard_withoutReopeningScreen() {
+        launchWithLiveState(initialHasBranding = false)
+        composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertIsDisplayed()
+
+        // logo set → populated
+        composeRule.runOnUiThread { liveBrandingState.value = true }
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v3").assertIsDisplayed()
-        composeRule.onNodeWithTag("share_comparison_logo_preview_v2").assertDoesNotExist()
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
+
+        // remove → empty
+        composeRule.runOnUiThread { liveBrandingState.value = false }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertIsDisplayed()
+
+        // new logo set → populated again
+        composeRule.runOnUiThread { liveBrandingState.value = true }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
     }
 
     private fun wakeDevice() {
@@ -460,15 +466,11 @@ private fun ShareComparisonScreenStub(
     hasBranding: Boolean = false,
     hasGlobalBranding: Boolean = false,
     initialUseBranding: Boolean = hasBranding,
-    initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER,
-    initialBrandingVersion: Int = 0
+    initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER
 ) {
     var style by remember { mutableStateOf(initialStyle) }
     var quality by remember { mutableStateOf(ShareQuality.STANDARD) }
     var useBranding by remember { mutableStateOf(initialUseBranding) }
-    // brandingVersion is exposed as a stable parameter so tests can drive it via
-    // separate launch() calls and assert that the version-tagged test tag changes.
-    val brandingVersion = initialBrandingVersion
 
     val styles = listOf(ShareComparisonStyle.SLIDER, ShareComparisonStyle.SIDE_BY_SIDE)
     val qualities = listOf(ShareQuality.STANDARD, ShareQuality.ORIGINAL)
@@ -553,17 +555,8 @@ private fun ShareComparisonScreenStub(
                             Box(
                                 modifier = Modifier
                                     .size(64.dp)
-                                    .testTag("share_comparison_logo_preview"),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                // Version-tagged child: proves brandingVersion-keyed recomposition.
-                                // Existing tests query the parent tag; cache-busting tests
-                                // query this child tag.
-                                Box(modifier = Modifier
-                                    .size(1.dp)
-                                    .testTag("share_comparison_logo_preview_v$brandingVersion")
-                                )
-                            }
+                                    .testTag("share_comparison_logo_preview")
+                            )
                             Box(modifier = Modifier.weight(1f)) {
                                 SettingsSwitchRow(
                                     label = stringResource(R.string.share_comparison_logo_show),
