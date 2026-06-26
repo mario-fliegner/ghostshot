@@ -113,9 +113,7 @@ fun ShareComparisonScreen(
     val sessionDir = remember(viewModel.sessionId) {
         File(context.filesDir, "sessions/${viewModel.sessionId}")
     }
-    // brandingVersion is included so recomposition is forced after every successful file write,
-    // allowing Coil to receive a new ImageRequest with a fresh memoryCacheKey.
-    val sessionBrandingFile = remember(sessionDir, brandingVersion) {
+    val sessionBrandingFile = remember(sessionDir) {
         File(sessionDir, "branding-handle.png")
     }
 

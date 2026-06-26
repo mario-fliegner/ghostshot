@@ -199,10 +199,7 @@ private fun SliderPreviewContent(
     brandingVersion: Int = 0
 ) {
     val context = LocalContext.current
-    // Resolve branding file each time brandingVersion changes (file was overwritten).
-    // brandingVersion is included in the key so this block re-executes after every write,
-    // producing a fresh File reference that carries a new Coil memoryCacheKey below.
-    val brandingFile = remember(sessionDir, useBranding, brandingVersion) {
+    val brandingFile = remember(sessionDir, useBranding) {
         if (useBranding) File(sessionDir, "branding-handle.png").takeIf { it.isFile } else null
     }
 
