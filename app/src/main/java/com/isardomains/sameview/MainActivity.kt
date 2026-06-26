@@ -39,6 +39,7 @@ import com.isardomains.sameview.ui.compare.EditSessionEvent
 import com.isardomains.sameview.ui.compare.EditSessionScreen
 import com.isardomains.sameview.ui.compare.EditSessionViewModel
 import com.isardomains.sameview.ui.compare.ShareComparisonScreen
+import com.isardomains.sameview.ui.compare.ShareComparisonViewModel
 import com.isardomains.sameview.ui.settings.LibraryFilter
 import com.isardomains.sameview.ui.settings.LibrarySortOrder
 import com.isardomains.sameview.ui.settings.SettingsScreen
@@ -422,7 +423,19 @@ class MainActivity : ComponentActivity() {
                                 type = NavType.StringType
                             }
                         )
-                    ) {
+                    ) { backStackEntry ->
+                        val cameraEntry = remember(backStackEntry) {
+                            navController.getBackStackEntry(ROUTE_CAMERA)
+                        }
+                        val cameraViewModel: CameraViewModel = hiltViewModel(cameraEntry)
+                        val shareComparisonViewModel: ShareComparisonViewModel = hiltViewModel()
+                        LaunchedEffect(shareComparisonViewModel) {
+                            shareComparisonViewModel.sessionBrandingChanged.collect {
+                                // Keep savedSessions consistent after any branding write
+                                // (set / remove / copy / auto-init on first open).
+                                cameraViewModel.refreshSavedSessions()
+                            }
+                        }
                         ShareComparisonScreen(
                             onBack = { navController.popBackStack() },
                             windowWidthSizeClass = windowSizeClass.widthSizeClass

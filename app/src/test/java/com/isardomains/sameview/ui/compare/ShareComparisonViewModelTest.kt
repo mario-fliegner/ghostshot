@@ -13,6 +13,7 @@ import com.isardomains.sameview.image.ShareRenderConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -511,5 +512,193 @@ class ShareComparisonViewModelTest {
         // Switch back to Slider
         viewModel.onStyleChanged(ShareComparisonStyle.SLIDER)
         assertTrue("useBranding must survive style switch back to Slider", viewModel.useBranding.value)
+    }
+
+    // ── sessionBrandingChanged — Library-Refresh-Signal ────────────────────────
+    // Sichert ab, dass nach jeder erfolgreichen Branding-Operation das Signal emittiert
+    // wird, damit CameraViewModel.refreshSavedSessions() ausgelöst werden kann.
+
+    @Test
+    fun sessionBrandingChanged_emitted_afterSuccessfulPhotoSelection() = runTest {
+        val vm = createViewModel()
+        val fakePng = ByteArray(32) { 0x01 }
+        vm.imageDecoder = { _ -> mock() }
+        vm.brandingNormalizer = { _ -> fakePng }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
+        advanceUntilIdle()
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        vm.onImageUriSelectedForBranding(fakeUri)
+        advanceUntilIdle()
+
+        assertEquals("sessionBrandingChanged must fire once after photo selection", 1, signals.size)
+        job.cancel()
+    }
+
+    @Test
+    fun sessionBrandingChanged_emitted_afterSuccessfulSymbolSelection() = runTest {
+        val vm = createViewModel()
+        val fakePng = ByteArray(32) { 0x02 }
+        vm.builtinSymbolRenderer = { _ -> fakePng }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
+        advanceUntilIdle()
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.HEART)
+        advanceUntilIdle()
+
+        assertEquals("sessionBrandingChanged must fire once after symbol selection", 1, signals.size)
+        job.cancel()
+    }
+
+    @Test
+    fun sessionBrandingChanged_emitted_afterSuccessfulRemove() = runTest {
+        val vm = createViewModel()
+        vm.brandingFileChecker = { true }
+        vm.sessionBrandingRemover = { _, _ -> true }
+        advanceUntilIdle()
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        vm.onRemoveSessionBranding()
+        advanceUntilIdle()
+
+        assertEquals("sessionBrandingChanged must fire once after remove", 1, signals.size)
+        job.cancel()
+    }
+
+    @Test
+    fun sessionBrandingChanged_emitted_afterSuccessfulUseDefault() = runTest {
+        // GlobalBrandingRepository.getBranding() requires both handle.png AND handle-meta.json.
+        val brandingDir = java.io.File(tempFolder.root, "branding").also { it.mkdirs() }
+        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
+        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
+        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
+        val vm = createViewModel(globalBrandingRepository = globalRepo)
+        vm.sessionBrandingCopier = { _, _, _ -> true }
+        advanceUntilIdle()
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        vm.onUseDefaultLogo()
+        advanceUntilIdle()
+
+        assertEquals("sessionBrandingChanged must fire once after use-default", 1, signals.size)
+        job.cancel()
+    }
+
+    @Test
+    fun sessionBrandingChanged_notEmitted_onBrandingWriteFailure() = runTest {
+        val vm = createViewModel()
+        val fakePng = ByteArray(32) { 0x03 }
+        vm.builtinSymbolRenderer = { _ -> fakePng }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> false }  // write fails
+        advanceUntilIdle()
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.STAR)
+        advanceUntilIdle()
+
+        assertTrue("sessionBrandingChanged must NOT fire on write failure", signals.isEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun sessionBrandingChanged_notEmitted_onRemoveFailure() = runTest {
+        val vm = createViewModel()
+        vm.brandingFileChecker = { true }
+        vm.sessionBrandingRemover = { _, _ -> false }  // remove fails
+        advanceUntilIdle()
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        vm.onRemoveSessionBranding()
+        advanceUntilIdle()
+
+        assertTrue("sessionBrandingChanged must NOT fire on remove failure", signals.isEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun sessionBrandingChanged_emitted_onAutoCopyFromGlobal_whenSessionHasNoBranding() = runTest {
+        // Simulates first-open: session has no branding, global branding exists.
+        // GlobalBrandingRepository.getBranding() requires both handle.png AND handle-meta.json.
+        val brandingDir = java.io.File(tempFolder.root, "branding").also { it.mkdirs() }
+        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
+        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
+        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
+        val vm = createViewModel(globalBrandingRepository = globalRepo)
+        // brandingFileChecker: session has no branding (default false in createViewModel)
+        // sessionBrandingCopier: returns true → auto-copy succeeds
+        vm.sessionBrandingCopier = { _, _, _ -> true }
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        vm.loadMetadata()
+        advanceUntilIdle()
+
+        assertEquals("sessionBrandingChanged must fire once after auto-copy from global", 1, signals.size)
+        job.cancel()
+    }
+
+    @Test
+    fun sessionBrandingChanged_notEmitted_whenNoBrandingAndNoGlobal() = runTest {
+        // Session has no branding, no global branding — auto-copy never runs.
+        val vm = createViewModel()  // globalRepo has no handle.png in tempFolder
+        vm.sessionBrandingCopier = { _, _, _ -> false }
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        vm.loadMetadata()
+        advanceUntilIdle()
+
+        assertTrue("sessionBrandingChanged must NOT fire when neither session nor global branding exists",
+            signals.isEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun sessionBrandingChanged_emitsMultipleTimes_forMultipleChanges() = runTest {
+        // Fall 5: Mehrfache Änderungen hintereinander — jede muss ein Signal emittieren.
+        val vm = createViewModel()
+        val fakePng = ByteArray(32) { 0x04 }
+        vm.builtinSymbolRenderer = { _ -> fakePng }
+        vm.imageDecoder = { _ -> mock() }
+        vm.brandingNormalizer = { _ -> fakePng }
+        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
+        vm.sessionBrandingRemover = { _, _ -> true }
+        vm.brandingFileChecker = { vm.hasBranding.value }
+        advanceUntilIdle()
+
+        val signals = mutableListOf<Unit>()
+        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
+
+        // Symbol A
+        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.STAR)
+        advanceUntilIdle()
+        // Symbol B
+        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.FIRE)
+        advanceUntilIdle()
+        // Photo
+        vm.onImageUriSelectedForBranding(fakeUri)
+        advanceUntilIdle()
+        // Remove
+        vm.onRemoveSessionBranding()
+        advanceUntilIdle()
+
+        assertEquals("sessionBrandingChanged must fire once per successful write — 4 writes = 4 signals",
+            4, signals.size)
+        job.cancel()
     }
 }

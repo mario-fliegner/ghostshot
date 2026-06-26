@@ -130,6 +130,17 @@ class ShareComparisonViewModel @Inject constructor(
     private val _brandingError = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val brandingError: SharedFlow<Unit> = _brandingError.asSharedFlow()
 
+    /**
+     * Emitted after every successful branding write (set/remove/copy/auto-init).
+     * Collected by [MainActivity] to call [CameraViewModel.refreshSavedSessions], which
+     * keeps [CameraUiState.savedSessions] consistent with on-disk session state.
+     *
+     * Uses extraBufferCapacity = 4 so rapid back-to-back branding operations during a single
+     * screen session each trigger their own refresh without dropping events.
+     */
+    private val _sessionBrandingChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+    val sessionBrandingChanged: SharedFlow<Unit> = _sessionBrandingChanged.asSharedFlow()
+
     // ── Metadata-derived state ─────────────────────────────────────────────────
 
     /** Width ÷ height ratio of the session viewport; used for preview sizing. */
@@ -248,6 +259,7 @@ class ShareComparisonViewModel @Inject constructor(
                     if (copied) {
                         _hasBranding.value = true
                         _useBranding.value = true
+                        _sessionBrandingChanged.emit(Unit)
                     }
                 }
             }
@@ -298,8 +310,11 @@ class ShareComparisonViewModel @Inject constructor(
                 bitmap.recycle()
                 val sessionsRoot = File(context.filesDir, "sessions")
                 val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "image", null)
-                if (ok) { _hasBranding.value = true; _useBranding.value = true }
-                else _brandingError.emit(Unit)
+                if (ok) {
+                    _hasBranding.value = true
+                    _useBranding.value = true
+                    _sessionBrandingChanged.emit(Unit)
+                } else _brandingError.emit(Unit)
             } catch (_: Exception) { _brandingError.emit(Unit) }
         }
     }
@@ -314,8 +329,11 @@ class ShareComparisonViewModel @Inject constructor(
                 val bytes = builtinSymbolRenderer(symbol)
                 val sessionsRoot = File(context.filesDir, "sessions")
                 val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "builtin", symbol.id)
-                if (ok) { _hasBranding.value = true; _useBranding.value = true }
-                else _brandingError.emit(Unit)
+                if (ok) {
+                    _hasBranding.value = true
+                    _useBranding.value = true
+                    _sessionBrandingChanged.emit(Unit)
+                } else _brandingError.emit(Unit)
             } catch (_: Exception) { _brandingError.emit(Unit) }
         }
     }
@@ -328,8 +346,11 @@ class ShareComparisonViewModel @Inject constructor(
         viewModelScope.launch(ioDispatcher) {
             val sessionsRoot = File(context.filesDir, "sessions")
             val ok = sessionBrandingRemover(sessionsRoot, sessionId)
-            if (ok) { _hasBranding.value = false; _useBranding.value = false }
-            else _brandingError.emit(Unit)
+            if (ok) {
+                _hasBranding.value = false
+                _useBranding.value = false
+                _sessionBrandingChanged.emit(Unit)
+            } else _brandingError.emit(Unit)
         }
     }
 
@@ -344,8 +365,11 @@ class ShareComparisonViewModel @Inject constructor(
             if (globalBranding == null) { _brandingError.emit(Unit); return@launch }
             val sessionsRoot = File(context.filesDir, "sessions")
             val ok = sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
-            if (ok) { _hasBranding.value = true; _useBranding.value = true }
-            else _brandingError.emit(Unit)
+            if (ok) {
+                _hasBranding.value = true
+                _useBranding.value = true
+                _sessionBrandingChanged.emit(Unit)
+            } else _brandingError.emit(Unit)
         }
     }
 
