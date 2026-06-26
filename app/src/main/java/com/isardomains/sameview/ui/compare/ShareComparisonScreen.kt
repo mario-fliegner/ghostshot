@@ -2,20 +2,22 @@
 package com.isardomains.sameview.ui.compare
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -33,13 +35,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -57,11 +62,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.sameview.R
 import com.isardomains.sameview.image.ShareComparisonStyle
 import com.isardomains.sameview.image.ShareQuality
+import com.isardomains.sameview.ui.branding.BrandingPreviewCircle
+import com.isardomains.sameview.ui.branding.BrandingSymbolPickerSheet
 import com.isardomains.sameview.ui.settings.SameViewSegmentControl
 import com.isardomains.sameview.ui.settings.SameViewSegmentItem
 import com.isardomains.sameview.ui.settings.SettingsCard
 import com.isardomains.sameview.ui.settings.SettingsSwitchRow
-import com.isardomains.sameview.ui.branding.BrandingPreviewCircle
 import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
 import java.io.File
@@ -101,12 +107,32 @@ fun ShareComparisonScreen(
     val context = LocalContext.current
     val resources = LocalResources.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val brandingErrorMessage = stringResource(R.string.share_comparison_logo_error)
 
     val sessionDir = remember(viewModel.sessionId) {
         File(context.filesDir, "sessions/${viewModel.sessionId}")
     }
     val sessionBrandingFile = remember(sessionDir) {
         File(sessionDir, "branding-handle.png")
+    }
+
+    // ── Branding photo picker launcher ─────────────────────────────────────────
+    val brandingImageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) viewModel.onImageUriSelectedForBranding(uri)
+    }
+
+    // ── Branding symbol picker sheet ───────────────────────────────────────────
+    var showBrandingSymbolSheet by remember { mutableStateOf(false) }
+    if (showBrandingSymbolSheet) {
+        BrandingSymbolPickerSheet(
+            onSymbolSelected = { symbol ->
+                showBrandingSymbolSheet = false
+                viewModel.onSetSessionBrandingFromSymbol(symbol)
+            },
+            onDismiss = { showBrandingSymbolSheet = false }
+        )
     }
 
     // Caption data for live preview — mirrors what will be passed to the renderer
@@ -134,6 +160,13 @@ fun ShareComparisonScreen(
                     context.startActivity(Intent.createChooser(intent, null))
                 }
             }
+        }
+    }
+
+    // Collect branding errors
+    LaunchedEffect(Unit) {
+        viewModel.brandingError.collect {
+            snackbarHostState.showSnackbar(brandingErrorMessage)
         }
     }
 
@@ -203,11 +236,12 @@ fun ShareComparisonScreen(
                 // ── Logo on handle card (V2 — Slider only) ───────────────────
                 if (style == ShareComparisonStyle.SLIDER) {
                     SettingsCard(title = stringResource(R.string.share_comparison_logo_card_title)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        ) {
-                            if (!hasBranding) {
+                        if (!hasBranding) {
+                            // ── EMPTY state ───────────────────────────────────
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(64.dp)
@@ -224,27 +258,61 @@ fun ShareComparisonScreen(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = stringResource(R.string.share_comparison_logo_none),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = SameViewSettingsSecondaryText
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.share_comparison_logo_hint),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = SameViewSettingsSecondaryText
-                                    )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.share_comparison_logo_none),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = SameViewSettingsSecondaryText,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                            if (viewModel.hasGlobalBranding) {
+                                TextButton(
+                                    onClick = { viewModel.onUseDefaultLogo() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("share_comparison_logo_use_default")
+                                ) {
+                                    Text(stringResource(R.string.share_comparison_logo_use_default))
                                 }
-                            } else {
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        brandingImageLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("share_comparison_logo_choose_photo")
+                                ) {
+                                    Text(stringResource(R.string.share_comparison_logo_choose_photo))
+                                }
+                                TextButton(
+                                    onClick = { showBrandingSymbolSheet = true },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("share_comparison_logo_use_symbol")
+                                ) {
+                                    Text(stringResource(R.string.share_comparison_logo_use_symbol))
+                                }
+                            }
+                        } else {
+                            // ── POPULATED state ───────────────────────────────
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            ) {
                                 Box(modifier = Modifier.alpha(if (useBranding) 1f else 0.4f)) {
                                     BrandingPreviewCircle(
                                         brandingFile = sessionBrandingFile,
                                         modifier = Modifier.testTag("share_comparison_logo_preview")
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
                                 Box(modifier = Modifier.weight(1f)) {
                                     SettingsSwitchRow(
                                         label = stringResource(R.string.share_comparison_logo_show),
@@ -253,6 +321,52 @@ fun ShareComparisonScreen(
                                         testTag = "share_comparison_toggle_logo"
                                     )
                                 }
+                            }
+                            if (viewModel.hasGlobalBranding) {
+                                TextButton(
+                                    onClick = { viewModel.onUseDefaultLogo() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("share_comparison_logo_use_default")
+                                ) {
+                                    Text(stringResource(R.string.share_comparison_logo_use_default))
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        brandingImageLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("share_comparison_logo_choose_photo")
+                                ) {
+                                    Text(stringResource(R.string.share_comparison_logo_choose_photo))
+                                }
+                                TextButton(
+                                    onClick = { showBrandingSymbolSheet = true },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("share_comparison_logo_use_symbol")
+                                ) {
+                                    Text(stringResource(R.string.share_comparison_logo_use_symbol))
+                                }
+                            }
+                            TextButton(
+                                onClick = { viewModel.onRemoveSessionBranding() },
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("share_comparison_logo_remove")
+                            ) {
+                                Text(stringResource(R.string.share_comparison_logo_remove))
                             }
                         }
                     }

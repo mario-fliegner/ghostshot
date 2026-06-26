@@ -2,9 +2,6 @@ package com.isardomains.sameview.ui.compare
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -27,9 +24,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
@@ -53,7 +48,6 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,11 +70,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.sameview.R
-import com.isardomains.sameview.branding.BuiltinBrandingSymbol
-import com.isardomains.sameview.ui.branding.BrandingPreviewCircle
-import com.isardomains.sameview.ui.branding.BrandingSymbolPickerSheet
 import com.isardomains.sameview.ui.settings.SettingsCard
-import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
 import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
 import com.isardomains.sameview.ui.theme.SameViewStarFavorited
@@ -128,11 +118,6 @@ fun EditSessionScreen(
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     val captureTimestampMs by viewModel.captureTimestampMs.collectAsStateWithLifecycle()
-    val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
-    val hasGlobalBranding by viewModel.hasGlobalBranding.collectAsStateWithLifecycle()
-    val sessionBrandingFile by viewModel.sessionBrandingFile.collectAsStateWithLifecycle()
-    val sessionLogoType by viewModel.sessionLogoType.collectAsStateWithLifecycle()
-    val sessionLogoBuiltinId by viewModel.sessionLogoBuiltinId.collectAsStateWithLifecycle()
 
     // ── UI derivations ─────────────────────────────────────────────────────────
     val context = LocalContext.current
@@ -157,34 +142,6 @@ fun EditSessionScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showSavingDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
-    var showBrandingSymbolSheet by remember { mutableStateOf(false) }
-
-    // ── Branding photo picker launcher ─────────────────────────────────────────
-    val brandingImageLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) viewModel.onImageUriSelectedForBranding(uri)
-    }
-
-    // ── Branding error snackbar ────────────────────────────────────────────────
-    val snackbarHostState = remember { SnackbarHostState() }
-    val brandingErrorMessage = stringResource(R.string.edit_session_logo_error)
-    LaunchedEffect(Unit) {
-        viewModel.brandingError.collect {
-            snackbarHostState.showSnackbar(brandingErrorMessage)
-        }
-    }
-
-    // ── Branding symbol picker sheet ───────────────────────────────────────────
-    if (showBrandingSymbolSheet) {
-        BrandingSymbolPickerSheet(
-            onSymbolSelected = { symbol ->
-                showBrandingSymbolSheet = false
-                viewModel.onSetSessionBrandingFromSymbol(symbol)
-            },
-            onDismiss = { showBrandingSymbolSheet = false }
-        )
-    }
 
     // ── Back handling ──────────────────────────────────────────────────────────
     BackHandler(enabled = isSaving || isDirty) {
@@ -259,6 +216,7 @@ fun EditSessionScreen(
     }
 
     // ── Screen scaffold ────────────────────────────────────────────────────────
+    val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
         modifier = modifier.testTag("edit_session_screen_root"),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -509,114 +467,6 @@ fun EditSessionScreen(
                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth().testTag("edit_session_country_field")
                 )
-            }
-
-            // ── Logo card (V2 — SESSION_BRANDING_V2_UX_REWORK.md §3) ──────────────────────
-            SettingsCard(title = stringResource(R.string.edit_session_card_logo)) {
-                Text(
-                    text = stringResource(R.string.edit_session_logo_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SameViewSettingsSecondaryText,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    if (!hasBranding) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFF5F7FA))
-                                .border(2.dp, SameViewAccent, CircleShape)
-                                .testTag("edit_session_logo_placeholder"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.AddPhotoAlternate,
-                                contentDescription = null,
-                                tint = SameViewSettingsSecondaryText,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = stringResource(R.string.edit_session_logo_none),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SameViewSettingsSecondaryText,
-                            modifier = Modifier.testTag("edit_session_logo_none_text")
-                        )
-                    } else {
-                        sessionBrandingFile?.let { file ->
-                            BrandingPreviewCircle(
-                                brandingFile = file,
-                                modifier = Modifier.testTag("edit_session_logo_preview")
-                            )
-                            val builtinId = sessionLogoBuiltinId
-                            if (sessionLogoType == "builtin" && builtinId != null) {
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = stringResource(
-                                        R.string.edit_session_logo_type_symbol,
-                                        builtinId.replaceFirstChar { it.uppercase() }
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = SameViewSettingsSecondaryText,
-                                    modifier = Modifier.testTag("edit_session_logo_type_label")
-                                )
-                            }
-                        }
-                    }
-                }
-                if (!hasBranding && hasGlobalBranding) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(
-                        onClick = { viewModel.onCopyFromGlobalBranding() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("edit_session_logo_use_default")
-                    ) {
-                        Text(stringResource(R.string.edit_session_logo_use_default))
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    TextButton(
-                        onClick = {
-                            brandingImageLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("edit_session_logo_choose_photo")
-                    ) {
-                        Text(stringResource(R.string.edit_session_logo_choose_photo))
-                    }
-                    TextButton(
-                        onClick = { showBrandingSymbolSheet = true },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("edit_session_logo_use_symbol")
-                    ) {
-                        Text(stringResource(R.string.edit_session_logo_use_symbol))
-                    }
-                }
-                if (hasBranding) {
-                    TextButton(
-                        onClick = { viewModel.onRemoveSessionBranding() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("edit_session_logo_remove")
-                    ) {
-                        Text(stringResource(R.string.edit_session_logo_remove))
-                    }
-                }
             }
             } // inner Column
         } // outer Column

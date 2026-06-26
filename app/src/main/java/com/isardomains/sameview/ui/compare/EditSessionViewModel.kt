@@ -2,16 +2,9 @@
 package com.isardomains.sameview.ui.compare
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.ImageDecoder
-import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.isardomains.sameview.branding.BrandingNormalizer
-import com.isardomains.sameview.branding.BuiltinBrandingSymbol
-import com.isardomains.sameview.branding.BuiltinSymbolRenderer
-import com.isardomains.sameview.branding.GlobalBrandingRepository
 import com.isardomains.sameview.ui.camera.SessionStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -21,11 +14,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -39,12 +29,6 @@ sealed interface EditSessionEvent {
     /** Emitted after a successful favourite toggle write. Does NOT trigger navigation. */
     data object FavoriteToggleComplete : EditSessionEvent
 }
-
-/**
- * Single-shot branding error event emitted to [EditSessionScreen] for snackbar display.
- * Separate from [EditSessionEvent] so it does not interfere with MainActivity navigation.
- */
-internal data object BrandingOperationFailed
 
 /**
  * Carries the user-editable metadata fields read from metadata.json at editor open time.
@@ -62,10 +46,7 @@ internal data class InitialSessionFields(
     val description: String = "",
     val captureTimestampMs: Long = 0L,
     val referenceSourceDisplayName: String = "",
-    val isFavorite: Boolean = false,
-    val hasBranding: Boolean = false,
-    val brandingType: String? = null,
-    val brandingBuiltinId: String? = null
+    val isFavorite: Boolean = false
 )
 
 /**
@@ -90,8 +71,7 @@ internal data class InitialSessionFields(
 @HiltViewModel
 class EditSessionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    @ApplicationContext private val context: Context,
-    private val globalBrandingRepository: GlobalBrandingRepository
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     val sessionId: String = checkNotNull(savedStateHandle["sessionId"])
@@ -279,7 +259,6 @@ class EditSessionViewModel @Inject constructor(
             val captureObj = json.optJSONObject("capture")
             val locationObj = json.optJSONObject("location")
             val additionalObj = json.optJSONObject("additional")
-            val brandingObj = json.optJSONObject("branding")
             InitialSessionFields(
                 title = contentObj?.optString("title", "") ?: "",
                 description = contentObj?.optString("description", "") ?: "",
@@ -293,15 +272,7 @@ class EditSessionViewModel @Inject constructor(
                     optString("sourceUri", "").ifEmpty { null }
                         ?: optString("sourceDisplayName", "").ifEmpty { null }
                 } ?: "",
-                isFavorite = additionalObj?.optBoolean("isFavorite", false) ?: false,
-                hasBranding = run {
-                    val filesObj = json.optJSONObject("files")
-                    val brandingHandle = filesObj?.optString("brandingHandle", "")?.takeIf { it.isNotEmpty() }
-                    brandingHandle != null &&
-                        File(File(sessionsRoot, sId), brandingHandle).let { it.exists() && it.isFile }
-                },
-                brandingType = brandingObj?.optString("type", "")?.takeIf { it.isNotEmpty() },
-                brandingBuiltinId = brandingObj?.optString("builtinId", "")?.takeIf { it.isNotEmpty() }
+                isFavorite = additionalObj?.optBoolean("isFavorite", false) ?: false
             )
         }
 
@@ -328,12 +299,6 @@ class EditSessionViewModel @Inject constructor(
                 _captureTimestampMs.value = fields.captureTimestampMs
                 _referenceSourceDisplayName.value = fields.referenceSourceDisplayName
                 _isFavorite.value = fields.isFavorite
-                _hasBranding.value = fields.hasBranding
-                _sessionLogoType.value = fields.brandingType
-                _sessionLogoBuiltinId.value = fields.brandingBuiltinId
-                _hasGlobalBranding.value = withContext(ioDispatcher) {
-                    globalBrandingRepository.hasBranding()
-                }
             } catch (e: Exception) {
                 // All fields remain at their initial empty-string / zero values.
             } finally {
@@ -450,174 +415,6 @@ class EditSessionViewModel @Inject constructor(
             } else {
                 _isFavorite.value = !newValue // revert
                 _events.emit(EditSessionEvent.SaveFailed)
-            }
-        }
-    }
-
-    // ── Session branding (immediate write; independent of Save flow) ──────────
-
-    private val _hasBranding = MutableStateFlow(false)
-    /**
-     * True when [SessionStorage.FILE_BRANDING_HANDLE] is referenced in metadata.json and
-     * the file exists on disk. Updated at editor open time and after each branding operation.
-     * Does NOT affect [isDirty] and is never reverted by "Discard changes".
-     */
-    val hasBranding: StateFlow<Boolean> = _hasBranding.asStateFlow()
-
-    /**
-     * The session's branding-handle.png [File], or null when no branding is set.
-     * Used by [EditSessionScreen] to render the branding preview circle.
-     * Derived from [hasBranding] so it updates immediately after each branding operation.
-     */
-    val sessionBrandingFile: StateFlow<File?> = _hasBranding
-        .map { has ->
-            if (has) File(context.filesDir, "sessions/$sessionId/branding-handle.png")
-                .takeIf { it.isFile }
-            else null
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    private val _hasGlobalBranding = MutableStateFlow(false)
-    /**
-     * True when global branding is currently set in [GlobalBrandingRepository].
-     * Used to determine whether "Copy from default branding" is visible.
-     */
-    val hasGlobalBranding: StateFlow<Boolean> = _hasGlobalBranding.asStateFlow()
-
-    private val _sessionLogoType = MutableStateFlow<String?>(null)
-    /** Current branding type ("image" | "builtin" | null). Updated after each branding operation. */
-    val sessionLogoType: StateFlow<String?> = _sessionLogoType.asStateFlow()
-
-    private val _sessionLogoBuiltinId = MutableStateFlow<String?>(null)
-    /** Built-in symbol id when [sessionLogoType] is "builtin", null otherwise. */
-    val sessionLogoBuiltinId: StateFlow<String?> = _sessionLogoBuiltinId.asStateFlow()
-
-    /** Emitted (as a [Unit]) when a branding operation fails. Collected by [EditSessionScreen]. */
-    private val _brandingError = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val brandingError: SharedFlow<Unit> = _brandingError.asSharedFlow()
-
-    /** Injectable for unit tests: decodes a URI to a Bitmap. */
-    internal var imageDecoder: (Uri) -> Bitmap = { uri ->
-        val source = ImageDecoder.createSource(context.contentResolver, uri)
-        ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-        }
-    }
-
-    /** Injectable for unit tests: normalizes a Bitmap to a metadata-clean PNG ByteArray. */
-    internal var brandingNormalizer: (Bitmap) -> ByteArray = { bitmap ->
-        BrandingNormalizer.normalize(bitmap)
-    }
-
-    /** Injectable for unit tests: renders a built-in symbol to a PNG ByteArray. */
-    internal var builtinSymbolRenderer: (BuiltinBrandingSymbol) -> ByteArray = { symbol ->
-        BuiltinSymbolRenderer.render(context, symbol)
-    }
-
-    /** Injectable for unit tests. Defaults to [SessionStorage.updateSessionBranding]. */
-    internal var sessionBrandingUpdater: (File, String, ByteArray, String, String?) -> Boolean =
-        { root, id, png, type, builtinId ->
-            SessionStorage.updateSessionBranding(root, id, png, type, builtinId)
-        }
-
-    /** Injectable for unit tests. Defaults to [SessionStorage.removeSessionBranding]. */
-    internal var sessionBrandingRemover: (File, String) -> Boolean =
-        { root, id -> SessionStorage.removeSessionBranding(root, id) }
-
-    /** Injectable for unit tests. Defaults to [SessionStorage.copyGlobalBrandingToSession]. */
-    internal var sessionBrandingCopier: (File, String, com.isardomains.sameview.branding.GlobalBranding) -> Boolean =
-        { root, id, branding -> SessionStorage.copyGlobalBrandingToSession(root, id, branding) }
-
-    /**
-     * Decodes [uri] from the Photo Picker, normalizes it, and stores it as session branding.
-     * Writes immediately; does NOT affect [isDirty].
-     * Emits to [brandingError] on any failure; existing branding is preserved.
-     */
-    fun onImageUriSelectedForBranding(uri: Uri) {
-        viewModelScope.launch(ioDispatcher) {
-            try {
-                val bitmap = imageDecoder(uri)
-                val bytes = brandingNormalizer(bitmap)
-                bitmap.recycle()
-                val sessionsRoot = File(context.filesDir, "sessions")
-                val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "image", null)
-                if (ok) {
-                    _hasBranding.value = true
-                    _sessionLogoType.value = "image"
-                    _sessionLogoBuiltinId.value = null
-                } else {
-                    _brandingError.emit(Unit)
-                }
-            } catch (_: Exception) {
-                _brandingError.emit(Unit)
-            }
-        }
-    }
-
-    /**
-     * Renders [symbol] and stores it as session branding.
-     * Writes immediately; does NOT affect [isDirty].
-     * Emits to [brandingError] on any failure.
-     */
-    fun onSetSessionBrandingFromSymbol(symbol: BuiltinBrandingSymbol) {
-        viewModelScope.launch(ioDispatcher) {
-            try {
-                val bytes = builtinSymbolRenderer(symbol)
-                val sessionsRoot = File(context.filesDir, "sessions")
-                val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "builtin", symbol.id)
-                if (ok) {
-                    _hasBranding.value = true
-                    _sessionLogoType.value = "builtin"
-                    _sessionLogoBuiltinId.value = symbol.id
-                } else {
-                    _brandingError.emit(Unit)
-                }
-            } catch (_: Exception) {
-                _brandingError.emit(Unit)
-            }
-        }
-    }
-
-    /**
-     * Removes session branding. After this call [hasBranding] becomes false.
-     * Writes immediately; does NOT affect [isDirty].
-     * No automatic fallback to global branding.
-     */
-    fun onRemoveSessionBranding() {
-        viewModelScope.launch(ioDispatcher) {
-            val sessionsRoot = File(context.filesDir, "sessions")
-            val ok = sessionBrandingRemover(sessionsRoot, sessionId)
-            if (ok) {
-                _hasBranding.value = false
-                _sessionLogoType.value = null
-                _sessionLogoBuiltinId.value = null
-            } else {
-                _brandingError.emit(Unit)
-            }
-        }
-    }
-
-    /**
-     * Copies the current global branding into this session.
-     * Only callable when [hasBranding] is false and [hasGlobalBranding] is true.
-     * After a successful copy the session owns an independent copy; future global changes
-     * do NOT affect this session.
-     */
-    fun onCopyFromGlobalBranding() {
-        viewModelScope.launch(ioDispatcher) {
-            val globalBranding = globalBrandingRepository.getBranding()
-            if (globalBranding == null) {
-                _brandingError.emit(Unit)
-                return@launch
-            }
-            val sessionsRoot = File(context.filesDir, "sessions")
-            val ok = sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
-            if (ok) {
-                _hasBranding.value = true
-                _sessionLogoType.value = globalBranding.meta.type
-                _sessionLogoBuiltinId.value = globalBranding.meta.builtinId
-            } else {
-                _brandingError.emit(Unit)
             }
         }
     }

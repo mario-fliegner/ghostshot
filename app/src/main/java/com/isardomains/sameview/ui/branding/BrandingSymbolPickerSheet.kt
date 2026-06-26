@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -92,7 +91,6 @@ fun BrandingSymbolPickerSheet(
                                 Image(
                                     painter = painterResource(symbol.drawableRes),
                                     contentDescription = symbol.id,
-                                    colorFilter = ColorFilter.tint(SameViewSettingsLabelText),
                                     modifier = Modifier.size(40.dp)
                                 )
                             }

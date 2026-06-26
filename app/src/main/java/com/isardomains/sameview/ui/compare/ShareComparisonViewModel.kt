@@ -3,25 +3,36 @@ package com.isardomains.sameview.ui.compare
 
 import android.content.ContentResolver
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.sameview.R
+import com.isardomains.sameview.branding.BrandingNormalizer
+import com.isardomains.sameview.branding.BuiltinBrandingSymbol
+import com.isardomains.sameview.branding.BuiltinSymbolRenderer
+import com.isardomains.sameview.branding.GlobalBranding
+import com.isardomains.sameview.branding.GlobalBrandingRepository
 import com.isardomains.sameview.image.ShareCaptionData
 import com.isardomains.sameview.image.ShareComparisonStyle
 import com.isardomains.sameview.image.ShareImageRenderer
 import com.isardomains.sameview.image.ShareQuality
 import com.isardomains.sameview.image.ShareRenderConfig
+import com.isardomains.sameview.ui.camera.SessionStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -67,7 +78,8 @@ internal data class ShareMetadataSnapshot(
 @HiltViewModel
 class ShareComparisonViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val globalBrandingRepository: GlobalBrandingRepository
 ) : ViewModel() {
 
     val sessionId: String = checkNotNull(savedStateHandle["sessionId"])
@@ -109,6 +121,14 @@ class ShareComparisonViewModel @Inject constructor(
     fun onToggleUseBranding() {
         _useBranding.value = !_useBranding.value
     }
+
+    /**
+     * True when global branding exists. Read once at init — plain val, not reactive StateFlow.
+     */
+    val hasGlobalBranding: Boolean = globalBrandingRepository.hasBranding()
+
+    private val _brandingError = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val brandingError: SharedFlow<Unit> = _brandingError.asSharedFlow()
 
     // ── Metadata-derived state ─────────────────────────────────────────────────
 
@@ -164,6 +184,40 @@ class ShareComparisonViewModel @Inject constructor(
     /** Override in tests with an unconfined/test dispatcher. */
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
+    // ── Injectable branding lambdas (replaceable for unit tests) ─────────────
+
+    /** Injectable for unit tests: decodes a URI to a Bitmap. */
+    internal var imageDecoder: (Uri) -> Bitmap = { uri ->
+        val source = ImageDecoder.createSource(context.contentResolver, uri)
+        ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+    }
+
+    /** Injectable for unit tests: normalizes a Bitmap to a metadata-clean PNG ByteArray. */
+    internal var brandingNormalizer: (Bitmap) -> ByteArray = { bitmap ->
+        BrandingNormalizer.normalize(bitmap)
+    }
+
+    /** Injectable for unit tests: renders a built-in symbol to a PNG ByteArray. */
+    internal var builtinSymbolRenderer: (BuiltinBrandingSymbol) -> ByteArray = { symbol ->
+        BuiltinSymbolRenderer.render(context, symbol)
+    }
+
+    /** Injectable for unit tests. Defaults to [SessionStorage.updateSessionBranding]. */
+    internal var sessionBrandingUpdater: (File, String, ByteArray, String, String?) -> Boolean =
+        { root, id, png, type, builtinId ->
+            SessionStorage.updateSessionBranding(root, id, png, type, builtinId)
+        }
+
+    /** Injectable for unit tests. Defaults to [SessionStorage.removeSessionBranding]. */
+    internal var sessionBrandingRemover: (File, String) -> Boolean =
+        { root, id -> SessionStorage.removeSessionBranding(root, id) }
+
+    /** Injectable for unit tests. Defaults to [SessionStorage.copyGlobalBrandingToSession]. */
+    internal var sessionBrandingCopier: (File, String, GlobalBranding) -> Boolean =
+        { root, id, branding -> SessionStorage.copyGlobalBrandingToSession(root, id, branding) }
+
     // ── Initialization ─────────────────────────────────────────────────────────
 
     init {
@@ -182,6 +236,21 @@ class ShareComparisonViewModel @Inject constructor(
             val hasBranding = withContext(ioDispatcher) { brandingFileChecker(sessionDir) }
             _hasBranding.value = hasBranding
             _useBranding.value = hasBranding  // default: ON when branding present
+
+            // Auto-copy global default when session has no branding
+            if (!hasBranding) {
+                val globalBranding = withContext(ioDispatcher) { globalBrandingRepository.getBranding() }
+                if (globalBranding != null) {
+                    val sessionsRoot = File(context.filesDir, "sessions")
+                    val copied = withContext(ioDispatcher) {
+                        sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
+                    }
+                    if (copied) {
+                        _hasBranding.value = true
+                        _useBranding.value = true
+                    }
+                }
+            }
 
             val title = snapshot.title?.trim()?.takeIf { it.isNotEmpty() }
             val dateLine = computeDateLine(snapshot.referenceDate, snapshot.captureTimestampMs)
@@ -214,6 +283,71 @@ class ShareComparisonViewModel @Inject constructor(
     fun onQualityChanged(quality: ShareQuality) { _quality.value = quality }
     fun onTitleDateToggled(enabled: Boolean) { _titleDateEnabled.value = enabled }
     fun onLocationToggled(enabled: Boolean) { _locationEnabled.value = enabled }
+
+    // ── Branding operations ────────────────────────────────────────────────────
+
+    /**
+     * Decodes [uri] from the Photo Picker, normalizes it, and stores it as session branding.
+     * Writes immediately. Emits to [brandingError] on any failure.
+     */
+    fun onImageUriSelectedForBranding(uri: Uri) {
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val bitmap = imageDecoder(uri)
+                val bytes = brandingNormalizer(bitmap)
+                bitmap.recycle()
+                val sessionsRoot = File(context.filesDir, "sessions")
+                val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "image", null)
+                if (ok) { _hasBranding.value = true; _useBranding.value = true }
+                else _brandingError.emit(Unit)
+            } catch (_: Exception) { _brandingError.emit(Unit) }
+        }
+    }
+
+    /**
+     * Renders [symbol] and stores it as session branding.
+     * Writes immediately. Emits to [brandingError] on any failure.
+     */
+    fun onSetSessionBrandingFromSymbol(symbol: BuiltinBrandingSymbol) {
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val bytes = builtinSymbolRenderer(symbol)
+                val sessionsRoot = File(context.filesDir, "sessions")
+                val ok = sessionBrandingUpdater(sessionsRoot, sessionId, bytes, "builtin", symbol.id)
+                if (ok) { _hasBranding.value = true; _useBranding.value = true }
+                else _brandingError.emit(Unit)
+            } catch (_: Exception) { _brandingError.emit(Unit) }
+        }
+    }
+
+    /**
+     * Removes session branding. After this call [hasBranding] becomes false.
+     * Writes immediately. No automatic fallback to global branding.
+     */
+    fun onRemoveSessionBranding() {
+        viewModelScope.launch(ioDispatcher) {
+            val sessionsRoot = File(context.filesDir, "sessions")
+            val ok = sessionBrandingRemover(sessionsRoot, sessionId)
+            if (ok) { _hasBranding.value = false; _useBranding.value = false }
+            else _brandingError.emit(Unit)
+        }
+    }
+
+    /**
+     * Copies the current global branding into this session.
+     * After a successful copy the session owns an independent copy; future global changes
+     * do NOT affect this session.
+     */
+    fun onUseDefaultLogo() {
+        viewModelScope.launch(ioDispatcher) {
+            val globalBranding = globalBrandingRepository.getBranding()
+            if (globalBranding == null) { _brandingError.emit(Unit); return@launch }
+            val sessionsRoot = File(context.filesDir, "sessions")
+            val ok = sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
+            if (ok) { _hasBranding.value = true; _useBranding.value = true }
+            else _brandingError.emit(Unit)
+        }
+    }
 
     // ── Share action ───────────────────────────────────────────────────────────
 

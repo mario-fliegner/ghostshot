@@ -44,6 +44,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -115,7 +116,9 @@ class ShareComparisonScreenTest {
     @Test
     fun t_b3_10_shareButtonPresent() {
         launch()
-        composeRule.onNodeWithTag("share_comparison_share_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_share_button")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     // ── T-B3-11: Back button invokes callback ─────────────────────────────────
@@ -161,6 +164,7 @@ class ShareComparisonScreenTest {
     private fun launch(
         onBack: () -> Unit = {},
         hasBranding: Boolean = false,
+        hasGlobalBranding: Boolean = false,
         initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER
     ) {
         wakeDevice()
@@ -176,6 +180,7 @@ class ShareComparisonScreenTest {
                     ShareComparisonScreenStub(
                         onBack = onBack,
                         hasBranding = hasBranding,
+                        hasGlobalBranding = hasGlobalBranding,
                         initialStyle = initialStyle
                     )
                 }
@@ -209,8 +214,63 @@ class ShareComparisonScreenTest {
         composeRule.onNodeWithTag("share_comparison_logo_placeholder").assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.share_comparison_logo_none))
             .assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.share_comparison_logo_hint))
-            .assertIsDisplayed()
+        // Toggle absent in empty state
+        composeRule.onNodeWithTag("share_comparison_toggle_logo").assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_emptyState_showsActionButtons() {
+        launch(hasBranding = false)
+
+        composeRule.onNodeWithTag("share_comparison_logo_choose_photo").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_logo_use_symbol").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_logo_remove").assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_emptyState_useDefaultLogo_visible_whenGlobalExists() {
+        launch(hasBranding = false, hasGlobalBranding = true)
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_emptyState_useDefaultLogo_absent_whenNoGlobal() {
+        launch(hasBranding = false, hasGlobalBranding = false)
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_populated_showsAllManagementElements() {
+        launch(hasBranding = true)
+
+        composeRule.onNodeWithTag("share_comparison_logo_preview").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_toggle_logo").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_logo_choose_photo").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_logo_use_symbol").assertIsDisplayed()
+        composeRule.onNodeWithTag("share_comparison_logo_remove").assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_populated_useDefaultLogo_visible_whenGlobalExists() {
+        launch(hasBranding = true, hasGlobalBranding = true)
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertIsDisplayed()
+    }
+
+    @Test
+    fun logoCard_populated_useDefaultLogo_absent_whenNoGlobal() {
+        launch(hasBranding = true, hasGlobalBranding = false)
+
+        composeRule.onNodeWithTag("share_comparison_logo_use_default").assertDoesNotExist()
+    }
+
+    @Test
+    fun logoCard_noOldEditSessionHintText() {
+        launch(hasBranding = false)
+
+        composeRule.onNodeWithText("Add one in Edit session.").assertDoesNotExist()
     }
 
     @Test
@@ -279,6 +339,7 @@ class ShareComparisonScreenTest {
     }
 }
 
+
 // ── Structural test stub (V2) ───────────────────────────────────────────────────
 // Renders the same card/control structure as ShareComparisonScreen without Hilt.
 // Tests verify that the correct nodes, labels, and test tags are present and
@@ -289,6 +350,7 @@ class ShareComparisonScreenTest {
 private fun ShareComparisonScreenStub(
     onBack: () -> Unit,
     hasBranding: Boolean = false,
+    hasGlobalBranding: Boolean = false,
     initialUseBranding: Boolean = hasBranding,
     initialStyle: ShareComparisonStyle = ShareComparisonStyle.SLIDER
 ) {
@@ -322,7 +384,7 @@ private fun ShareComparisonScreenStub(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Style card — segment only (no branding toggle in V2)
+            // Style card
             SettingsCard(title = stringResource(R.string.share_comparison_style_label)) {
                 SameViewSegmentControl(
                     items = styles.map {
@@ -341,32 +403,46 @@ private fun ShareComparisonScreenStub(
             // Logo on handle card (V2 — Slider only)
             if (style == ShareComparisonStyle.SLIDER) {
                 SettingsCard(title = stringResource(R.string.share_comparison_logo_card_title)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (!hasBranding) {
-                            Box(
+                    if (!hasBranding) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .testTag("share_comparison_logo_placeholder"),
+                            contentAlignment = Alignment.Center
+                        ) {}
+                        Text(
+                            text = stringResource(R.string.share_comparison_logo_none),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (hasGlobalBranding) {
+                            androidx.compose.material3.TextButton(
+                                onClick = {},
                                 modifier = Modifier
-                                    .size(64.dp)
-                                    .testTag("share_comparison_logo_placeholder"),
-                                contentAlignment = Alignment.Center
-                            ) {}
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.share_comparison_logo_none),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
-                                    text = stringResource(R.string.share_comparison_logo_hint),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        } else {
+                                    .fillMaxWidth()
+                                    .testTag("share_comparison_logo_use_default")
+                            ) { Text(stringResource(R.string.share_comparison_logo_use_default)) }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            androidx.compose.material3.TextButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("share_comparison_logo_choose_photo")
+                            ) { Text(stringResource(R.string.share_comparison_logo_choose_photo)) }
+                            androidx.compose.material3.TextButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("share_comparison_logo_use_symbol")
+                            ) { Text(stringResource(R.string.share_comparison_logo_use_symbol)) }
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(64.dp)
                                     .testTag("share_comparison_logo_preview")
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
                             Box(modifier = Modifier.weight(1f)) {
                                 SettingsSwitchRow(
                                     label = stringResource(R.string.share_comparison_logo_show),
@@ -376,6 +452,34 @@ private fun ShareComparisonScreenStub(
                                 )
                             }
                         }
+                        if (hasGlobalBranding) {
+                            androidx.compose.material3.TextButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("share_comparison_logo_use_default")
+                            ) { Text(stringResource(R.string.share_comparison_logo_use_default)) }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            androidx.compose.material3.TextButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("share_comparison_logo_choose_photo")
+                            ) { Text(stringResource(R.string.share_comparison_logo_choose_photo)) }
+                            androidx.compose.material3.TextButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("share_comparison_logo_use_symbol")
+                            ) { Text(stringResource(R.string.share_comparison_logo_use_symbol)) }
+                        }
+                        androidx.compose.material3.TextButton(
+                            onClick = {},
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("share_comparison_logo_remove")
+                        ) { Text(stringResource(R.string.share_comparison_logo_remove)) }
                     }
                 }
             }
