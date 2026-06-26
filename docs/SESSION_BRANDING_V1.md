@@ -364,21 +364,22 @@ and the `CompareScreen` implementation) is unchanged:
 When session branding is active and the "Use branding" toggle is ON:
 
 **Outer ring:**
-- Color: `SameViewAccent` (same blue as the standard handle arrows)
+- Color: white (`#FFFFFF`) — identical to the standard handle ring
 - Two arcs with 12° gaps at top/bottom (same geometry as standard handle)
 - Thickness: same as standard handle (2 dp at preview scale, proportional at export scale)
 
 **Inner circle:**
-- Color: `#F5F7FA` (off-white, not pure white)
+- Color: white (`#FFFFFF`) — identical to the standard handle circle
 - Same shadow as standard handle
 
 **Logo:**
 - Source: `branding-handle.png` from session folder
-- Rendered at **72%** of the branding circle diameter
+- Rendered at **72%** of the branding circle diameter, centered — replacing the `SameViewAccent` arrows
 - Fit semantics: logo scaled to fit in 72% area, aspect ratio preserved
-- Centered in the circle
 - Logo is NOT clipped to a circle — rectangular/irregular logo shapes are preserved
-- No additional background behind the logo (circle provides #F5F7FA background)
+- No additional background behind the logo (the white circle provides the background)
+
+The branding handle is the **same SameView handle**. Only the inner content changes (logo instead of arrows). The outer ring, circle, shadow, and visual language are identical to the standard handle.
 
 ### 8.4 Handle Sizing
 
@@ -404,12 +405,11 @@ in pixel space. Preview and export must compute equivalent sizes from the same f
 
 ### 8.5 Dark / Light Logo Handling
 
-The `#F5F7FA` circle background ensures logos are visible regardless of logo color. No
-auto-adaptation is performed. The `SameViewAccent` outer ring provides visual separation
-from the comparison content in all configurations.
+The white circle background ensures the branding handle is visually consistent with the
+standard handle in all configurations. No auto-adaptation is performed.
 
 A user who selects a white or near-white logo may experience low contrast between the
-logo and the `#F5F7FA` background. This is the user's choice; V1 does not attempt to
+logo and the white background. This is the user's choice; V1 does not attempt to
 detect or prevent this.
 
 ### 8.6 Preview = Export
@@ -417,9 +417,9 @@ detect or prevent this.
 The `ShareComparisonPreview` composable and the `SliderRenderStrategy` export renderer
 must produce visually identical results for the branding handle. Both must:
 - Use the same handle size formula (preview in dp, export in scaled pixels)
-- Apply the same ring geometry (SameViewAccent color, same arc angles and gaps)
+- Apply the same ring geometry (white color, same arc angles and gaps as the standard handle)
 - Render the logo at the same 72% ratio inside the circle
-- Use the same #F5F7FA circle background color
+- Use the same white (`#FFFFFF`) circle background color
 
 ---
 

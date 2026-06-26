@@ -17,18 +17,17 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.isardomains.sameview.ui.theme.SameViewAccent
 import java.io.File
 
 /**
  * 64 dp circle preview of a branding asset (handle.png or branding-handle.png).
  *
- * Renders: [SameViewAccent] outer ring (2 dp, two arcs with 12° gaps) · 1 dp gap ·
- * [#F5F7FA] background circle (58 dp) · [brandingFile] logo centered at 46 dp (Fit, no crop).
+ * Renders: white outer ring (2 dp, two arcs with 12° gaps) · 1 dp gap · white background
+ * circle (58 dp) · [brandingFile] logo centered at 46 dp (Fit, no crop).
  *
- * The ring geometry matches the comparison handle ring in [ShareComparisonPreview] and
- * [BrandingHandleRenderer]: two 156° arcs starting at 102° and 282°, separated by 12° gaps
- * at top and bottom, with a 1 dp gap between the arc inner edge and the fill circle.
+ * Matches the branding handle appearance in Share Comparison Image exports: the branding
+ * handle uses the same visual language as the standard SameView handle (white ring, white
+ * circle). Only the inner content changes — logo instead of arrows.
  *
  * Used in [com.isardomains.sameview.ui.settings.SettingsScreen] (global branding)
  * and [com.isardomains.sameview.ui.compare.ShareComparisonScreen] (session branding).
@@ -42,12 +41,13 @@ fun BrandingPreviewCircle(
         modifier = modifier.size(64.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Fill circle with logo. 58 dp = 64 dp total − 2 × (1 dp gap + 1 dp stroke half).
+        // Fill circle: white background with logo.
+        // 58 dp = 64 dp total minus ring gap (1 dp) and ring half-stroke (1 dp) on each side.
         Box(
             modifier = Modifier
                 .size(58.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF5F7FA)),
+                .background(Color.White),
             contentAlignment = Alignment.Center
         ) {
             AsyncImage(
@@ -57,17 +57,15 @@ fun BrandingPreviewCircle(
                 modifier = Modifier.size(46.dp)
             )
         }
-        // Ring drawn on top: two arcs, 12° gaps at top/bottom.
-        // Geometry matches ShareComparisonPreview.kt (ringThickness=2.dp, ringGap=1.dp,
-        // angles 102°/282°, sweep 156°). Extracted constants would require touching
-        // ShareComparisonPreview.kt (out of scope), so duplicated locally.
+        // Ring drawn on top: white, two arcs with 12° gaps.
+        // Geometry matches ShareComparisonPreview.kt and BrandingHandleRenderer.kt.
         Canvas(modifier = Modifier.size(64.dp)) {
             val strokePx = 2.dp.toPx()
             val inset = strokePx / 2f
             val arcTopLeft = Offset(inset, inset)
             val arcSize = Size(size.width - strokePx, size.height - strokePx)
-            drawArc(SameViewAccent, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
-            drawArc(SameViewAccent, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+            drawArc(Color.White, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+            drawArc(Color.White, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
         }
     }
 }

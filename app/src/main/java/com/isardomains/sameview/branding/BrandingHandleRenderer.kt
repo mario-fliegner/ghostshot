@@ -25,11 +25,11 @@ import android.graphics.RectF
  */
 internal object BrandingHandleRenderer {
 
-    /** Outer ring color — SameViewAccent blue. */
-    private const val RING_COLOR: Int = 0xFF4F8CFF.toInt()
+    /** Outer ring color — white, identical to the standard SameView handle ring. */
+    private const val RING_COLOR: Int = 0xFFFFFFFF.toInt()
 
-    /** Inner circle background — off-white #F5F7FA. */
-    private const val CIRCLE_BG_COLOR: Int = 0xFFF5F7FA.toInt()
+    /** Inner circle background — white, identical to the standard SameView handle circle. */
+    private const val CIRCLE_BG_COLOR: Int = 0xFFFFFFFF.toInt()
 
     /** Logo occupies this fraction of the branding circle diameter. */
     private const val LOGO_SIZE_FRACTION = 0.72f

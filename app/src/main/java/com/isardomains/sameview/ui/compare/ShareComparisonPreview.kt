@@ -237,14 +237,16 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp, useBran
 
         if (brandingFile != null) {
             // ── Branding handle ────────────────────────────────────────────────
-            // 1.5× standard size; SameViewAccent ring; #F5F7FA circle; logo at 72%.
+            // Same visual language as the standard handle: white ring, white circle.
+            // Only the inner content changes: logo at 72% instead of arrows.
+            // Handle is 1.5× the standard size (unchanged).
             val brandingHandleSize = (standardHandleSize.value * 1.5f)
                 .coerceAtMost(54f).dp
             val ringGap = 1.dp
             val ringThickness = 2.dp
             val brandingRingCanvasSize = brandingHandleSize + (ringGap + ringThickness) * 2
 
-            // Outer ring: SameViewAccent two arcs.
+            // Outer ring: white, two arcs — identical to the standard handle ring.
             androidx.compose.foundation.Canvas(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -254,18 +256,18 @@ private fun SliderPreviewContent(sessionDir: File, compW: Dp, compH: Dp, useBran
                 val inset = strokePx / 2f
                 val arcTopLeft = Offset(inset, inset)
                 val arcSize = Size(size.width - strokePx, size.height - strokePx)
-                drawArc(SameViewAccent, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
-                drawArc(SameViewAccent, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+                drawArc(Color.White, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+                drawArc(Color.White, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
             }
 
-            // Inner circle (#F5F7FA) with branding logo.
+            // Inner circle: white, with branding logo replacing the arrows.
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(brandingHandleSize)
                     .shadow(3.dp, CircleShape)
                     .clip(CircleShape)
-                    .background(Color(0xFFF5F7FA)),
+                    .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
                 val logoSize = brandingHandleSize * 0.72f

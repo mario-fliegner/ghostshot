@@ -34,15 +34,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.isardomains.sameview.R
 import com.isardomains.sameview.branding.BuiltinBrandingSymbol
-import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewSettingsLabelText
 
 /**
  * ModalBottomSheet that presents the 6 built-in branding symbols as handle-preview cells.
  *
- * Each cell renders the symbol inside a 56 dp circle whose ring geometry matches the
- * comparison handle ring in [ShareComparisonPreview] and [BrandingHandleRenderer]:
- * two 156° [SameViewAccent] arcs with 12° gaps, 2 dp stroke, 1 dp gap to the fill circle.
+ * Each cell renders the symbol inside a 56 dp circle matching the actual branding handle:
+ * white ring (two arcs, 12° gaps), white fill, symbol at native VectorDrawable fill color.
+ * This matches the standard SameView handle visual language (spec rule P-03).
  *
  * Tapping a cell calls [onSymbolSelected] with the chosen symbol.
  * Tapping Cancel or dismissing the sheet calls [onDismiss].
@@ -88,13 +87,13 @@ fun BrandingSymbolPickerSheet(
                                 modifier = Modifier.size(56.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Fill circle with symbol icon.
-                                // 50 dp = 56 dp total − 2 × (1 dp gap + 1 dp stroke half).
+                                // Fill circle: white, matching the branding handle circle.
+                                // 50 dp = 56 dp total minus ring gap (1 dp) and half-stroke (1 dp) on each side.
                                 Box(
                                     modifier = Modifier
                                         .size(50.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFF5F7FA)),
+                                        .background(Color.White),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Image(
@@ -103,15 +102,15 @@ fun BrandingSymbolPickerSheet(
                                         modifier = Modifier.size(40.dp)
                                     )
                                 }
-                                // Ring drawn on top: two arcs, 12° gaps at top/bottom.
-                                // Same geometry as BrandingPreviewCircle and ShareComparisonPreview.kt.
+                                // Ring drawn on top: white, two arcs with 12° gaps.
+                                // Matches the standard SameView handle ring (spec rule P-03).
                                 Canvas(modifier = Modifier.size(56.dp)) {
                                     val strokePx = 2.dp.toPx()
                                     val inset = strokePx / 2f
                                     val arcTopLeft = Offset(inset, inset)
                                     val arcSize = Size(size.width - strokePx, size.height - strokePx)
-                                    drawArc(SameViewAccent, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
-                                    drawArc(SameViewAccent, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+                                    drawArc(Color.White, 102f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
+                                    drawArc(Color.White, 282f, 156f, false, arcTopLeft, arcSize, style = Stroke(strokePx))
                                 }
                             }
                             Spacer(modifier = Modifier.height(4.dp))

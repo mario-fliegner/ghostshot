@@ -428,9 +428,9 @@ Both buttons displayed side by side in a `Row` with equal `weight(1f)`.
 Each cell renders the symbol exactly as it will appear in the exported handle:
 
 - **Preview circle:** 56 dp
-- **Ring:** 2 dp, `SameViewAccent`, two arcs with 12° gaps at top and bottom (matches `BrandingHandleRenderer` geometry)
-- **Fill:** `#F5F7FA`
-- **Symbol icon:** centered, scaled to 72% of circle diameter, rendered at the VectorDrawable's native fill color (no `colorFilter` override). The VectorDrawable fill color (`#17202F`) provides correct contrast against `#F5F7FA` and matches the actual export appearance (spec rule P-03).
+- **Ring:** 2 dp, white (`#FFFFFF`), two arcs with 12° gaps at top and bottom (matches `BrandingHandleRenderer` geometry — identical to the standard SameView handle ring)
+- **Fill:** white (`#FFFFFF`) — identical to the standard SameView handle circle
+- **Symbol icon:** centered, scaled to 72% of circle diameter, rendered at the VectorDrawable's native fill color (no `colorFilter` override). The VectorDrawable fill color (`#17202F`) provides correct contrast against the white background and matches the actual export appearance (spec rule P-03).
 - **Name label:** `labelSmall` / `SameViewSettingsLabelText`, sentence case, below the circle
 
 Grid: `LazyVerticalGrid`, `GridCells.Fixed(3)`, `horizontalArrangement = Arrangement.spacedBy(8.dp)`, `verticalArrangement = Arrangement.spacedBy(8.dp)`.
@@ -451,7 +451,7 @@ Edit Session is **not** a caller. The callback signature is unchanged: `onSymbol
 
 ### Symbol color correctness (implementation note)
 
-The `colorFilter = ColorFilter.tint(SameViewSettingsLabelText)` previously applied in the picker was incorrect. `SameViewSettingsLabelText` is `Color(0xFFFFFFFF)` (pure white) — designed for dark background text, not for icons on the light `#F5F7FA` circle. This override made symbols nearly invisible (contrast ~1.07:1) while the actual export rendered the VectorDrawable's native `#17202F` (contrast ~14.6:1), violating rule P-03. The `colorFilter` must not be applied. Symbol icons render at their native VectorDrawable fill color.
+The `colorFilter = ColorFilter.tint(SameViewSettingsLabelText)` previously applied in the picker was incorrect and has been removed. Symbol icons render at their native VectorDrawable fill color (`#17202F`, dark navy), which provides correct contrast against the white background (~14.6:1) and matches the actual export appearance.
 
 ---
 
@@ -680,9 +680,9 @@ All replacement directions are available from a single consistently-visible set 
 
 **P-02.** The `BrandingPreviewCircle` must render identically in Settings and Share Comparison — same size (64 dp), same ring color, same fill color, same logo rendering.
 
-**P-03.** Symbol cells in `BrandingSymbolPickerSheet` must render each symbol using the same visual specification as the actual branding handle: `SameViewAccent` ring, `#F5F7FA` fill, symbol at 72% of circle diameter, symbol at native VectorDrawable fill color. Preview = export result. No `colorFilter` override.
+**P-03.** Symbol cells in `BrandingSymbolPickerSheet` must render each symbol using the same visual specification as the actual branding handle: white ring, white fill, symbol at 72% of circle diameter, symbol at native VectorDrawable fill color. Preview = export result. No `colorFilter` override.
 
-**P-04.** The placeholder circle must match the `BrandingPreviewCircle` geometry in Settings and Share Comparison: same 2 dp `SameViewAccent` border, same `#F5F7FA` fill, same `CircleShape`.
+**P-04.** The placeholder circle must match the `BrandingPreviewCircle` geometry in Settings and Share Comparison: same 2 dp white ring, same white fill, same `CircleShape`.
 
 ---
 
