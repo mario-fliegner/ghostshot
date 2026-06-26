@@ -147,16 +147,6 @@
     <!-- Branding: Symbol picker sheet (V2) -->
     <string name="branding_symbol_picker_title">Choose a symbol</string>
 
-    <!-- Edit Session: Logo (V2) -->
-    <string name="edit_session_card_logo">Logo</string>
-    <string name="edit_session_logo_description">Appears in the slider handle when sharing this comparison.</string>
-    <string name="edit_session_logo_none">No logo for this comparison.</string>
-    <string name="edit_session_logo_type_symbol">Symbol: %s</string>
-    <string name="edit_session_logo_use_default">Use your default logo</string>
-    <string name="edit_session_logo_choose_photo">Choose photo</string>
-    <string name="edit_session_logo_use_symbol">Use a symbol</string>
-    <string name="edit_session_logo_remove">Remove logo</string>
-    <string name="edit_session_logo_error">Couldn\'t set logo</string>
 
     <!-- Settings: Logo (V2) -->
     <string name="settings_logo_section_title">Your logo</string>
@@ -262,8 +252,12 @@
     <!-- Share Comparison: Logo (V2) -->
     <string name="share_comparison_logo_card_title">Logo on handle</string>
     <string name="share_comparison_logo_none">No logo for this comparison.</string>
-    <string name="share_comparison_logo_hint">Add one in Edit session.</string>
     <string name="share_comparison_logo_show">Show logo</string>
+    <string name="share_comparison_logo_choose_photo">Choose photo</string>
+    <string name="share_comparison_logo_use_symbol">Use a symbol</string>
+    <string name="share_comparison_logo_remove">Remove logo</string>
+    <string name="share_comparison_logo_error">Couldn\'t set logo</string>
+    <string name="share_comparison_logo_use_default">Use default logo</string>
 
     <!-- Create Video — Entry point (CompareScreen top app bar; accessed via Export menu) -->
     <string name="create_video_entry_content_description">Create video</string>

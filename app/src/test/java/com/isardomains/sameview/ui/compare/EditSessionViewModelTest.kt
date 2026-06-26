@@ -3,8 +3,6 @@ package com.isardomains.sameview.ui.compare
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
-import com.isardomains.sameview.branding.BuiltinBrandingSymbol
-import com.isardomains.sameview.branding.GlobalBrandingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -74,14 +72,13 @@ class EditSessionViewModelTest {
         referenceDateUpdater: (File, String, String?) -> Boolean = { _, _, _ -> true },
         locationUpdater: (File, String, String?, String?, String?) -> Boolean = { _, _, _, _, _ -> true },
         favoriteUpdater: (File, String, Boolean) -> Boolean = { _, _, _ -> true },
-        brandingRepository: GlobalBrandingRepository = GlobalBrandingRepository(File(tempFolder.root, "branding")),
         reader: (File, String) -> InitialSessionFields = { _, _ ->
             InitialSessionFields("", "", "", "", "")
         }
     ): EditSessionViewModel {
         val savedStateHandle = SavedStateHandle(mapOf("sessionId" to sessionId))
         val context: Context = mock { on { filesDir } doReturn File("/fake/files") }
-        val vm = EditSessionViewModel(savedStateHandle, context, brandingRepository)
+        val vm = EditSessionViewModel(savedStateHandle, context)
         vm.ioDispatcher = testDispatcher
         vm.metadataReader = reader
         vm.sessionContentUpdater = contentUpdater
@@ -776,8 +773,7 @@ class EditSessionViewModelTest {
         File(sessionDir, "metadata.json").writeText(metadata)
         val context: Context = mock { on { filesDir } doReturn tempFolder.root }
         val savedStateHandle = SavedStateHandle(mapOf("sessionId" to TEST_SESSION_ID))
-        val brandingRepo = GlobalBrandingRepository(File(tempFolder.root, "branding"))
-        val vm = EditSessionViewModel(savedStateHandle, context, brandingRepo)
+        val vm = EditSessionViewModel(savedStateHandle, context)
         vm.ioDispatcher = testDispatcher
         // metadataReader NOT overridden — uses production default
         return vm
@@ -820,205 +816,5 @@ class EditSessionViewModelTest {
         advanceUntilIdle()
 
         assertEquals("", vm.referenceSourceDisplayName.value)
-    }
-
-    // ── Session branding ──────────────────────────────────────────────────────
-
-    @Test
-    fun hasBranding_false_whenMetadataHasNoBrandingBlock() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = false)
-        }
-        advanceUntilIdle()
-        assertFalse(vm.hasBranding.value)
-    }
-
-    @Test
-    fun hasBranding_true_whenMetadataHasBrandingBlock() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = true)
-        }
-        advanceUntilIdle()
-        assertTrue(vm.hasBranding.value)
-    }
-
-    @Test
-    fun onSetSessionBrandingFromSymbol_setsHasBrandingTrue_doesNotSetDirty() = runTest(testDispatcher) {
-        val fakePng = ByteArray(64) { 0x01 }
-        val vm = createViewModel()
-        vm.builtinSymbolRenderer = { fakePng }
-        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
-        advanceUntilIdle()
-
-        vm.onSetSessionBrandingFromSymbol(BuiltinBrandingSymbol.HEART)
-        advanceUntilIdle()
-
-        assertTrue("hasBranding must be true after symbol set", vm.hasBranding.value)
-        assertFalse("isDirty must remain false after branding operation", vm.isDirty.value)
-    }
-
-    @Test
-    fun onRemoveSessionBranding_setsHasBrandingFalse_doesNotSetDirty() = runTest(testDispatcher) {
-        val fakePng = ByteArray(64) { 0x02 }
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = true)
-        }
-        vm.sessionBrandingRemover = { _, _ -> true }
-        advanceUntilIdle()
-        assertTrue(vm.hasBranding.value)
-
-        vm.onRemoveSessionBranding()
-        advanceUntilIdle()
-
-        assertFalse("hasBranding must be false after removal", vm.hasBranding.value)
-        assertFalse("isDirty must remain false after branding removal", vm.isDirty.value)
-    }
-
-    @Test
-    fun onSetSessionBrandingFromSymbol_updaterFails_emitsBrandingError() = runTest(testDispatcher) {
-        val fakePng = ByteArray(64) { 0x03 }
-        val vm = createViewModel()
-        vm.builtinSymbolRenderer = { fakePng }
-        vm.sessionBrandingUpdater = { _, _, _, _, _ -> false }
-        advanceUntilIdle()
-
-        val errors = mutableListOf<Unit>()
-        val job = launch(Dispatchers.Main.immediate) { vm.brandingError.collect { errors.add(it) } }
-
-        vm.onSetSessionBrandingFromSymbol(BuiltinBrandingSymbol.STAR)
-        advanceUntilIdle()
-
-        assertTrue("brandingError must be emitted on failure", errors.isNotEmpty())
-        assertFalse("hasBranding must remain false on failure", vm.hasBranding.value)
-        job.cancel()
-    }
-
-    @Test
-    fun onCopyFromGlobalBranding_withNoGlobalBranding_emitsBrandingError() = runTest(testDispatcher) {
-        // brandingRepository is empty (no branding file) by default from tempFolder
-        val vm = createViewModel()
-        advanceUntilIdle()
-
-        val errors = mutableListOf<Unit>()
-        val job = launch(Dispatchers.Main.immediate) { vm.brandingError.collect { errors.add(it) } }
-
-        vm.onCopyFromGlobalBranding()
-        advanceUntilIdle()
-
-        assertTrue("brandingError must be emitted when no global branding", errors.isNotEmpty())
-        job.cancel()
-    }
-
-    @Test
-    fun hasGlobalBranding_false_whenGlobalBrandingNotSet() = runTest(testDispatcher) {
-        val vm = createViewModel()
-        advanceUntilIdle()
-        assertFalse(vm.hasGlobalBranding.value)
-    }
-
-    // ── sessionLogoType / sessionLogoBuiltinId ────────────────────────────────
-
-    @Test
-    fun sessionLogoType_isNull_whenNoBranding() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = false)
-        }
-        advanceUntilIdle()
-        assertNull(vm.sessionLogoType.value)
-    }
-
-    @Test
-    fun sessionLogoType_isImage_whenPhotoBrandingSet() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "image")
-        }
-        advanceUntilIdle()
-        assertEquals("image", vm.sessionLogoType.value)
-    }
-
-    @Test
-    fun sessionLogoType_isBuiltin_andBuiltinId_whenSymbolBrandingSet() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "builtin", brandingBuiltinId = "heart")
-        }
-        advanceUntilIdle()
-        assertEquals("builtin", vm.sessionLogoType.value)
-        assertEquals("heart", vm.sessionLogoBuiltinId.value)
-    }
-
-    @Test
-    fun sessionLogoBuiltinId_isNull_whenNoBranding() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = false)
-        }
-        advanceUntilIdle()
-        assertNull(vm.sessionLogoBuiltinId.value)
-    }
-
-    @Test
-    fun sessionLogoBuiltinId_matchesSymbolId_whenSymbolSet() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "builtin", brandingBuiltinId = "star")
-        }
-        advanceUntilIdle()
-        assertEquals("star", vm.sessionLogoBuiltinId.value)
-    }
-
-    @Test
-    fun sessionLogoType_updatesToImage_afterChoosePhoto() = runTest(testDispatcher) {
-        val vm = createViewModel()
-        val fakeUri: android.net.Uri = mock()
-        vm.imageDecoder = { _ -> mock<android.graphics.Bitmap>() }
-        vm.brandingNormalizer = { _ -> ByteArray(0) }
-        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
-        advanceUntilIdle()
-
-        vm.onImageUriSelectedForBranding(fakeUri)
-        advanceUntilIdle()
-
-        assertEquals("image", vm.sessionLogoType.value)
-        assertNull(vm.sessionLogoBuiltinId.value)
-    }
-
-    @Test
-    fun sessionLogoType_updatesToBuiltin_afterChooseSymbol() = runTest(testDispatcher) {
-        val vm = createViewModel()
-        vm.builtinSymbolRenderer = { _ -> ByteArray(0) }
-        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
-        advanceUntilIdle()
-
-        vm.onSetSessionBrandingFromSymbol(BuiltinBrandingSymbol.FIRE)
-        advanceUntilIdle()
-
-        assertEquals("builtin", vm.sessionLogoType.value)
-        assertEquals("fire", vm.sessionLogoBuiltinId.value)
-    }
-
-    @Test
-    fun sessionLogoType_resetsToNull_afterRemove() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "image")
-        }
-        vm.sessionBrandingRemover = { _, _ -> true }
-        advanceUntilIdle()
-
-        vm.onRemoveSessionBranding()
-        advanceUntilIdle()
-
-        assertNull(vm.sessionLogoType.value)
-    }
-
-    @Test
-    fun sessionLogoBuiltinId_resetsToNull_afterRemove() = runTest(testDispatcher) {
-        val vm = createViewModel { _, _ ->
-            InitialSessionFields("", "", "", "", "", hasBranding = true, brandingType = "builtin", brandingBuiltinId = "heart")
-        }
-        vm.sessionBrandingRemover = { _, _ -> true }
-        advanceUntilIdle()
-
-        vm.onRemoveSessionBranding()
-        advanceUntilIdle()
-
-        assertNull(vm.sessionLogoBuiltinId.value)
     }
 }

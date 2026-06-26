@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import com.isardomains.sameview.R
+import com.isardomains.sameview.branding.GlobalBrandingRepository
 import com.isardomains.sameview.image.ShareCaptionData
 import com.isardomains.sameview.image.ShareComparisonStyle
 import com.isardomains.sameview.image.ShareQuality
@@ -24,7 +25,9 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
@@ -32,6 +35,9 @@ import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ShareComparisonViewModelTest {
+
+    @get:Rule
+    val tempFolder = TemporaryFolder()
 
     private val testSessionId = "2026-06-21_10-00-00"
     private val fakeUri: Uri = mock()
@@ -60,15 +66,18 @@ class ShareComparisonViewModelTest {
     }
 
     private fun createViewModel(
+        globalBrandingRepository: GlobalBrandingRepository = GlobalBrandingRepository(File(tempFolder.root, "branding")),
         metadataReader: suspend (File) -> ShareMetadataSnapshot = { emptySnapshot }
     ): ShareComparisonViewModel {
         val handle = SavedStateHandle(mapOf("sessionId" to testSessionId))
-        val vm = ShareComparisonViewModel(handle, context)
+        val vm = ShareComparisonViewModel(handle, context, globalBrandingRepository)
         // Set dispatcher and reader BEFORE advanceUntilIdle so the queued init coroutine
         // picks up these overrides when it runs (StandardTestDispatcher pattern).
         vm.ioDispatcher = Dispatchers.Main
         vm.metadataReader = metadataReader
         // brandingFileChecker defaults to { false } on the VM — override per test if needed.
+        // sessionBrandingCopier defaults to { _, _, _ -> false } since tempFolder has no global branding
+        vm.sessionBrandingCopier = { _, _, _ -> false }
         return vm
     }
 
@@ -116,9 +125,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun titleDateToggle_offWithAvailableData_captionHasNoTitleOrDate() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot("My title", null, 0L, null, null, null)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -134,9 +143,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun locationToggle_onWithAvailableLocation_locationLinePresent() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot(null, null, 0L, null, "München", "Deutschland")
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -152,9 +161,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun allTogglesOff_captionDataIsNull() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot("Title", "2008", 1000L, null, "City", null)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -195,9 +204,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun buildCaptionData_titleAndDateAvailable_buildsBothAsSeperateLines() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot("Grünwald Rathaus", "1958", 1748000000000L, null, null, null)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -213,9 +222,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun titleDateToggle_onlyTitleAvailable_showsTitleInPreview() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot("My Title", null, 0L, null, null, null)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -232,10 +241,10 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun titleDateToggle_onlyDateAvailable_showsDateInPreview() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             // title = null, but referenceDate + captureTimestampMs → date line computable
             ShareMetadataSnapshot(null, "1958", 1748000000000L, null, null, null)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -256,9 +265,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun titleDateToggle_bothAvailable_showsCombinedPreviewWithSeparator() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot("My Title", "1958", 1748000000000L, null, null, null)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -274,10 +283,10 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun titleDateToggle_neitherAvailable_isTitleDateAvailableFalse() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             // no title, no referenceDate, captureTimestampMs = 0 → no date either
             ShareMetadataSnapshot(null, null, 0L, null, null, null)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -299,9 +308,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun loadMetadata_withTitle_titleDateAvailableAndPreviewTextSet() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot("My Shot", null, 0L, null, null, null)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -321,9 +330,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun loadMetadata_withLocation_locationAvailable() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot(null, null, 0L, null, "München", "Deutschland")
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
@@ -333,9 +342,9 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun loadMetadata_setsViewportRatio() = runTest {
-        val vm = createViewModel { _ ->
+        val vm = createViewModel(metadataReader = { _ ->
             ShareMetadataSnapshot(null, null, 0L, null, null, null, viewportRatio = 1.5f)
-        }
+        })
         vm.loadMetadata()
         advanceUntilIdle()
 
