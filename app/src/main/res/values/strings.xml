@@ -149,7 +149,7 @@
 
 
     <!-- Settings: Logo (V2) -->
-    <string name="settings_logo_section_title">Your logo</string>
+    <string name="settings_logo_section_title">Default logo</string>
     <string name="settings_logo_description">Shown in the slider handle when sharing comparison images. Copied to new sessions automatically.</string>
     <string name="settings_logo_none">No logo set</string>
     <string name="settings_logo_current">Your current logo</string>
@@ -250,7 +250,7 @@
     <string name="share_comparison_action_share">Share</string>
     <string name="share_comparison_error_render_failed">Could not create image</string>
     <!-- Share Comparison: Logo (V2) -->
-    <string name="share_comparison_logo_card_title">Logo on handle</string>
+    <string name="share_comparison_logo_card_title">Comparison logo</string>
     <string name="share_comparison_logo_none">No logo for this comparison.</string>
     <string name="share_comparison_logo_show">Show logo</string>
     <string name="share_comparison_logo_choose_photo">Choose photo</string>

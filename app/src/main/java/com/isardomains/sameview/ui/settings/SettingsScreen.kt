@@ -33,6 +33,8 @@ import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -337,13 +339,16 @@ internal fun SettingsScreenContent(
                 )
             }
             SettingsCard(title = stringResource(R.string.settings_logo_section_title)) {
+                // Description
                 Text(
                     text = stringResource(R.string.settings_logo_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = SameViewSettingsSecondaryText,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── ZONE 1: Current logo ──────────────────────────────────────
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 4.dp)
@@ -381,12 +386,14 @@ internal fun SettingsScreenContent(
                         color = SameViewSettingsSecondaryText
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── ZONE 2: Primary source actions ────────────────────────────
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TextButton(
+                    OutlinedButton(
                         onClick = onChooseImage,
                         modifier = Modifier
                             .weight(1f)
@@ -394,7 +401,7 @@ internal fun SettingsScreenContent(
                     ) {
                         Text(stringResource(R.string.settings_logo_choose_photo))
                     }
-                    TextButton(
+                    OutlinedButton(
                         onClick = { showSymbolSheet = true },
                         modifier = Modifier
                             .weight(1f)
@@ -403,7 +410,10 @@ internal fun SettingsScreenContent(
                         Text(stringResource(R.string.settings_logo_use_symbol))
                     }
                 }
+
+                // ── ZONE 3: Destructive ───────────────────────────────────────
                 if (hasBranding) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                     TextButton(
                         onClick = onRemoveBranding,
                         colors = ButtonDefaults.textButtonColors(

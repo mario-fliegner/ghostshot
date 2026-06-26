@@ -51,7 +51,7 @@ All user-facing text uses "logo." The word "branding" does not appear in any str
 | V1 user-facing string | V2 user-facing string |
 |---|---|
 | "Branding" (card/section title) | "Logo" |
-| "Default branding for new sessions" | "Your logo" |
+| "Default branding for new sessions" | "Default logo" |
 | "Choose image" | "Choose photo" |
 | "Choose symbol" | "Use a symbol" |
 | "Remove" / "Remove branding" | "Remove logo" |
@@ -66,7 +66,7 @@ All user-facing text uses "logo." The word "branding" does not appear in any str
 
 | Key | Value |
 |---|---|
-| `settings_logo_section_title` | "Your logo" |
+| `settings_logo_section_title` | "Default logo" |
 | `settings_logo_description` | "Shown in the slider handle when sharing comparison images. Copied into new comparisons automatically." |
 | `settings_logo_none` | "No logo set" |
 | `settings_logo_current` | "Your current logo" |
@@ -74,7 +74,7 @@ All user-facing text uses "logo." The word "branding" does not appear in any str
 | `settings_logo_use_symbol` | "Use a symbol" |
 | `settings_logo_remove` | "Remove logo" |
 | `settings_logo_load_error` | "Couldn't load logo" |
-| `share_comparison_logo_card_title` | "Logo on handle" |
+| `share_comparison_logo_card_title` | "Comparison logo" |
 | `share_comparison_logo_none` | "No logo for this comparison." |
 | `share_comparison_logo_show` | "Show logo" |
 | `share_comparison_logo_choose_photo` | "Choose photo" |
@@ -117,24 +117,28 @@ Settings manages the **global default logo** only. The global logo is automatica
 ### Section title
 
 ```
-Your logo
+Default logo
 ```
 
 ### Layout — Empty state (no logo set)
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  Your logo                                       │
+│  Default logo                                    │
 │                                                  │
 │  Shown in the slider handle when sharing         │
 │  comparison images. Copied into new              │
 │  comparisons automatically.                      │
 │                                                  │
-│  ┌──────────┐                                    │
-│  │  [icon]  │  No logo set                       │
+│  ┌──────────┐  No logo set                       │
+│  │  [icon]  │                                    │
 │  └──────────┘                                    │
 │                                                  │
-│  [ Choose photo ]  [ Use a symbol ]              │
+│  ──────────────────────────────────────          │
+│                                                  │
+│  ┌─────────────────┐  ┌─────────────────┐        │
+│  │  Choose photo   │  │  Use a symbol   │        │
+│  └─────────────────┘  └─────────────────┘        │
 │                                                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -143,18 +147,23 @@ Your logo
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  Your logo                                       │
+│  Default logo                                    │
 │                                                  │
 │  Shown in the slider handle when sharing         │
 │  comparison images. Copied into new              │
 │  comparisons automatically.                      │
 │                                                  │
-│  ┌──────────┐                                    │
-│  │  [logo]  │  Your current logo                 │
+│  ┌──────────┐  Your current logo                 │
+│  │  [logo]  │                                    │
 │  └──────────┘                                    │
 │                                                  │
-│  [ Choose photo ]  [ Use a symbol ]              │
+│  ──────────────────────────────────────          │
 │                                                  │
+│  ┌─────────────────┐  ┌─────────────────┐        │
+│  │  Choose photo   │  │  Use a symbol   │        │
+│  └─────────────────┘  └─────────────────┘        │
+│                                                  │
+│  ──────────────────────────────────────          │
 │  [ Remove logo ]                                 │
 │                                                  │
 └──────────────────────────────────────────────────┘
@@ -164,19 +173,16 @@ Your logo
 
 **Description text**
 Always visible in both states. Positioned immediately below the card title. Style: `bodySmall` / `SameViewSettingsSecondaryText`. Padding: 4 dp horizontal.
-String: `settings_logo_description`. Note: the description wording reflects that the global default is copied into a session when Share Comparison first opens for a session without branding — the same self-containment model as V1.
+String: `settings_logo_description`.
 
 **Placeholder circle (empty state)**
 - Size: 64 dp
 - Border ring: 2 dp, `SameViewAccent`, `CircleShape`
 - Fill: `#F5F7FA`
 - Interior: a centered image-add icon, 24 dp, `SameViewSettingsSecondaryText` color
-- Purpose: establishes the visual form factor of the logo before any logo is set
 
 **Preview circle (populated state)**
 - `BrandingPreviewCircle` composable at 64 dp
-- Renders the actual logo as it will appear in exports
-- No change from V1
 
 **State label (beside circle)**
 Both circles are accompanied by a short label to their right:
@@ -185,13 +191,14 @@ Both circles are accompanied by a short label to their right:
 - Style: `bodySmall` / `SameViewSettingsSecondaryText`
 
 **"Choose photo" and "Use a symbol" buttons**
-- `TextButton`, side by side in a `Row` with equal `weight(1f)`
+- `OutlinedButton`, side by side in a `Row` with equal `weight(1f)`, separated from Zone 1 by a `HorizontalDivider`
 - Always visible, regardless of whether a logo is currently set
 - When no logo: adds a new logo; When logo exists: replaces it
 - String keys: `settings_logo_choose_photo`, `settings_logo_use_symbol`
 
 **"Remove logo" button**
-- `TextButton`, full width
+- `TextButton` with `MaterialTheme.colorScheme.error` content color, full width
+- Separated from Zone 2 by a `HorizontalDivider`
 - Visible **only** when a logo is currently set
 - On tap: logo deleted; preview circle transitions to placeholder
 - No confirmation dialog
@@ -258,18 +265,18 @@ All logo actions in Share Comparison write to the session folder immediately —
 
 ### Position in screen
 
-A dedicated "Logo on handle" card, positioned **between the Style card and the Information card**.
+A dedicated "Comparison logo" card, positioned **between the Style card and the Information card**.
 
 Full card order:
 1. Style card (Slider / Side-by-side + preview)
-2. **Logo on handle** ← Slider only
+2. **Comparison logo** ← Slider only
 3. Information card (Title / Date / Location)
 4. Quality card (Standard / Original)
 5. Share button
 
 ### Visibility
 
-The Logo on handle card is rendered **only when the Slider style is selected**.
+The Comparison logo card is rendered **only when the Slider style is selected**.
 
 When Side-by-side is selected: the card is absent. No placeholder. No disabled state. No message. Absent.
 
@@ -278,7 +285,7 @@ When the user switches from Slider to Side-by-side, the card disappears. When th
 ### Card title
 
 ```
-Logo on handle
+Comparison logo
 ```
 
 String: `share_comparison_logo_card_title`.
@@ -287,13 +294,17 @@ String: `share_comparison_logo_card_title`.
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  Logo on handle                                  │
+│  Comparison logo                                 │
 │                                                  │
-│  ┌──────────┐                                    │
-│  │  [icon]  │  No logo for this comparison.      │
+│  ┌──────────┐  No logo for this comparison.      │
+│  │  [icon]  │                                    │
 │  └──────────┘                                    │
 │                                                  │
-│  [ Choose photo ]  [ Use a symbol ]              │
+│  ──────────────────────────────────────          │
+│                                                  │
+│  ┌─────────────────┐  ┌─────────────────┐        │
+│  │  Choose photo   │  │  Use a symbol   │        │
+│  └─────────────────┘  └─────────────────┘        │
 │                                                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -302,22 +313,25 @@ String: `share_comparison_logo_card_title`.
 
 **Placeholder circle:** 64 dp, same geometry as Settings.
 
-**State text:** `share_comparison_logo_none` — "No logo for this comparison."
-
-**Action buttons:** "Choose photo" and "Use a symbol" are visible in the empty state. Both write to the session folder immediately.
+**State text:** `share_comparison_logo_none` — "No logo for this comparison." Positioned to the right of the placeholder in the same Row.
 
 ### Layout — Populated state, toggle ON
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  Logo on handle                                  │
+│  Comparison logo                                 │
 │                                                  │
 │  ┌──────────┐  [switch ●]  Show logo            │
 │  │  [logo]  │                                    │
 │  └──────────┘                                    │
 │                                                  │
-│  [ Choose photo ]  [ Use a symbol ]              │
+│  ──────────────────────────────────────          │
 │                                                  │
+│  ┌─────────────────┐  ┌─────────────────┐        │
+│  │  Choose photo   │  │  Use a symbol   │        │
+│  └─────────────────┘  └─────────────────┘        │
+│                                                  │
+│  ──────────────────────────────────────          │
 │  [ Remove logo ]                                 │
 │                                                  │
 └──────────────────────────────────────────────────┘
@@ -327,15 +341,20 @@ String: `share_comparison_logo_card_title`.
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  Logo on handle                                  │
+│  Comparison logo                                 │
 │                                                  │
 │  ┌──────────┐  [switch ○]  Show logo            │
 │  │  [logo,  │                                    │
 │  │  dimmed] │                                    │
 │  └──────────┘                                    │
 │                                                  │
-│  [ Choose photo ]  [ Use a symbol ]              │
+│  ──────────────────────────────────────          │
 │                                                  │
+│  ┌─────────────────┐  ┌─────────────────┐        │
+│  │  Choose photo   │  │  Use a symbol   │        │
+│  └─────────────────┘  └─────────────────┘        │
+│                                                  │
+│  ──────────────────────────────────────          │
 │  [ Remove logo ]                                 │
 │                                                  │
 └──────────────────────────────────────────────────┘
@@ -344,8 +363,9 @@ String: `share_comparison_logo_card_title`.
 ### Element specifications — populated state
 
 **Preview circle**
-- `BrandingPreviewCircle` at 64 dp when toggle is ON
+- `BrandingPreviewCircle(brandingBitmap = ...)` at 64 dp when toggle is ON
 - When toggle is OFF: same composable, `alpha = 0.4f`
+- Positioned in a `Row` with the `SettingsSwitchRow` to its right
 
 **"Show logo" toggle**
 - `SettingsSwitchRow`, label: `share_comparison_logo_show` — "Show logo"
@@ -353,20 +373,13 @@ String: `share_comparison_logo_card_title`.
 - On change: updates `useBranding` in `ShareComparisonViewModel`; live preview in Style card updates immediately
 - String: `share_comparison_logo_show`
 
-**"Choose photo" button**
-- `TextButton`, always visible in both empty and populated states
+**"Choose photo" and "Use a symbol" buttons**
+- `OutlinedButton`, side by side in a `Row` with equal `weight(1f)`, separated from Zone 1 by a `HorizontalDivider`
+- Always visible in both empty and populated states
 - In populated state: replaces the session branding without requiring a remove step
-- On tap: opens Photo Picker. On successful selection: image normalized and written atomically to `<sessionDir>/branding-handle.png`; circle updates immediately
-- String: `share_comparison_logo_choose_photo`
-- **Never modifies global branding.**
-
-**"Use a symbol" button**
-- `TextButton`, always visible in both empty and populated states
-- On tap: opens `BrandingSymbolPickerSheet`. On selection: VectorDrawable rendered and written atomically to `<sessionDir>/branding-handle.png`; circle updates immediately
-- String: `share_comparison_logo_use_symbol`
-- **Never modifies global branding.**
-
-Both buttons displayed side by side in a `Row` with equal `weight(1f)`.
+- "Choose photo": opens Photo Picker; "Use a symbol": opens `BrandingSymbolPickerSheet`
+- String keys: `share_comparison_logo_choose_photo`, `share_comparison_logo_use_symbol`
+- **Neither button modifies global branding.**
 
 **"Remove logo" button**
 - `TextButton`, full width
@@ -493,7 +506,7 @@ No branding elements. Not applicable.
 4. User selects Star. Sheet dismisses. Preview circle appears showing Star.
 5. User closes Settings and opens Share Comparison for a session that has no existing branding.
 6. Share Comparison copies the global Star symbol into the session folder as `branding-handle.png`.
-7. "Logo on handle" card is visible (Slider selected). Preview circle shows the Star symbol. Toggle is ON.
+7. "Comparison logo" card is visible (Slider selected). Preview circle shows the Star symbol. Toggle is ON.
 8. Live preview in the Style card shows the branded handle.
 9. User taps Share. Export contains the Star symbol in the handle.
 10. If the user later changes or removes the global logo in Settings, this session keeps its Star — the session is self-contained.
@@ -505,7 +518,7 @@ No branding elements. Not applicable.
 1. User has a global Star symbol set in Settings.
 2. User opens Share Comparison for a specific session that has no existing branding.
 3. Share Comparison copies the global Star into the session as the starting logo.
-4. "Logo on handle" card shows Star symbol. Toggle is ON.
+4. "Comparison logo" card shows Star symbol. Toggle is ON.
 5. User wants to use their company photo for this session.
 6. User taps "Choose photo" in the Logo card.
 7. Photo Picker opens. User selects their company logo.
@@ -520,7 +533,7 @@ No branding elements. Not applicable.
 
 1. User has no global logo set in Settings.
 2. User opens Share Comparison for a session.
-3. "Logo on handle" card shows empty state: placeholder circle, "No logo for this comparison.", "Choose photo" and "Use a symbol" buttons. No toggle.
+3. "Comparison logo" card shows empty state: placeholder circle, "No logo for this comparison.", "Choose photo" and "Use a symbol" buttons. No toggle.
 4. User taps "Use a symbol." `BrandingSymbolPickerSheet` opens.
 5. User selects Camera. Symbol is rendered and written to the session's `branding-handle.png` immediately.
 6. Card transitions to populated state: Camera preview circle, "Show logo" toggle (ON).
@@ -533,7 +546,7 @@ No branding elements. Not applicable.
 ### Journey D — User removes session branding and shares without a logo
 
 1. User opens Share Comparison for a session that already has branding (e.g., a Star symbol from a previous open).
-2. "Logo on handle" card shows the Star. Toggle is ON.
+2. "Comparison logo" card shows the Star. Toggle is ON.
 3. User taps "Remove logo." `branding-handle.png` is deleted from the session folder immediately.
 4. Card transitions to empty state: placeholder circle, "No logo for this comparison." Action buttons appear.
 5. User taps Share. Export is created without any logo — standard SameView handle is rendered.
@@ -616,7 +629,7 @@ No branding elements. Not applicable.
 
 ### Visibility rules
 
-**V-01.** The Logo on handle card in Share Comparison is rendered if and only if the current style is `ShareComparisonStyle.SLIDER`. It is absent for `SIDE_BY_SIDE`. No disabled state, no warning, no placeholder.
+**V-01.** The Comparison logo card in Share Comparison is rendered if and only if the current style is `ShareComparisonStyle.SLIDER`. It is absent for `SIDE_BY_SIDE`. No disabled state, no warning, no placeholder.
 
 **V-02.** "Remove logo" in Settings is visible if and only if a global logo is currently set.
 
@@ -670,7 +683,7 @@ All replacement directions are available from a single consistently-visible set 
 
 **L-01.** Logo rendering is Slider-only. The logo never appears in Side-by-side exports regardless of session branding state.
 
-**L-02.** Logo controls are Slider-only in Share Comparison. The Logo on handle card is absent when Side-by-side is selected.
+**L-02.** Logo controls are Slider-only in Share Comparison. The Comparison logo card is absent when Side-by-side is selected.
 
 **L-03.** No message, warning, or hint about Slider-only behavior is shown anywhere in the UI.
 

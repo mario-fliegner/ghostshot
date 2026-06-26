@@ -514,20 +514,48 @@ private fun ShareComparisonScreenStub(
                     modifier = Modifier.testTag("share_comparison_style_control")
                 )
             }
-            // Logo on handle card (V2 — Slider only)
+            // Comparison logo card (Slider only) — mirrors production 3-zone layout
             if (style == ShareComparisonStyle.SLIDER) {
                 SettingsCard(title = stringResource(R.string.share_comparison_logo_card_title)) {
                     if (!hasBranding) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .testTag("share_comparison_logo_placeholder"),
-                            contentAlignment = Alignment.Center
-                        ) {}
-                        Text(
-                            text = stringResource(R.string.share_comparison_logo_none),
-                            style = MaterialTheme.typography.bodySmall
+                        // ZONE 1: Empty state
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .testTag("share_comparison_logo_placeholder"),
+                                contentAlignment = Alignment.Center
+                            ) {}
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(R.string.share_comparison_logo_none),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        // ZONE 2: Primary source actions
+                        androidx.compose.material3.HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("share_comparison_logo_choose_photo")
+                            ) { Text(stringResource(R.string.share_comparison_logo_choose_photo)) }
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("share_comparison_logo_use_symbol")
+                            ) { Text(stringResource(R.string.share_comparison_logo_use_symbol)) }
+                        }
                         if (hasGlobalBranding) {
                             androidx.compose.material3.TextButton(
                                 onClick = {},
@@ -536,22 +564,12 @@ private fun ShareComparisonScreenStub(
                                     .testTag("share_comparison_logo_use_default")
                             ) { Text(stringResource(R.string.share_comparison_logo_use_default)) }
                         }
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            androidx.compose.material3.TextButton(
-                                onClick = {},
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("share_comparison_logo_choose_photo")
-                            ) { Text(stringResource(R.string.share_comparison_logo_choose_photo)) }
-                            androidx.compose.material3.TextButton(
-                                onClick = {},
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("share_comparison_logo_use_symbol")
-                            ) { Text(stringResource(R.string.share_comparison_logo_use_symbol)) }
-                        }
                     } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        // ZONE 1: Preview + visibility toggle
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(64.dp)
@@ -566,6 +584,27 @@ private fun ShareComparisonScreenStub(
                                 )
                             }
                         }
+                        // ZONE 2: Primary source actions
+                        androidx.compose.material3.HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("share_comparison_logo_choose_photo")
+                            ) { Text(stringResource(R.string.share_comparison_logo_choose_photo)) }
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("share_comparison_logo_use_symbol")
+                            ) { Text(stringResource(R.string.share_comparison_logo_use_symbol)) }
+                        }
                         if (hasGlobalBranding) {
                             androidx.compose.material3.TextButton(
                                 onClick = {},
@@ -574,20 +613,10 @@ private fun ShareComparisonScreenStub(
                                     .testTag("share_comparison_logo_use_default")
                             ) { Text(stringResource(R.string.share_comparison_logo_use_default)) }
                         }
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            androidx.compose.material3.TextButton(
-                                onClick = {},
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("share_comparison_logo_choose_photo")
-                            ) { Text(stringResource(R.string.share_comparison_logo_choose_photo)) }
-                            androidx.compose.material3.TextButton(
-                                onClick = {},
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("share_comparison_logo_use_symbol")
-                            ) { Text(stringResource(R.string.share_comparison_logo_use_symbol)) }
-                        }
+                        // ZONE 3: Destructive
+                        androidx.compose.material3.HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
                         androidx.compose.material3.TextButton(
                             onClick = {},
                             modifier = Modifier

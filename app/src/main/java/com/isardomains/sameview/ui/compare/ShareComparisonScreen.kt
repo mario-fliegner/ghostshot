@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -29,6 +30,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -233,11 +235,11 @@ fun ShareComparisonScreen(
                     )
                 }
 
-                // ── Logo on handle card (V2 — Slider only) ───────────────────
+                // ── Comparison logo card (Slider only) ───────────────────────
                 if (style == ShareComparisonStyle.SLIDER) {
                     SettingsCard(title = stringResource(R.string.share_comparison_logo_card_title)) {
                         if (!hasBranding) {
-                            // ── EMPTY state ───────────────────────────────────
+                            // ── ZONE 1: Empty state ───────────────────────────
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -258,29 +260,21 @@ fun ShareComparisonScreen(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = stringResource(R.string.share_comparison_logo_none),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = SameViewSettingsSecondaryText
+                                )
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = stringResource(R.string.share_comparison_logo_none),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = SameViewSettingsSecondaryText,
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            )
-                            if (viewModel.hasGlobalBranding) {
-                                TextButton(
-                                    onClick = { viewModel.onUseDefaultLogo() },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("share_comparison_logo_use_default")
-                                ) {
-                                    Text(stringResource(R.string.share_comparison_logo_use_default))
-                                }
-                            }
+
+                            // ── ZONE 2: Primary source actions ────────────────
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                TextButton(
+                                OutlinedButton(
                                     onClick = {
                                         brandingImageLauncher.launch(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -292,7 +286,7 @@ fun ShareComparisonScreen(
                                 ) {
                                     Text(stringResource(R.string.share_comparison_logo_choose_photo))
                                 }
-                                TextButton(
+                                OutlinedButton(
                                     onClick = { showBrandingSymbolSheet = true },
                                     modifier = Modifier
                                         .weight(1f)
@@ -301,15 +295,23 @@ fun ShareComparisonScreen(
                                     Text(stringResource(R.string.share_comparison_logo_use_symbol))
                                 }
                             }
+                            if (viewModel.hasGlobalBranding) {
+                                TextButton(
+                                    onClick = { viewModel.onUseDefaultLogo() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("share_comparison_logo_use_default")
+                                ) {
+                                    Text(stringResource(R.string.share_comparison_logo_use_default))
+                                }
+                            }
                         } else {
-                            // ── POPULATED state ───────────────────────────────
+                            // ── ZONE 1: Preview + visibility toggle ───────────
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             ) {
                                 Box(modifier = Modifier.alpha(if (useBranding) 1f else 0.4f)) {
-                                    // Use the Bitmap overload — renders from in-memory state,
-                                    // no Coil file-path caching involved.
                                     previewBrandingBitmap?.let { bitmap ->
                                         BrandingPreviewCircle(
                                             brandingBitmap = bitmap,
@@ -326,21 +328,14 @@ fun ShareComparisonScreen(
                                     )
                                 }
                             }
-                            if (viewModel.hasGlobalBranding) {
-                                TextButton(
-                                    onClick = { viewModel.onUseDefaultLogo() },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("share_comparison_logo_use_default")
-                                ) {
-                                    Text(stringResource(R.string.share_comparison_logo_use_default))
-                                }
-                            }
+
+                            // ── ZONE 2: Primary source actions ────────────────
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                TextButton(
+                                OutlinedButton(
                                     onClick = {
                                         brandingImageLauncher.launch(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -352,7 +347,7 @@ fun ShareComparisonScreen(
                                 ) {
                                     Text(stringResource(R.string.share_comparison_logo_choose_photo))
                                 }
-                                TextButton(
+                                OutlinedButton(
                                     onClick = { showBrandingSymbolSheet = true },
                                     modifier = Modifier
                                         .weight(1f)
@@ -361,6 +356,19 @@ fun ShareComparisonScreen(
                                     Text(stringResource(R.string.share_comparison_logo_use_symbol))
                                 }
                             }
+                            if (viewModel.hasGlobalBranding) {
+                                TextButton(
+                                    onClick = { viewModel.onUseDefaultLogo() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("share_comparison_logo_use_default")
+                                ) {
+                                    Text(stringResource(R.string.share_comparison_logo_use_default))
+                                }
+                            }
+
+                            // ── ZONE 3: Destructive ───────────────────────────
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             TextButton(
                                 onClick = { viewModel.onRemoveSessionBranding() },
                                 colors = ButtonDefaults.textButtonColors(

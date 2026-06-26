@@ -144,7 +144,7 @@
 
 
     <!-- Settings: Logo (V2) -->
-    <string name="settings_logo_section_title">Dein Logo</string>
+    <string name="settings_logo_section_title">Standard-Logo</string>
     <string name="settings_logo_description">Wird im Schieberegler-Handle angezeigt, wenn du Vergleiche teilst. Wird automatisch zu neuen Vergleichen hinzugefügt.</string>
     <string name="settings_logo_none">Kein Logo festgelegt</string>
     <string name="settings_logo_current">Dein aktuelles Logo</string>
@@ -237,7 +237,7 @@
     <string name="share_comparison_action_share">Teilen</string>
     <string name="share_comparison_error_render_failed">Bild konnte nicht erstellt werden</string>
     <!-- Share Comparison: Logo (V2) -->
-    <string name="share_comparison_logo_card_title">Logo am Handle</string>
+    <string name="share_comparison_logo_card_title">Vergleichslogo</string>
     <string name="share_comparison_logo_none">Kein Logo für diesen Vergleich.</string>
     <string name="share_comparison_logo_show">Logo anzeigen</string>
     <string name="share_comparison_logo_choose_photo">Foto auswählen</string>
