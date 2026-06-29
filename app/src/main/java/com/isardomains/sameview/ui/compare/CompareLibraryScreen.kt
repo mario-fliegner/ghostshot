@@ -778,21 +778,28 @@ private fun CompareSessionTile(
                     },
                 contentAlignment = Alignment.TopStart
             ) {
-                // Minimal scrim for legibility — kept small and low-opacity so it does
-                // not appear as a secondary UI element.
+                // 20dp inner Box centers the 18dp icon within the circular scrim.
+                // Without this wrapper both elements share the same (0,0) origin inside
+                // the 48dp TopStart touch target, shifting the icon 1dp up/left of the
+                // circle's visual center.
                 Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(SameViewAppSurface.copy(alpha = 0.30f))
-                )
-                Icon(
-                    imageVector = if (session.isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
-                    contentDescription = null,
-                    tint = if (session.isFavorite) SameViewStarFavorited
-                           else MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(18.dp)
-                )
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(CircleShape)
+                            .background(SameViewAppSurface.copy(alpha = 0.30f))
+                    )
+                    Icon(
+                        imageVector = if (session.isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+                        contentDescription = null,
+                        tint = if (session.isFavorite) SameViewStarFavorited
+                               else MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
