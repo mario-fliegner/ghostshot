@@ -46,6 +46,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,6 +63,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,6 +116,7 @@ fun CompareLibraryScreen(
     onSetLibrarySortOrder: (LibrarySortOrder) -> Unit = {},
     isBackupInProgress: Boolean = false,
     isDeletionInProgress: Boolean = false,
+    backupSuccessGeneration: Long = 0L,
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
     modifier: Modifier = Modifier
 ) {
@@ -122,6 +125,9 @@ fun CompareLibraryScreen(
     var selectedSessionIds by remember { mutableStateOf(emptySet<String>()) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showSortFilterMenu by remember { mutableStateOf(false) }
+    // IDs captured at backup-initiation time, persisted across Activity recreation so the
+    // SAF callback always receives the original selection even after process death.
+    var pendingBackupSessionIds by rememberSaveable { mutableStateOf(listOf<String>()) }
 
     // Filter then sort; cached on any input change.
     val displayedSessions = remember(sessions, libraryFilter, librarySortOrder) {
@@ -138,7 +144,7 @@ fun CompareLibraryScreen(
     val createDocumentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
-        if (uri != null) onBackupSessions(selectedSessionIds.toList(), uri)
+        if (uri != null) onBackupSessions(pendingBackupSessionIds, uri)
     }
 
     LaunchedEffect(Unit) {
@@ -156,6 +162,14 @@ fun CompareLibraryScreen(
     // is unfavorited while Favorites-only filter is active).
     LaunchedEffect(displayedSessions.isEmpty()) {
         if (displayedSessions.isEmpty()) {
+            selectionMode = false
+            selectedSessionIds = emptySet()
+        }
+    }
+
+    // Exit selection mode after a successful backup (BackupSucceeded event increments this counter).
+    LaunchedEffect(backupSuccessGeneration) {
+        if (backupSuccessGeneration > 0L) {
             selectionMode = false
             selectedSessionIds = emptySet()
         }
@@ -195,6 +209,7 @@ fun CompareLibraryScreen(
     Scaffold(
         modifier = modifier.testTag("compare_library_screen"),
         topBar = {
+            Column {
             if (selectionMode) {
                 TopAppBar(
                     title = {
@@ -243,6 +258,7 @@ fun CompareLibraryScreen(
                         IconButton(
                             onClick = {
                                 val ids = selectedSessionIds.toList()
+                                pendingBackupSessionIds = ids
                                 val suggestedFilename = if (ids.size == 1) {
                                     resources.getString(R.string.session_backup_filename_single, ids[0])
                                 } else {
@@ -369,6 +385,14 @@ fun CompareLibraryScreen(
                     }
                 )
             }
+            if (isBackupInProgress) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("compare_library_progress_indicator")
+                )
+            }
+            } // end Column
         }
     ) { innerPadding ->
         if (sessions.isEmpty()) {

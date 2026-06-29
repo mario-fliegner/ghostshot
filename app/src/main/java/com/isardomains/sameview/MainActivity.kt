@@ -145,10 +145,13 @@ class MainActivity : ComponentActivity() {
                         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                         val snackbarHostState = remember { SnackbarHostState() }
                         var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
+                        var backupSuccessGeneration by remember { mutableStateOf(0L) }
                         LaunchedEffect(viewModel) {
                             viewModel.uiEvent.collect { event ->
-                                if (event is UiEvent.ShowSnackbar) {
-                                    pendingSnackbarEvent = event
+                                when (event) {
+                                    is UiEvent.ShowSnackbar -> pendingSnackbarEvent = event
+                                    is UiEvent.BackupSucceeded -> backupSuccessGeneration++
+                                    else -> {}
                                 }
                             }
                         }
@@ -191,7 +194,8 @@ class MainActivity : ComponentActivity() {
                                 onBackupSessions = { sessionIds, uri -> viewModel.backupSessions(sessionIds, uri) },
                                 onToggleFavorite = { sessionId -> viewModel.toggleFavorite(sessionId) },
                                 isBackupInProgress = uiState.isBackupInProgress,
-                                isDeletionInProgress = uiState.isDeletionInProgress
+                                isDeletionInProgress = uiState.isDeletionInProgress,
+                                backupSuccessGeneration = backupSuccessGeneration
                             )
                             SnackbarHost(
                                 hostState = snackbarHostState,

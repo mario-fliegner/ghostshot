@@ -176,6 +176,9 @@ sealed interface UiEvent {
     /** Emitted when a photo picker result has no GPS and recreation guidance is active.
      *  Prompts the user to retry via the system file manager to get unredacted GPS data. */
     data object ShowGpsFallbackDialog : UiEvent
+    /** Emitted after a backup operation completes successfully. Signals the Library UI to
+     *  exit multi-select mode and clear the selection. */
+    data object BackupSucceeded : UiEvent
 }
 
 private data class ReferenceUndoSnapshot(
@@ -1343,6 +1346,7 @@ class CameraViewModel @Inject constructor(
                         isSuccess = true,
                         count = if (sessionIds.size > 1) sessionIds.size else null
                     ))
+                    _uiEvent.emit(UiEvent.BackupSucceeded)
                 }
                 is SessionBackupExporter.BackupResult.Failure ->
                     _uiEvent.emit(UiEvent.ShowSnackbar(R.string.session_backup_error, isSuccess = false))

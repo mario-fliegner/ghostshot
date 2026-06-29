@@ -368,9 +368,13 @@ The toggle reflects the current state: shows "Select All" when not all items are
 
 Select All selects all sessions in the full scanned session list — not just the tiles currently visible in the scroll viewport. The selection is applied to the complete in-memory session list.
 
-### 8.4 Multi-Select Mode Remains Active After Backup
+### 8.4 Multi-Select Mode Behavior After Backup
 
-After a successful or failed backup, multi-select mode remains active and the selection is preserved. The user may then choose to delete the exported sessions or exit multi-select mode manually. Multi-select mode is not automatically exited by the backup operation.
+After a **successful** backup, multi-select mode exits automatically and the selection is cleared. The user returns to the normal library state.
+
+After a **failed** backup, multi-select mode remains active and the selection is preserved, so the user can retry immediately.
+
+Multi-select mode is never exited silently — the user always receives a snackbar confirming success or failure before any mode change occurs.
 
 ---
 
@@ -392,7 +396,9 @@ User opens ⋮ → taps "Backup Session"
 
 ### 9.2 From Compare Library (Multi-Select)
 
-```
+**Success flow:**
+
+```text
 User enters multi-select mode (long press on a tile)
 → Selects one or more sessions, or taps Select All
 → Taps Backup icon in action bar
@@ -400,11 +406,26 @@ User enters multi-select mode (long press on a tile)
   1 session selected:   SameView_<sessionId>.zip
   N ≥ 2 sessions:       SameView_Backup_<timestamp>.zip
 → User selects destination and confirms
-→ Loading state begins (Backup icon disabled)
+→ LinearProgressIndicator appears below TopAppBar
+→ Backup icon and Delete icon disabled
 → ZIP is created and streamed to destination
-→ Loading state ends
+→ LinearProgressIndicator disappears
 → Snackbar: "Session backed up" (1) or "N sessions backed up" (N ≥ 2)
+→ Multi-select mode exits automatically
+→ Selection cleared
+→ Normal library state
+```
+
+**Failure flow:**
+
+```text
+...
+→ LinearProgressIndicator appears below TopAppBar
+→ Backup fails
+→ LinearProgressIndicator disappears
+→ Snackbar: "Backup failed"
 → Multi-select mode remains active
+→ Selection preserved (user can retry)
 ```
 
 ### 9.3 SAF Picker Cancelled
@@ -421,11 +442,17 @@ There is no additional confirmation dialog before the SAF picker opens. The SAF 
 
 ### 9.5 Loading State
 
-During export:
-- The entry point that triggered the backup is disabled (prevents re-entry and double-export)
-- A loading indicator is shown
-- For single-session export: typically 1–3 seconds
-- For multi-session export: longer; a loading indicator is mandatory throughout the operation
+During export from Compare Library multi-select:
+
+- A `LinearProgressIndicator` (indeterminate, full width) is shown directly below the Compare Library TopAppBar
+- The Backup icon and Delete icon are disabled
+- The indicator disappears when the export completes (success or failure)
+- No percentage is shown; the operation duration is unknown
+
+During export from CompareScreen (single session):
+
+- The "Backup Session" overflow menu item is disabled
+- No additional progress indicator in CompareScreen (operation is typically 1–3 seconds)
 
 The exact visual form of the loading indicator is an implementation detail, consistent with existing loading patterns in the app.
 

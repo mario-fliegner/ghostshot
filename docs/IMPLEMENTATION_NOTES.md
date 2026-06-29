@@ -178,7 +178,9 @@ Active compare session lifecycle — fully implemented:
 - Long-press multi-select delete is implemented with confirmation
 - Multi-select mode includes Select All / Deselect All toggle and a Backup icon
 - Backup exports all selected sessions as a single ZIP file via SAF `ACTION_CREATE_DOCUMENT`
-- Multi-select mode remains active after backup; selection is preserved
+- A `LinearProgressIndicator` is shown below the TopAppBar while backup is running; backup and delete icons disabled during this time
+- After successful backup: multi-select mode exits automatically, selection is cleared
+- After failed backup: multi-select mode remains active, selection is preserved (user can retry)
 - Titles and user-authored location are displayed on tiles when present (see tile display logic below)
 - Tile text area always reserves height for two lines — grid height is stable regardless of content
 - Tile display priority: (A) title + location → title / location, no date; (B) title only → title / date; (C) location only → location / date; (D) neither → date only

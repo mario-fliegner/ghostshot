@@ -1224,7 +1224,7 @@ The multi-select action bar gains two additions: a Select All / Deselect All tog
 
 **Select All** selects all sessions in the complete scanned session list, not only the visible tiles in the scroll viewport.
 
-After a successful or failed backup, multi-select mode remains active and the selection is not automatically cleared.
+After a **successful** backup, multi-select mode exits automatically and the selection is cleared; the user returns to normal library state. After a **failed** backup, multi-select mode remains active and the selection is preserved so the user can retry. A `LinearProgressIndicator` is shown below the TopAppBar while the backup is running.
 
 ### No Impact on Compare Mechanics
 

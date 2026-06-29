@@ -4,9 +4,14 @@ import android.net.Uri
 import android.os.Build
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -19,6 +24,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.core.app.ActivityOptionsCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -1050,6 +1056,239 @@ class CompareLibraryScreenTest {
             "Tile-Höhen müssen identisch sein (Differenz < 2 px)",
             kotlin.math.abs(boundsB.height - boundsC.height) < 2f
         )
+    }
+
+    // ── Block G: Backup state-ownership regression ────────────────────────────
+
+    /**
+     * Regression test for the empty-ZIP bug:
+     *
+     * Before the fix, the SAF callback read [selectedSessionIds] at callback time.
+     * If the selection was cleared between the backup tap and the SAF result (e.g.
+     * due to process death or the user pressing cancel while the picker was open),
+     * [onBackupSessions] received an empty list and the exporter produced a 0-byte file.
+     *
+     * After the fix, the IDs are snapshotted into [pendingBackupSessionIds] at tap time.
+     * The callback reads that snapshot, so it is immune to later selection changes.
+     */
+    @Test
+    fun backupCallback_usesSnapshotIds_notCurrentSelectionState() {
+        // Fake registry intercepts the SAF launcher without showing the real picker.
+        var launchRequestCode: Int? = null
+        val fakeUri = Uri.parse("content://test/SameView_Backup_test.zip")
+        val testRegistry = object : ActivityResultRegistry() {
+            override fun <I, O> onLaunch(
+                requestCode: Int,
+                contract: ActivityResultContract<I, O>,
+                input: I,
+                options: ActivityOptionsCompat?
+            ) {
+                launchRequestCode = requestCode
+            }
+        }
+        val registryOwner = object : ActivityResultRegistryOwner {
+            override val activityResultRegistry: ActivityResultRegistry = testRegistry
+        }
+
+        val capturedArgs = mutableListOf<Pair<List<String>, Uri>>()
+        val sessions = (1..11).map { i -> createFakeSession(id = "sess_$i") }
+
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                SameViewTheme {
+                    CompositionLocalProvider(
+                        LocalActivityResultRegistryOwner provides registryOwner
+                    ) {
+                        CompareLibraryScreen(
+                            sessions = sessions,
+                            onRefresh = {},
+                            onSessionClick = {},
+                            onBack = {},
+                            onBackupSessions = { ids, uri -> capturedArgs.add(ids to uri) }
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Enter multi-select and select all 11 sessions.
+        composeRule.onNodeWithTag("compare_library_session_tile_sess_1")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_library_select_all_toggle").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.compare_library_selection_count, 11))
+            .assertIsDisplayed()
+
+        // Tap backup — pendingBackupSessionIds is now [sess_1..sess_11];
+        // our fake registry records the request code without showing the real picker.
+        composeRule.onNodeWithTag("compare_library_backup_button").performClick()
+        composeRule.waitForIdle()
+        val requestCode = checkNotNull(launchRequestCode) {
+            "SAF launcher was not invoked after tapping the backup button"
+        }
+
+        // Simulate selection loss: press cancel so selectedSessionIds becomes emptySet().
+        // This mirrors what happens after process death (Activity recreation resets remember state).
+        // With the old code the callback would now send [] to onBackupSessions.
+        composeRule.onNodeWithTag("compare_library_cancel_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertDoesNotExist()
+
+        // Deliver the fake SAF result (as if the user confirmed the save location).
+        scenario?.onActivity {
+            testRegistry.dispatchResult(requestCode, fakeUri)
+        }
+        composeRule.waitForIdle()
+
+        // onBackupSessions must have been called exactly once with the 11 originally
+        // selected IDs — NOT with the empty list that selectedSessionIds now holds.
+        assertEquals("onBackupSessions must be called exactly once", 1, capturedArgs.size)
+        val (receivedIds, receivedUri) = capturedArgs.first()
+        assertEquals("SAF URI must be forwarded unchanged", fakeUri, receivedUri)
+        assertEquals(
+            "All 11 originally captured session IDs must reach the exporter",
+            11,
+            receivedIds.size
+        )
+        assertTrue(
+            "Every originally selected ID must be present in the delivered list",
+            receivedIds.containsAll((1..11).map { "sess_$it" })
+        )
+    }
+
+    // ── Block H: Backup UX — progress indicator and selection lifecycle ──────
+
+    @Test
+    fun backupInProgress_showsLinearProgressIndicator() {
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            isBackupInProgress = true
+        )
+        composeRule.onNodeWithTag("compare_library_progress_indicator").assertIsDisplayed()
+    }
+
+    @Test
+    fun backupNotInProgress_hidesLinearProgressIndicator() {
+        setLibraryContent(
+            sessions = listOf(createFakeSession()),
+            isBackupInProgress = false
+        )
+        composeRule.onNodeWithTag("compare_library_progress_indicator").assertDoesNotExist()
+    }
+
+    @Test
+    fun backupSuccessGeneration_increase_exitsSelectionMode() {
+        val successGen = androidx.compose.runtime.mutableStateOf(0L)
+
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                com.isardomains.sameview.ui.theme.SameViewTheme {
+                    CompareLibraryScreen(
+                        sessions = listOf(createFakeSession()),
+                        onRefresh = {},
+                        onSessionClick = {},
+                        onBack = {},
+                        backupSuccessGeneration = successGen.value
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Enter selection mode.
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertIsDisplayed()
+
+        // Simulate successful backup: increment the success generation counter.
+        composeRule.runOnUiThread { successGen.value++ }
+        composeRule.waitForIdle()
+
+        // Selection mode must have exited.
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_library_back_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun backupSuccessGeneration_unchanged_keepsSelectionMode() {
+        // Simulates a failed backup: no generation increment → selection must remain active.
+        setLibraryContent(sessions = listOf(createFakeSession()))
+
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+            .performTouchInput { longClick() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertIsDisplayed()
+
+        // No backupSuccessGeneration change — selection mode must remain.
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            context.getString(R.string.compare_library_selection_count, 1)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun backupSuccessGeneration_increase_clearsSselectedIds() {
+        val successGen = androidx.compose.runtime.mutableStateOf(0L)
+
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                com.isardomains.sameview.ui.theme.SameViewTheme {
+                    CompareLibraryScreen(
+                        sessions = listOf(
+                            createFakeSession(id = "a"),
+                            createFakeSession(id = "b"),
+                            createFakeSession(id = "c")
+                        ),
+                        onRefresh = {},
+                        onSessionClick = {},
+                        onBack = {},
+                        backupSuccessGeneration = successGen.value
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Select all 3 sessions.
+        composeRule.onNodeWithTag("compare_library_session_tile_a").performTouchInput { longClick() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_library_select_all_toggle").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(
+            context.getString(R.string.compare_library_selection_count, 3)
+        ).assertIsDisplayed()
+
+        // Simulate successful backup.
+        composeRule.runOnUiThread { successGen.value++ }
+        composeRule.waitForIdle()
+
+        // Normal mode — selection count label must be gone, back button visible.
+        composeRule.onNodeWithTag("compare_library_back_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertDoesNotExist()
     }
 
     private fun wakeTestDevice() {

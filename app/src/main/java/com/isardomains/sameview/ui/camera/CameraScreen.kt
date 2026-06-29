@@ -393,6 +393,7 @@ fun CameraScreen(
                         is UiEvent.ShowGpsFallbackDialog -> {
                             showGpsFallbackDialog = true
                         }
+                        is UiEvent.BackupSucceeded -> {}
                     }
                 }
             }

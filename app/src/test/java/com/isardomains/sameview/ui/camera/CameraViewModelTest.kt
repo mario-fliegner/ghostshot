@@ -3570,6 +3570,46 @@ class CameraViewModelTest {
     }
 
     @Test
+    fun backupSessions_success_emitsBackupSucceededEvent() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(3) }
+        )
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.backupSessions(listOf("s1", "s2", "s3"), mock())
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        assertTrue(
+            "BackupSucceeded must be emitted after a successful multi-session backup",
+            events.any { it is UiEvent.BackupSucceeded }
+        )
+    }
+
+    @Test
+    fun backupSessions_failure_doesNotEmitBackupSucceededEvent() = runTest {
+        val testViewModel = CameraViewModel(
+            mock(), StandardTestDispatcher(testScheduler), { null },
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            { _, _, _, _ -> SessionBackupExporter.BackupResult.Failure("test failure", null) }
+        )
+        val events = mutableListOf<UiEvent>()
+        val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
+
+        testViewModel.backupSessions(listOf("s1", "s2", "s3"), mock())
+        advanceUntilIdle()
+        collectJob.cancel()
+
+        assertFalse(
+            "BackupSucceeded must NOT be emitted after a failed backup",
+            events.any { it is UiEvent.BackupSucceeded }
+        )
+    }
+
+    @Test
     fun deleteSessions_duringActiveBackup_isIgnored() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
