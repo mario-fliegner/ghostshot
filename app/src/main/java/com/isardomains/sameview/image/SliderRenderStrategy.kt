@@ -180,7 +180,8 @@ internal class SliderRenderStrategy(
     }
 }
 
-private fun drawBitmapFill(canvas: Canvas, bitmap: Bitmap, rect: RectF) {
+/** Fill (center-crop + scale) a [bitmap] into [rect] on [canvas]. Internal so ShareImageRenderer can reuse it for SbS HQ capture preparation. */
+internal fun drawBitmapFill(canvas: Canvas, bitmap: Bitmap, rect: RectF) {
     val bw = bitmap.width.toFloat()
     val bh = bitmap.height.toFloat()
     val rw = rect.width()

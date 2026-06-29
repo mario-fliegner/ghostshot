@@ -73,12 +73,16 @@ class ShareComparisonViewModelTest {
 
     private fun createViewModel(
         globalBrandingRepository: GlobalBrandingRepository = GlobalBrandingRepository(File(tempFolder.root, "branding")),
-        metadataReader: suspend (File) -> ShareMetadataSnapshot = { emptySnapshot }
+        metadataReader: suspend (File) -> ShareMetadataSnapshot = { emptySnapshot },
+        hqSourceChecker: (File) -> Boolean = { false },
+        captureFileResolver: (File) -> File? = { null }
     ): ShareComparisonViewModel {
         val handle = SavedStateHandle(mapOf("sessionId" to testSessionId))
         val vm = ShareComparisonViewModel(handle, context, globalBrandingRepository)
         vm.ioDispatcher = Dispatchers.Main
         vm.metadataReader = metadataReader
+        vm.hqSourceChecker = hqSourceChecker
+        vm.captureFileResolver = captureFileResolver
         // Default: no session branding, no global branding auto-copy.
         vm.previewBitmapFromFile = { null }
         vm.previewBitmapFromBytes = { null }
@@ -1317,4 +1321,76 @@ class ShareComparisonViewModelTest {
         advanceUntilIdle()
         assertEquals("Step photo: bitmapB, no stale state", mockBitmapB, vm.previewBrandingBitmap.value)
     }
+
+    // ── T-HQ-U-13/14: hqAvailable StateFlow ──────────────────────────────────
+
+    @Test
+    fun hqAvailable_trueWhenHqSourceCheckerReturnsTrue() = runTest {
+        val vm = createViewModel(hqSourceChecker = { true })
+        vm.loadMetadata()
+        advanceUntilIdle()
+        assertTrue("hqAvailable must be true when checker returns true", vm.hqAvailable.value)
+    }
+
+    @Test
+    fun hqAvailable_falseWhenHqSourceCheckerReturnsFalse() = runTest {
+        val vm = createViewModel(hqSourceChecker = { false })
+        vm.loadMetadata()
+        advanceUntilIdle()
+        assertFalse("hqAvailable must be false when checker returns false", vm.hqAvailable.value)
+    }
+
+    @Test
+    fun hqAvailable_defaultsFalseBeforeLoadMetadata() {
+        val vm = createViewModel(hqSourceChecker = { true })
+        // init coroutine is queued but not yet run → should be false
+        assertFalse("hqAvailable must default to false before loadMetadata completes",
+            vm.hqAvailable.value)
+    }
+
+    // ── T-HQ-U-15/16: captureOriginalFile wiring in onShare() ────────────────
+
+    @Test
+    fun onShare_withHqAvailable_captureOriginalFileIsNonNull() = runTest {
+        val fakeCapOriginal = File(tempFolder.root, "capture-original.jpg")
+        fakeCapOriginal.createNewFile()
+
+        var capturedConfig: ShareRenderConfig? = null
+        val vm = createViewModel(
+            hqSourceChecker = { true },
+            captureFileResolver = { fakeCapOriginal }
+        )
+        vm.loadMetadata()
+        advanceUntilIdle()
+
+        vm.shareRunner = { config, _ -> capturedConfig = config; fakeUri }
+        vm.onQualityChanged(ShareQuality.ORIGINAL)
+        vm.onShare()
+        advanceUntilIdle()
+
+        assertNotNull("captureOriginalFile must be non-null when HQ is available",
+            capturedConfig?.captureOriginalFile)
+        assertEquals("captureOriginalFile must match the resolved file",
+            fakeCapOriginal, capturedConfig?.captureOriginalFile)
+    }
+
+    @Test
+    fun onShare_withHqNotAvailable_captureOriginalFileIsNull() = runTest {
+        var capturedConfig: ShareRenderConfig? = null
+        val vm = createViewModel(
+            hqSourceChecker = { false },
+            captureFileResolver = { File(tempFolder.root, "should-not-be-called.jpg") }
+        )
+        vm.loadMetadata()
+        advanceUntilIdle()
+
+        vm.shareRunner = { config, _ -> capturedConfig = config; fakeUri }
+        vm.onQualityChanged(ShareQuality.ORIGINAL)
+        vm.onShare()
+        advanceUntilIdle()
+
+        assertNull("captureOriginalFile must be null when HQ is not available",
+            capturedConfig?.captureOriginalFile)
+    }
+
 }

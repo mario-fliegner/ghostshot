@@ -102,6 +102,7 @@ fun ShareComparisonScreen(
     val isUsingGlobalDefault by viewModel.isUsingGlobalDefault.collectAsStateWithLifecycle()
     val previewBrandingBitmap by viewModel.previewBrandingBitmap.collectAsStateWithLifecycle()
 
+    val hqAvailable by viewModel.hqAvailable.collectAsStateWithLifecycle()
     val isTitleDateAvailable by viewModel.isTitleDateAvailable.collectAsStateWithLifecycle()
     val isLocationAvailable by viewModel.isLocationAvailable.collectAsStateWithLifecycle()
 
@@ -424,10 +425,15 @@ fun ShareComparisonScreen(
                         onItemSelected = { viewModel.onQualityChanged(qualities[it]) },
                         modifier = Modifier.testTag("share_comparison_quality_control")
                     )
-                    if (quality == ShareQuality.ORIGINAL) {
+                    val qualityNote: String? = when {
+                        quality != ShareQuality.ORIGINAL -> null
+                        hqAvailable -> stringResource(R.string.share_comparison_quality_original_note_hq)
+                        else -> stringResource(R.string.share_comparison_quality_original_note_no_hq)
+                    }
+                    if (qualityNote != null) {
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = stringResource(R.string.share_comparison_quality_original_note),
+                            text = qualityNote,
                             style = MaterialTheme.typography.bodySmall,
                             color = SameViewSettingsSecondaryText
                         )

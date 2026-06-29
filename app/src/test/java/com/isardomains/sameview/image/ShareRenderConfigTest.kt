@@ -1,18 +1,22 @@
 package com.isardomains.sameview.image
 
+import com.isardomains.sameview.ui.camera.ReferenceImageDisplayMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import java.nio.file.Files
 
 class ShareRenderConfigTest {
 
-    // --- computeCanvasDimensions ---
+    // --- computeCanvasDimensions: Standard ---
 
     @Test
     fun standard_viewportFitsIn2048_noScalingApplied() {
         val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
-        // comparison area <= 2048 on longest edge
         assertTrue(maxOf(dims.compW, dims.compH) <= MAX_COMPARISON_LONGEST_EDGE)
         assertEquals(1080, dims.compW)
         assertEquals(1920, dims.compH)
@@ -29,6 +33,7 @@ class ShareRenderConfigTest {
 
     @Test
     fun original_usesViewportDimensionsDirectly() {
+        // null captureOriginalDims → non-HQ path → viewport dimensions directly
         val dims = computeCanvasDimensions(3024, 4032, ShareQuality.ORIGINAL, null, ShareComparisonStyle.SLIDER)
         assertEquals(3024, dims.compW)
         assertEquals(4032, dims.compH)
@@ -131,8 +136,6 @@ class ShareRenderConfigTest {
 
     @Test
     fun sideBySide_compH_isHalfOfSlider() {
-        // For any viewport, Side by side compH must equal Slider compH / 2.
-        // This ensures Fit-scaled images fill each half-width slot without empty dark zones.
         val sliderDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         val sbsDims    = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SIDE_BY_SIDE)
 
@@ -142,10 +145,8 @@ class ShareRenderConfigTest {
 
     @Test
     fun sideBySide_canvasH_isCorrect() {
-        // Verify that the full canvas height reflects the reduced comparison height.
         val sbsDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SIDE_BY_SIDE)
 
-        // compH must be 960 (1920 / 2), canvasH = compH + 2 * outerPad (no caption)
         assertEquals(960, sbsDims.compH)
         val expectedCanvasH = sbsDims.compH + 2 * sbsDims.outerPad
         assertTrue(
@@ -164,9 +165,9 @@ class ShareRenderConfigTest {
 
     @Test
     fun captionHeight_lines_strictlyIncreasing() {
-        val oneLine   = ShareCaptionData(null, "2008 → 2026", null)           // date only
-        val twoLines  = ShareCaptionData("Title", "2008 → 2026", null)        // title + date
-        val threeLines = ShareCaptionData("Title", "2008 → 2026", "München")  // all three
+        val oneLine   = ShareCaptionData(null, "2008 → 2026", null)
+        val twoLines  = ShareCaptionData("Title", "2008 → 2026", null)
+        val threeLines = ShareCaptionData("Title", "2008 → 2026", "München")
 
         val h1 = preciseCaptionHeight(oneLine, 1080, 1920)
         val h2 = preciseCaptionHeight(twoLines, 1080, 1920)
@@ -180,14 +181,12 @@ class ShareRenderConfigTest {
 
     @Test
     fun captionHeight_oneLine_significantlySmallerThanThreeLines() {
-        // Core regression: 1 visible line must NOT reserve space for 3 lines.
         val oneLine    = ShareCaptionData(null, "2008 → 2026", null)
         val threeLines = ShareCaptionData("Title", "2008 → 2026", "München")
 
         val h1 = preciseCaptionHeight(oneLine, 1080, 1920)
         val h3 = preciseCaptionHeight(threeLines, 1080, 1920)
 
-        // 1-line must be at most 55 % of 3-line height (no blanket 3-line reservation).
         assertTrue(
             "1-line height ($h1) must be < 55% of 3-line height ($h3)",
             h1 < h3 * 0.55f
@@ -196,7 +195,6 @@ class ShareRenderConfigTest {
 
     @Test
     fun captionHeight_canvasH_scalesWithLineCount() {
-        // The canvas height must grow proportionally with caption line count.
         val noCaptionDims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         val oneLineDims   = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD,
             ShareCaptionData(null, "2008 → 2026", null), ShareComparisonStyle.SLIDER)
@@ -209,7 +207,7 @@ class ShareRenderConfigTest {
             threeLineDims.canvasH > oneLineDims.canvasH)
     }
 
-    // ── useBranding field ─────────────────────────────────────────────────────
+    // ── useBranding / captureOriginalFile fields ─────────────────────────────
 
     @Test
     fun shareRenderConfig_useBranding_defaultFalse() {
@@ -217,7 +215,7 @@ class ShareRenderConfigTest {
             style = ShareComparisonStyle.SLIDER,
             quality = ShareQuality.STANDARD,
             captionData = null,
-            sessionDir = java.io.File("/fake"),
+            sessionDir = File("/fake"),
             exportTimestamp = "20260101_120000"
         )
         assertFalse("useBranding must default to false", config.useBranding)
@@ -229,7 +227,7 @@ class ShareRenderConfigTest {
             style = ShareComparisonStyle.SLIDER,
             quality = ShareQuality.STANDARD,
             captionData = null,
-            sessionDir = java.io.File("/fake"),
+            sessionDir = File("/fake"),
             exportTimestamp = "20260101_120000",
             useBranding = true
         )
@@ -237,11 +235,217 @@ class ShareRenderConfigTest {
     }
 
     @Test
+    fun shareRenderConfig_captureOriginalFile_defaultNull() {
+        val config = ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.ORIGINAL,
+            captionData = null,
+            sessionDir = File("/fake"),
+            exportTimestamp = "20260101_120000"
+        )
+        assertNull("captureOriginalFile must default to null", config.captureOriginalFile)
+    }
+
+    @Test
+    fun shareRenderConfig_captureOriginalFile_canBeSet() {
+        val file = File("/fake/capture-original.jpg")
+        val config = ShareRenderConfig(
+            style = ShareComparisonStyle.SLIDER,
+            quality = ShareQuality.ORIGINAL,
+            captionData = null,
+            sessionDir = File("/fake"),
+            exportTimestamp = "20260101_120000",
+            captureOriginalFile = file
+        )
+        assertEquals(file, config.captureOriginalFile)
+    }
+
+    @Test
     fun computeCanvasDimensions_unaffectedByUseBranding() {
-        // useBranding lives in ShareRenderConfig but does not change canvas geometry
         val dims = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null, ShareComparisonStyle.SLIDER)
         assertEquals(1080, dims.compW)
         assertEquals(1920, dims.compH)
-        // Canvas geometry is identical regardless of useBranding — it is a rendering flag only
+    }
+
+    // ── T-HQ-U-01: Standard ignores captureOriginalDims ──────────────────────
+
+    @Test
+    fun standard_captureOriginalDimsIgnored() {
+        // STANDARD must be unaffected by captureOriginalDims regardless of its value.
+        val dimsWithout = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null)
+        val dimsWith    = computeCanvasDimensions(1080, 1920, ShareQuality.STANDARD, null,
+            captureOriginalDims = Pair(4032, 3024))
+        assertEquals("Standard compW must be unaffected", dimsWithout.compW, dimsWith.compW)
+        assertEquals("Standard compH must be unaffected", dimsWithout.compH, dimsWith.compH)
+        assertEquals("Standard canvasW must be unaffected", dimsWithout.canvasW, dimsWith.canvasW)
+        assertEquals("Standard canvasH must be unaffected", dimsWithout.canvasH, dimsWith.canvasH)
+    }
+
+    // ── T-HQ-U-02: Original + HQ dims → canvas exceeds 2048 px ──────────────
+
+    @Test
+    fun original_withHqDims_canvasLongestEdgeExceeds2048() {
+        // viewport 1080x1920 (longest=1920), capture-original 3024x4032 → scale driven by cap
+        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.ORIGINAL, null,
+            captureOriginalDims = Pair(3024, 4032))
+        val longest = maxOf(dims.compW, dims.compH)
+        assertTrue("Longest edge $longest must be > 2048", longest > MAX_COMPARISON_LONGEST_EDGE)
+        assertTrue("Longest edge $longest must be <= 3840", longest <= MAX_HQ_LONGEST_EDGE)
+    }
+
+    // ── T-HQ-U-03: Aspect ratio matches viewport ─────────────────────────────
+
+    @Test
+    fun original_withHqDims_canvasAspectRatioMatchesViewport() {
+        val vW = 1080; val vH = 1920
+        val dims = computeCanvasDimensions(vW, vH, ShareQuality.ORIGINAL, null,
+            captureOriginalDims = Pair(3024, 4032))
+        val expectedRatio = vH.toDouble() / vW.toDouble()
+        val actualRatio   = dims.compH.toDouble() / dims.compW.toDouble()
+        assertEquals("Aspect ratio must match viewport (±5 %)", expectedRatio, actualRatio, expectedRatio * 0.05)
+    }
+
+    // ── T-HQ-U-04: 3840 px cap enforced ─────────────────────────────────────
+
+    @Test
+    fun original_withVeryLargeHqDims_cappedAt3840() {
+        // Huge capture-original: scale would far exceed cap → longest edge = MAX_HQ_LONGEST_EDGE
+        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.ORIGINAL, null,
+            captureOriginalDims = Pair(10000, 20000))
+        val longest = maxOf(dims.compW, dims.compH)
+        assertEquals("Longest edge must be capped at $MAX_HQ_LONGEST_EDGE", MAX_HQ_LONGEST_EDGE, longest)
+    }
+
+    // ── T-HQ-U-05: null captureOriginalDims → viewport dimensions ────────────
+
+    @Test
+    fun original_withNullHqDims_usesViewportDirectly() {
+        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.ORIGINAL, null,
+            captureOriginalDims = null)
+        assertEquals("compW must equal viewport width", 1080, dims.compW)
+        assertEquals("compH must equal viewport height", 1920, dims.compH)
+    }
+
+    // ── T-HQ-U-06: coerceAtLeast(1f) — no downscaling when source < viewport ─
+
+    @Test
+    fun original_withHqDimsSmallerThanViewport_noDownscale() {
+        // capture-original 540x960 is half the viewport 1080x1920 → scale 0.5, clamped to 1.0
+        val dims = computeCanvasDimensions(1080, 1920, ShareQuality.ORIGINAL, null,
+            captureOriginalDims = Pair(540, 960))
+        assertEquals("compW must not be downscaled below viewport", 1080, dims.compW)
+        assertEquals("compH must not be downscaled below viewport", 1920, dims.compH)
+    }
+
+    // ── T-HQ-U-07: Even dimensions for HQ canvas ─────────────────────────────
+
+    @Test
+    fun original_withHqDims_allDimensionsEven() {
+        // Odd-ish inputs to exercise rounding paths
+        val dims = computeCanvasDimensions(1081, 1921, ShareQuality.ORIGINAL, null,
+            captureOriginalDims = Pair(3025, 4033))
+        assertEquals("compW must be even", 0, dims.compW % 2)
+        assertEquals("compH must be even", 0, dims.compH % 2)
+        assertEquals("canvasW must be even", 0, dims.canvasW % 2)
+        assertEquals("canvasH must be even", 0, dims.canvasH % 2)
+    }
+
+    // ── T-HQ-U-08: Side by side compH = makeEven(compHBase / 2) for HQ ──────
+
+    @Test
+    fun original_withHqDims_sideBySide_compHIsHalfOfSlider() {
+        val origDims = Pair(3024, 4032)
+        val sliderDims = computeCanvasDimensions(1080, 1920, ShareQuality.ORIGINAL, null,
+            ShareComparisonStyle.SLIDER, captureOriginalDims = origDims)
+        val sbsDims = computeCanvasDimensions(1080, 1920, ShareQuality.ORIGINAL, null,
+            ShareComparisonStyle.SIDE_BY_SIDE, captureOriginalDims = origDims)
+
+        assertEquals("HQ SbS compH must be half of HQ Slider compH",
+            sliderDims.compH / 2, sbsDims.compH)
+        assertEquals("compW must be equal for both styles", sliderDims.compW, sbsDims.compW)
+    }
+
+    // ── T-HQ-U-15: readOverlayParams — valid overlay block ───────────────────
+
+    @Test
+    fun readOverlayParams_validOverlayBlock_parsesCorrectly() {
+        val dir = Files.createTempDirectory("sv-test-").toFile()
+        try {
+            File(dir, "metadata.json").writeText(
+                """{"overlay":{"scale":1.25,"offsetX":-0.1,"offsetY":0.05,"displayMode":"COMPARE_WITH_PREVIEW"}}"""
+            )
+            val params = readOverlayParams(dir)
+            assertNotNull("readOverlayParams must return non-null for valid block", params)
+            assertEquals(1.25f, params!!.scale, 0.001f)
+            assertEquals(-0.1f, params.offsetX, 0.001f)
+            assertEquals(0.05f, params.offsetY, 0.001f)
+            assertEquals(ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW, params.displayMode)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun readOverlayParams_showFullImageMode_parsesCorrectly() {
+        val dir = Files.createTempDirectory("sv-test-").toFile()
+        try {
+            File(dir, "metadata.json").writeText(
+                """{"overlay":{"scale":0.8,"offsetX":0.0,"offsetY":0.0,"displayMode":"SHOW_FULL_IMAGE"}}"""
+            )
+            val params = readOverlayParams(dir)
+            assertNotNull(params)
+            assertEquals(ReferenceImageDisplayMode.SHOW_FULL_IMAGE, params!!.displayMode)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    // ── T-HQ-U-16: readOverlayParams — null cases ────────────────────────────
+
+    @Test
+    fun readOverlayParams_missingOverlayBlock_returnsNull() {
+        val dir = Files.createTempDirectory("sv-test-").toFile()
+        try {
+            File(dir, "metadata.json").writeText("""{"viewport":{"width":1080,"height":1920}}""")
+            assertNull("Must return null when overlay block absent", readOverlayParams(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun readOverlayParams_noMetadataJson_returnsNull() {
+        val dir = Files.createTempDirectory("sv-test-").toFile()
+        try {
+            assertNull("Must return null when metadata.json absent", readOverlayParams(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun readOverlayParams_invalidDisplayMode_returnsNull() {
+        val dir = Files.createTempDirectory("sv-test-").toFile()
+        try {
+            File(dir, "metadata.json").writeText(
+                """{"overlay":{"scale":1.0,"offsetX":0.0,"offsetY":0.0,"displayMode":"UNKNOWN_MODE"}}"""
+            )
+            assertNull("Must return null for unrecognised displayMode", readOverlayParams(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun readOverlayParams_missingScaleField_returnsNull() {
+        val dir = Files.createTempDirectory("sv-test-").toFile()
+        try {
+            File(dir, "metadata.json").writeText(
+                """{"overlay":{"offsetX":0.0,"offsetY":0.0,"displayMode":"COMPARE_WITH_PREVIEW"}}"""
+            )
+            assertNull("Must return null when scale field absent", readOverlayParams(dir))
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 }

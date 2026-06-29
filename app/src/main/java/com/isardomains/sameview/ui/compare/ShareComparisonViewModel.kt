@@ -109,6 +109,14 @@ class ShareComparisonViewModel @Inject constructor(
     private val _isRendering = MutableStateFlow(false)
     val isRendering: StateFlow<Boolean> = _isRendering.asStateFlow()
 
+    /**
+     * True when the session contains a HQ capture source (`capture-original.jpg` declared in
+     * `files.captureOriginal` and present on disk). Populated asynchronously in [loadMetadata].
+     * Defaults to false — no false HQ promise before the check completes.
+     */
+    private val _hqAvailable = MutableStateFlow(false)
+    val hqAvailable: StateFlow<Boolean> = _hqAvailable.asStateFlow()
+
     // ── Branding state ─────────────────────────────────────────────────────────
 
     /**
@@ -244,6 +252,22 @@ class ShareComparisonViewModel @Inject constructor(
     }
 
     /**
+     * Checks whether a HQ capture source exists for the session.
+     * Injectable so unit tests can return true/false without disk access.
+     */
+    internal var hqSourceChecker: (File) -> Boolean = { dir ->
+        ShareImageRenderer().hasHqCaptureSource(dir)
+    }
+
+    /**
+     * Resolves the HQ capture source file for the session.
+     * Injectable so unit tests can return a synthetic File without disk access.
+     */
+    internal var captureFileResolver: (File) -> File? = { dir ->
+        ShareImageRenderer().resolveHqCaptureFile(dir)
+    }
+
+    /**
      * Decodes a preview [Bitmap] from a raw PNG [ByteArray] immediately after a write,
      * without touching disk again. Used after photo-pick and symbol-render writes.
      * Injectable so unit tests can return a mock [Bitmap] without [android.graphics.BitmapFactory].
@@ -316,6 +340,10 @@ class ShareComparisonViewModel @Inject constructor(
             val sessionDir = File(context.filesDir, "sessions/$sessionId")
             val sessionBrandingFile = File(sessionDir, "branding-handle.png")
             val snapshot = withContext(ioDispatcher) { metadataReader(sessionDir) }
+
+            // Check HQ capture source availability (capture-original.jpg declared + present).
+            val hq = withContext(ioDispatcher) { hqSourceChecker(sessionDir) }
+            _hqAvailable.value = hq
 
             // Load existing session branding as a decoded Bitmap — the single source of truth.
             val existingBitmap = withContext(ioDispatcher) { previewBitmapFromFile(sessionBrandingFile) }
@@ -493,13 +521,21 @@ class ShareComparisonViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                val sessionDir = File(context.filesDir, "sessions/$sessionId")
+                // Resolve HQ capture source only for Original quality when HQ is available.
+                // captureFileResolver returns null when the file is absent or unreadable;
+                // the renderer falls back to capture.jpg transparently in that case.
+                val captureOriginalFile = if (_hqAvailable.value) {
+                    withContext(ioDispatcher) { captureFileResolver(sessionDir) }
+                } else null
                 val config = ShareRenderConfig(
                     style = _style.value,
                     quality = _quality.value,
                     captionData = buildCaptionData(),
-                    sessionDir = File(context.filesDir, "sessions/$sessionId"),
+                    sessionDir = sessionDir,
                     exportTimestamp = ts,
-                    useBranding = _useBranding.value && (_previewBrandingBitmap.value != null)
+                    useBranding = _useBranding.value && (_previewBrandingBitmap.value != null),
+                    captureOriginalFile = captureOriginalFile
                 )
                 val uri = withContext(ioDispatcher) {
                     shareRunner(config, context.contentResolver)

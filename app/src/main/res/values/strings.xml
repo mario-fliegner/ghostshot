@@ -246,7 +246,8 @@
     <string name="share_comparison_quality_label">Quality</string>
     <string name="share_comparison_quality_standard">Standard</string>
     <string name="share_comparison_quality_original">Original</string>
-    <string name="share_comparison_quality_original_note">Full session resolution, larger file</string>
+    <string name="share_comparison_quality_original_note_hq">Source photo resolution, larger file</string>
+    <string name="share_comparison_quality_original_note_no_hq">Full session resolution — no source photo stored for this session</string>
     <string name="share_comparison_action_share">Share</string>
     <string name="share_comparison_error_render_failed">Could not create image</string>
     <!-- Share Comparison: Logo (V2) -->

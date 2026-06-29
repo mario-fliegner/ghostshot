@@ -233,7 +233,8 @@
     <string name="share_comparison_quality_label">Qualität</string>
     <string name="share_comparison_quality_standard">Standard</string>
     <string name="share_comparison_quality_original">Original</string>
-    <string name="share_comparison_quality_original_note">Originalauflösung, größere Datei</string>
+    <string name="share_comparison_quality_original_note_hq">Auflösung des Originalfotos, größere Datei</string>
+    <string name="share_comparison_quality_original_note_no_hq">Sessionauflösung – kein Originalfoto für diese Session gespeichert</string>
     <string name="share_comparison_action_share">Teilen</string>
     <string name="share_comparison_error_render_failed">Bild konnte nicht erstellt werden</string>
     <!-- Share Comparison: Logo (V2) -->
