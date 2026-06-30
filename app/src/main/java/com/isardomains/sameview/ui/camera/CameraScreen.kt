@@ -700,15 +700,11 @@ fun CameraScreen(
                         }
 
                         // ── Layer 2.7: Edit-mode viewport border ──────────────────────────
-                        if (uiState.referenceMarkersState.isEditModeActive) {
-                            Box(
-                                modifier = (if (!isLandscape) {
-                                    Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
-                                } else {
-                                    Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)
-                                }).border(width = 2.dp, color = SameViewAccent)
-                            )
-                        }
+                        MarkerEditBorder(
+                            isEditModeActive = uiState.referenceMarkersState.isEditModeActive,
+                            isLandscape = isLandscape,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     }
                 }
 
@@ -2353,6 +2349,25 @@ private fun ShutterButton(
                 tint = Color.Black.copy(alpha = contentAlpha)
             )
         }
+    }
+}
+
+@Composable
+internal fun MarkerEditBorder(
+    isEditModeActive: Boolean,
+    isLandscape: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (isEditModeActive) {
+        Box(
+            modifier = if (!isLandscape) {
+                Modifier.fillMaxWidth().aspectRatio(9f / 16f)
+            } else {
+                Modifier.fillMaxHeight().aspectRatio(16f / 9f)
+            }.then(modifier)
+                .border(width = 2.dp, color = SameViewAccent)
+                .testTag("marker_edit_border")
+        )
     }
 }
 
