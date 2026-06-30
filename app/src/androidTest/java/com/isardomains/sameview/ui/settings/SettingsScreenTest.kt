@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -610,10 +611,17 @@ class SettingsScreenTest {
         composeRule.onNodeWithTag("settings_logo_use_symbol")
             .performScrollTo()
             .performClick()
-        composeRule.waitForIdle()
 
-        composeRule.onNodeWithText(context.getString(R.string.branding_symbol_picker_title))
-            .assertIsDisplayed()
+        // waitForIdle() alone races the ModalBottomSheet enter animation under full-suite
+        // device load. Poll until a symbol cell appears so the assertion runs only after
+        // the sheet is fully visible.
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("symbol_cell_heart")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        composeRule.onNodeWithTag("symbol_cell_heart").assertIsDisplayed()
     }
 
     // ── Destructive treatment — Remove logo ───────────────────────────────────
