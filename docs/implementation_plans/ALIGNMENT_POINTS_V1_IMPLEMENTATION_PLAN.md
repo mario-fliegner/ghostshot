@@ -104,13 +104,16 @@ Das versehentliche Speichern von Marker-Koordinaten in `metadata.json` oder das 
 - Datenklasse `ReferenceMarker` (normalisierte Koordinaten + ID)
 - State-Klasse `ReferenceMarkersState` mit drei Variablen (`markers`, `markersVisible`, `isEditModeActive`)
 - `CameraUiState` erhält `referenceMarkersState: ReferenceMarkersState`
-- `CameraViewModel`-Methoden für alle State-Transitionen (§4.1)
-- Dynamisches Reference-Menü (5 Zustände gemäß UX-Spec §6.2)
+- `CameraViewModel`-Methoden für alle State-Transitionen (§4.1), einschließlich `hideMarkers()` und `showMarkers()`
+- Dynamisches Reference-Menü (5 Zustände gemäß UX-Spec §6.2) — alle Menüeinträge ab Phase 1 funktionstüchtig
 - Viewport-Rand in SameView-Blau wenn Edit-Modus aktiv
 - Aufnahme-Button deaktiviert wenn Edit-Modus aktiv
 - Compare-Button bleibt aktiv (unverändert)
-- „Done" / „Fertig"-Button in Top-Bar-Zone wenn Edit-Modus aktiv
+- „Done" / „Fertig"-Button in Top-Bar-Zone wenn Edit-Modus aktiv; in Landscape-Orientierung ebenfalls in der Top-Bar-Zone ohne Overlap mit History/Overflow-Steuerelementen
+- `BackHandler(enabled = isMarkerEditModeActive)` in CameraScreen: fängt Back-Geste ab und ruft `exitMarkerEditMode()` auf; Navigation wird nicht ausgelöst
+- Alle in Phase 1 sichtbaren Texte (Menüeinträge, Done-Button) verwenden String-Ressourcen aus §6 — keine hardcodierten Strings
 - Tests für alle Menü-Zustände, State-Transitionen und Button-Verfügbarkeit
+- Test: Back im Edit-Modus fängt Navigation ab; CameraScreen bleibt aktiv; `isEditModeActive = false` nach Back
 
 **Nicht in Phase 1:**
 - Marker-Rendering
@@ -168,31 +171,40 @@ Das versehentliche Speichern von Marker-Koordinaten in `metadata.json` oder das 
 
 ---
 
-### Phase 5: Sichtbarkeitssteuerung
+### Phase 5: Sichtbarkeits-Lifecycle-Tests
 
 **Umfang:**
 
-- `hideMarkers()` im ViewModel: setzt `markersVisible = false`, beendet Edit-Modus falls aktiv
-- `showMarkers()` im ViewModel: setzt `markersVisible = true`
-- „Hide markers" / „Marker ausblenden" im Menü (nur wenn `markersExist = true`)
-- „Show markers" / „Marker anzeigen" im Menü (nur wenn `markersExist = true` UND `markersVisible = false`)
-- Tests für Sichtbarkeits-Lifecycle: Hide, Show, Clear, Edit-Eintritt aus Hidden-State
+- `hideMarkers()` und `showMarkers()` sind bereits in Phase 1 implementiert (§4.1)
+- „Hide markers" und „Show markers" im Menü sind bereits in Phase 1 funktionstüchtig (5-Zustände-Menü)
+- Phase 5 ergänzt vollständige Testabdeckung für Sichtbarkeits-Lifecycle:
+  - Hide aus Edit-Modus: Edit-Modus endet, Marker bleiben erhalten
+  - Edit-Eintritt aus Hidden-State: Marker werden automatisch eingeblendet
+  - Done nach Edit-Eintritt aus Hidden: Marker bleiben sichtbar (kein Rücksprung in Hidden-State)
+  - `showMarkers()` wenn keine Marker vorhanden: kein Fehler; `markersVisible = true`
+  - `hideMarkers()` aus leerem Edit-Modus: kein Fehler; Edit-Modus endet
+- Smoke-Tests: Vollständiger Hide/Show-Workflow auf Gerät
 
 ---
 
 ### Phase 6: Lebenszyklus-Integration + Accessibility + i18n
 
-**Umfang:**
+**Achtung Release-Zuweisung:** Phase 6 ist aufgeteilt. Lifecycle-kritische Teile müssen in Release-Einheit 1 (Phase 1–3) enthalten sein. Accessibility und i18n-Vollständigkeitsprüfung können in Release-Einheit 2 (Phase 4–5) integriert sein. Siehe §10.
+
+**Umfang — Lifecycle-kritisch (Release-Einheit 1):**
 
 - State-Bereinigung bei Reference Replace / Remove: `markers = []`, `markersVisible = true`, `isEditModeActive = false`
 - State-Bereinigung wenn „Reset overlay after capture" Referenz entfernt (gleich wie Remove)
 - State überlebt: Rotation, Recomposition, App-Hintergrundstellung, Compare-Navigation
 - State wird bei App-Neustart NICHT wiederhergestellt
 - Capture im Edit-Modus unmöglich (Button deaktiviert); kein Lifecycle-Pfad dafür
+- Tests für vollständige Lifecycle-Tabellen aus UX-Spec §7.2 und §7.3
+
+**Umfang — Accessibility + i18n (Release-Einheit 1 oder 2):**
+
 - Accessibility: Content Descriptions für Marker und Edit-Modus-Bereich
 - Touch-Target Mindestgröße: 48 dp (aus `ReferenceMarkerDefaults`)
-- i18n: alle sichtbaren Texte als String-Ressourcen (EN + DE), keine hardcodierten Strings
-- Tests für vollständige Lifecycle-Tabellen aus UX-Spec §7.2 und §7.3
+- i18n: String-Ressourcen-Vollständigkeit verifizieren (alle §6-Keys in EN und DE vorhanden; keine hardcodierten User-facing Strings); Strings werden inkrementell ab Phase 1 hinzugefügt, nicht erst in Phase 6 erstellt
 
 ---
 
@@ -250,6 +262,7 @@ Die folgenden Dateien dürfen durch diese Implementierung nicht verändert werde
 | `CompareLibraryScreen.kt` | Gleich wie CompareScreen |
 | `VideoExportViewModel.kt` | Marker erscheinen nie in Video-Exports |
 | `ShareComparisonViewModel.kt` | Marker erscheinen nie in Share-Exports |
+| `ShareComparisonScreen.kt` | Marker erscheinen nie in Share-Exporten; Screen ist Teil der Share-Rendering-Pipeline |
 | `metadata.json`-Schema | Marker dürfen das Schema nie erweitern |
 
 ---
@@ -316,6 +329,7 @@ object ReferenceMarkerDefaults {
 | `markers_a11y_edit_mode_indicator` | „Marker-Bearbeitungsmodus aktiv" |
 
 **Pflichtregeln:**
+- String-Ressourcen werden inkrementell ab Phase 1 hinzugefügt — nicht auf Phase 6 warten; Phase 6 verifiziert nur Vollständigkeit
 - Keine User-facing Strings außerhalb der String-Ressourcen
 - Die Begriffe „Ausrichtungspunkte", „Alignment Points", „Anchor Points", „Reference Points" dürfen in keiner nutzer-sichtbaren Ressource vorkommen
 - Beide Sprachen müssen vollständig vorhanden sein bevor Release
@@ -342,6 +356,9 @@ object ReferenceMarkerDefaults {
 | `showMarkers()` | `markersVisible = true`, `isEditModeActive` unverändert |
 | `showMarkers()` ohne Marker | Keine Fehler; `markersVisible = true` |
 | `clearMarkersOnReferenceChange()` | Alle drei States auf Default zurückgesetzt |
+| BackHandler aktiv im Edit-Modus | `BackHandler` aktiv wenn `isEditModeActive = true`; inaktiv wenn `isEditModeActive = false` |
+| BackHandler ruft exitMarkerEditMode auf | Back-Interception ruft `exitMarkerEditMode()` auf; kein NavController-Pop |
+| Edit-Modus-Eintritt aus Camera-Zoom-Modus | Camera-Zoom-Modus wird beendet; Overlay-Adjust-Modus wird aktiv |
 
 **Lifecycle-Tests:**
 
@@ -412,7 +429,7 @@ object ReferenceMarkerDefaults {
 | Leerstate-Hint weg nach Marker | Hint verschwindet nach erstem Marker |
 | Leerstate-Hint erneut bei Clear | Hint erscheint wieder wenn alle Marker gelöscht |
 | Done beendet Edit-Modus | Viewport-Rand verschwindet; Marker bleiben sichtbar |
-| Back beendet Edit-Modus | Wie Done |
+| Back beendet Edit-Modus | CameraScreen bleibt aktiv (kein NavController-Pop); `isEditModeActive = false`; Marker unverändert |
 | Aufnahme blockiert | Capture-Button deaktiviert im Edit-Modus |
 | Aufnahme aktiv nach Done | Capture-Button nach Done wieder aktiv |
 | Compare aktiv | Compare-Button ansteuerbar im Edit-Modus |
@@ -439,6 +456,7 @@ object ReferenceMarkerDefaults {
 | Kein Marker außerhalb Referenzbild | Long-press auf Letterbox → kein Marker |
 | Limit-Snackbar | 6. Marker-Versuch → Snackbar mit korrektem String |
 | Direktes Drag | Drag auf Marker (kein Tap vorher) → Marker verschiebt sich |
+| Touch außerhalb Drag-Prioritätsradius | Touch nah an Marker aber außerhalb `dragPriorityRadiusDp` → Overlay verschiebt sich; kein Marker-Drag |
 | Long-press-Delete | Long-press auf Marker → Warnzustand (Rot) → Marker gelöscht |
 | Overlay-Drag im Edit-Modus | Overlay verschiebbar während Edit-Modus |
 | Overlay-Scale im Edit-Modus | Overlay skalierbar während Edit-Modus |
@@ -454,9 +472,11 @@ object ReferenceMarkerDefaults {
 | Rotation: Marker korrekt | Marker nach Rotation korrekt positioniert |
 | Rotation: Edit-Modus erhalten | Modus-Flag nach Rotation unverändert |
 | Display-Mode-Wechsel | Marker korrekt nach COMPARE_WITH_PREVIEW ↔ SHOW_FULL_IMAGE |
+| Marker außerhalb Viewport geclipt | Marker mit berechneter Screen-Position außerhalb Viewport nicht gerendert; erscheint nach Overlay-Verschiebung in Viewport zurück |
 | Referenz-Remove: Marker weg | Marker verschwinden; Edit-Modus endet |
 | Referenz-Replace: Marker weg | Marker verschwinden; Edit-Modus endet |
 | Camera Zoom Mode blockiert | Camera-Zoom-Toggle nicht verfügbar im Edit-Modus |
+| Camera Zoom Mode: Eintritt aus aktivem Zoom | Edit-Modus-Eintritt bei aktivem Camera Zoom Mode → automatischer Wechsel zu Overlay-Adjust-Modus |
 | Camera Zoom Mode aktiv außerhalb | Camera-Zoom verfügbar im normalen Modus (auch mit sichtbaren Markern) |
 | Viewport-Rand nur im Edit-Modus | Blauer Rand sichtbar nur wenn `isEditModeActive = true` |
 | Viewport-Rand nach Done weg | Rand verschwindet nach Done |
@@ -553,9 +573,9 @@ Diese Tests validieren das Eigentumsmodell aus §2.1 und UX-Spec §7.1. Sie sind
 
 ### 8.6 Koordinatentransformation bei Display-Mode-Wechsel
 
-**Risiko:** Marker springen nach Display-Mode-Wechsel.
+**Risiko:** Marker springen nach Display-Mode-Wechsel oder durch Einführung einer von CameraScreen abweichenden Transformationslogik.
 
-**Mitigierung:** Normalisierte Koordinaten sind Display-Mode-agnostisch. Transformation nutzt immer die Parameter des aktuellen Display-Modes. Explizite Tests.
+**Mitigierung:** Normalisierte Koordinaten sind Display-Mode-agnostisch. Transformation nutzt exakt dieselben Overlay-Geometrieparameter, die CameraScreen für das Overlay-Rendering nutzt — keine unabhängige Transformationslogik einführen. Explizite Tests für beide Display-Modes.
 
 ---
 
@@ -563,11 +583,13 @@ Diese Tests validieren das Eigentumsmodell aus §2.1 und UX-Spec §7.1. Sie sind
 
 | Dokument | Änderung |
 |---|---|
-| `CAMERA_WORKFLOW_UX_V1.md` | Marker Edit-Modus; Capture deaktiviert; Modus-Indikator; Camera Zoom Mode; Long-press-Definition |
+| `CAMERA_WORKFLOW_UX_V1.md` | Marker Edit-Modus; Capture deaktiviert; Modus-Indikator; Camera Zoom Mode; Long-press-Definition; Hinweis dass Long-press im expliziten Edit-Modus kein „hidden feature" ist |
 | `CLAUDE_PROJECT_INSTRUCTION.md` | Addendum: Reference Markers State; Lifecycle; Menü-Struktur |
 | `SETTINGS_UX_V1.md` | „Reset overlay after capture" entfernt Referenz → Marker-Konsequenz |
+| `COMPARE_FLOW_V1.md` | Klarstellung: Marker erscheinen nicht in CompareScreen; kein Teil des Rendering-Pfads |
+| `COMPARE_SESSION_RENDERING_V1.md` | Klarstellung: Marker von ReferenceRenderer ausgeschlossen; `reference.jpg` enthält nie Marker-Daten |
 
-Keine Änderungen nötig: `COMPARE_FLOW_V1.md`, `COMPARE_SESSION_RENDERING_V1.md`, `SESSION_METADATA_V1.md`, `SESSION_ORIGINALS_V1.md`, `VIDEO_EXPORT_V1.md`, `SHARE_COMPARISON_IMAGE_V1.md`, `SESSION_BACKUP_EXPORT_V1.md`, `GPS_RECREATION_SYSTEM_V1.md`.
+Keine Änderungen nötig: `SESSION_METADATA_V1.md`, `SESSION_ORIGINALS_V1.md`, `VIDEO_EXPORT_V1.md`, `SHARE_COMPARISON_IMAGE_V1.md`, `SESSION_BACKUP_EXPORT_V1.md`, `GPS_RECREATION_SYSTEM_V1.md`.
 
 ---
 
@@ -603,9 +625,15 @@ Keine Änderungen nötig: `COMPARE_FLOW_V1.md`, `COMPARE_SESSION_RENDERING_V1.md
 
 **Phase 1–3** als erste releaseable Einheit: Menü, Edit-Modus, Marker setzen (noch kein Drag/Delete).
 
-**Phase 4–5** als zweite Einheit: Drag, Delete, Sichtbarkeitssteuerung.
+**Phase 4–5** als zweite Einheit: Drag, Delete, vollständige Sichtbarkeits-Lifecycle-Tests.
 
-**Phase 6** (Lifecycle, Accessibility, i18n-Vollständigkeit) muss in eine der beiden Einheiten integriert sein — kein separates Release.
+**Phase 6 — aufgeteilt:**
+
+- **Lifecycle-kritisch (muss in Release-Einheit 1):** State-Bereinigung bei Reference Replace / Remove; State-Bereinigung wenn „Reset overlay after capture" Referenz entfernt; State überlebt Rotation, Recomposition, App-Hintergrundstellung, Compare-Navigation. Diese Verhaltensweisen müssen in Release-Einheit 1 (Phase 1–3) enthalten sein — Phase 3 erlaubt das Setzen von Markern und das Eigentumsmodell muss ab dem ersten Marker vollständig gelten.
+
+- **Accessibility + i18n (kann in Release-Einheit 1 oder 2):** Content Descriptions, Touch-Target-Validierung, String-Ressourcen-Vollständigkeitsprüfung.
+
+Kein separates Release für Phase 6 in seiner Gesamtheit.
 
 ---
 
@@ -650,6 +678,23 @@ Keine Änderungen nötig: `COMPARE_FLOW_V1.md`, `COMPARE_SESSION_RENDERING_V1.md
 ---
 
 ## 12. Änderungsprotokoll
+
+### Revision 6 — 2026-06-30
+
+**Pre-Implementation-Review-Korrekturen:**
+
+- **§3 Phase 1:** `hideMarkers()` und `showMarkers()` in Phase 1 vorgezogen (waren Phase 5); `BackHandler`-Anforderung ergänzt; Done-Button-Landscape-Platzierung ergänzt; String-Ressourcen ab Phase 1 verpflichtend explizit gemacht
+- **§3 Phase 5:** Umbenannt in „Sichtbarkeits-Lifecycle-Tests"; ViewModel-Methoden wurden in Phase 1 vorverschoben; Phase 5 enthält nur noch Testabdeckung
+- **§3 Phase 6:** Release-Zuweisung explizit aufgeteilt; Lifecycle-kritische Teile (Replace/Remove-Bereinigung, Rotation, Navigate) sind Release-Einheit 1 zugewiesen; Accessibility/i18n bleibt flexibel
+- **§4 Nicht berührte Dateien:** `ShareComparisonScreen.kt` ergänzt
+- **§6 String-Ressourcen — Pflichtregeln:** Inkrementelle Hinzufügung ab Phase 1 explizit gemacht; Phase 6 verifiziert nur Vollständigkeit
+- **§7.1 Unit-Tests:** BackHandler-Tests und Camera-Zoom-Mode-Eintritttest ergänzt
+- **§7.4 Edit-Modus:** Back-Test präzisiert (kein NavController-Pop, CameraScreen bleibt aktiv)
+- **§7.4 Placement:** Touch-außerhalb-Prioritätsradius-Test ergänzt
+- **§7.4 Lifecycle:** Camera-Zoom-Mode-Eintritttest und Viewport-Clipping-Test ergänzt
+- **§8.6:** Risiko um unabhängige Transformationslogik erweitert; Mitigierung präzisiert
+- **§9 Dokumentations-Updates:** `COMPARE_FLOW_V1.md` und `COMPARE_SESSION_RENDERING_V1.md` von „Keine Änderungen nötig" in die Updates-Tabelle verschoben (war Widerspruch zu §12 der UX-Spec)
+- **§10 Release-Reihenfolge:** Phase 6 explizit aufgeteilt; Lifecycle-kritische Teile Release-Einheit 1 zugewiesen
 
 ### Revision 5 — 2026-06-26
 

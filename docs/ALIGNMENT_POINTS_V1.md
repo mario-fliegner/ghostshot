@@ -355,12 +355,16 @@ Kein Marker-Abschnitt — nichts ist vorhanden, was man ausblenden oder löschen
 
 - Immer sichtbar während Edit-Modus (unabhängig von Marker-Anzahl)
 - Platzierung: Top-Bar-Zone als Textbutton „Done" / „Fertig"
+- In Landscape-Orientierung: ebenfalls in der Top-Bar-Zone; kein Overlap mit History/Overflow-Steuerelementen
 - Beendet Edit-Modus; Marker bleiben sichtbar
 
 **Leerstate-Hint:**
 
 - Sichtbar solange `isMarkerEditModeActive = true` UND `markersExist = false`
 - Text: „Long press to place a marker" / „Gedrückt halten, um Marker zu setzen"
+- Position: Zentriert im unteren Drittel des Overlay-Bereichs, oberhalb der Bottom-Bar-Kontrollen
+- Dieses Element gehört **nicht** zur Top-Left-Hint-Zone (CAMERA_WORKFLOW_UX_V1.md §12) und konkurriert nicht mit Overlay-Coverage-Warning oder Format-Mismatch-Hint
+- In Landscape-Orientierung: gleiche relative Position im Overlay-Bereich
 - Verschwindet sofort beim Setzen des ersten Markers
 - Erscheint erneut wenn alle Marker gelöscht werden (und Edit-Modus noch aktiv)
 
@@ -433,6 +437,8 @@ normalizedPos = (touchPos − overlayOriginOnScreen) / (referenceImageSize × ov
 
 Wenn `normalizedPos` außerhalb [0, 1] liegt → kein Marker erstellt (kein Clamping auf den Rand).
 
+**Implementierungshinweis:** Die Formeln oben sind konzeptuell. Die tatsächliche Transformation muss exakt dieselben Overlay-Geometrieparameter verwenden, die CameraScreen für das Overlay-Rendering nutzt — insbesondere unter Berücksichtigung von `referenceImageDisplayMode`. Keine unabhängige Transformationsberechnung einführen; Marker-Positionen müssen konsistent mit dem bestehenden Overlay-Transform-System bleiben.
+
 **Marker außerhalb des sichtbaren Viewports:** Berechnete Screen-Position außerhalb des Viewports → Marker wird geclipt (nicht gerendert). Erscheint wieder wenn Overlay zurückbewegt wird.
 
 ### 6.8 Edit-Modus verlassen
@@ -454,6 +460,8 @@ Keine Bestätigung beim Verlassen via Done oder Back.
 **Camera Zoom Mode ist deaktiviert, während der Edit-Modus aktiv ist.**
 
 **Begründung aus Fotografenperspektive:** Wenn die Camera-Zoom-Stufe geändert wird, ändert sich die Perspektive der Live-Kamera auf die Szene. Die bisherige Alignment-Arbeit verschiebt sich; die platzierten Marker passen möglicherweise nicht mehr zum neuen Kamera-Framing.
+
+**Eintritt in Edit-Modus aus aktivem Camera Zoom Mode:** Falls Camera Zoom Mode beim Eintreten in den Edit-Modus aktiv ist, wechselt die App automatisch in den Overlay-Adjust-Modus. Der Camera-Zoom-Mode-Toggle bleibt deaktiviert bis der Edit-Modus beendet wird.
 
 **Außerhalb des Edit-Modus:** Camera Zoom Mode steht uneingeschränkt zur Verfügung — auch wenn Marker sichtbar oder ausgeblendet sind. Die Sichtbarkeit der Marker hat keinen Einfluss auf Camera Zoom Mode.
 
@@ -736,6 +744,15 @@ Keine Änderungen nötig: `SESSION_METADATA_V1.md`, `SESSION_ORIGINALS_V1.md`, `
 ---
 
 ## 13. Änderungsprotokoll
+
+### Revision 6 — 2026-06-30
+
+**Spezifikationspräzisierungen (Pre-Implementation-Review):**
+
+- §6.3 Done-Button: Landscape-Platzierung explizit definiert (Top-Bar-Zone; kein Overlap mit History/Overflow)
+- §6.3 Leerstate-Hint: Position (unteres Drittel des Overlay-Bereichs), Landscape-Verhalten und Nicht-Konflikt-Regeln mit Top-Left-Hint-Zone ergänzt
+- §6.7 Koordinatenmodell: Implementierungshinweis ergänzt — vorhandenes Overlay-Transform-System nutzen, keine unabhängige Transformation einführen
+- §6.9 Camera Zoom Mode: Eintrittsregel bei aktivem Camera Zoom Mode ergänzt (automatischer Wechsel zu Overlay-Adjust-Modus beim Edit-Modus-Eintritt)
 
 ### Revision 5 — 2026-06-26
 
