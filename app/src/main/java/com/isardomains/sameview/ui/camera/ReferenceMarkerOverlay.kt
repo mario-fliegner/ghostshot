@@ -1,17 +1,23 @@
 package com.isardomains.sameview.ui.camera
 
 import android.graphics.BlurMaskFilter
+import android.graphics.RectF
+import android.media.ExifInterface
+import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,23 +32,41 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewOverlayScrim
 import com.isardomains.sameview.ui.theme.SameViewTextPrimary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+
+// ── Loupe constants (NOT part of ReferenceMarkerDefaults) ──────────────────
+private val LOUPE_DIAMETER_DP = 120.dp
+private val LOUPE_BORDER_STROKE_DP = 1.5.dp
+private val LOUPE_FINGER_OFFSET_DP = 16.dp
+private val LOUPE_DONE_AREA_HEIGHT_DP = 88.dp
+private val LOUPE_INDICATOR_RING_DP = 16.dp
+private val LOUPE_INDICATOR_STROKE_DP = 1.5.dp
+private val LOUPE_INDICATOR_DOT_DP = 3.dp
+private val LOUPE_SHADOW_BLUR_DP = 6.dp
+private const val LOUPE_BITMAP_MAX_DIM = 1024
 
 object ReferenceMarkerDefaults {
     val ringDiameterDp = 20.dp
@@ -190,6 +214,7 @@ internal fun ReferenceMarkerOverlay(
     overlayOffsetX: Float,
     overlayOffsetY: Float,
     overlayScale: Float,
+    referenceUri: Uri? = null,
     onAddMarker: (Float, Float) -> Unit,
     onMoveMarker: (String, Float, Float) -> Unit,
     onRemoveMarker: (String) -> Unit,
@@ -198,12 +223,99 @@ internal fun ReferenceMarkerOverlay(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
+    val context = LocalContext.current
     val isEditModeActive = markersState.isEditModeActive
     val markers = markersState.markers
     val shouldRenderMarkers = markersState.markersVisible || isEditModeActive
 
     val viewportSizeState = remember { mutableStateOf(IntSize.Zero) }
     var markerBeingDeleted by remember { mutableStateOf<String?>(null) }
+
+    // ── Loupe: local drag state (Snapshot state, scoped to this composable) ──
+    var isDragging by remember { mutableStateOf(false) }
+    var draggingMarkerNormalizedPos by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+
+    // ── Loupe: cached bitmap for image crop rendering ─────────────────────────
+    var loupeBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    // Load/reload bitmap when referenceUri changes
+    LaunchedEffect(referenceUri) {
+        val prevBitmap = loupeBitmap
+        loupeBitmap = null
+        prevBitmap?.recycle()
+
+        if (referenceUri == null) return@LaunchedEffect
+
+        withContext(Dispatchers.IO) {
+            try {
+                // Read raw dimensions without decoding
+                val boundsOpts = android.graphics.BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                context.contentResolver.openInputStream(referenceUri)?.use { stream ->
+                    android.graphics.BitmapFactory.decodeStream(stream, null, boundsOpts)
+                }
+                val maxDim = max(boundsOpts.outWidth, boundsOpts.outHeight)
+                val sampleSize = if (maxDim <= 0) 1 else {
+                    var s = 1
+                    while ((maxDim / (s * 2)) >= LOUPE_BITMAP_MAX_DIM) s *= 2
+                    s
+                }
+
+                val decodeOpts = android.graphics.BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                }
+                val raw = context.contentResolver.openInputStream(referenceUri)?.use { stream ->
+                    android.graphics.BitmapFactory.decodeStream(stream, null, decodeOpts)
+                } ?: return@withContext
+
+                // Apply EXIF orientation so crop geometry matches metadata.orientedWidth/Height
+                val exifOrientation = context.contentResolver.openInputStream(referenceUri)
+                    ?.use { stream ->
+                        ExifInterface(stream).getAttributeInt(
+                            ExifInterface.TAG_ORIENTATION,
+                            ExifInterface.ORIENTATION_NORMAL
+                        )
+                    } ?: ExifInterface.ORIENTATION_NORMAL
+
+                val matrix = android.graphics.Matrix()
+                when (exifOrientation) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+                    ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+                    ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+                    ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+                    ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+                    ExifInterface.ORIENTATION_TRANSPOSE -> {
+                        matrix.postRotate(90f); matrix.preScale(-1f, 1f)
+                    }
+                    ExifInterface.ORIENTATION_TRANSVERSE -> {
+                        matrix.postRotate(270f); matrix.preScale(-1f, 1f)
+                    }
+                }
+                val oriented = if (matrix.isIdentity) raw else {
+                    android.graphics.Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, matrix, true)
+                        .also { if (it !== raw) raw.recycle() }
+                }
+                loupeBitmap = oriented
+            } catch (_: Exception) {
+                // null bitmap — loupe renders background-only (graceful fallback per spec §10)
+            }
+        }
+    }
+
+    // Recycle bitmap on Edit Mode exit (OQ-3)
+    LaunchedEffect(isEditModeActive) {
+        if (!isEditModeActive) {
+            val bitmap = loupeBitmap
+            loupeBitmap = null
+            bitmap?.recycle()
+        }
+    }
+
+    // ── Loupe: pre-allocated Rects for per-frame crop draw (avoids allocation) ──
+    // srcRect uses android.graphics.Rect (Canvas.drawBitmap requires integer src rect)
+    val srcRect = remember { android.graphics.Rect() }
+    val dstRectF = remember { RectF() }
 
     // Stable state references for use inside pointerInput coroutines
     val currentMarkersState = rememberUpdatedState(markers)
@@ -224,6 +336,17 @@ internal fun ReferenceMarkerOverlay(
     val centerDotRadiusPx = with(density) { (ReferenceMarkerDefaults.centerDotDiameterDp / 2f).toPx() }
     val shadowRadiusPx = with(density) { ReferenceMarkerDefaults.shadowRadiusDp.toPx() }
     val dragPriorityPx = with(density) { ReferenceMarkerDefaults.dragPriorityRadiusDp.toPx() }
+
+    // Loupe pixel sizes
+    val loupeDiameterPx = with(density) { LOUPE_DIAMETER_DP.toPx() }
+    val loupeRadiusPx = loupeDiameterPx / 2f
+    val loupeBorderPx = with(density) { LOUPE_BORDER_STROKE_DP.toPx() }
+    val loupeFingerOffsetPx = with(density) { LOUPE_FINGER_OFFSET_DP.toPx() }
+    val loupeDoneAreaPx = with(density) { LOUPE_DONE_AREA_HEIGHT_DP.toPx() }
+    val loupeShadowBlurPx = with(density) { LOUPE_SHADOW_BLUR_DP.toPx() }
+    val loupeIndicatorRingPx = with(density) { LOUPE_INDICATOR_RING_DP.toPx() / 2f }
+    val loupeIndicatorStrokePx = with(density) { LOUPE_INDICATOR_STROKE_DP.toPx() }
+    val loupeIndicatorDotPx = with(density) { LOUPE_INDICATOR_DOT_DP.toPx() / 2f }
 
     val emptyHintText = stringResource(R.string.markers_empty_hint)
     val editModeDescription = stringResource(R.string.markers_edit_mode_description)
@@ -334,7 +457,16 @@ internal fun ReferenceMarkerOverlay(
                                 else -> {
                                     // Drag — either marker drag or overlay pan/zoom
                                     if (nearestMarker != null) {
-                                        // Marker drag: track the original pointer only
+                                        // ── Marker drag ───────────────────────────────────
+                                        isDragging = true
+                                        // Pre-initialize to marker's current position so the loupe
+                                        // appears immediately: the classification loop already
+                                        // consumed the slop-qualifying move event, so the inner
+                                        // loop starts waiting with no queued events to process.
+                                        draggingMarkerNormalizedPos = Pair(
+                                            nearestMarker.normalizedX,
+                                            nearestMarker.normalizedY
+                                        )
                                         loop@ while (true) {
                                             val event = awaitPointerEvent()
                                             val change = event.changes.firstOrNull {
@@ -381,9 +513,14 @@ internal fun ReferenceMarkerOverlay(
                                                         clamped.first,
                                                         clamped.second
                                                     )
+                                                    // Update loupe drag position (same guard as onMoveMarker)
+                                                    draggingMarkerNormalizedPos = Pair(clamped.first, clamped.second)
                                                 }
                                             }
                                         }
+                                        // Drag ended — clear loupe state
+                                        isDragging = false
+                                        draggingMarkerNormalizedPos = null
                                     } else {
                                         // Overlay pan / pinch — forward to ViewModel callbacks
                                         loop@ while (true) {
@@ -411,7 +548,7 @@ internal fun ReferenceMarkerOverlay(
                 } else Modifier
             )
     ) {
-        // Marker rendering via Canvas
+        // ── Marker rendering via Canvas ───────────────────────────────────────
         if (shouldRenderMarkers && metadata != null) {
             val iW = metadata.orientedWidth.toFloat()
             val iH = metadata.orientedHeight.toFloat()
@@ -468,7 +605,183 @@ internal fun ReferenceMarkerOverlay(
             }
         }
 
-        // Empty-state hint: centered in the overlay when in edit mode with no markers
+        // ── Drag loupe ────────────────────────────────────────────────────────
+        // Visible only during marker drag in Edit Mode.
+        // Pointer-transparent — the Box has no interaction modifier.
+        val dragPos = draggingMarkerNormalizedPos
+        if (isDragging && dragPos != null && metadata != null) {
+            val vSize = viewportSizeState.value
+            val vW = vSize.width.toFloat()
+            val vH = vSize.height.toFloat()
+
+            if (vW > 0f && vH > 0f) {
+                val iW = metadata.orientedWidth.toFloat()
+                val iH = metadata.orientedHeight.toFloat()
+                val (normX, normY) = dragPos
+
+                // Compute marker screen position
+                val markerScreen = normalizedToScreen(
+                    normX, normY, vW, vH, iW, iH,
+                    displayMode, overlayOffsetX, overlayOffsetY, overlayScale
+                )
+
+                // Default loupe center: above the marker
+                val defaultCenterX = markerScreen.x
+                val defaultCenterY = markerScreen.y - loupeRadiusPx - loupeFingerOffsetPx
+
+                // Clamp to viewport (spec §7)
+                val clampMinX = loupeRadiusPx
+                val clampMaxX = vW - loupeRadiusPx
+                val clampMinY = loupeRadiusPx
+                val clampMaxY = vH - loupeRadiusPx - loupeDoneAreaPx
+
+                val clampedX = defaultCenterX.coerceIn(clampMinX, clampMaxX)
+                val aboveCenterY = defaultCenterY.coerceIn(clampMinY, clampMaxY)
+
+                // Fallback below if above position overlaps the marker
+                val minGap = loupeRadiusPx
+                val aboveOverlaps = aboveCenterY + loupeRadiusPx > markerScreen.y - minGap
+                val loupeCenterY = if (aboveOverlaps) {
+                    val belowCenterY = markerScreen.y + loupeRadiusPx + loupeFingerOffsetPx
+                    belowCenterY.coerceIn(clampMinY, clampMaxY)
+                } else {
+                    aboveCenterY
+                }
+
+                val loupeTopLeftX = (clampedX - loupeRadiusPx).roundToInt()
+                val loupeTopLeftY = (loupeCenterY - loupeRadiusPx).roundToInt()
+
+                Box(
+                    modifier = Modifier
+                        .absoluteOffset { IntOffset(loupeTopLeftX, loupeTopLeftY) }
+                        .size(LOUPE_DIAMETER_DP)
+                        .testTag("marker_drag_loupe")
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val radius = size.width / 2f
+                        val cx = radius
+                        val cy = radius
+
+                        drawIntoCanvas { c ->
+                            val nc = c.nativeCanvas
+
+                            // ── 1. Background fill + image crop, clipped to circle ──
+                            nc.save()
+                            nc.clipPath(android.graphics.Path().apply {
+                                addCircle(cx, cy, radius, android.graphics.Path.Direction.CW)
+                            })
+
+                            // Background
+                            nc.drawPaint(android.graphics.Paint().apply {
+                                color = SameViewOverlayScrim.toArgb()
+                            })
+
+                            // Reference image crop
+                            val bm = loupeBitmap
+                            if (bm != null && !bm.isRecycled) {
+                                val bW = bm.width.toFloat()
+                                val bH = bm.height.toFloat()
+                                if (iW > 0f && iH > 0f && bW > 0f && bH > 0f) {
+                                    // effectiveScale uses original image dimensions (spec §6)
+                                    val baseScale = when (displayMode) {
+                                        ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW ->
+                                            max(vW / iW, vH / iH)
+                                        ReferenceImageDisplayMode.SHOW_FULL_IMAGE ->
+                                            min(vW / iW, vH / iH)
+                                    }
+                                    val effectiveScale = (baseScale * overlayScale * 2.0f).coerceIn(1.0f, 6.0f)
+
+                                    // Crop half in bitmap pixels, accounting for downsampling
+                                    val cropHalfX = (radius / effectiveScale) * (bW / iW)
+                                    val cropHalfY = (radius / effectiveScale) * (bH / iH)
+
+                                    // Crop region in bitmap pixel space
+                                    val markerBX = normX * bW
+                                    val markerBY = normY * bH
+                                    val cropL = markerBX - cropHalfX
+                                    val cropT = markerBY - cropHalfY
+                                    val cropR = markerBX + cropHalfX
+                                    val cropB = markerBY + cropHalfY
+
+                                    // Clamp src to bitmap bounds (spec §8: fill out-of-bounds with background)
+                                    val srcL = cropL.coerceIn(0f, bW)
+                                    val srcT = cropT.coerceIn(0f, bH)
+                                    val srcR = cropR.coerceIn(0f, bW)
+                                    val srcB = cropB.coerceIn(0f, bH)
+
+                                    val cropW = cropR - cropL
+                                    val cropH = cropB - cropT
+
+                                    if (cropW > 0f && cropH > 0f && srcR > srcL && srcB > srcT) {
+                                        // Map visible src fraction to dst in loupe space
+                                        val dstL = ((srcL - cropL) / cropW) * size.width
+                                        val dstT = ((srcT - cropT) / cropH) * size.height
+                                        val dstR = ((srcR - cropL) / cropW) * size.width
+                                        val dstB = ((srcB - cropT) / cropH) * size.height
+
+                                        // drawBitmap requires integer src rect
+                                        srcRect.set(srcL.toInt(), srcT.toInt(), srcR.roundToInt(), srcB.roundToInt())
+                                        dstRectF.set(dstL, dstT, dstR, dstB)
+                                        nc.drawBitmap(bm, srcRect, dstRectF, null)
+                                    }
+                                }
+                            }
+
+                            nc.restore()
+
+                            // ── 2. Drop shadow on border ring (spec §9) ─────────────
+                            nc.drawCircle(
+                                cx, cy, radius - loupeBorderPx / 2f,
+                                android.graphics.Paint().apply {
+                                    isAntiAlias = true
+                                    style = android.graphics.Paint.Style.STROKE
+                                    strokeWidth = loupeBorderPx
+                                    color = android.graphics.Color.argb(127, 0, 0, 0)
+                                    maskFilter = BlurMaskFilter(
+                                        loupeShadowBlurPx,
+                                        BlurMaskFilter.Blur.NORMAL
+                                    )
+                                }
+                            )
+
+                            // ── 3. White border ring ─────────────────────────────────
+                            nc.drawCircle(
+                                cx, cy, radius - loupeBorderPx / 2f,
+                                android.graphics.Paint().apply {
+                                    isAntiAlias = true
+                                    style = android.graphics.Paint.Style.STROKE
+                                    strokeWidth = loupeBorderPx
+                                    color = android.graphics.Color.argb(229, 255, 255, 255)
+                                }
+                            )
+
+                            // ── 4. Marker indicator: ring ────────────────────────────
+                            nc.drawCircle(
+                                cx, cy, loupeIndicatorRingPx,
+                                android.graphics.Paint().apply {
+                                    isAntiAlias = true
+                                    style = android.graphics.Paint.Style.STROKE
+                                    strokeWidth = loupeIndicatorStrokePx
+                                    color = android.graphics.Color.WHITE
+                                }
+                            )
+
+                            // ── 5. Marker indicator: center dot ──────────────────────
+                            nc.drawCircle(
+                                cx, cy, loupeIndicatorDotPx,
+                                android.graphics.Paint().apply {
+                                    isAntiAlias = true
+                                    style = android.graphics.Paint.Style.FILL
+                                    color = SameViewAccent.toArgb()
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Empty-state hint: centered in the overlay when in edit mode with no markers ──
         if (isEditModeActive && markers.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),

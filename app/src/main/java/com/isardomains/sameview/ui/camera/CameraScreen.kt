@@ -684,6 +684,7 @@ fun CameraScreen(
                                 overlayOffsetX = uiState.overlayOffsetX,
                                 overlayOffsetY = uiState.overlayOffsetY,
                                 overlayScale = uiState.overlayScale,
+                                referenceUri = referenceUri,
                                 onAddMarker = { nx, ny -> viewModel.addMarker(nx, ny) },
                                 onMoveMarker = { id, nx, ny -> viewModel.moveMarker(id, nx, ny) },
                                 onRemoveMarker = { id -> viewModel.removeMarker(id) },

@@ -1321,3 +1321,41 @@ State transitions:
 - `ShareComparisonScreenTest` (`connectedDebugAndroidTest`) — **36/36 PASSED** on SM-S911B (Android 16); was 16+4=20 after V2 Blocks 4–5; +16 net new tests in this session
 
 **Issue 3 (no change):** `onRemoveSessionBranding()` behavior unchanged. "Remove logo" is always available when `hasBranding == true`, regardless of `useBranding`. Confirmed by `removeLogoAvailable_whenShowLogoOff` regression guard. Manual device verification still required for spacing (Issue 4) and for the live button visibility update (Issue 1 in the production ViewModel flow).
+
+---
+
+### Reference Marker Drag Loupe — V1 (2026-06-30)
+
+Full specification: `REFERENCE_MARKER_DRAG_LOUPE_V1.md` (Rev 2)
+Implementation plan: `implementation_plans/REFERENCE_MARKER_DRAG_LOUPE_V1_IMPLEMENTATION_PLAN.md`
+
+**Files changed:**
+
+- `app/src/main/java/com/isardomains/sameview/ui/camera/ReferenceMarkerOverlay.kt` — loupe constants, bitmap loading/recycling via `LaunchedEffect`, drag state pre-initialization, loupe Box with Canvas crop rendering
+- `app/src/main/java/com/isardomains/sameview/ui/camera/CameraScreen.kt` — added `referenceUri = referenceUri` at `ReferenceMarkerOverlay` call site
+- `app/src/androidTest/java/com/isardomains/sameview/ui/camera/ReferenceMarkersOverlayUITest.kt` — 9 new loupe tests + `setLoupeOverlayContent()` helper
+
+**Key implementation decisions:**
+
+- Loupe local state only: `isDragging`, `draggingMarkerNormalizedPos`, `loupeBitmap` are Compose snapshot state scoped to `ReferenceMarkerOverlay` — no ViewModel state, no persistence, no session/export impact
+- `draggingMarkerNormalizedPos` is pre-initialized to `Pair(nearestMarker.normalizedX, nearestMarker.normalizedY)` before the inner drag loop starts, so the loupe appears immediately when the drag is classified; the gesture classification loop consumes the slop-qualifying move event and the inner loop starts with no queued events
+- Bitmap loaded proactively on `LaunchedEffect(referenceUri)` on IO dispatcher using `inSampleSize` doubling to ≤ 1024 px max dimension; EXIF orientation applied once via `android.graphics.Matrix`; bitmap recycled on `LaunchedEffect(isEditModeActive)` when edit mode exits (OQ-3)
+- `android.graphics.Canvas.drawBitmap(Bitmap, Rect, RectF, Paint?)` — integer `Rect` for src (no `(Bitmap, RectF, RectF, Paint?)` overload exists in Android Canvas)
+- Loupe clamped inside viewport: default above marker (`markerScreen.y - radius - fingerOffset`), clamped to `[radius .. vH - radius - loupeDoneAreaPx]` × `[radius .. vW - radius]`; fallback below marker if above still overlaps
+- 88 dp Done-area clearance matches spec §7; residual risk: unusual system bar insets on some devices could reduce the effective safe zone below this value
+
+**Test implementation notes:**
+
+- `performTouchInput { down(Offset(x,y)); moveTo(Offset(x,y)) }` then `waitForIdle()` classifies the drag; a second `performTouchInput { moveTo(Offset(x,y)) }` is needed to drive the inner drag loop (used in `loupe_doesNotModifyMarkerCoordinate`)
+- Clamping tests compute marker screen position as `vH/2 + min(vW,vH) * (normY - 0.5)` — not `vH * normY` — because `SHOW_FULL_IMAGE` with a square image centers the image vertically in a tall viewport; using `vH * normY` places the DOWN event ~600 px away from the actual marker and `findNearestMarker` returns null
+- Move deltas of 50 px reliably exceed the device's `viewConfiguration.touchSlop` (~8 dp × 3.5 density = 28 px on SM-S911B)
+
+**Latest verified test state (2026-06-30):**
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+- `ReferenceMarkersOverlayUITest` focused run — **13/13 PASSED** on SM-S911B (Android 16): 4 pre-existing + 9 new loupe tests
+- `connectedDebugAndroidTest` full suite — **BUILD SUCCESSFUL** (one run); one flaky failure in `SettingsScreenTest.brandingCard_removeLogo_visibleWhenBrandingSet` observed on second run — pre-existing flaky test unrelated to this feature (see prior notes on Samsung IS_PENDING/branding test flakiness)
+- `assembleRelease` — BUILD SUCCESSFUL
+
+**Manual validation still required:** visual loupe appearance, crop geometry at various zoom levels, edge-clamping on a physical device, Done-area clearance on real navigation bar insets.
