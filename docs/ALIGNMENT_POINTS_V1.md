@@ -15,7 +15,7 @@ Sie ist geschrieben für:
 
 Wenn ein späterer Implementierungsvorschlag mit diesem Dokument in Konflikt steht, gewinnt dieses Dokument — es sei denn, der Nutzer trifft explizit eine abweichende Produktentscheidung.
 
-**Revision:** 5 (2026-06-26) — Eigentumsmodell eingeführt: „Reference owns markers." Lifecycle-Kapitel auf Eigentumsprinzip umgeschrieben. Implementierungsplan gegen versehentliche Session-Kopplung abgesichert. Beide Dokumente sind jetzt Implementierungs-Quelldokument. Änderungsprotokoll am Ende.
+**Revision:** 8 (2026-06-30) — Done-Button in den zentralen Bottom-Bar-Slot verschoben (ersetzt Capture während Marker Edit Mode). Änderungsprotokoll am Ende.
 
 ---
 
@@ -354,15 +354,18 @@ Kein Marker-Abschnitt — nichts ist vorhanden, was man ausblenden oder löschen
 **Done-Button:**
 
 - Immer sichtbar während Edit-Modus (unabhängig von Marker-Anzahl)
-- Platzierung: Top-Bar-Zone als Textbutton „Done" / „Fertig"
-- In Landscape-Orientierung: ebenfalls in der Top-Bar-Zone; kein Overlap mit History/Overflow-Steuerelementen
+- Platzierung: **Zentraler Bottom-Bar-Slot** — ersetzt den Capture-Button solange der Edit-Modus aktiv ist
+- Visuelles Design: Accent-gefüllte Pill (`SameViewAccent`-Hintergrund, weißes Check-Icon, weißer Text „Done" / „Fertig")
+- In Portrait- und Landscape-Orientierung: gleiche Position wie Capture (Bottom-Center), gleiche Abstände und Padding
 - Beendet Edit-Modus; Marker bleiben sichtbar
+- Capture ist während des Edit-Modus nicht verfügbar und wird nicht angezeigt; der Button kehrt sofort nach Ende des Edit-Modus zurück
+- Done erscheint **nicht** in der Top-Bar-Zone und **nicht** in der Landscape-Seitenleiste
 
 **Leerstate-Hint:**
 
 - Sichtbar solange `isMarkerEditModeActive = true` UND `markersExist = false`
 - Text: „Long press to place a marker" / „Gedrückt halten, um Marker zu setzen"
-- Position: Zentriert im unteren Drittel des Overlay-Bereichs, oberhalb der Bottom-Bar-Kontrollen
+- Position: Vertikal und horizontal zentriert innerhalb des Overlay-Bereichs
 - Dieses Element gehört **nicht** zur Top-Left-Hint-Zone (CAMERA_WORKFLOW_UX_V1.md §12) und konkurriert nicht mit Overlay-Coverage-Warning oder Format-Mismatch-Hint
 - In Landscape-Orientierung: gleiche relative Position im Overlay-Bereich
 - Verschwindet sofort beim Setzen des ersten Markers
@@ -469,7 +472,7 @@ Keine Bestätigung beim Verlassen via Done oder Back.
 
 | Element | Zustand | Begründung |
 |---|---|---|
-| Aufnahme | **Deaktiviert** | „Done" = Übergang zum Aufnehmen |
+| Aufnahme (Capture-Slot) | **Nicht sichtbar** — ersetzt durch Done-Button | Capture-Slot zeigt während Edit-Modus den Done-Button (Marker-Pill); Capture kehrt sofort zurück wenn Edit-Modus endet |
 | Compare-Button | **Aktiv** | Letzte Aufnahme prüfen und zurückkehren |
 | Overlay-Drag (1-Finger, freie Fläche) | **Aktiv** | Overlay-Feinabstimmung direkt im Modus |
 | Overlay-Scale (2-Finger) | **Aktiv** | Overlay-Feinabstimmung direkt im Modus |
@@ -744,6 +747,21 @@ Keine Änderungen nötig: `SESSION_METADATA_V1.md`, `SESSION_ORIGINALS_V1.md`, `
 ---
 
 ## 13. Änderungsprotokoll
+
+### Revision 8 — 2026-06-30
+
+**Done-Button-Platzierung korrigiert (UX-Entscheidung nach Real-Device-Validierung):**
+
+- §6.3 Done-Button: Alte Beschreibung (Top-Bar-Zone) ersetzt. Done occupies the center Bottom-Bar slot, replacing the Capture button while Marker Edit Mode is active. Visual design: accent-filled pill (`SameViewAccent`, white check icon, white text). Done no longer appears in the top-right action row or landscape side rail.
+- §6.10 Tabelle: Zeile „Aufnahme" aktualisiert — Capture ist nicht deaktiviert sondern nicht sichtbar; Capture-Slot zeigt den Done-Button (Marker-Pill), kehrt sofort nach Ende des Edit-Modus zurück.
+
+Begründung der Änderung: Real-Device-Validierung ergab GPS-Überlappung im Portrait, Text-Wrapping in der Landscape-Seitenleiste, schlechte Sichtbarkeit und falsche semantische Zuordnung zu Navigationsaktionen.
+
+### Revision 7 — 2026-06-30
+
+**Leerstate-Hint-Platzierung (Fix):**
+
+- §6.3 Leerstate-Hint: Positionsbeschreibung korrigiert. Die implementierte Platzierung ist vertikal und horizontal zentriert im Overlay-Bereich. Die frühere Formulierung „Zentriert im unteren Drittel des Overlay-Bereichs, oberhalb der Bottom-Bar-Kontrollen" war auf normalen Smartphone-Layouts widersprüchlich: das untere Drittel des Viewports liegt auf denselben Y-Koordinaten wie die Bottom-Bar-Kontrollen.
 
 ### Revision 6 — 2026-06-30
 

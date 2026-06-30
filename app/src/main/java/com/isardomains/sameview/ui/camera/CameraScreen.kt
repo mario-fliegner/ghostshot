@@ -2,6 +2,7 @@ package com.isardomains.sameview.ui.camera
 
 import android.Manifest
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
@@ -72,7 +73,10 @@ import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -158,6 +162,7 @@ import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import coil.compose.AsyncImage
 import com.isardomains.sameview.BuildConfig
 import com.isardomains.sameview.R
+import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewAppSurface
 import com.isardomains.sameview.ui.theme.SameViewAppSurfaceElevated
 import com.isardomains.sameview.ui.theme.SameViewGridLine
@@ -419,7 +424,10 @@ fun CameraScreen(
                 }
             )
 
-            val pendingMessage = pendingSnackbarEvent?.let { stringResource(it.messageResId) }
+            val pendingMessage = pendingSnackbarEvent?.let { event ->
+                if (event.count != null) stringResource(event.messageResId, event.count)
+                else stringResource(event.messageResId)
+            }
 
             LaunchedEffect(pendingSnackbarEvent) {
                 val event = pendingSnackbarEvent ?: return@LaunchedEffect
@@ -500,6 +508,10 @@ fun CameraScreen(
                 } catch (_: OutOfMemoryError) {
                     viewModel.onPhotoCaptureError(captureToken)
                 }
+            }
+
+            BackHandler(enabled = uiState.referenceMarkersState.isEditModeActive) {
+                viewModel.exitMarkerEditMode()
             }
 
             if (showGpsFallbackDialog) {
@@ -659,6 +671,44 @@ fun CameraScreen(
                                 }
                             )
                         }
+
+                        // ── Layer 2.5: Reference marker overlay ───────────────────────────
+                        val markersState = uiState.referenceMarkersState
+                        if (referenceUri != null &&
+                            (markersState.markersVisible || markersState.isEditModeActive)
+                        ) {
+                            ReferenceMarkerOverlay(
+                                markersState = markersState,
+                                metadata = uiState.referenceImageMetadata,
+                                displayMode = uiState.referenceImageDisplayMode,
+                                overlayOffsetX = uiState.overlayOffsetX,
+                                overlayOffsetY = uiState.overlayOffsetY,
+                                overlayScale = uiState.overlayScale,
+                                onAddMarker = { nx, ny -> viewModel.addMarker(nx, ny) },
+                                onMoveMarker = { id, nx, ny -> viewModel.moveMarker(id, nx, ny) },
+                                onRemoveMarker = { id -> viewModel.removeMarker(id) },
+                                onOverlayDragged = { dx, dy ->
+                                    viewModel.onOverlayDragged(dx = dx, dy = dy)
+                                },
+                                onOverlayScaled = { zoom -> viewModel.onOverlayScaled(zoom) },
+                                modifier = if (!isLandscape) {
+                                    Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
+                                } else {
+                                    Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)
+                                }
+                            )
+                        }
+
+                        // ── Layer 2.7: Edit-mode viewport border ──────────────────────────
+                        if (uiState.referenceMarkersState.isEditModeActive) {
+                            Box(
+                                modifier = (if (!isLandscape) {
+                                    Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
+                                } else {
+                                    Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)
+                                }).border(width = 2.dp, color = SameViewAccent)
+                            )
+                        }
                     }
                 }
 
@@ -708,6 +758,12 @@ fun CameraScreen(
                     frameLeft = frameLeftDp,
                     frameTop = frameTopDp,
                     gpsGuidanceState = uiState.gpsGuidanceState,
+                    referenceMarkersState = uiState.referenceMarkersState,
+                    onEnterMarkerEditMode = { viewModel.enterMarkerEditMode() },
+                    onDoneMarkerEditMode = { viewModel.exitMarkerEditMode() },
+                    onHideMarkers = { viewModel.hideMarkers() },
+                    onShowMarkers = { viewModel.showMarkers() },
+                    isMarkerEditModeActive = uiState.referenceMarkersState.isEditModeActive,
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -1156,6 +1212,12 @@ internal fun CameraControlsOverlay(
     frameLeft: Dp = 0.dp,
     frameTop: Dp = 0.dp,
     gpsGuidanceState: GpsGuidanceState = GpsGuidanceState.Hidden,
+    referenceMarkersState: ReferenceMarkersState = ReferenceMarkersState(),
+    onEnterMarkerEditMode: () -> Unit = {},
+    onDoneMarkerEditMode: () -> Unit = {},
+    onHideMarkers: () -> Unit = {},
+    onShowMarkers: () -> Unit = {},
+    isMarkerEditModeActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
@@ -1165,6 +1227,9 @@ internal fun CameraControlsOverlay(
 
     LaunchedEffect(referenceUri) {
         if (referenceUri == null) isStackVisible = false
+    }
+    LaunchedEffect(isMarkerEditModeActive) {
+        if (isMarkerEditModeActive) isStackVisible = false
     }
 
     Box(modifier = modifier.testTag("camera_controls_root")) {
@@ -1246,7 +1311,20 @@ internal fun CameraControlsOverlay(
                     isStackVisible = false
                     onRemoveReferenceImage()
                 },
-                isCompact = isLandscape
+                isCompact = isLandscape,
+                referenceMarkersState = referenceMarkersState,
+                onEnterMarkerEditMode = {
+                    isStackVisible = false
+                    onEnterMarkerEditMode()
+                },
+                onHideMarkers = {
+                    isStackVisible = false
+                    onHideMarkers()
+                },
+                onShowMarkers = {
+                    isStackVisible = false
+                    onShowMarkers()
+                }
             )
         }
 
@@ -1298,12 +1376,21 @@ internal fun CameraControlsOverlay(
                     }
                 }
 
-                ShutterButton(
-                    onCapture = onCapture,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = effectiveBottomPadding)
-                )
+                if (isMarkerEditModeActive) {
+                    MarkerDoneButton(
+                        onClick = onDoneMarkerEditMode,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = effectiveBottomPadding)
+                    )
+                } else {
+                    ShutterButton(
+                        onCapture = onCapture,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = effectiveBottomPadding)
+                    )
+                }
 
                 Row(
                     modifier = Modifier
@@ -1383,13 +1470,23 @@ internal fun CameraControlsOverlay(
                     .wrapContentHeight(align = Alignment.CenterVertically)
             )
 
-            ShutterButton(
-                onCapture = onCapture,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = bottomPadding)
-            )
+            if (isMarkerEditModeActive) {
+                MarkerDoneButton(
+                    onClick = onDoneMarkerEditMode,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = bottomPadding)
+                )
+            } else {
+                ShutterButton(
+                    onCapture = onCapture,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = bottomPadding)
+                )
+            }
         }
 
         GpsGuidanceChip(
@@ -1518,7 +1615,6 @@ internal fun CameraTopRightActions(
     val overflowDescription = stringResource(R.string.camera_overflow_content_description)
     val settingsLabel = stringResource(R.string.camera_overflow_settings)
     val aboutLabel = stringResource(R.string.camera_overflow_about)
-
     val actions: @Composable () -> Unit = {
         IconButton(
             onClick = onOpenHistory,
@@ -1953,6 +2049,10 @@ private fun ReferenceActionStack(
     onReplace: () -> Unit,
     onRemove: () -> Unit,
     isCompact: Boolean = false,
+    referenceMarkersState: ReferenceMarkersState = ReferenceMarkersState(),
+    onEnterMarkerEditMode: () -> Unit = {},
+    onHideMarkers: () -> Unit = {},
+    onShowMarkers: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val resetLabel = stringResource(R.string.reset_overlay_label)
@@ -1965,6 +2065,10 @@ private fun ReferenceActionStack(
             ReferenceImageDisplayMode.SHOW_FULL_IMAGE -> R.string.action_stack_display_mode_fit_label
         }
     )
+    val addMarkersLabel = stringResource(R.string.markers_add_action)
+    val hideMarkersLabel = stringResource(R.string.markers_hide_action)
+    val showMarkersLabel = stringResource(R.string.markers_show_action)
+    val editMarkersLabel = stringResource(R.string.markers_edit_action)
     val rowVerticalPadding = if (isCompact) 6.dp else 10.dp
     Column(
         modifier = modifier
@@ -2037,6 +2141,126 @@ private fun ReferenceActionStack(
                 color = SameViewTextPrimary
             )
         }
+        // Marker menu items — state machine based on markersExist / markersVisible
+        HorizontalDivider(color = SameViewTextPrimary.copy(alpha = 0.2f))
+        when {
+            !referenceMarkersState.markersExist -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onEnterMarkerEditMode)
+                        .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = addMarkersLabel
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        tint = SameViewTextPrimary
+                    )
+                    Text(
+                        text = stringResource(R.string.markers_add_action),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SameViewTextPrimary
+                    )
+                }
+            }
+            referenceMarkersState.markersVisible -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onHideMarkers)
+                        .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = hideMarkersLabel
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VisibilityOff,
+                        contentDescription = null,
+                        tint = SameViewTextPrimary
+                    )
+                    Text(
+                        text = stringResource(R.string.markers_hide_action),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SameViewTextPrimary
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onEnterMarkerEditMode)
+                        .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = editMarkersLabel
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = SameViewTextPrimary
+                    )
+                    Text(
+                        text = stringResource(R.string.markers_edit_action),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SameViewTextPrimary
+                    )
+                }
+            }
+            else -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onShowMarkers)
+                        .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = showMarkersLabel
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = null,
+                        tint = SameViewTextPrimary
+                    )
+                    Text(
+                        text = stringResource(R.string.markers_show_action),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SameViewTextPrimary
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onEnterMarkerEditMode)
+                        .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = editMarkersLabel
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = SameViewTextPrimary
+                    )
+                    Text(
+                        text = stringResource(R.string.markers_edit_action),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SameViewTextPrimary
+                    )
+                }
+            }
+        }
         HorizontalDivider(color = SameViewTextPrimary.copy(alpha = 0.2f))
         Row(
             modifier = Modifier
@@ -2101,26 +2325,67 @@ private fun CameraGridOverlay(
 @Composable
 private fun ShutterButton(
     onCapture: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val contentAlpha = if (enabled) 1f else 0.38f
     Box(
         modifier = modifier
             .size(CameraShutterButtonSize)
             .clip(CircleShape)
-            .clickable(onClick = onCapture),
+            .then(if (enabled) Modifier.clickable(onClick = onCapture) else Modifier),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
                 .size(78.dp)
-                .background(Color.White, CircleShape)
-                .border(width = 4.dp, color = Color.White.copy(alpha = 0.45f), shape = CircleShape),
+                .background(Color.White.copy(alpha = contentAlpha), CircleShape)
+                .border(
+                    width = 4.dp,
+                    color = Color.White.copy(alpha = 0.45f * contentAlpha),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.PhotoCamera,
                 contentDescription = stringResource(R.string.capture_button_content_description),
-                tint = Color.Black
+                tint = Color.Black.copy(alpha = contentAlpha)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MarkerDoneButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val label = stringResource(R.string.markers_done_button)
+    Box(
+        modifier = modifier.height(CameraShutterButtonSize),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(SameViewAccent)
+                .testTag("marker_done_button")
+                .semantics { contentDescription = label }
+                .clickable(onClick = onClick)
+                .padding(horizontal = 24.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                tint = Color.White
+            )
+            Text(
+                text = label,
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge
             )
         }
     }

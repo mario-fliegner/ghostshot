@@ -131,7 +131,8 @@ data class CameraUiState(
     val isOverlayNearlyInvisible: Boolean = false,
     val gpsGuidanceState: GpsGuidanceState = GpsGuidanceState.Hidden,
     val isBackupInProgress: Boolean = false,
-    val isDeletionInProgress: Boolean = false
+    val isDeletionInProgress: Boolean = false,
+    val referenceMarkersState: ReferenceMarkersState = ReferenceMarkersState()
 )
 
 /**
@@ -554,6 +555,7 @@ class CameraViewModel @Inject constructor(
                 )
                 updated.copy(isOverlayNearlyInvisible = computeIsOverlayNearlyInvisible(updated))
             }
+            clearMarkersOnReferenceChange()
             updateGpsActivation()
             updateSensorActivation()
             if (emitGpsFallbackDialog && recreationGuidanceEnabled && !referenceHasGps()) {
@@ -607,6 +609,7 @@ class CameraViewModel @Inject constructor(
                 undoExpiresAtMillis = if (hasReference) expiresAt else it.undoExpiresAtMillis
             )
         }
+        clearMarkersOnReferenceChange()
         updateGpsActivation()
         updateSensorActivation()
         if (hasReference) {
@@ -768,6 +771,7 @@ class CameraViewModel @Inject constructor(
         while (true) {
             val current = _uiState.value
             if (current.isCaptureInProgress) return null
+            if (current.referenceMarkersState.isEditModeActive) return null
             if (_uiState.compareAndSet(
                     current,
                     current.copy(isCaptureInProgress = true)
@@ -947,6 +951,7 @@ class CameraViewModel @Inject constructor(
                 isOverlayNearlyInvisible = if (doReset) false else current.isOverlayNearlyInvisible,
             )
         }
+        if (doReset) clearMarkersOnReferenceChange()
         if (autoOpen && newCompareInput != null) {
             viewModelScope.launch {
                 _uiEvent.emit(UiEvent.NavigateToCompare(newCompareInput))
@@ -991,6 +996,112 @@ class CameraViewModel @Inject constructor(
             _uiEvent.emit(UiEvent.ShowSnackbar(R.string.camera_start_failed))
         }
     }
+
+    // ── Reference Marker methods ──────────────────────────────────────────────
+
+    fun enterMarkerEditMode() {
+        _uiState.update { current ->
+            current.copy(
+                interactionMode = InteractionMode.OVERLAY_ADJUST,
+                referenceMarkersState = current.referenceMarkersState.copy(
+                    isEditModeActive = true,
+                    markersVisible = true
+                )
+            )
+        }
+    }
+
+    fun exitMarkerEditMode() {
+        _uiState.update { current ->
+            current.copy(
+                referenceMarkersState = current.referenceMarkersState.copy(
+                    isEditModeActive = false
+                )
+            )
+        }
+    }
+
+    fun addMarker(normalizedX: Float, normalizedY: Float) {
+        val current = _uiState.value
+        if (current.referenceMarkersState.markers.size >= MAX_MARKERS) {
+            viewModelScope.launch {
+                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.markers_limit_reached, count = MAX_MARKERS))
+            }
+            return
+        }
+        val newMarker = ReferenceMarker(normalizedX = normalizedX, normalizedY = normalizedY)
+        _uiState.update { c ->
+            if (c.referenceMarkersState.markers.size >= MAX_MARKERS) return@update c
+            c.copy(
+                referenceMarkersState = c.referenceMarkersState.copy(
+                    markers = c.referenceMarkersState.markers + newMarker
+                )
+            )
+        }
+    }
+
+    fun moveMarker(id: String, normalizedX: Float, normalizedY: Float) {
+        _uiState.update { current ->
+            val markers = current.referenceMarkersState.markers
+            val index = markers.indexOfFirst { it.id == id }
+            if (index < 0) return@update current
+            val updated = markers.toMutableList()
+            updated[index] = updated[index].copy(
+                normalizedX = normalizedX,
+                normalizedY = normalizedY
+            )
+            current.copy(
+                referenceMarkersState = current.referenceMarkersState.copy(markers = updated)
+            )
+        }
+    }
+
+    fun removeMarker(id: String) {
+        _uiState.update { current ->
+            current.copy(
+                referenceMarkersState = current.referenceMarkersState.copy(
+                    markers = current.referenceMarkersState.markers.filter { it.id != id }
+                )
+            )
+        }
+    }
+
+    fun clearMarkers() {
+        _uiState.update { current ->
+            current.copy(
+                referenceMarkersState = current.referenceMarkersState.copy(
+                    markers = emptyList()
+                )
+            )
+        }
+    }
+
+    fun showMarkers() {
+        _uiState.update { current ->
+            current.copy(
+                referenceMarkersState = current.referenceMarkersState.copy(markersVisible = true)
+            )
+        }
+    }
+
+    fun hideMarkers() {
+        _uiState.update { current ->
+            current.copy(
+                referenceMarkersState = current.referenceMarkersState.copy(
+                    markersVisible = false,
+                    isEditModeActive = false
+                )
+            )
+        }
+    }
+
+    private fun clearMarkersOnReferenceChange() {
+        _uiState.update { current ->
+            current.copy(referenceMarkersState = ReferenceMarkersState())
+        }
+    }
+
+    // ── GPS / Lifecycle ───────────────────────────────────────────────────────
 
     // Called by CameraScreen when the composable enters the active foreground state (ON_RESUME).
     fun onCameraScreenActive() {

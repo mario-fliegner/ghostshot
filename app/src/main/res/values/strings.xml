@@ -337,4 +337,17 @@
     <string name="edit_session_saving_dialog_title">Saving changes</string>
     <string name="edit_session_saving_dialog_body">Please wait until saving is finished.</string>
     <string name="edit_session_saving_dialog_confirm">OK</string>
+
+    <!-- Reference Markers -->
+    <string name="markers_add_action">Add markers</string>
+    <string name="markers_hide_action">Hide markers</string>
+    <string name="markers_show_action">Show markers</string>
+    <string name="markers_edit_action">Edit markers</string>
+    <string name="markers_done_button">Done</string>
+    <string name="markers_empty_hint">Long-press to place a marker</string>
+    <string name="markers_limit_reached">Maximum of %d markers reached</string>
+    <string name="markers_outside_image">Place marker inside the reference image</string>
+    <string name="markers_edit_mode_description">Marker edit mode active</string>
+    <string name="marker_delete_hint">Long-press to delete</string>
+    <string name="marker_content_description">Reference marker %d</string>
 </resources>

@@ -327,4 +327,17 @@
     <string name="session_backup_success_single">Vergleich gesichert</string>
     <string name="session_backup_success_multi">%d Vergleiche gesichert</string>
     <string name="session_backup_error">Vergleich konnte nicht gesichert werden</string>
+
+    <!-- Referenzmarker -->
+    <string name="markers_add_action">Marker hinzufügen</string>
+    <string name="markers_hide_action">Marker ausblenden</string>
+    <string name="markers_show_action">Marker einblenden</string>
+    <string name="markers_edit_action">Marker bearbeiten</string>
+    <string name="markers_done_button">Fertig</string>
+    <string name="markers_empty_hint">Lang drücken zum Platzieren</string>
+    <string name="markers_limit_reached">Maximal %d Marker möglich</string>
+    <string name="markers_outside_image">Marker innerhalb des Referenzbilds setzen</string>
+    <string name="markers_edit_mode_description">Marker-Bearbeiten-Modus aktiv</string>
+    <string name="marker_delete_hint">Lang drücken zum Löschen</string>
+    <string name="marker_content_description">Referenzmarker %d</string>
 </resources>

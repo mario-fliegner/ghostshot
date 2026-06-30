@@ -79,6 +79,18 @@ Right:
 
 This structure should remain persistent.
 
+## Exception: Reference Markers Edit Mode
+
+Reference Markers Edit Mode may temporarily replace the center Capture slot with the Marker Done action.
+
+Requirements:
+- Applies only while Marker Edit Mode is active
+- Center slot returns to Capture immediately after exiting edit mode
+- Reference (left) and Compare (right) remain unchanged during edit mode
+- The Done action uses accent-filled pill styling to distinguish it from Capture and from Reference/Compare
+
+This exception is narrowly scoped. No other feature or mode may replace the center Capture slot.
+
 ---
 
 # 4. Reference Button Semantics
