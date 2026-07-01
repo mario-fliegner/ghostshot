@@ -103,6 +103,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -112,6 +113,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -125,6 +127,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -163,6 +167,18 @@ import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import coil.compose.AsyncImage
 import com.isardomains.sameview.BuildConfig
 import com.isardomains.sameview.R
+import com.isardomains.sameview.guide.FirstRunWalkthroughGateState
+import com.isardomains.sameview.guide.GuideTip
+import com.isardomains.sameview.guide.GuideTipAnchor
+import com.isardomains.sameview.guide.GuideTipAnchorKey
+import com.isardomains.sameview.guide.GuideTipController
+import com.isardomains.sameview.guide.GuideTipDismissReason
+import com.isardomains.sameview.guide.GuideTipEvaluationContext
+import com.isardomains.sameview.guide.GuideTipHost
+import com.isardomains.sameview.guide.GuideTipId
+import com.isardomains.sameview.guide.GuideTipRegistry
+import com.isardomains.sameview.guide.GuideTipScope
+import com.isardomains.sameview.guide.GuideTopicId
 import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewAppSurface
 import com.isardomains.sameview.ui.theme.SameViewAppSurfaceElevated
@@ -230,7 +246,13 @@ fun CameraScreen(
     onCompareImages: (CompareInput) -> Unit = {},
     onOpenCompareLibrary: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    onOpenAbout: () -> Unit = {}
+    onOpenGuide: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
+    firstRunWalkthroughGateState: FirstRunWalkthroughGateState = FirstRunWalkthroughGateState.Complete,
+    onCameraPermissionGrantedForFirstRunGate: () -> Unit = {},
+    windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
+    guideTipController: GuideTipController? = null,
+    onOpenGuideTopic: (GuideTopicId) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -292,6 +314,7 @@ fun CameraScreen(
         }
     }
     val currentPermissionState = rememberUpdatedState(permissionState)
+    var isReferencePickerActive by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner, context, activity) {
         val observer = LifecycleEventObserver { _, event ->
@@ -328,6 +351,7 @@ fun CameraScreen(
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
+        isReferencePickerActive = false
         // uri is null when the picker is dismissed without a selection; ViewModel handles null.
         viewModel.onReferenceImageSelected(uri)
     }
@@ -335,6 +359,7 @@ fun CameraScreen(
     val safPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
+        isReferencePickerActive = false
         viewModel.onReferenceImageSelectedViaSaf(uri)
     }
 
@@ -354,6 +379,14 @@ fun CameraScreen(
         }
 
         CameraPermissionState.GRANTED -> {
+            LaunchedEffect(Unit) {
+                onCameraPermissionGrantedForFirstRunGate()
+            }
+            if (firstRunWalkthroughGateState != FirstRunWalkthroughGateState.Complete) {
+                FirstRunWalkthroughGateSurface()
+                return@CameraScreen
+            }
+
             val referenceUri = uiState.referenceImageUri
             val isLandscape =
                 LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -361,6 +394,16 @@ fun CameraScreen(
             val snackbarHostState = remember { SnackbarHostState() }
             var pendingSnackbarEvent by remember { mutableStateOf<UiEvent.ShowSnackbar?>(null) }
             var showGpsFallbackDialog by remember { mutableStateOf(false) }
+            val guideTipScope = rememberCoroutineScope()
+            var guideTipAnchors by remember { mutableStateOf<Map<GuideTipAnchorKey, GuideTipAnchor>>(emptyMap()) }
+            var activeGuideTip by remember { mutableStateOf<GuideTip?>(null) }
+            var overlayInteractionGeneration by remember { mutableStateOf(0L) }
+            var isOverlayInteractionActive by remember { mutableStateOf(false) }
+            var isAlignTipIdleReady by remember { mutableStateOf(false) }
+            var isMarkerTipEligible by remember { mutableStateOf(false) }
+            val onGuideTipAnchor: (GuideTipAnchor) -> Unit = { anchor ->
+                guideTipAnchors = guideTipAnchors + (anchor.key to anchor)
+            }
             val removeSnackbarMessage = stringResource(R.string.reference_removed_snackbar)
             val removeSnackbarUndo = stringResource(R.string.reference_removed_undo)
             val captureSavedMessage = stringResource(R.string.capture_saved)
@@ -373,11 +416,65 @@ fun CameraScreen(
             var captureFlashVisible by remember { mutableStateOf(false) }
             val hapticFeedback = LocalHapticFeedback.current
             val onCompareClick: () -> Unit = {
+                guideTipController?.onUserAction()
                 if (compareInput != null) {
                     if (BuildConfig.DEBUG) { Log.d(TAG, "Compare opened") }
                     onCompareImages(compareInput)
                 } else {
                     viewModel.onCompareDisabledTapped(referenceUri)
+                }
+            }
+
+            LaunchedEffect(overlayInteractionGeneration) {
+                if (overlayInteractionGeneration > 0L) {
+                    isOverlayInteractionActive = true
+                    delay(700)
+                    isOverlayInteractionActive = false
+                }
+            }
+
+            LaunchedEffect(referenceUri, isOverlayInteractionActive, uiState.referenceMarkersState.isEditModeActive) {
+                isAlignTipIdleReady = false
+                if (referenceUri != null && !isOverlayInteractionActive && !uiState.referenceMarkersState.isEditModeActive) {
+                    delay(2500)
+                    isAlignTipIdleReady = true
+                }
+            }
+
+            val cameraTipBlocked = isReferencePickerActive ||
+                uiState.isCaptureInProgress ||
+                showGpsFallbackDialog ||
+                pendingSnackbarEvent != null ||
+                snackbarHostState.currentSnackbarData != null ||
+                isOverlayInteractionActive ||
+                uiState.referenceMarkersState.isEditModeActive
+            val cameraEligibleTipIds = buildSet {
+                if (referenceUri == null) add(GuideTipId.REFERENCE)
+                if (referenceUri != null && isAlignTipIdleReady) add(GuideTipId.ALIGN)
+                if (compareInput != null && !uiState.autoOpenCompareAfterCapture) add(GuideTipId.COMPARE)
+                if (uiState.savedSessions.isNotEmpty()) add(GuideTipId.HISTORY)
+                if (isMarkerTipEligible) add(GuideTipId.MARKER)
+                if (uiState.gpsGuidanceState !is GpsGuidanceState.Hidden) add(GuideTipId.GPS)
+            }.filter { tipId ->
+                val tip = GuideTipRegistry.tipFor(tipId)
+                tip == null || guideTipAnchors.containsKey(tip.anchorKey)
+            }.toSet()
+            LaunchedEffect(guideTipController, cameraEligibleTipIds, cameraTipBlocked, activeGuideTip?.id) {
+                val controller = guideTipController ?: return@LaunchedEffect
+                val currentTip = activeGuideTip
+                if (currentTip != null && (cameraTipBlocked || currentTip.id !in cameraEligibleTipIds)) {
+                    controller.clearActiveTipWithoutMarkingSeen()
+                    activeGuideTip = null
+                    return@LaunchedEffect
+                }
+                if (currentTip == null) {
+                    activeGuideTip = controller.evaluate(
+                        GuideTipEvaluationContext(
+                            scope = GuideTipScope.CAMERA,
+                            eligibleTipIds = cameraEligibleTipIds,
+                            isBlockedByTransientUi = cameraTipBlocked
+                        )
+                    )
                 }
             }
 
@@ -663,9 +760,13 @@ fun CameraScreen(
                                 scale = uiState.overlayScale,
                                 alpha = uiState.overlayAlpha,
                                 onDragged = { dx, dy ->
+                                    overlayInteractionGeneration++
                                     viewModel.onOverlayDragged(dx = dx, dy = dy)
                                 },
-                                onScaled = { zoom -> viewModel.onOverlayScaled(zoom) },
+                                onScaled = { zoom ->
+                                    overlayInteractionGeneration++
+                                    viewModel.onOverlayScaled(zoom)
+                                },
                                 modifier = if (!isLandscape) {
                                     Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
                                 } else {
@@ -691,9 +792,13 @@ fun CameraScreen(
                                 onMoveMarker = { id, nx, ny -> viewModel.moveMarker(id, nx, ny) },
                                 onRemoveMarker = { id -> viewModel.removeMarker(id) },
                                 onOverlayDragged = { dx, dy ->
+                                    overlayInteractionGeneration++
                                     viewModel.onOverlayDragged(dx = dx, dy = dy)
                                 },
-                                onOverlayScaled = { zoom -> viewModel.onOverlayScaled(zoom) },
+                                onOverlayScaled = { zoom ->
+                                    overlayInteractionGeneration++
+                                    viewModel.onOverlayScaled(zoom)
+                                },
                                 modifier = if (!isLandscape) {
                                     Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
                                 } else {
@@ -748,6 +853,7 @@ fun CameraScreen(
                     alpha = uiState.overlayAlpha,
                     onAlphaChange = { viewModel.onOverlayAlphaChanged(it) },
                     onSelectReferenceImage = {
+                        isReferencePickerActive = true
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(
                                 ActivityResultContracts.PickVisualMedia.ImageOnly
@@ -771,6 +877,8 @@ fun CameraScreen(
                     onHideMarkers = { viewModel.hideMarkers() },
                     onShowMarkers = { viewModel.showMarkers() },
                     isMarkerEditModeActive = uiState.referenceMarkersState.isEditModeActive,
+                    onGuideTipAnchor = onGuideTipAnchor,
+                    onMarkerTipEligibilityChanged = { isMarkerTipEligible = it },
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -787,22 +895,46 @@ fun CameraScreen(
                     CameraLandscapeTopActions(
                         onOpenHistory = onOpenCompareLibrary,
                         onOpenSettings = onOpenSettings,
+                        onOpenGuide = onOpenGuide,
                         onOpenAbout = onOpenAbout,
                         frameLeft = frameLeftDp,
+                        onGuideTipAnchor = onGuideTipAnchor,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     CameraTopRightActions(
                         onOpenHistory = onOpenCompareLibrary,
                         onOpenSettings = onOpenSettings,
+                        onOpenGuide = onOpenGuide,
                         onOpenAbout = onOpenAbout,
                         iconSize = 22.dp,
+                        onGuideTipAnchor = onGuideTipAnchor,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .statusBarsPadding()
                             .padding(end = 4.dp, top = 0.dp)
                     )
                 }
+
+                GuideTipHost(
+                    activeTip = activeGuideTip,
+                    anchors = guideTipAnchors.values.toList(),
+                    windowWidthSizeClass = windowWidthSizeClass,
+                    onGotIt = { _ ->
+                        guideTipScope.launch {
+                            guideTipController?.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+                            activeGuideTip = null
+                        }
+                    },
+                    onLearnMore = { _, topicId ->
+                        guideTipScope.launch {
+                            guideTipController?.dismissActiveTip(GuideTipDismissReason.LEARN_MORE)
+                            activeGuideTip = null
+                            onOpenGuideTopic(topicId)
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
 
             }
         }
@@ -1225,6 +1357,8 @@ internal fun CameraControlsOverlay(
     onHideMarkers: () -> Unit = {},
     onShowMarkers: () -> Unit = {},
     isMarkerEditModeActive: Boolean = false,
+    onGuideTipAnchor: (GuideTipAnchor) -> Unit = {},
+    onMarkerTipEligibilityChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val horizontalPadding = if (isLandscape) 28.dp else 24.dp
@@ -1237,6 +1371,9 @@ internal fun CameraControlsOverlay(
     }
     LaunchedEffect(isMarkerEditModeActive) {
         if (isMarkerEditModeActive) isStackVisible = false
+    }
+    LaunchedEffect(isStackVisible, referenceUri, isMarkerEditModeActive) {
+        onMarkerTipEligibilityChanged(isStackVisible && referenceUri != null && !isMarkerEditModeActive)
     }
 
     Box(modifier = modifier.testTag("camera_controls_root")) {
@@ -1287,7 +1424,9 @@ internal fun CameraControlsOverlay(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
-                    FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
+                    Box(modifier = Modifier.guideTipAnchor(GuideTipAnchorKey.ALIGN_CONTROLS, onGuideTipAnchor)) {
+                        FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
+                    }
                 }
             }
         }
@@ -1331,7 +1470,8 @@ internal fun CameraControlsOverlay(
                 onShowMarkers = {
                     isStackVisible = false
                     onShowMarkers()
-                }
+                },
+                onGuideTipAnchor = onGuideTipAnchor
             )
         }
 
@@ -1373,7 +1513,8 @@ internal fun CameraControlsOverlay(
                         modifier = Modifier
                             .widthIn(min = CameraSecondaryActionMinWidth)
                             .height(CameraShutterButtonSize)
-                            .testTag("reference_action_slot"),
+                            .testTag("reference_action_slot")
+                            .guideTipAnchor(GuideTipAnchorKey.REFERENCE_BUTTON, onGuideTipAnchor),
                         contentAlignment = Alignment.Center
                     ) {
                         ReferenceAction(
@@ -1411,6 +1552,7 @@ internal fun CameraControlsOverlay(
                         onClick = onCompareClick,
                         enabled = compareInput != null,
                         modifier = Modifier
+                            .guideTipAnchor(GuideTipAnchorKey.COMPARE_ACTION, onGuideTipAnchor)
                             .height(CameraShutterButtonSize)
                             .wrapContentHeight(align = Alignment.CenterVertically)
                     )
@@ -1424,7 +1566,8 @@ internal fun CameraControlsOverlay(
                                 bottom = effectiveBottomPadding + CameraShutterButtonSize + sliderButtonGap
                             )
                             .width(sliderGroupWidth.coerceAtMost(CameraOpacitySliderLandscapeMaxWidth))
-                            .height(CameraOpacitySliderHeight),
+                            .height(CameraOpacitySliderHeight)
+                            .guideTipAnchor(GuideTipAnchorKey.ALIGN_CONTROLS, onGuideTipAnchor),
                         contentAlignment = Alignment.Center
                     ) {
                         FloatingOpacitySlider(alpha = alpha, onAlphaChange = onAlphaChange)
@@ -1452,7 +1595,8 @@ internal fun CameraControlsOverlay(
                 Box(
                     modifier = Modifier
                         .height(CameraShutterButtonSize)
-                        .testTag("reference_action_slot"),
+                        .testTag("reference_action_slot")
+                            .guideTipAnchor(GuideTipAnchorKey.REFERENCE_BUTTON, onGuideTipAnchor),
                     contentAlignment = Alignment.Center
                 ) {
                     ReferenceAction(
@@ -1469,6 +1613,7 @@ internal fun CameraControlsOverlay(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
+                    .guideTipAnchor(GuideTipAnchorKey.COMPARE_ACTION, onGuideTipAnchor)
                     .padding(
                         end = horizontalPadding,
                         bottom = bottomPadding
@@ -1499,6 +1644,7 @@ internal fun CameraControlsOverlay(
         GpsGuidanceChip(
             state = gpsGuidanceState,
             modifier = Modifier
+                .guideTipAnchor(GuideTipAnchorKey.GPS_CHIP, onGuideTipAnchor)
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(top = 8.dp)
@@ -1545,8 +1691,10 @@ internal fun CompareImagesEntry(
 internal fun CameraLandscapeTopActions(
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit = {},
+    onOpenGuide: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     frameLeft: Dp,
+    onGuideTipAnchor: (GuideTipAnchor) -> Unit = {},
     modifier: Modifier = Modifier,
     navigationLeftInset: Dp = WindowInsets.navigationBars.asPaddingValues()
         .calculateLeftPadding(LayoutDirection.Ltr),
@@ -1589,6 +1737,7 @@ internal fun CameraLandscapeTopActions(
                         OverflowMenuPlacement.OpenToStart
                     },
                     overflowMenuGap = LandscapeOverflowMenuGap,
+                    onGuideTipAnchor = onGuideTipAnchor,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = LandscapeTopActionsTopDistance)
@@ -1599,6 +1748,27 @@ internal fun CameraLandscapeTopActions(
     }
 }
 
+
+@Composable
+private fun FirstRunWalkthroughGateSurface() {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("first_run_gate_neutral_surface"),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+    }
+}
 internal enum class OverflowMenuPlacement {
     OpenToStart,
     OpenToEnd
@@ -1608,6 +1778,7 @@ internal enum class OverflowMenuPlacement {
 internal fun CameraTopRightActions(
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit = {},
+    onOpenGuide: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     iconSize: Dp = 24.dp,
     vertical: Boolean = false,
@@ -1615,18 +1786,21 @@ internal fun CameraTopRightActions(
     overflowMenuOffset: DpOffset = DpOffset.Zero,
     overflowMenuPlacement: OverflowMenuPlacement? = null,
     overflowMenuGap: Dp = 0.dp,
+    onGuideTipAnchor: (GuideTipAnchor) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var overflowExpanded by remember { mutableStateOf(false) }
     val historyDescription = stringResource(R.string.camera_history_content_description)
     val overflowDescription = stringResource(R.string.camera_overflow_content_description)
     val settingsLabel = stringResource(R.string.camera_overflow_settings)
+    val guideLabel = stringResource(R.string.camera_overflow_guide)
     val aboutLabel = stringResource(R.string.camera_overflow_about)
     val actions: @Composable () -> Unit = {
         IconButton(
             onClick = onOpenHistory,
             modifier = Modifier
                 .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                .guideTipAnchor(GuideTipAnchorKey.HISTORY_ACTION, onGuideTipAnchor)
                 .testTag("camera_history_button")
                 .semantics { contentDescription = historyDescription }
         ) {
@@ -1659,8 +1833,10 @@ internal fun CameraTopRightActions(
                     placement = overflowMenuPlacement,
                     gap = overflowMenuGap,
                     settingsLabel = settingsLabel,
+                    guideLabel = guideLabel,
                     aboutLabel = aboutLabel,
                     onOpenSettings = onOpenSettings,
+                    onOpenGuide = onOpenGuide,
                     onOpenAbout = onOpenAbout
                 )
             } else {
@@ -1675,6 +1851,10 @@ internal fun CameraTopRightActions(
                             DropdownMenuItem(
                                 text = { Text(settingsLabel) },
                                 onClick = { overflowExpanded = false; onOpenSettings() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(guideLabel) },
+                                onClick = { overflowExpanded = false; onOpenGuide() }
                             )
                             DropdownMenuItem(
                                 text = { Text(aboutLabel) },
@@ -1708,8 +1888,10 @@ private fun CameraSideAwareOverflowMenu(
     placement: OverflowMenuPlacement,
     gap: Dp,
     settingsLabel: String,
+    guideLabel: String,
     aboutLabel: String,
     onOpenSettings: () -> Unit,
+    onOpenGuide: () -> Unit,
     onOpenAbout: () -> Unit
 ) {
     if (!expanded) return
@@ -1745,6 +1927,13 @@ private fun CameraSideAwareOverflowMenu(
                     onClick = {
                         onDismissRequest()
                         onOpenSettings()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(guideLabel) },
+                    onClick = {
+                        onDismissRequest()
+                        onOpenGuide()
                     }
                 )
                 DropdownMenuItem(
@@ -2060,6 +2249,7 @@ private fun ReferenceActionStack(
     onEnterMarkerEditMode: () -> Unit = {},
     onHideMarkers: () -> Unit = {},
     onShowMarkers: () -> Unit = {},
+    onGuideTipAnchor: (GuideTipAnchor) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val resetLabel = stringResource(R.string.reset_overlay_label)
@@ -2155,6 +2345,7 @@ private fun ReferenceActionStack(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .guideTipAnchor(GuideTipAnchorKey.MARKER_ACTION, onGuideTipAnchor)
                         .clickable(onClick = onEnterMarkerEditMode)
                         .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
                         .semantics(mergeDescendants = true) {
@@ -2201,6 +2392,7 @@ private fun ReferenceActionStack(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .guideTipAnchor(GuideTipAnchorKey.MARKER_ACTION, onGuideTipAnchor)
                         .clickable(onClick = onEnterMarkerEditMode)
                         .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
                         .semantics(mergeDescendants = true) {
@@ -2247,6 +2439,7 @@ private fun ReferenceActionStack(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .guideTipAnchor(GuideTipAnchorKey.MARKER_ACTION, onGuideTipAnchor)
                         .clickable(onClick = onEnterMarkerEditMode)
                         .padding(horizontal = 14.dp, vertical = rowVerticalPadding)
                         .semantics(mergeDescendants = true) {
@@ -2465,3 +2658,29 @@ private fun MarkerDoneButton(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private fun Modifier.guideTipAnchor(
+    key: GuideTipAnchorKey,
+    onAnchor: (GuideTipAnchor) -> Unit
+): Modifier = onGloballyPositioned { coordinates ->
+    onAnchor(GuideTipAnchor(key = key, bounds = coordinates.boundsInRoot()))
+}
+
+
+
+
+
+

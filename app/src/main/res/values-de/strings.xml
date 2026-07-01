@@ -167,6 +167,104 @@
     <string name="about_feedback_subject">SameView Feedback</string>
     <string name="about_feedback_no_email_app">Keine E-Mail-App gefunden</string>
 
+    <!-- Walkthrough -->
+    <string name="walkthrough_page_choose_photo_title">Foto waehlen</string>
+    <string name="walkthrough_page_choose_photo_body">Waehle ein Foto,\ndas du nachstellen moechtest.</string>
+    <string name="walkthrough_page_align_overlay_title">Overlay ausrichten</string>
+    <string name="walkthrough_page_align_overlay_body">Verschiebe und skaliere das Overlay,\nbis es zum Original passt.</string>
+    <string name="walkthrough_page_capture_title">Aufnehmen</string>
+    <string name="walkthrough_page_capture_body">Nimm ein neues Foto\naus derselben Position auf.</string>
+    <string name="walkthrough_page_compare_title">Vergleichen</string>
+    <string name="walkthrough_page_compare_body">Vergleiche das Original\nmit deinem neuen Foto.</string>
+    <string name="walkthrough_skip">Ueberspringen</string>
+    <string name="walkthrough_next">Weiter</string>
+    <string name="walkthrough_back">Zurueck</string>
+    <string name="walkthrough_start">Start</string>
+
+    <!-- Guide -->
+    <string name="guide_screen_title">Guide</string>
+    <string name="guide_back">Zurueck</string>
+    <string name="camera_overflow_guide">Guide</string>
+    <string name="guide_replay_section_title">Erneut anzeigen</string>
+    <string name="guide_show_tips_again">Tipps erneut anzeigen</string>
+    <string name="guide_show_walkthrough_again">Walkthrough erneut anzeigen</string>
+    <string name="guide_show_tips_again_dialog_title">Tipps erneut anzeigen?</string>
+    <string name="guide_show_tips_again_dialog_message">Bereits gesehene Kontexttipps werden wieder angezeigt. Walkthrough-Status und App-Daten bleiben unveraendert.</string>
+    <string name="guide_show_tips_again_confirm">Tipps erneut anzeigen</string>
+    <string name="guide_show_tips_again_cancel">Abbrechen</string>
+    <string name="guide_tip_learn_more">Mehr erfahren</string>
+    <string name="guide_tip_got_it">Verstanden</string>
+    <string name="guide_tip_reference_title">Referenzfotos</string>
+    <string name="guide_tip_reference_body">Waehle ein frueheres Foto, um dieselbe Ansicht auszurichten.</string>
+    <string name="guide_tip_align_title">Overlay ausrichten</string>
+    <string name="guide_tip_align_body">Verschiebe und skaliere die Referenz, bis sie zur Live-Ansicht passt.</string>
+    <string name="guide_tip_marker_title">Marker</string>
+    <string name="guide_tip_marker_body">Setze kleine Referenzpunkte, die beim erneuten Ausrichten helfen.</string>
+    <string name="guide_tip_gps_title">GPS-Navigation</string>
+    <string name="guide_tip_gps_body">Nutze Standorthinweise, wenn das Referenzfoto GPS-Daten enthaelt.</string>
+    <string name="guide_tip_compare_title">Vergleich</string>
+    <string name="guide_tip_compare_body">Oeffne den Vergleich, um Referenz und aktuelles Foto zusammen zu pruefen.</string>
+    <string name="guide_tip_history_title">Favoriten</string>
+    <string name="guide_tip_history_body">Markiere wichtige Vergleiche als Favoriten, um sie schnell zu finden.</string>
+    <string name="guide_tip_export_title">Teilen-Optionen</string>
+    <string name="guide_tip_export_body">Exportiere ein Standbild oder Video aus einem gespeicherten Vergleich.</string>
+    <string name="guide_topic_getting_started_title">Erste Schritte</string>
+    <string name="guide_topic_getting_started_summary">Dieselbe Ansicht aufnehmen und vergleichen.</string>
+    <string name="guide_topic_reference_photos_title">Referenzfotos</string>
+    <string name="guide_topic_reference_photos_summary">Fotos auswaehlen und ausrichten.</string>
+    <string name="guide_topic_markers_title">Marker</string>
+    <string name="guide_topic_markers_summary">Ausrichtungspunkte setzen.</string>
+    <string name="guide_topic_gps_guidance_title">GPS-Navigation</string>
+    <string name="guide_topic_gps_guidance_summary">Zu einem gespeicherten Ort zurueckfinden.</string>
+    <string name="guide_topic_compare_title">Vergleich</string>
+    <string name="guide_topic_compare_summary">Fruehere und aktuelle Ansicht pruefen.</string>
+    <string name="guide_topic_share_comparison_image_title">Vergleichsbild teilen</string>
+    <string name="guide_topic_share_comparison_image_summary">Ein Standbild exportieren.</string>
+    <string name="guide_topic_create_video_title">Video erstellen</string>
+    <string name="guide_topic_create_video_summary">Einen kurzen Vergleichsclip erstellen.</string>
+    <string name="guide_topic_favorites_title">Favoriten</string>
+    <string name="guide_topic_favorites_summary">Wichtige Vergleiche schnell finden.</string>
+    <string name="guide_topic_backups_title">Backups</string>
+    <string name="guide_topic_backups_summary">Kopien von Sessions sichern.</string>
+    <string name="guide_detail_visual_camera">Kameraansicht</string>
+    <string name="guide_detail_visual_compare">Vergleichsansicht</string>
+    <string name="guide_detail_visual_reference">Referenzsteuerung</string>
+    <string name="guide_detail_visual_alignment">Ausrichtungssteuerung</string>
+    <string name="guide_detail_visual_markers">Markersteuerung</string>
+    <string name="guide_detail_visual_gps">GPS-Navigation</string>
+    <string name="guide_detail_visual_compare_tools">Vergleichswerkzeuge</string>
+    <string name="guide_detail_visual_share">Teilen-Optionen</string>
+    <string name="guide_detail_visual_video">Video-Optionen</string>
+    <string name="guide_detail_visual_library">Bibliothek</string>
+    <string name="guide_detail_visual_backup">Backup-Optionen</string>
+    <string name="guide_detail_getting_started_intro">SameView hilft dir, ein neues Foto an einer frueheren Ansicht auszurichten und das Ergebnis zu vergleichen.</string>
+    <string name="guide_detail_getting_started_body_1">Beginne mit einem Referenzfoto oder einer neuen Aufnahme. Die Kamera bleibt auf die aktuelle Ansicht fokussiert.</string>
+    <string name="guide_detail_getting_started_body_2">Nach der Aufnahme kannst du im Vergleich die alte und neue Ansicht zusammen pruefen.</string>
+    <string name="guide_detail_reference_photos_intro">Referenzfotos geben dir beim Komponieren eines neuen Bildes ein visuelles Ziel.</string>
+    <string name="guide_detail_reference_photos_body_1">Waehle eine Referenz und passe ihre Darstellung an, waehrend die Live-Ansicht sichtbar bleibt.</string>
+    <string name="guide_detail_reference_photos_body_2">Wenn Referenz und Kamerabild nicht exakt passen, helfen die Ausrichtungssteuerungen.</string>
+    <string name="guide_detail_markers_intro">Marker helfen dir, kleine Ausrichtungspunkte im Referenzbild zu merken.</string>
+    <string name="guide_detail_markers_body_1">Setze Marker auf Ecken, Kanten oder stabile Details, die wieder passen sollen.</string>
+    <string name="guide_detail_markers_body_2">Marker bleiben bei der Referenz, waehrend du das Overlay anpasst.</string>
+    <string name="guide_detail_gps_intro">GPS-Navigation kann dich in die Naehe des Aufnahmeorts der Referenz fuehren.</string>
+    <string name="guide_detail_gps_body_1">Wenn Standortdaten verfuegbar sind, kann SameView Distanz- und Richtungshinweise anzeigen.</string>
+    <string name="guide_detail_gps_body_2">Nutze GPS nur als Hilfe; die genaue Komposition erfolgt ueber die Live-Kamera.</string>
+    <string name="guide_detail_compare_intro">Der Vergleich zeigt Referenz und aktuelles Foto nach der Aufnahme zusammen.</string>
+    <string name="guide_detail_compare_body_1">Pruefe in der Vergleichsansicht, wie gut die neue Aufnahme zur alten passt.</string>
+    <string name="guide_detail_compare_body_2">Metadaten und Session-Aktionen bleiben verfuegbar, ohne Originalfotos zu veraendern.</string>
+    <string name="guide_detail_share_intro">Vergleichsbild teilen erstellt ein Standbild aus einem gespeicherten Vergleich.</string>
+    <string name="guide_detail_share_body_1">Waehle einen Stil und nur die Details, die du teilen moechtest.</string>
+    <string name="guide_detail_share_body_2">Das exportierte Bild ist getrennt von deiner gespeicherten Session.</string>
+    <string name="guide_detail_video_intro">Video erstellen macht aus einem Vergleich einen kurzen Clip.</string>
+    <string name="guide_detail_video_body_1">Waehle Animation, Dauer, Format und Qualitaet vor dem Rendern.</string>
+    <string name="guide_detail_video_body_2">Nach dem Rendern kannst du das Video ansehen, teilen oder loeschen.</string>
+    <string name="guide_detail_favorites_intro">Favoriten helfen dir, wichtige Vergleiche schneller zu finden.</string>
+    <string name="guide_detail_favorites_body_1">Markiere einen Vergleich in seiner Detailansicht als Favorit.</string>
+    <string name="guide_detail_favorites_body_2">Nutze den Bibliotheksfilter, wenn deine Liste waechst.</string>
+    <string name="guide_detail_backups_intro">Backups erstellen portable Kopien gespeicherter Sessions.</string>
+    <string name="guide_detail_backups_body_1">Sichere eine Session aus der Vergleichsansicht oder mehrere aus der Bibliothek.</string>
+    <string name="guide_detail_backups_body_2">Backup-Dateien sind getrennt von den Sessions in der App.</string>
+
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Verlauf öffnen</string>
     <string name="camera_overflow_content_description">Weitere Optionen</string>
@@ -341,3 +439,6 @@
     <string name="marker_delete_hint">Lang drücken zum Löschen</string>
     <string name="marker_content_description">Referenzmarker %d</string>
 </resources>
+
+
+

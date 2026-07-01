@@ -1,4 +1,4 @@
-package com.isardomains.sameview.ui.camera
+﻿package com.isardomains.sameview.ui.camera
 
 import android.os.Build
 import android.view.WindowManager
@@ -261,6 +261,35 @@ class CameraTopRightNavigationTest {
     }
 
     @Test
+    fun overflowMenu_containsGuide() {
+        setTopRightContent()
+
+        composeRule.onNodeWithTag("camera_overflow_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.camera_overflow_guide))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun overflowMenu_keepsSettingsGuideAboutOrder() {
+        setTopRightContent()
+
+        composeRule.onNodeWithTag("camera_overflow_button").performClick()
+        composeRule.waitForIdle()
+
+        val settingsTop = composeRule.onNodeWithText(context.getString(R.string.camera_overflow_settings))
+            .getUnclippedBoundsInRoot().top
+        val guideTop = composeRule.onNodeWithText(context.getString(R.string.camera_overflow_guide))
+            .getUnclippedBoundsInRoot().top
+        val aboutTop = composeRule.onNodeWithText(context.getString(R.string.camera_overflow_about))
+            .getUnclippedBoundsInRoot().top
+
+        assertTrue("Guide should appear after Settings", guideTop >= settingsTop)
+        assertTrue("Guide should appear before About", guideTop <= aboutTop)
+    }
+
+    @Test
     fun overflowMenu_containsAbout() {
         setTopRightContent()
 
@@ -283,6 +312,20 @@ class CameraTopRightNavigationTest {
 
         composeRule.onNodeWithTag("camera_overflow_button").assertIsDisplayed()
         composeRule.onNodeWithTag("camera_history_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun overflowMenu_guideTap_invokesGuideCallback() {
+        var guideOpenCount = 0
+        setTopRightContent(onOpenGuide = { guideOpenCount++ })
+
+        composeRule.onNodeWithTag("camera_overflow_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.camera_overflow_guide))
+            .performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, guideOpenCount)
     }
 
     @Test
@@ -356,6 +399,7 @@ class CameraTopRightNavigationTest {
     private fun setTopRightContent(
         onOpenHistory: () -> Unit = {},
         onOpenSettings: () -> Unit = {},
+        onOpenGuide: () -> Unit = {},
         onOpenAbout: () -> Unit = {}
     ) {
         wakeTestDevice()
@@ -376,6 +420,7 @@ class CameraTopRightNavigationTest {
                         CameraTopRightActions(
                             onOpenHistory = onOpenHistory,
                             onOpenSettings = onOpenSettings,
+                            onOpenGuide = onOpenGuide,
                             onOpenAbout = onOpenAbout
                         )
                     }
@@ -388,6 +433,7 @@ class CameraTopRightNavigationTest {
     private fun setLandscapeTopRightContent(
         onOpenHistory: () -> Unit = {},
         onOpenSettings: () -> Unit = {},
+        onOpenGuide: () -> Unit = {},
         onOpenAbout: () -> Unit = {},
         navigationLeftInset: androidx.compose.ui.unit.Dp = 0.dp,
         navigationRightInset: androidx.compose.ui.unit.Dp = 0.dp,
@@ -406,6 +452,7 @@ class CameraTopRightNavigationTest {
                     CameraLandscapeTopActions(
                         onOpenHistory = onOpenHistory,
                         onOpenSettings = onOpenSettings,
+                        onOpenGuide = onOpenGuide,
                         onOpenAbout = onOpenAbout,
                         frameLeft = frameLeft,
                         navigationLeftInset = navigationLeftInset,
@@ -553,3 +600,4 @@ class CameraTopRightNavigationTest {
             .close()
     }
 }
+

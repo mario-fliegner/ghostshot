@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,23 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import com.isardomains.sameview.guide.ARG_GUIDE_TOPIC_ID
+import com.isardomains.sameview.guide.ARG_WALKTHROUGH_ENTRY_MODE
+import com.isardomains.sameview.guide.FirstRunWalkthroughGateState
+import com.isardomains.sameview.guide.GuideDetailScreen
+import com.isardomains.sameview.guide.GuideRepository
+import com.isardomains.sameview.guide.GuideTipController
+import com.isardomains.sameview.guide.GuideRoute
+import com.isardomains.sameview.guide.ROUTE_GUIDE
+import com.isardomains.sameview.guide.ROUTE_GUIDE_DETAIL_WITH_ARGS
+import com.isardomains.sameview.guide.ROUTE_WALKTHROUGH_WITH_ARGS
+import com.isardomains.sameview.guide.guideDetailRoute
+import com.isardomains.sameview.guide.WalkthroughEntryMode
+import com.isardomains.sameview.guide.WalkthroughScreen
+import com.isardomains.sameview.guide.WalkthroughCompletionState
+import com.isardomains.sameview.guide.guideTopicIdArgument
+import com.isardomains.sameview.guide.walkthroughEntryModeArgument
+import com.isardomains.sameview.guide.walkthroughRoute
 import com.isardomains.sameview.ui.camera.CameraScreen
 import com.isardomains.sameview.ui.camera.CameraViewModel
 import com.isardomains.sameview.ui.camera.UiEvent
@@ -47,6 +65,7 @@ import com.isardomains.sameview.ui.theme.SameViewTheme
 import com.isardomains.sameview.ui.video.CreateVideoScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 private const val ROUTE_CAMERA = "camera"
 private const val ROUTE_COMPARE = "compare"
@@ -80,6 +99,12 @@ private const val ROUTE_COMPARE_WITH_ARGS =
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @Inject
+    lateinit var guideRepository: GuideRepository
+
+    @Inject
+    lateinit var guideTipController: GuideTipController
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,6 +115,31 @@ class MainActivity : ComponentActivity() {
             SameViewTheme {
                 val navController = rememberNavController()
                 val windowSizeClass = calculateWindowSizeClass(this)
+                val coroutineScope = rememberCoroutineScope()
+                val walkthroughCompletionState by guideRepository.observeWalkthroughCompletionState()
+                    .collectAsStateWithLifecycle(WalkthroughCompletionState.Loading)
+                var cameraPermissionGrantedForFirstRunGate by rememberSaveable { mutableStateOf(false) }
+                var firstRunWalkthroughNavigationRequested by rememberSaveable { mutableStateOf(false) }
+                val firstRunGateState = when (val state = walkthroughCompletionState) {
+                    WalkthroughCompletionState.Loading -> FirstRunWalkthroughGateState.Loading
+                    is WalkthroughCompletionState.Loaded -> if (state.isCompleted) {
+                        FirstRunWalkthroughGateState.Complete
+                    } else {
+                        FirstRunWalkthroughGateState.WaitingForWalkthrough
+                    }
+                }
+                LaunchedEffect(cameraPermissionGrantedForFirstRunGate, walkthroughCompletionState) {
+                    val shouldOpenWalkthrough = cameraPermissionGrantedForFirstRunGate &&
+                        walkthroughCompletionState is WalkthroughCompletionState.Loaded &&
+                        !(walkthroughCompletionState as WalkthroughCompletionState.Loaded).isCompleted &&
+                        !firstRunWalkthroughNavigationRequested
+                    if (shouldOpenWalkthrough) {
+                        firstRunWalkthroughNavigationRequested = true
+                        navController.navigate(walkthroughRoute(WalkthroughEntryMode.FIRST_RUN)) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
                 NavHost(
                     navController = navController,
                     startDestination = ROUTE_CAMERA
@@ -123,8 +173,20 @@ class MainActivity : ComponentActivity() {
                             onOpenSettings = {
                                 navController.navigate(ROUTE_SETTINGS)
                             },
+                            onOpenGuide = {
+                                navController.navigate(ROUTE_GUIDE)
+                            },
                             onOpenAbout = {
                                 navController.navigate(ROUTE_ABOUT)
+                            },
+                            firstRunWalkthroughGateState = firstRunGateState,
+                            onCameraPermissionGrantedForFirstRunGate = {
+                                cameraPermissionGrantedForFirstRunGate = true
+                            },
+                            windowWidthSizeClass = windowSizeClass.widthSizeClass,
+                            guideTipController = guideTipController,
+                            onOpenGuideTopic = { topicId ->
+                                navController.navigate(guideDetailRoute(topicId))
                             }
                         )
                     }
@@ -136,6 +198,49 @@ class MainActivity : ComponentActivity() {
                     }
                     composable(ROUTE_ABOUT) {
                         AboutScreenRoute(onBack = { navController.popBackStack() })
+                    }
+                    composable(ROUTE_GUIDE) {
+                        GuideRoute(
+                            windowWidthSizeClass = windowSizeClass.widthSizeClass,
+                            onBack = { navController.popBackStack() },
+                            onOpenTopic = { topicId -> navController.navigate(guideDetailRoute(topicId)) },
+                            onShowWalkthroughAgain = {
+                                navController.navigate(walkthroughRoute(WalkthroughEntryMode.REPLAY))
+                            }
+                        )
+                    }
+                    composable(
+                        route = ROUTE_GUIDE_DETAIL_WITH_ARGS,
+                        arguments = listOf(navArgument(ARG_GUIDE_TOPIC_ID) { type = NavType.StringType })
+                    ) { navBackStackEntry ->
+                        val topicId = navBackStackEntry.guideTopicIdArgument() ?: return@composable
+                        GuideDetailScreen(
+                            topicId = topicId,
+                            windowWidthSizeClass = windowSizeClass.widthSizeClass,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable(
+                        route = ROUTE_WALKTHROUGH_WITH_ARGS,
+                        arguments = listOf(navArgument(ARG_WALKTHROUGH_ENTRY_MODE) { type = NavType.StringType })
+                    ) { navBackStackEntry ->
+                        val entryMode = navBackStackEntry.walkthroughEntryModeArgument() ?: return@composable
+                        val completeAndExit: () -> Unit = {
+                            coroutineScope.launch {
+                                if (entryMode == WalkthroughEntryMode.FIRST_RUN) {
+                                    guideRepository.markWalkthroughComplete()
+                                    navController.popBackStack(ROUTE_CAMERA, inclusive = false)
+                                } else {
+                                    navController.popBackStack(ROUTE_GUIDE, inclusive = false)
+                                }
+                            }
+                        }
+                        WalkthroughScreen(
+                            entryMode = entryMode,
+                            windowWidthSizeClass = windowSizeClass.widthSizeClass,
+                            onSkip = completeAndExit,
+                            onStart = completeAndExit
+                        )
                     }
                     composable(ROUTE_COMPARE_LIBRARY) { navBackStackEntry ->
                         val cameraEntry = remember(navBackStackEntry) {
@@ -346,7 +451,11 @@ class MainActivity : ComponentActivity() {
                                 isFavorite = isFavorite,
                                 onToggleFavorite = if (sessionId != null) {
                                     { viewModel.toggleFavorite(sessionId) }
-                                } else null
+                                } else null,
+                                guideTipController = guideTipController,
+                                onOpenGuideTopic = { topicId ->
+                                    navController.navigate(guideDetailRoute(topicId))
+                                }
                             )
 
                             SnackbarHost(
@@ -483,3 +592,6 @@ private fun editSessionRoute(sessionId: String): String =
 
 private fun shareComparisonRoute(sessionId: String): String =
     "$ROUTE_SHARE_COMPARISON/${Uri.encode(sessionId)}"
+
+
+

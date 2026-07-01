@@ -56,10 +56,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -78,6 +80,8 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -102,6 +106,17 @@ import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.isardomains.sameview.R
+import com.isardomains.sameview.guide.GuideTip
+import com.isardomains.sameview.guide.GuideTipAnchor
+import com.isardomains.sameview.guide.GuideTipAnchorKey
+import com.isardomains.sameview.guide.GuideTipController
+import com.isardomains.sameview.guide.GuideTipDismissReason
+import com.isardomains.sameview.guide.GuideTipEvaluationContext
+import com.isardomains.sameview.guide.GuideTipHost
+import com.isardomains.sameview.guide.GuideTipId
+import com.isardomains.sameview.guide.GuideTipRegistry
+import com.isardomains.sameview.guide.GuideTipScope
+import com.isardomains.sameview.guide.GuideTopicId
 import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewStarFavorited
 import com.isardomains.sameview.ui.theme.SameViewAppSurface
@@ -116,6 +131,7 @@ import com.isardomains.sameview.ui.theme.SameViewCompareOriginalLetterboxBackgro
 import com.isardomains.sameview.ui.theme.SameViewTextPrimary
 import com.isardomains.sameview.ui.theme.SameViewTextSecondary
 import java.io.File
+import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.abs
@@ -166,6 +182,8 @@ fun CompareScreen(
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
+    guideTipController: GuideTipController? = null,
+    onOpenGuideTopic: (GuideTopicId) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val hasValidInput = referenceImageUri != null && captureImageUri != null
@@ -175,6 +193,38 @@ fun CompareScreen(
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     val compareContentScale = if (isFullscreen) ContentScale.Crop else ContentScale.Fit
+    val guideTipScope = rememberCoroutineScope()
+    var guideTipAnchors by remember { mutableStateOf<Map<GuideTipAnchorKey, GuideTipAnchor>>(emptyMap()) }
+    var activeGuideTip by remember { mutableStateOf<GuideTip?>(null) }
+    val onGuideTipAnchor: (GuideTipAnchor) -> Unit = { anchor ->
+        guideTipAnchors = guideTipAnchors + (anchor.key to anchor)
+    }
+
+    val compareTipBlocked = isFullscreen || showExportMenu || showMoreMenu || showDeleteDialog || isBackupInProgress
+    val compareEligibleTipIds = buildSet {
+        if (sessionId != null) add(GuideTipId.EXPORT)
+    }.filter { tipId ->
+        val tip = GuideTipRegistry.tipFor(tipId)
+        tip == null || guideTipAnchors.containsKey(tip.anchorKey)
+    }.toSet()
+    LaunchedEffect(guideTipController, compareEligibleTipIds, compareTipBlocked, activeGuideTip?.id) {
+        val controller = guideTipController ?: return@LaunchedEffect
+        val currentTip = activeGuideTip
+        if (currentTip != null && (compareTipBlocked || currentTip.id !in compareEligibleTipIds)) {
+            controller.clearActiveTipWithoutMarkingSeen()
+            activeGuideTip = null
+            return@LaunchedEffect
+        }
+        if (currentTip == null) {
+            activeGuideTip = controller.evaluate(
+                GuideTipEvaluationContext(
+                    scope = GuideTipScope.COMPARE,
+                    eligibleTipIds = compareEligibleTipIds,
+                    isBlockedByTransientUi = compareTipBlocked
+                )
+            )
+        }
+    }
 
     val createDocumentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
@@ -282,7 +332,9 @@ fun CompareScreen(
                         Box {
                             IconButton(
                                 onClick = { showExportMenu = true },
-                                modifier = Modifier.testTag("compare_screen_export_button")
+                                modifier = Modifier
+                                    .guideTipAnchor(GuideTipAnchorKey.EXPORT_ACTION, onGuideTipAnchor)
+                                    .testTag("compare_screen_export_button")
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Share,
@@ -490,6 +542,25 @@ fun CompareScreen(
                 }
             }
         }
+        GuideTipHost(
+            activeTip = activeGuideTip,
+            anchors = guideTipAnchors.values.toList(),
+            windowWidthSizeClass = windowWidthSizeClass,
+            onGotIt = { _ ->
+                guideTipScope.launch {
+                    guideTipController?.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+                    activeGuideTip = null
+                }
+            },
+            onLearnMore = { _, topicId ->
+                guideTipScope.launch {
+                    guideTipController?.dismissActiveTip(GuideTipDismissReason.LEARN_MORE)
+                    activeGuideTip = null
+                    onOpenGuideTopic(topicId)
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
@@ -1530,3 +1601,11 @@ private fun hasOriginalReferenceTransform(
     }
     return false
 }
+
+private fun Modifier.guideTipAnchor(
+    key: GuideTipAnchorKey,
+    onAnchor: (GuideTipAnchor) -> Unit
+): Modifier = onGloballyPositioned { coordinates ->
+    onAnchor(GuideTipAnchor(key = key, bounds = coordinates.boundsInRoot()))
+}
+

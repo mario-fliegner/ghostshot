@@ -174,6 +174,106 @@
     <string name="about_feedback_subject">SameView Feedback</string>
     <string name="about_feedback_no_email_app">No email app found</string>
 
+
+
+    <!-- Walkthrough -->
+    <string name="walkthrough_page_choose_photo_title">Choose a photo</string>
+    <string name="walkthrough_page_choose_photo_body">Pick a photo\nto recreate.</string>
+    <string name="walkthrough_page_align_overlay_title">Align the overlay</string>
+    <string name="walkthrough_page_align_overlay_body">Move and scale the overlay\nto match the original photo.</string>
+    <string name="walkthrough_page_capture_title">Capture</string>
+    <string name="walkthrough_page_capture_body">Take a new photo from\nthe same position.</string>
+    <string name="walkthrough_page_compare_title">Compare</string>
+    <string name="walkthrough_page_compare_body">Compare the original\nand your new photo.</string>
+    <string name="walkthrough_skip">Skip</string>
+    <string name="walkthrough_next">Next</string>
+    <string name="walkthrough_back">Back</string>
+    <string name="walkthrough_start">Start</string>
+
+    <!-- Guide -->
+    <string name="guide_screen_title">Guide</string>
+    <string name="guide_back">Back</string>
+    <string name="camera_overflow_guide">Guide</string>
+    <string name="guide_replay_section_title">Replay</string>
+    <string name="guide_show_tips_again">Show tips again</string>
+    <string name="guide_show_walkthrough_again">Show walkthrough again</string>
+    <string name="guide_show_tips_again_dialog_title">Show tips again?</string>
+    <string name="guide_show_tips_again_dialog_message">Contextual tips you have already seen will be shown again. Walkthrough completion and app data stay unchanged.</string>
+    <string name="guide_show_tips_again_confirm">Show tips again</string>
+    <string name="guide_show_tips_again_cancel">Cancel</string>
+    <string name="guide_tip_learn_more">Learn more</string>
+    <string name="guide_tip_got_it">Got it</string>
+    <string name="guide_tip_reference_title">Reference photos</string>
+    <string name="guide_tip_reference_body">Choose an earlier photo to line up the same view.</string>
+    <string name="guide_tip_align_title">Align the overlay</string>
+    <string name="guide_tip_align_body">Move and scale the reference until it matches the live view.</string>
+    <string name="guide_tip_marker_title">Markers</string>
+    <string name="guide_tip_marker_body">Pin small reference points that help you line things up again.</string>
+    <string name="guide_tip_gps_title">GPS guidance</string>
+    <string name="guide_tip_gps_body">Use location cues when the reference photo includes GPS data.</string>
+    <string name="guide_tip_compare_title">Compare</string>
+    <string name="guide_tip_compare_body">Open Compare to review the reference and current photo together.</string>
+    <string name="guide_tip_history_title">Favorites</string>
+    <string name="guide_tip_history_body">Keep important comparisons close by marking them as favorites.</string>
+    <string name="guide_tip_export_title">Share options</string>
+    <string name="guide_tip_export_body">Export a still image or video from a saved comparison.</string>
+    <string name="guide_topic_getting_started_title">Getting started</string>
+    <string name="guide_topic_getting_started_summary">Capture and compare the same view.</string>
+    <string name="guide_topic_reference_photos_title">Reference photos</string>
+    <string name="guide_topic_reference_photos_summary">Choose and align photos.</string>
+    <string name="guide_topic_markers_title">Markers</string>
+    <string name="guide_topic_markers_summary">Pin visual alignment points.</string>
+    <string name="guide_topic_gps_guidance_title">GPS guidance</string>
+    <string name="guide_topic_gps_guidance_summary">Return to a saved location.</string>
+    <string name="guide_topic_compare_title">Compare</string>
+    <string name="guide_topic_compare_summary">Review past and current views.</string>
+    <string name="guide_topic_share_comparison_image_title">Share comparison image</string>
+    <string name="guide_topic_share_comparison_image_summary">Export a still comparison.</string>
+    <string name="guide_topic_create_video_title">Create video</string>
+    <string name="guide_topic_create_video_summary">Make a short comparison clip.</string>
+    <string name="guide_topic_favorites_title">Favorites</string>
+    <string name="guide_topic_favorites_summary">Keep important comparisons close.</string>
+    <string name="guide_topic_backups_title">Backups</string>
+    <string name="guide_topic_backups_summary">Save copies of sessions.</string>
+    <string name="guide_detail_visual_camera">Camera view</string>
+    <string name="guide_detail_visual_compare">Compare view</string>
+    <string name="guide_detail_visual_reference">Reference controls</string>
+    <string name="guide_detail_visual_alignment">Alignment controls</string>
+    <string name="guide_detail_visual_markers">Marker controls</string>
+    <string name="guide_detail_visual_gps">GPS guidance</string>
+    <string name="guide_detail_visual_compare_tools">Compare tools</string>
+    <string name="guide_detail_visual_share">Share options</string>
+    <string name="guide_detail_visual_video">Video options</string>
+    <string name="guide_detail_visual_library">Library view</string>
+    <string name="guide_detail_visual_backup">Backup options</string>
+    <string name="guide_detail_getting_started_intro">SameView helps you line up a new photo with an earlier view, then compare the result.</string>
+    <string name="guide_detail_getting_started_body_1">Start by choosing a reference photo or taking a new shot. The camera stays focused on the view in front of you.</string>
+    <string name="guide_detail_getting_started_body_2">After capture, open Compare to review the old and new views together.</string>
+    <string name="guide_detail_reference_photos_intro">Reference photos give you a visual target while you compose a new image.</string>
+    <string name="guide_detail_reference_photos_body_1">Choose a reference, adjust how it appears, and keep the live view visible while you line things up.</string>
+    <string name="guide_detail_reference_photos_body_2">If the reference does not match the camera frame exactly, use the alignment controls to get close.</string>
+    <string name="guide_detail_markers_intro">Markers help you remember small alignment points in the reference image.</string>
+    <string name="guide_detail_markers_body_1">Place markers on corners, edges, or other stable details that should line up again.</string>
+    <string name="guide_detail_markers_body_2">Markers stay with the reference while you adjust the overlay.</string>
+    <string name="guide_detail_gps_intro">GPS guidance can help you return near the place where the reference photo was taken.</string>
+    <string name="guide_detail_gps_body_1">When location data is available, SameView can show distance and direction cues.</string>
+    <string name="guide_detail_gps_body_2">Use GPS as a guide only; final composition still depends on the live camera view.</string>
+    <string name="guide_detail_compare_intro">Compare shows the reference and current photo together after capture.</string>
+    <string name="guide_detail_compare_body_1">Use the comparison view to inspect how closely the new shot matches the old one.</string>
+    <string name="guide_detail_compare_body_2">Metadata and session actions stay available without changing the original photos.</string>
+    <string name="guide_detail_share_intro">Share comparison image creates a still image from a saved comparison.</string>
+    <string name="guide_detail_share_body_1">Choose a comparison style and include only the details you want to share.</string>
+    <string name="guide_detail_share_body_2">The exported image is separate from your saved session.</string>
+    <string name="guide_detail_video_intro">Create video turns a comparison into a short clip.</string>
+    <string name="guide_detail_video_body_1">Pick an animation style, duration, format, and quality before rendering.</string>
+    <string name="guide_detail_video_body_2">After rendering, preview the video before sharing or deleting it.</string>
+    <string name="guide_detail_favorites_intro">Favorites help you find important comparisons faster.</string>
+    <string name="guide_detail_favorites_body_1">Mark a comparison as a favorite from its detail view.</string>
+    <string name="guide_detail_favorites_body_2">Use the library filter to focus on favorites when your list grows.</string>
+    <string name="guide_detail_backups_intro">Backups create portable copies of saved sessions.</string>
+    <string name="guide_detail_backups_body_1">Back up one session from its comparison view or multiple sessions from the library.</string>
+    <string name="guide_detail_backups_body_2">Backup files are separate from the sessions stored in the app.</string>
+
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Open history</string>
     <string name="camera_overflow_content_description">More options</string>
@@ -351,3 +451,6 @@
     <string name="marker_delete_hint">Long-press to delete</string>
     <string name="marker_content_description">Reference marker %d</string>
 </resources>
+
+
+
