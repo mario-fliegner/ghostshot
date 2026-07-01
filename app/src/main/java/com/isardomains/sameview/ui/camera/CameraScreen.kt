@@ -39,6 +39,7 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -173,6 +174,7 @@ import com.isardomains.sameview.ui.theme.SameViewTextSecondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 private const val TAG = "SameView"
 private val CameraShutterButtonSize = 96.dp
@@ -700,11 +702,19 @@ fun CameraScreen(
                             )
                         }
 
-                        // ── Layer 2.7: Edit-mode viewport border ──────────────────────────
+                        // ── Layer 2.7: Edit-mode image rect border ────────────────────────
                         MarkerEditBorder(
                             isEditModeActive = uiState.referenceMarkersState.isEditModeActive,
-                            isLandscape = isLandscape,
-                            modifier = Modifier.align(Alignment.Center)
+                            metadata = uiState.referenceImageMetadata,
+                            displayMode = uiState.referenceImageDisplayMode,
+                            overlayOffsetX = uiState.overlayOffsetX,
+                            overlayOffsetY = uiState.overlayOffsetY,
+                            overlayScale = uiState.overlayScale,
+                            modifier = if (!isLandscape) {
+                                Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
+                            } else {
+                                Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)
+                            }
                         )
                     }
                 }
@@ -2353,22 +2363,71 @@ private fun ShutterButton(
     }
 }
 
+/**
+ * Draws the edit-mode border around the visible reference-image rectangle clipped to the viewport.
+ *
+ * When [metadata] is null (no reference image loaded yet), falls back to a full-viewport border.
+ * The border follows [overlayScale] and [overlayOffsetX]/[overlayOffsetY] and applies in all
+ * display modes. Letterbox and pillarbox areas are excluded.
+ */
 @Composable
 internal fun MarkerEditBorder(
     isEditModeActive: Boolean,
-    isLandscape: Boolean,
+    metadata: ReferenceImageMetadata?,
+    displayMode: ReferenceImageDisplayMode,
+    overlayOffsetX: Float,
+    overlayOffsetY: Float,
+    overlayScale: Float,
     modifier: Modifier = Modifier
 ) {
-    if (isEditModeActive) {
-        Box(
-            modifier = if (!isLandscape) {
-                Modifier.fillMaxWidth().aspectRatio(9f / 16f)
+    if (!isEditModeActive) return
+
+    val density = LocalDensity.current
+    var viewportSize by remember { mutableStateOf(IntSize.Zero) }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .onSizeChanged { viewportSize = it }
+    ) {
+        val vW = viewportSize.width.toFloat()
+        val vH = viewportSize.height.toFloat()
+
+        if (vW > 0f && vH > 0f) {
+            val meta = metadata
+            if (meta != null && meta.orientedWidth > 0 && meta.orientedHeight > 0) {
+                val rect = computeVisibleImageRect(
+                    viewportWidth = vW,
+                    viewportHeight = vH,
+                    imageWidth = meta.orientedWidth.toFloat(),
+                    imageHeight = meta.orientedHeight.toFloat(),
+                    displayMode = displayMode,
+                    overlayOffsetX = overlayOffsetX,
+                    overlayOffsetY = overlayOffsetY,
+                    overlayScale = overlayScale
+                )
+                Box(
+                    modifier = Modifier
+                        .absoluteOffset {
+                            IntOffset(rect.left.roundToInt(), rect.top.roundToInt())
+                        }
+                        .size(
+                            width = with(density) { (rect.right - rect.left).toDp() },
+                            height = with(density) { (rect.bottom - rect.top).toDp() }
+                        )
+                        .border(width = 2.dp, color = SameViewAccent)
+                        .testTag("marker_edit_border")
+                )
             } else {
-                Modifier.fillMaxHeight().aspectRatio(16f / 9f)
-            }.then(modifier)
-                .border(width = 2.dp, color = SameViewAccent)
-                .testTag("marker_edit_border")
-        )
+                // Fallback: border around the full viewport when no image metadata available
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .border(width = 2.dp, color = SameViewAccent)
+                        .testTag("marker_edit_border")
+                )
+            }
+        }
     }
 }
 

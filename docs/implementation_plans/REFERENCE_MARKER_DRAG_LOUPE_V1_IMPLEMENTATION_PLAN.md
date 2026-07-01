@@ -40,7 +40,7 @@ The loupe is strictly transient UI:
 | File | Reason | Estimated scope |
 |---|---|---|
 | `app/src/main/java/com/isardomains/sameview/ui/camera/ReferenceMarkerOverlay.kt` | All loupe logic lives here: loupe constants, bitmap loading `LaunchedEffect`, drag state tracking (`isDragging`, `draggingMarkerNormalizedPos`), loupe position computation, loupe Canvas rendering, loupe image crop geometry | Large — single-file, self-contained additions |
-| `app/src/main/java/com/isardomains/sameview/ui/camera/CameraScreen.kt` | Add `referenceUri = referenceUri` parameter at the `ReferenceMarkerOverlay` call site (line ~680). The `referenceUri` value is already in scope at that call site (line 677 guard). | Minimal — one new argument |
+| `app/src/main/java/com/isardomains/sameview/ui/camera/CameraScreen.kt` | (1) Add `referenceUri = referenceUri` parameter at the `ReferenceMarkerOverlay` call site (line ~680). (2) Update `MarkerEditBorder` composable and its call site to accept image metadata, `displayMode`, `overlayScale`, `overlayOffsetX/Y`, and viewport size; compute the visible image rect via the helper (§2.5) and draw the border at that rect clipped to the viewport instead of the hardcoded `9f/16f` aspect ratio. (3) Empty-state hint placement update: if centered via the overlay composable, pass the computed visible image rect bounds. | Small–Medium — `referenceUri` arg (minimal) + `MarkerEditBorder` geometry (small) |
 
 ### Test files
 
@@ -60,6 +60,40 @@ The loupe is strictly transient UI:
 | `ReferenceMarkerOverlayTest.kt` | JVM unit tests for `normalizedToScreen`/`screenToNormalized` pure functions — these are not changed |
 | Any session storage, metadata, or rendering files | Spec §2/§13: loupe has no effect on any output pipeline |
 | Any export, compare, or video pipeline files | Same reason |
+
+**Coordinate functions are immutable:** `normalizedToScreen()` and `screenToNormalized()` in `ReferenceMarkerOverlay.kt` must not be modified for any loupe, border, or hint change. The visible image rect (§2.5) is computed from the same input parameters these functions use, but as a separate new computation added alongside — not a refactoring of the existing path.
+
+---
+
+## 2.5 Visible Image Rect Helper Strategy
+
+A single helper computation — `computeVisibleImageRect` — is required by three components that must now align to the same boundary:
+
+1. **`MarkerEditBorder`** (in `CameraScreen.kt`) — to position and size the blue border
+2. **Empty-state hint** (in `ReferenceMarkerOverlay.kt`) — to center within the image rect rather than the full viewport
+3. **Loupe position clamping** (in `ReferenceMarkerOverlay.kt`) — to clamp the loupe to the image rect instead of the full viewport
+
+**Do NOT implement this helper yet.** This section documents the required strategy only.
+
+When implemented, the helper must:
+
+- **Accept:** `viewportWidth: Float`, `viewportHeight: Float`, `imageWidth: Float`, `imageHeight: Float`, `displayMode: ReferenceImageDisplayMode`, `overlayOffsetX: Float`, `overlayOffsetY: Float`, `overlayScale: Float`
+- **Compute:** the transformed visible image rectangle in viewport-local pixels, then intersect with `[0, 0, viewportWidth, viewportHeight]`
+- **Use:** the same `baseScale` formula already present in `normalizedToScreen`:
+  - `COMPARE_WITH_PREVIEW`: `baseScale = max(vW/iW, vH/iH)`
+  - `SHOW_FULL_IMAGE`: `baseScale = min(vW/iW, vH/iH)`
+- **Derive image corners:**
+  - `imageLeft = vW/2 − (iW * baseScale * overlayScale)/2 + translationX`
+  - `imageTop  = vH/2 − (iH * baseScale * overlayScale)/2 + translationY`
+  - `imageRight  = imageLeft + iW * baseScale * overlayScale`
+  - `imageBottom = imageTop  + iH * baseScale * overlayScale`
+  - (translationX/Y clamped per display mode, matching `normalizedToScreen`)
+- **Clamp to viewport:** intersect with `[0, 0, vW, vH]` so the result never exceeds the viewport
+- **Return:** `left`, `top`, `right`, `bottom` in viewport pixels
+
+The helper can be a `private fun` in `ReferenceMarkerOverlay.kt` for the loupe and hint path. For `MarkerEditBorder` in `CameraScreen.kt`, either pass the precomputed rect in as a parameter, or duplicate the short computation inline — both are acceptable since the formula is a single arithmetic expression, not business logic.
+
+**Do NOT change `normalizedToScreen` or `screenToNormalized`.**
 
 ---
 
@@ -145,8 +179,9 @@ The layer is a `Box` with `testTag("marker_drag_loupe")`, visible only when `isD
 1. **Position computation** (per spec §7):
    - Convert `draggingMarkerNormalizedPos` to screen coordinates via `normalizedToScreen(...)`.
    - Default loupe center: `loupeCenterX_default = markerScreenX`, `loupeCenterY_default = markerScreenY - (loupeDiameterPx / 2) - offsetBelowFingerPx`.
-   - Clamp bounds (spec §7): top=0, left=0, right=`viewportWidth - loupeDiameterPx`, bottom=`viewportHeight - loupeDiameterPx - doneButtonAreaPx`.
-   - Final: `loupeCenterX = clamp(default, loupeDiameterPx/2, viewportWidth - loupeDiameterPx/2)`, `loupeCenterY = clamp(default, loupeDiameterPx/2, viewportHeight - loupeDiameterPx/2 - doneButtonAreaPx)`.
+   - Compute visible image rect via the §2.5 helper: `imageLeft`, `imageTop`, `imageRight`, `imageBottom` (already clipped to viewport).
+   - Clamp bounds (spec §7, updated): primary bounds use the image rect; fall back per-axis to viewport when image rect is smaller than loupe diameter. `clampBoundsBottom` always subtracts `doneButtonAreaPx` from the effective bottom (image rect bottom or viewport bottom).
+   - Final: `loupeCenterX = clamp(default, clampLeft + loupeRadiusPx, clampRight + loupeRadiusPx)`, `loupeCenterY = clamp(default, clampTop + loupeRadiusPx, clampBottom + loupeRadiusPx)`.
    - Fallback-below check: if `loupeCenterY + loupeDiameterPx/2 > markerScreenY - minGap`, compute `loupeCenterY_below = markerScreenY + (loupeDiameterPx / 2) + offsetBelowFingerPx` clamped to bounds. Use above-position if below also fails.
 
 2. **Canvas draw sequence** in Unit 3 (image content deferred to Unit 4):
@@ -155,21 +190,30 @@ The layer is a `Box` with `testTag("marker_drag_loupe")`, visible only when `isD
    - Draw white border ring (1.5.dp stroke, white at 90% alpha).
    - Draw loupe marker indicator at geometric loupe center: ring (16.dp diameter, 1.5.dp stroke, white) and center dot (3.dp diameter, `SameViewAccent`).
 
-**Files:** `ReferenceMarkerOverlay.kt` only.
+**Files:** `ReferenceMarkerOverlay.kt` and `CameraScreen.kt`.
+
+`ReferenceMarkerOverlay.kt`: loupe constants, helper, drag state, loupe container and Canvas.
+`CameraScreen.kt`: `MarkerEditBorder` geometry update; pass image rect info for hint if needed.
 
 **Risks:**
-- **Clamping edge cases**: Incorrect clamp math at corner positions. Mitigate: unit-test the pure position-computation helper before wiring it to Compose (extract as internal fun for testability).
-- **Fallback-below overlap check**: "minGap" threshold not defined in spec (spec says "if clamped Y causes loupe to overlap the marker"). Use `loupeDiameterPx / 2` as minGap — if loupe bottom > `markerScreenY - loupeDiameterPx/2`, shift below.
-- **Done button area height**: 88.dp is the authoritative V1 default (spec §7/OQ-2). Manual validation required on large-font devices.
+- **Clamping edge cases**: Incorrect clamp math at image rect edges and corners. Mitigate: extract `computeVisibleImageRect` as an `internal fun` and unit-test it in `ReferenceMarkerOverlayTest.kt` with known viewport/image/scale combinations before wiring to Compose.
+- **Image rect smaller than loupe**: If the visible image area is very small (extreme zoom-out), the loupe may need to fall back to the full viewport. Mitigate: per-axis fallback logic (§2.5). Verify with manual validation case "overlay scaled very small".
+- **Fallback-below overlap check**: Use `loupeDiameterPx / 2` as minGap — if loupe bottom > `markerScreenY - loupeDiameterPx/2`, shift below. Fallback-below still uses image rect clamp bounds.
+- **Done button area height**: 88.dp is the authoritative V1 default (spec §7/OQ-2). Always measured from viewport bottom, not image rect bottom. Manual validation required on large-font devices.
 - **Canvas clipping**: The existing `Box` has `Modifier.clipToBounds()`. The loupe Canvas is inside the same Box, so it is naturally clipped. The clamping logic must keep the loupe within bounds to avoid clipping artifacts.
+- **MarkerEditBorder regression**: Changing from fixed aspect ratio to computed image rect must not change the border on COMPARE_WITH_PREVIEW at overlayScale=1.0 (image fills viewport → rect = viewport). Verify with existing `editModeBorder_*` tests.
 
 **Tests (Unit 3):**
 - Targeted: `loupe_notVisible_outsideEditMode` — Edit Mode off, no loupe node.
-- Targeted: `loupe_clamped_nearTopEdge` — drag marker to near-top position, assert loupe remains within viewport top bound.
-- Targeted: `loupe_clamped_nearBottomEdge` — drag marker to near-bottom position, assert loupe is above Done button area.
-- Targeted: `loupe_clamped_nearLeftEdge` — drag marker to near-left position, assert loupe within left bound.
-- Targeted: `loupe_clamped_nearRightEdge` — drag marker to near-right position, assert loupe within right bound.
-- Regression: existing empty-state hint test and edit-mode border test unchanged.
+- Targeted: `loupe_clamped_nearTopEdge` — drag near top → loupe within visible image rect top bound.
+- Targeted: `loupe_clamped_nearBottomEdge` — drag near bottom → loupe above Done button area and within image rect bottom when possible.
+- Targeted: `loupe_clamped_nearLeftEdge` — drag near left → loupe within image rect left bound when possible.
+- Targeted: `loupe_clamped_nearRightEdge` — drag near right → loupe within image rect right bound when possible.
+- Targeted: `loupe_clamped_imageSmallerThanLoupe` — SHOW_FULL_IMAGE with extreme zoom-out (image rect smaller than loupe diameter) → loupe falls back to viewport clamping; assert loupe remains inside viewport.
+- Targeted: `editBorder_framesImageRect_whenLetterboxed` — SHOW_FULL_IMAGE with non-16:9 square image → assert border `boundsInRoot` matches image display rect, not full viewport rect.
+- Targeted: `editBorder_framesViewport_whenImageFillsViewport` — COMPARE_WITH_PREVIEW at overlayScale=1.0 → border bounds match viewport (regression: no visual change expected).
+- Targeted: `emptyHint_centeredInImageRect_whenImageSmallerThanViewport` — SHOW_FULL_IMAGE with square image → hint node is positioned within image rect bounds, not full viewport.
+- Regression: existing `emptyStateHint_*` and `editModeBorder_*` tests must pass (update assertions where border semantics changed).
 
 ---
 
@@ -387,6 +431,44 @@ When the user replaces or removes the reference image: `referenceUri` changes �
 - [ ] `effectiveScale` clamped to 6.0; tight crop, few image pixels shown
 - [ ] No crash; loupe still renders correctly
 
+### Visible image rect — border and hint
+
+**Landscape image in portrait viewport (SHOW_FULL_IMAGE):**
+
+- [ ] Blue border frames the image area only — does not extend into top/bottom letterbox strips
+- [ ] Empty-state hint (if no markers) is centered within the image area, not the full viewport
+- [ ] Loupe clamps within the image rect; does not drift into the empty letterbox strips
+
+**Portrait image in landscape viewport (SHOW_FULL_IMAGE):**
+
+- [ ] Blue border frames the image area only — does not extend into left/right pillarbox strips
+- [ ] Loupe clamps within the image rect
+
+**Square image in portrait viewport (SHOW_FULL_IMAGE):**
+
+- [ ] Blue border frames the square image area; letterbox strips above/below are outside the border
+- [ ] Loupe clamped to image rect on top/bottom edges; no loupe intrusion into letterbox
+
+**Overlay scaled smaller than viewport (overlayScale < 1.0, either display mode):**
+
+- [ ] Blue border shrinks with the image — consistently smaller than the viewport
+- [ ] Loupe clamped to the smaller image rect; stays inside the border
+
+**Overlay panned partially outside viewport:**
+
+- [ ] Blue border clips to the viewport edge (intersection of image rect and viewport)
+- [ ] Loupe clamped to the clipped intersection; does not extend beyond viewport
+
+**Image rect smaller than loupe diameter (extreme zoom-out):**
+
+- [ ] Loupe falls back to viewport clamping; no crash; loupe remains inside viewport
+- [ ] Loupe stays as close as possible to the image rect center
+
+**COMPARE_WITH_PREVIEW at overlayScale = 1.0 (regression):**
+
+- [ ] Blue border matches the full viewport — visually unchanged from previous behavior
+- [ ] Loupe clamping behaves identically to the viewport-only path (image rect = viewport)
+
 ### Image-edge fill behavior
 
 *(Marker position relative to the reference image bounds, not the viewport.)*
@@ -532,3 +614,17 @@ Apply `Modifier.testTag("marker_drag_loupe")` to the outermost `Box` of the loup
 Declare `val srcRectF = remember { android.graphics.RectF() }` and `val dstRectF = remember { android.graphics.RectF() }` outside the Canvas lambda, inside `ReferenceMarkerOverlay`. Set their values inside the Canvas draw lambda with `.set(left, top, right, bottom)`. This eliminates per-frame allocation.
 
 **Impact:** Two `remember` declarations added. Minor.
+
+---
+
+## 10. Revision History
+
+### Revision 2 — 2026-07-01
+
+**Visible image rect rule applied throughout (alignment with ALIGNMENT_POINTS_V1.md Rev 9 and REFERENCE_MARKER_DRAG_LOUPE_V1.md Rev 3):**
+
+- §2 Production files: `CameraScreen.kt` scope expanded — `MarkerEditBorder` geometry change and empty-state hint placement added alongside the existing `referenceUri` argument change.
+- §2 "Files that must NOT be touched": added explicit note that `normalizedToScreen()` and `screenToNormalized()` are immutable.
+- §2.5 added: Visible Image Rect Helper Strategy. Documents the `computeVisibleImageRect` helper required by border, hint, and loupe clamping. Not yet implemented.
+- Release Unit 3: clamp bounds updated to use image rect (with per-axis viewport fallback); files expanded to include `CameraScreen.kt`; risks section updated; tests expanded with 4 new targeted tests for border, hint, and image-smaller-than-loupe scenarios.
+- §6 Manual Validation Checklist: new section "Visible image rect — border and hint" added with 8 scenarios covering letterboxed/pillarboxed images, overlay scaling, overlay panning, extreme zoom-out fallback, and COMPARE_WITH_PREVIEW regression.

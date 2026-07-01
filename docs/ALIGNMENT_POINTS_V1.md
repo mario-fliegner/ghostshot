@@ -81,7 +81,7 @@ Sie erscheint nur im Reference-Menü wenn ein Referenzbild geladen ist. Nutzer, 
 **Minimum sinnvolles V1:**
 
 1. Entry aus Reference-Menü → „Markers..."
-2. Viewport erhält blauen Rand als Edit-Modus-Indikator
+2. Sichtbarer Referenzbild-Bereich erhält blauen Rand als Edit-Modus-Indikator
 3. Leerstate-Hint: „Long press to place a marker" / „Gedrückt halten, um Marker zu setzen"
 4. Long-press auf Overlay-Bereich → Marker wird gesetzt (max. 5)
 5. Drag auf Marker → Marker direkt verschieben (kein Select-Schritt)
@@ -344,7 +344,13 @@ Kein Marker-Abschnitt — nichts ist vorhanden, was man ausblenden oder löschen
 
 ### 6.3 Edit-Modus-Indikator
 
-- **Viewport-Rand** in SameView-Blau (identisch mit Compare Accent Color)
+- **Sichtbares Referenzbild-Rechteck** (Rand) in SameView-Blau (identisch mit Compare Accent Color) — Der Rahmen folgt dem transformierten sichtbaren Referenzbild-Bereich, gekürzt auf den Marker-Viewport:
+  - Schließt Letterbox- und Pillarbox-Bereiche (leere Viewport-Flächen) aus
+  - Bewegt sich und skaliert mit `overlayScale` und `overlayOffset`
+  - Gilt in allen Display-Modi (`SHOW_FULL_IMAGE` und `COMPARE_WITH_PREVIEW`)
+  - Gilt wenn der Nutzer das Referenzbild kleiner als den Viewport skaliert
+  - Gilt wenn das Bild größer ist oder versetzt wurde: die sichtbare Schnittmenge von Bild und Viewport wird eingerahmt
+  - Wenn das Bild den Viewport vollständig ausfüllt: Rahmen ist visuell unverändert (Bildfläche = Viewport)
 - Subtil — schmaler Rahmen, kein Glow-Effekt
 - Kein Text-Label im Viewport (keine Kamera-Verschmutzung)
 - Erscheint **ausschließlich** während `isMarkerEditModeActive = true`
@@ -365,7 +371,7 @@ Kein Marker-Abschnitt — nichts ist vorhanden, was man ausblenden oder löschen
 
 - Sichtbar solange `isMarkerEditModeActive = true` UND `markersExist = false`
 - Text: „Long press to place a marker" / „Gedrückt halten, um Marker zu setzen"
-- Position: Vertikal und horizontal zentriert innerhalb des Overlay-Bereichs
+- Position: Vertikal und horizontal zentriert innerhalb des **sichtbaren Referenzbild-Rechtecks**. Wenn das Referenzbild kleiner als der Marker-Viewport ist (z. B. durch Letterboxing, Pillarboxing oder niedrige `overlayScale`), wird der Hint innerhalb der Bildfläche zentriert — nicht im gesamten Viewport.
 - Dieses Element gehört **nicht** zur Top-Left-Hint-Zone (CAMERA_WORKFLOW_UX_V1.md §12) und konkurriert nicht mit Overlay-Coverage-Warning oder Format-Mismatch-Hint
 - In Landscape-Orientierung: gleiche relative Position im Overlay-Bereich
 - Verschwindet sofort beim Setzen des ersten Markers
@@ -439,6 +445,8 @@ normalizedPos = (touchPos − overlayOriginOnScreen) / (referenceImageSize × ov
 ```
 
 Wenn `normalizedPos` außerhalb [0, 1] liegt → kein Marker erstellt (kein Clamping auf den Rand).
+
+**Visuelle Grenze ≠ Koordinatenmodell:** Die Änderung der Edit-Modus-Rahmen-Geometrie (§6.3) betrifft ausschließlich die visuelle Darstellung des Rahmens und des Leerstate-Hints. Das Koordinatenmodell ist davon vollständig unberührt — normalisierte Koordinaten bleiben in [0, 1] des Referenzbildraums. Bestehende gespeicherte Marker-Koordinaten werden durch diese Änderung nicht verändert. Marker-Erstellung bleibt ausschließlich auf sichtbare Referenzbild-Pixel beschränkt (§6.4).
 
 **Implementierungshinweis:** Die Formeln oben sind konzeptuell. Die tatsächliche Transformation muss exakt dieselben Overlay-Geometrieparameter verwenden, die CameraScreen für das Overlay-Rendering nutzt — insbesondere unter Berücksichtigung von `referenceImageDisplayMode`. Keine unabhängige Transformationsberechnung einführen; Marker-Positionen müssen konsistent mit dem bestehenden Overlay-Transform-System bleiben.
 
@@ -747,6 +755,17 @@ Keine Änderungen nötig: `SESSION_METADATA_V1.md`, `SESSION_ORIGINALS_V1.md`, `
 ---
 
 ## 13. Änderungsprotokoll
+
+### Revision 9 — 2026-07-01
+
+**Edit-Modus-Rahmen und Leerstate-Hint folgen dem sichtbaren Referenzbild-Rechteck (Produktentscheidung 2026-07-01):**
+
+- §3.5: Item 2 aktualisiert — „sichtbarer Referenzbild-Bereich" statt „Viewport"
+- §6.3 Edit-Modus-Indikator: Erste Bullet ersetzt. Der blaue Rahmen folgt dem transformierten sichtbaren Referenzbild-Rechteck, gekürzt auf den Marker-Viewport — nicht dem gesamten Viewport. Letterbox-/Pillarbox-Flächen sind ausgeschlossen. Gilt in allen Display-Modi. Bewegt sich mit `overlayScale` und `overlayOffset`. Wenn Bild = Viewport: visuell unverändert.
+- §6.3 Leerstate-Hint: Positionsregel präzisiert — Hint zentriert innerhalb des sichtbaren Referenzbild-Rechtecks, nicht des gesamten Viewports, wenn das Bild kleiner ist.
+- §6.7: Klarstellung ergänzt — Visuelle Rahmengrenze ≠ Koordinatenmodell. Normalisierte Koordinaten und bestehende Marker-Positionen bleiben unverändert. Marker-Erstellung weiterhin nur auf Referenzbild-Pixeln möglich (§6.4).
+
+Begründung: Marker gehören dem sichtbaren Referenzbild, nicht dem leeren Viewport-Raum. Der Rahmen kommuniziert den interaktiven Bereich; leere Viewport-Flächen außerhalb des Referenzbildes sind nicht interaktiv und werden nicht eingerahmt.
 
 ### Revision 8 — 2026-06-30
 

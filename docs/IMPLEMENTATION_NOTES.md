@@ -1359,3 +1359,80 @@ Implementation plan: `implementation_plans/REFERENCE_MARKER_DRAG_LOUPE_V1_IMPLEM
 - `assembleRelease` — BUILD SUCCESSFUL
 
 **Manual validation still required:** visual loupe appearance, crop geometry at various zoom levels, edge-clamping on a physical device, Done-area clearance on real navigation bar insets.
+
+---
+
+### Reference Markers — Visible Image Rect Boundary Fix (2026-07-01)
+
+Full specification: `ALIGNMENT_POINTS_V1.md` (Rev 9), `REFERENCE_MARKER_DRAG_LOUPE_V1.md` (Rev 3)
+Implementation plan: `implementation_plans/REFERENCE_MARKER_DRAG_LOUPE_V1_IMPLEMENTATION_PLAN.md` (Rev 2)
+
+**Problem:** Three UI elements incorrectly used the full viewport as their boundary reference. The edit-mode border, empty-state hint, and drag loupe clamping all followed the viewport, not the visible reference-image rectangle. In SHOW_FULL_IMAGE mode with mismatched aspect ratios (letterboxing/pillarboxing), these elements extended into the empty letterbox zones.
+
+**Fix:** All three elements now follow the **transformed visible reference-image rectangle** — the image rect after applying `displayMode`, `overlayScale`, `overlayOffsetX/Y`, image dimensions, and viewport dimensions, then clipped to the viewport.
+
+**Files changed:**
+
+- `app/src/main/java/com/isardomains/sameview/ui/camera/ReferenceMarkerOverlay.kt` — added `VisibleImageRect` data class and `computeVisibleImageRect()` helper; updated loupe clamping to image-rect-based (with per-axis viewport fallback when image rect < loupe diameter); updated empty-state hint from `fillMaxSize().Center` to `absoluteOffset` + `size` within image rect
+- `app/src/main/java/com/isardomains/sameview/ui/camera/CameraScreen.kt` — replaced old `MarkerEditBorder` (fixed aspect ratio border) with new implementation using `onSizeChanged` + `computeVisibleImageRect` + `absoluteOffset`; added `import androidx.compose.foundation.layout.absoluteOffset`
+- `app/src/androidTest/java/com/isardomains/sameview/ui/camera/ReferenceMarkersOverlayUITest.kt` — updated `setBorderContent`, `setOverlayContent`, `setLoupeOverlayContent` helpers with optional metadata/displayMode/offset/scale params; removed `isLandscape` param; added 5 new tests
+
+**Key implementation decisions:**
+
+- `computeVisibleImageRect()` uses identical `baseScale` formula as `normalizedToScreen()`: `max(vW/iW, vH/iH)` for COMPARE_WITH_PREVIEW, `min(vW/iW, vH/iH)` for SHOW_FULL_IMAGE — single source of truth
+- Per-axis viewport fallback for loupe clamping: when `imageRectW < loupeDiameterPx` on an axis, fall back to viewport bounds on that axis (handles extreme zoom-out edge case)
+- Done-area reservation remains viewport-bottom-relative: `minOf(clampBottom, vH - loupeDoneAreaPx)` — not image-rect-bottom-relative
+- `MarkerEditBorder` uses `onSizeChanged` + `absoluteOffset` pattern (not Canvas) so `boundsInRoot` in tests reflects the actual image rect position for bound assertions
+- Empty-state hint has a fallback to `fillMaxSize` center when `metadata == null` or viewport not yet measured
+
+**5 new tests added:**
+
+1. `border_framesVisibleImageRect_whenLetterboxed` — wide 2:1 image in SHOW_FULL_IMAGE; asserts border top > 0 and bottom < viewport height
+2. `border_matchesViewport_whenImageFillsViewport` — square image in COMPARE_WITH_PREVIEW; asserts border equals viewport bounds (±2 px)
+3. `hint_centeredInsideVisibleImageRect` — wide 2:1 image in SHOW_FULL_IMAGE; asserts hint text stays within computed image rect top/bottom
+4. `loupe_clampedToVisibleImageRect` — 1000×1000 square image in SHOW_FULL_IMAGE portrait (letterboxed); drag near image top downward; asserts loupe top ≥ imageRectTop (not 0)
+5. `loupe_fallsBackToViewport_whenImageRectSmallerThanLoupe` — overlayScale=0.05 (image rect ~54 px, far smaller than loupe diameter ~360 px); asserts loupe stays within viewport
+
+**Latest verified test state (2026-07-01):**
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+- `ReferenceMarkersOverlayUITest` focused run — **18/18 PASSED** on SM-S911B (Android 16): 13 pre-existing + 5 new boundary-fix tests
+- `connectedDebugAndroidTest` full suite — **802/802 PASSED** on SM-S911B (Android 16)
+- `assembleRelease` — BUILD SUCCESSFUL
+
+**Manual validation still required:** visual border alignment in SHOW_FULL_IMAGE letterboxed mode, empty-state hint position with mismatched aspect ratios, loupe clamping in pillarboxed layout on a physical device.
+
+---
+
+### Reference Markers — MarkerEditBorder Viewport-Coordinate Fix (2026-07-01)
+
+**Problem:** `MarkerEditBorder` call site in `CameraScreen.kt` passed only `Modifier.align(Alignment.Center)` — no size constraint. Inside `MarkerEditBorder` the outer Box does `.fillMaxSize()`, so `onSizeChanged` measured the full CameraScreen inner container (not the constrained 9:16/16:9 marker viewport). Since `overlayOffsetX/Y` are normalized to the constrained viewport, `computeVisibleImageRect` received the wrong `viewportWidth/Height`, causing the translation (`translationX = overlayOffsetX * viewportWidth`) to use the wrong scale factor. The border was positioned and sized correctly only when both offsets were zero.
+
+**Fix (single call site, `CameraScreen.kt`):** Changed the `MarkerEditBorder` call site modifier from `Modifier.align(Alignment.Center)` to the same orientation-conditional modifier used by `ReferenceMarkerOverlay`:
+
+- Portrait: `Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)`
+- Landscape: `Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)`
+
+`computeVisibleImageRect`, `normalizedToScreen()`, and `screenToNormalized()` are unchanged.
+
+**Files changed:**
+
+- `app/src/main/java/com/isardomains/sameview/ui/camera/CameraScreen.kt` — call site modifier for `MarkerEditBorder` (Layer 2.7) now matches `ReferenceMarkerOverlay` viewport constraint
+- `app/src/androidTest/java/com/isardomains/sameview/ui/camera/ReferenceMarkersOverlayUITest.kt` — `setBorderContent` helper now wraps `MarkerEditBorder` in the same constrained Box (tagged `test_viewport`); updated `border_framesVisibleImageRect_whenLetterboxed` (non-zero `overlayOffsetY`, tight position assertion using constrained viewport height); updated `border_matchesViewport_whenImageFillsViewport` (compares against `test_viewport` bounds, not root); added 3 new regression tests
+
+**3 new tests:**
+
+1. `border_neverExceedsViewport_whenImageLargerThanViewport` — large image in COMPARE_WITH_PREVIEW; border must not exceed constrained viewport bounds
+2. `border_topAndBottom_correctForLandscapeImageWithNonZeroOffsetY` — 16:9 image in SHOW_FULL_IMAGE portrait with `overlayOffsetY = -0.1`; border top/bottom must match position computed from constrained viewport height
+3. `border_recomputesCorrectly_inLandscapeViewport` — 16:9 image in COMPARE_WITH_PREVIEW in landscape 16:9 viewport; border must fill the landscape viewport end-to-end
+
+**Latest verified test state (2026-07-01):**
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+- `ReferenceMarkersOverlayUITest` focused run — **21/21 PASSED** on SM-S911B (Android 16): 18 prior tests + 3 new viewport-coordinate-fix tests
+- `connectedDebugAndroidTest` full suite — **805/805 PASSED** on SM-S911B (Android 16)
+- `assembleRelease` — BUILD SUCCESSFUL
+
+**Manual validation still required:** border alignment with non-zero overlay offset on a physical device (three screenshot cases: letterboxed portrait, pillarboxed landscape, COMPARE_WITH_PREVIEW with panned image).

@@ -57,6 +57,73 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+/**
+ * Transformed visible reference-image rectangle clipped to the marker viewport.
+ *
+ * All coordinates are in viewport pixels.
+ */
+internal data class VisibleImageRect(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
+)
+
+/**
+ * Computes the visible reference-image rectangle in viewport pixels.
+ *
+ * Uses the same baseScale formula as [normalizedToScreen]. The result is intersected with
+ * [0, 0, viewportWidth, viewportHeight] so it never exceeds the viewport.
+ */
+internal fun computeVisibleImageRect(
+    viewportWidth: Float,
+    viewportHeight: Float,
+    imageWidth: Float,
+    imageHeight: Float,
+    displayMode: ReferenceImageDisplayMode,
+    overlayOffsetX: Float,
+    overlayOffsetY: Float,
+    overlayScale: Float
+): VisibleImageRect {
+    if (viewportWidth <= 0f || viewportHeight <= 0f || imageWidth <= 0f || imageHeight <= 0f) {
+        return VisibleImageRect(0f, 0f, viewportWidth, viewportHeight)
+    }
+    val baseScale = when (displayMode) {
+        ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW ->
+            max(viewportWidth / imageWidth, viewportHeight / imageHeight)
+        ReferenceImageDisplayMode.SHOW_FULL_IMAGE ->
+            min(viewportWidth / imageWidth, viewportHeight / imageHeight)
+    }
+    val displayedWidth = imageWidth * baseScale
+    val displayedHeight = imageHeight * baseScale
+
+    val translationX: Float
+    val translationY: Float
+    if (displayMode == ReferenceImageDisplayMode.COMPARE_WITH_PREVIEW) {
+        val scaledWidth = displayedWidth * overlayScale
+        val scaledHeight = displayedHeight * overlayScale
+        val maxTX = max(0f, (scaledWidth - viewportWidth) / 2f)
+        val maxTY = max(0f, (scaledHeight - viewportHeight) / 2f)
+        translationX = (overlayOffsetX * viewportWidth).coerceIn(-maxTX, maxTX)
+        translationY = (overlayOffsetY * viewportHeight).coerceIn(-maxTY, maxTY)
+    } else {
+        translationX = overlayOffsetX * viewportWidth
+        translationY = overlayOffsetY * viewportHeight
+    }
+
+    val imageLeft = viewportWidth / 2f - (imageWidth * baseScale * overlayScale) / 2f + translationX
+    val imageTop = viewportHeight / 2f - (imageHeight * baseScale * overlayScale) / 2f + translationY
+    val imageRight = imageLeft + imageWidth * baseScale * overlayScale
+    val imageBottom = imageTop + imageHeight * baseScale * overlayScale
+
+    return VisibleImageRect(
+        left = imageLeft.coerceIn(0f, viewportWidth),
+        top = imageTop.coerceIn(0f, viewportHeight),
+        right = imageRight.coerceIn(0f, viewportWidth),
+        bottom = imageBottom.coerceIn(0f, viewportHeight)
+    )
+}
+
 // ── Loupe constants (NOT part of ReferenceMarkerDefaults) ──────────────────
 private val LOUPE_DIAMETER_DP = 120.dp
 private val LOUPE_BORDER_STROKE_DP = 1.5.dp
@@ -629,11 +696,27 @@ internal fun ReferenceMarkerOverlay(
                 val defaultCenterX = markerScreen.x
                 val defaultCenterY = markerScreen.y - loupeRadiusPx - loupeFingerOffsetPx
 
-                // Clamp to viewport (spec §7)
-                val clampMinX = loupeRadiusPx
-                val clampMaxX = vW - loupeRadiusPx
-                val clampMinY = loupeRadiusPx
-                val clampMaxY = vH - loupeRadiusPx - loupeDoneAreaPx
+                // Clamp to visible image rect (primary), with per-axis viewport fallback (spec §7)
+                val imgRect = computeVisibleImageRect(
+                    viewportWidth = vW, viewportHeight = vH,
+                    imageWidth = iW, imageHeight = iH,
+                    displayMode = displayMode,
+                    overlayOffsetX = overlayOffsetX, overlayOffsetY = overlayOffsetY,
+                    overlayScale = overlayScale
+                )
+                val imgRectW = imgRect.right - imgRect.left
+                val imgRectH = imgRect.bottom - imgRect.top
+                // Fall back to viewport when image rect is smaller than loupe diameter on that axis
+                val clampLeft   = if (imgRectW < loupeDiameterPx) 0f  else imgRect.left
+                val clampRight  = if (imgRectW < loupeDiameterPx) vW  else imgRect.right
+                val clampTop    = if (imgRectH < loupeDiameterPx) 0f  else imgRect.top
+                val clampBottom = if (imgRectH < loupeDiameterPx) vH  else imgRect.bottom
+
+                val clampMinX = clampLeft + loupeRadiusPx
+                val clampMaxX = clampRight - loupeRadiusPx
+                val clampMinY = clampTop + loupeRadiusPx
+                // Done-area reservation is always viewport-bottom-relative (spec §7)
+                val clampMaxY = minOf(clampBottom, vH - loupeDoneAreaPx) - loupeRadiusPx
 
                 val clampedX = defaultCenterX.coerceIn(clampMinX, clampMaxX)
                 val aboveCenterY = defaultCenterY.coerceIn(clampMinY, clampMaxY)
@@ -781,19 +864,52 @@ internal fun ReferenceMarkerOverlay(
             }
         }
 
-        // ── Empty-state hint: centered in the overlay when in edit mode with no markers ──
+        // ── Empty-state hint: centered within the visible image rect (spec §6.3) ──
         if (isEditModeActive && markers.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = emptyHintText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = SameViewTextPrimary.copy(alpha = 0.75f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 24.dp)
+            val vSize = viewportSizeState.value
+            val vW = vSize.width.toFloat()
+            val vH = vSize.height.toFloat()
+
+            if (metadata != null && vW > 0f && vH > 0f) {
+                val rect = computeVisibleImageRect(
+                    viewportWidth = vW, viewportHeight = vH,
+                    imageWidth = metadata.orientedWidth.toFloat(),
+                    imageHeight = metadata.orientedHeight.toFloat(),
+                    displayMode = displayMode,
+                    overlayOffsetX = overlayOffsetX, overlayOffsetY = overlayOffsetY,
+                    overlayScale = overlayScale
                 )
+                Box(
+                    modifier = Modifier
+                        .absoluteOffset { IntOffset(rect.left.roundToInt(), rect.top.roundToInt()) }
+                        .size(
+                            width = with(density) { (rect.right - rect.left).toDp() },
+                            height = with(density) { (rect.bottom - rect.top).toDp() }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = emptyHintText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SameViewTextPrimary.copy(alpha = 0.75f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                }
+            } else {
+                // Fallback: center in full viewport (no metadata yet or viewport not yet measured)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = emptyHintText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SameViewTextPrimary.copy(alpha = 0.75f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                }
             }
         }
     }

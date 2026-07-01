@@ -196,27 +196,47 @@ Horizontally, the loupe center aligns with the marker screen X position:
 loupeCenterX_default = markerScreenX
 ```
 
-### Clamping to viewport
+### Clamping to visible image rect (primary) with viewport fallback
 
-The loupe must remain fully inside the editable overlay viewport at all times. The viewport boundary for clamping purposes is the same bounding box used by `ReferenceMarkerOverlay` (the viewport area passed via `Modifier.onSizeChanged`).
+The loupe visual container should remain within the **visible reference-image rectangle clipped to the marker viewport** whenever possible. This is the same transformed image area used by the edit-mode border (`ALIGNMENT_POINTS_V1.md §6.3`): the image rect after applying `displayMode`, `overlayScale`, and `overlayOffset`, intersected with `[0, 0, viewportWidth, viewportHeight]`.
 
-An additional bottom margin is subtracted to avoid overlapping the Done button bar area:
+The preferred clamp bounds are derived from the visible image rect:
 
 ```
-clampBoundsTop    = 0
-clampBoundsLeft   = 0
-clampBoundsRight  = viewportWidth − loupeDiameter
-clampBoundsBottom = viewportHeight − loupeDiameter − doneButtonAreaHeight
+clampBoundsTop    = imageRectTop
+clampBoundsLeft   = imageRectLeft
+clampBoundsRight  = imageRectRight  − loupeDiameter
+clampBoundsBottom = imageRectBottom − loupeDiameter − doneButtonAreaHeight
 ```
 
-Where `doneButtonAreaHeight` is the effective height reservation for the center bottom bar (Done button area). The V1 default is **88.dp** — a conservative estimate covering the Done button height plus bottom system insets on typical devices. If the measured height of the bottom action area is already available at the `ReferenceMarkerOverlay` call site without layout restructuring, that measured value may be used instead. No layout restructuring is required solely to obtain this measurement; 88.dp is the authoritative fallback. See OQ-2.
+Where `doneButtonAreaHeight` is the effective height reservation for the Done button area. The V1 default is **88.dp**. This reservation is viewport-bottom-relative regardless of the image rect position. See OQ-2.
+
+**Fallback when the image rect is smaller than the loupe diameter:**
+
+If `imageRectRight − imageRectLeft < loupeDiameter` or `imageRectBottom − imageRectTop < loupeDiameter`, fall back to the full viewport on the affected axis:
+
+```
+clampBoundsTop    = max(imageRectTop,   0)
+clampBoundsLeft   = max(imageRectLeft,  0)
+clampBoundsRight  = min(imageRectRight, viewportWidth)  − loupeDiameter
+clampBoundsBottom = min(imageRectBottom,viewportHeight) − loupeDiameter − doneButtonAreaHeight
+```
+
+If both axes fall below the loupe diameter, clamp to the full viewport and keep the loupe as close as possible to the image rect center. The loupe must never leave the viewport and must avoid overlapping bottom controls when possible.
 
 The final loupe center is:
 
 ```
-loupeCenterX = clamp(loupeCenterX_default, loupeDiameter/2, viewportWidth − loupeDiameter/2)
-loupeCenterY = clamp(loupeCenterY_default, loupeDiameter/2, viewportHeight − loupeDiameter/2 − doneButtonAreaHeight)
+loupeCenterX = clamp(loupeCenterX_default, clampBoundsLeft  + loupeDiameter/2, clampBoundsRight  + loupeDiameter/2)
+loupeCenterY = clamp(loupeCenterY_default, clampBoundsTop   + loupeDiameter/2, clampBoundsBottom + loupeDiameter/2)
 ```
+
+**Invariants that do not change:**
+
+- Crop content remains centered on the true marker normalized coordinate regardless of loupe position
+- Loupe position does not affect the marker coordinate
+- 88.dp Done-area reservation is always measured from the viewport bottom, not the image rect bottom
+- Image-edge dark fill behavior (§8) is unchanged
 
 ### Fallback when no space above
 
@@ -423,10 +443,11 @@ All tests are instrumentation tests, consistent with the existing marker test su
 
 | Test | Assertion |
 |---|---|
-| `loupe_clamped_nearTopEdge` | Drag marker to top edge → loupe remains within viewport top bound |
-| `loupe_clamped_nearBottomEdge` | Drag marker to bottom edge → loupe remains above Done button area |
-| `loupe_clamped_nearLeftEdge` | Drag marker to left edge → loupe remains within viewport left bound |
-| `loupe_clamped_nearRightEdge` | Drag marker to right edge → loupe remains within viewport right bound |
+| `loupe_clamped_nearTopEdge` | Drag marker to top edge → loupe remains within visible image rect top bound (or viewport top if image rect smaller than loupe) |
+| `loupe_clamped_nearBottomEdge` | Drag marker to bottom edge → loupe remains above Done button area; within image rect bottom bound when possible |
+| `loupe_clamped_nearLeftEdge` | Drag marker to left edge → loupe remains within image rect left bound when possible |
+| `loupe_clamped_nearRightEdge` | Drag marker to right edge → loupe remains within image rect right bound when possible |
+| `loupe_clamped_imageSmallerThanLoupe` | Image rect smaller than loupe diameter → loupe falls back to viewport clamping; remains inside viewport |
 
 ### Marker coordinate integrity
 
@@ -456,11 +477,13 @@ Content mapping tests are marked as **manual verification only** in V1. Automate
 
 ### ALIGNMENT_POINTS_V1.md
 
-No conflicts. The loupe is a new sub-feature that `ALIGNMENT_POINTS_V1.md` does not address. The spec's instruction that "Kein Code darf Marker-Farben, -Größen oder -Touch-Radien inline hardcoden" applies only to the production marker visual (`ReferenceMarkerDefaults`). The loupe-internal marker indicator uses loupe-specific constants that are not production marker sizes and must not be added to `ReferenceMarkerDefaults`.
+The loupe is a new sub-feature that `ALIGNMENT_POINTS_V1.md` originally did not address. The spec's instruction that "Kein Code darf Marker-Farben, -Größen oder -Touch-Radien inline hardcoden" applies only to the production marker visual (`ReferenceMarkerDefaults`). The loupe-internal marker indicator uses loupe-specific constants that are not production marker sizes and must not be added to `ReferenceMarkerDefaults`.
 
 `ALIGNMENT_POINTS_V1.md` §6.4 states markers are created by long-press, not drag. The loupe correctly appears only on drag of an **existing** marker, not during long-press creation.
 
 `ALIGNMENT_POINTS_V1.md` §11 (Explicit Non-Goals) does not exclude a drag loupe. The non-goals listed are: persistence, export, annotations, AI, numbered markers, capture in edit mode, etc. A transient drag-only display element does not conflict with any of them.
+
+**Revision 9 update (2026-07-01):** `ALIGNMENT_POINTS_V1.md §6.3` was updated to define the edit-mode border as the transformed visible reference-image rectangle clipped to the viewport, not the full viewport. The loupe clamping in §7 of this document is updated accordingly: the loupe clamps to the visible image rect when possible, falling back to the viewport when the image rect is smaller than the loupe diameter. This alignment means the loupe stays within the interactable area rather than drifting into empty letterbox or pillarbox zones.
 
 ### CAMERA_WORKFLOW_UX_V1.md
 
@@ -505,6 +528,22 @@ If the Done button composable or its parent slot already reports a measured heig
 ---
 
 ## 15. Changelog
+
+### Revision 3 — 2026-07-01
+
+**Loupe clamping updated to visible reference-image rectangle (alignment with ALIGNMENT_POINTS_V1.md Revision 9):**
+
+§7 "Clamping to viewport" renamed and rewritten as "Clamping to visible image rect (primary) with viewport fallback":
+
+- Primary clamp bounds are the visible reference-image rect clipped to the marker viewport (same rect as the edit-mode border)
+- Fallback to viewport bounds on any axis where the image rect is smaller than the loupe diameter
+- The loupe must never leave the viewport; must avoid overlapping bottom controls when possible
+- 88.dp Done-area reservation remains viewport-bottom-relative, not image-rect-relative
+- Crop content and marker coordinate invariants are unchanged
+
+§12 position/clamping tests: assertions updated to reference visible image rect bounds; new `loupe_clamped_imageSmallerThanLoupe` test added.
+
+§13 ALIGNMENT_POINTS_V1.md note: added explanation of how Revision 9 change aligns border and loupe clamping boundaries.
 
 ### Revision 2 — 2026-06-30
 
