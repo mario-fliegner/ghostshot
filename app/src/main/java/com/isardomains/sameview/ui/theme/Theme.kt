@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 
 private val SameViewDarkColorScheme = darkColorScheme(
     primary = SameViewAccent,
+    onPrimary = Color.White,
     background = SameViewAppBackground,
     surface = SameViewAppSurface,
     surfaceVariant = SameViewSliderInactive,
