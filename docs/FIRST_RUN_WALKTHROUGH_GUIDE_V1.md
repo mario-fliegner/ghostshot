@@ -300,12 +300,58 @@ The walkthrough must not:
 
 Walkthrough pages:
 
-| Page | Title | Text | Illustration intent |
-| --- | --- | --- | --- |
-| 1 | Choose a photo | Pick a photo<br>to recreate. | Reference photo selection. |
-| 2 | Align the overlay | Move and scale the overlay<br>to match the original photo. | Transparent overlay positioning and scaling. |
-| 3 | Capture | Take a new photo from<br>the same position. | Capture after alignment. |
-| 4 | Compare | Compare the original<br>and your new photo. | SameView comparison slider. |
+| Page | Title | Navigation |
+| --- | --- | --- |
+| 1 | Then and now | Skip + Next |
+| 2 | Align the overlay | Skip + Back + Next |
+| 3 | Take the shot | Skip + Back + Next |
+| 4 | See what changed | Back + Start |
+
+### Page 1 — Then and now
+
+Purpose: Establish what SameView does and why the user would want it before any workflow step is introduced. This page leads with the outcome — the payoff — rather than the first task in the workflow. It communicates the photo source, the location requirement, and the change-over-time concept in order, so that later pages can build on established context rather than introduce ideas from nothing.
+
+Body copy:
+
+Pick an old photo.
+Go back to where it was taken.
+See how it's changed.
+
+The three-fragment structure is intentional. Each fragment conveys one concept: the user provides an existing photo from their collection; they must physically return to where the original photo was taken; the result is a comparison that shows change over time. The location requirement is introduced here so that users encounter it once before page 2 asks them to act on it.
+
+Illustration intent: comparison result. The park scene showing the winter tree on the left ("Then") and the summer tree on the right ("Now"), divided by a comparison slider positioned at approximately 75% from the left edge. "Then" (left) fills approximately 75% of the illustration; "Now" (right) fills approximately 25%. "Then" and "Now" labels visible inside the illustration.
+
+### Page 2 — Align the overlay
+
+Body copy:
+
+Go back to the original spot. Drag and scale the ghost photo over the live camera view until it lines up.
+
+Two sentences are used on this page only. The first reinforces the location requirement introduced on page 1. The second describes the alignment action. This is the most conceptually complex step in the workflow and warrants two sentences.
+
+Illustration intent: live camera view of the summer park scene. Ghost overlay of the winter tree visible at approximately 50% opacity, deliberately misaligned — shifted visibly off-position relative to the camera feed. Corner handles visible on the overlay to communicate that it can be dragged and scaled. Alignment is clearly incomplete.
+
+This illustration must not appear as two separate photos, vertically stacked photos, or a split-screen editor. It must read as one screen, one camera feed, one translucent layer floating on top.
+
+### Page 3 — Take the shot
+
+Body copy:
+
+Once the overlay lines up, tap the shutter from the same spot.
+
+"From the same spot" briefly reinforces the location requirement without re-explaining it. Page 2 has already established the concept.
+
+Illustration intent: same park camera scene. Alignment is complete. The ghost overlay is at approximately 15% opacity — nearly invisible, settled. The shutter button dominates the lower third of the illustration and is the primary visual focus of this page. A press state is shown on the shutter button. This page must read visually as the "press something" page, clearly distinct from page 2's "move something" illustration. The camera feed and nearly-invisible overlay are background context; the shutter button is foreground content.
+
+### Page 4 — See what changed
+
+Body copy:
+
+Drag the slider to reveal then and now.
+
+"Then and now" in the body copy deliberately echoes page 1's title. The walkthrough opens and closes on the same idea, giving the four-page sequence a sense of arrival.
+
+Illustration intent: comparison result, same park scene. Slider positioned at approximately 22% from the left edge — heavily offset from page 1's 75% position. "Then" (left) fills approximately 22% of the illustration; "Now" (right) fills approximately 78%. "Then" and "Now" labels visible. The slider handle is prominent and clearly off-center toward the left. Despite sharing the same UI pattern as page 1, this illustration must read visually distinct at a glance due to the difference in slider position: page 1 emphasises "Then", page 4 emphasises "Now". The two pages are intentional visual mirrors: both expose approximately 22–25% of the minority side, and both lean strongly and unambiguously toward their respective dominant state.
 
 Walkthrough visual direction:
 
@@ -314,24 +360,87 @@ Walkthrough visual direction:
 - Visuals communicate the workflow conceptually and do not reproduce exact production UI screens.
 - Page 2 must clearly communicate a reference overlay on top of a live camera view, including overlay positioning and scaling.
 - Page 2 must not appear as two separate photos, vertically stacked photos, or a before/after comparison.
+- Page 3 must be visually distinct from page 2 despite sharing the same camera scene. The shutter button must be the dominant element.
+
+Illustration system — approved theme:
+
+A single park scene with one tree is used across all four walkthrough pages. All illustrations depict the same location from the same angle.
+
+Then state:
+
+- Winter
+- Bare trunk and branches visible
+- Muted, warm-toned cast
+
+Now state:
+
+- Late summer
+- Same trunk, same position
+- Full leafy canopy
+- Cooler, greener cast
+
+Stable alignment anchors — unchanged between Then and Now:
+
+- Trunk position
+- Path edge
+- Ground line
+
+These anchors are visible in both states and serve as the visual reference points for overlay alignment in the page 2 illustration. The crown is what changes; the trunk and path do not.
+
+Rationale for the park scene theme:
+
+- Time passage is immediately legible without labels. A bare tree and a full-canopy tree read as different seasons or years without any explanation.
+- Simpler to render as Compose shapes than architecture: trunk silhouette, crown silhouette, ground line, path edge.
+- Works correctly for all four illustration types: comparison slider (pages 1 and 4), alignment overlay (page 2), and capture moment (page 3).
+- Culturally neutral. Not tied to any specific architectural style or geography.
+- Memorable. Before/after illustrations typically use buildings; a park scene with a tree is distinctive and avoids a visual category that is overused in this genre.
+
+Visual story narrative:
+
+The four illustrations tell a single coherent story. The user sees the destination first, learns the process in two steps, and returns to the destination.
+
+| Page | Illustration role | Key visual element |
+| --- | --- | --- |
+| 1 | Outcome — show the reward first | Slider at ~75% from left (Then ~75%, Now ~25%) |
+| 2 | Process — alignment step | Ghost overlay misaligned, corner handles visible |
+| 3 | Process — capture moment | Overlay near-invisible, shutter button dominant |
+| 4 | Outcome revisited — reward arrived | Slider at ~22% toward Now |
+
+The slider positions on pages 1 and 4 are intentionally different. Page 1 shows more "Then" (the past, where the workflow begins). Page 4 shows more "Now" (the result the workflow produces). Despite using the same UI, the two illustrations must be distinguishable at a glance.
 
 Walkthrough branding:
 
-- Display `SameView` at the top of the walkthrough.
+- The SameView wordmark occupies a reserved layout slot at the top of the walkthrough screen.
+- Pages 1 and 2 use full visual illustrations. On these pages the wordmark is intentionally not rendered, but its layout slot remains allocated with a constant height. The reserved space must be identical on every page so that the image slot position is unaffected by wordmark visibility.
+- Pages 3 and 4 render the SameView wordmark text within the reserved slot.
 - No separate logo treatment is required.
 - Use existing SameView colors and visual language.
 
 Progress indicator:
 
 - Use progress dots only, for example `● ○ ○ ○`.
+- Progress dots are not clickable. They are visual position indicators only.
 - Do not use step counters, numeric counters, or percentage indicators.
 
 Navigation buttons:
 
-- Pages 1-3: `Skip` and `Next`.
-- Page 4: `Back` and `Start`.
+- Page 1: `Skip` (low emphasis, left) and `Next` (high emphasis, right).
+- Page 2: `Skip` (low emphasis, left), `Back` (medium emphasis, center), and `Next` (high emphasis, right).
+- Page 3: `Skip` (low emphasis, left), `Back` (medium emphasis, center), and `Next` (high emphasis, right).
+- Page 4: `Back` (medium emphasis, left) and `Start` (high emphasis, right).
+- `Skip` is available on pages 1–3 only. There is no `Skip` on page 4.
+- `Start` replaces `Next` on the final page. `Start` is not a skip action; it completes the walkthrough and proceeds to the camera.
+- Swipe left and right is enabled across all pages.
 - Use existing SameView button components, styling, typography, shapes, and color system.
 - Do not introduce walkthrough-specific button styling.
+
+Rationale for the three-button model on pages 2 and 3:
+
+`Skip` and `Back` serve different functions and must both be available on intermediate pages. `Skip` exits the walkthrough entirely. `Back` returns to the previous page. Removing `Skip` from intermediate pages forces a user who decides to exit mid-walkthrough to navigate backward to find an exit, which adds friction for users who have already committed time to earlier pages. Both actions must remain available simultaneously.
+
+Future UX evaluation — page 1 title:
+
+The approved title is `Then and now`. An alternative — `Same place. Different time.` — was evaluated during the UX analysis and set aside in favour of the current title. This is not an open blocker and must not delay implementation. It may be re-evaluated in a future UX review if there is evidence that the current title underperforms.
 
 Responsive behavior:
 
@@ -343,6 +452,37 @@ Responsive behavior:
 - Title, text, and button sizes remain broadly consistent with phone sizing.
 - Tablet layouts must not stretch across the full width.
 - Tablet layouts must not appear as a narrow phone column.
+
+Walkthrough layout model:
+
+The walkthrough screen is divided into four fixed layout slots. Slot positions must not shift when the user navigates between pages.
+
+Portrait (single-column) slot order:
+
+1. Image slot — the mockup illustration. The slot height is determined by the image aspect ratio and does not change between pages.
+2. Text slot — the page title and body copy. This is the only slot that absorbs variation in content length. The slot boundaries are fixed. The title and body copy are top-aligned within the slot. Remaining space accumulates below the body text, between the body and the progress dots slot. Short body text produces more space below it; longer body text reduces that space. The slot itself does not grow or shrink between pages. Layout stability takes precedence over equalized copy lengths across pages.
+3. Progress dots slot — the row of progress indicator dots. The slot position is fixed directly below the text slot on every page.
+4. Navigation button slot — the row of navigation buttons. The slot position is fixed directly below the progress dots slot on every page.
+
+Landscape (two-column) arrangement:
+
+The left column contains the image slot. The right column contains the wordmark slot, text slot, progress dots slot, and navigation button slot. In landscape the wordmark slot is placed at the top of the right column rather than above the two-column row. This placement allows the row to span the full safe-area height without a top offset, so the composed two-column group is vertically centered within the safe area. The wordmark slot height (28dp) and content rules are identical to portrait: pages 1 and 2 leave the slot empty; pages 3 and 4 render the SameView wordmark text within it.
+
+Stability requirements:
+
+- The image slot position must be identical across all four pages.
+- The progress dots slot position must be identical across all four pages.
+- The navigation button slot position must be identical across all four pages.
+- All variation in title and body text length between pages must be absorbed inside the text slot only.
+- The text slot must be sized to accommodate the tallest title and body combination present in the walkthrough content.
+- Layout stability takes precedence over equal text line counts across pages. Pages are not required to contain the same amount of text.
+
+Forbidden implementation patterns:
+
+- Fake line breaks, empty lines, or placeholder strings used to equalise page heights are forbidden.
+- Layout strategies that redistribute gaps between slots in response to content height changes are forbidden. These strategies move every slot position when content height changes and do not satisfy the stability requirements.
+- Centering a variable-height block that bundles the text slot together with the dots slot and button slot is forbidden. This pattern causes the image and fixed-position slots to shift whenever text height changes.
+- Showing or hiding the wordmark slot without reserving constant layout space for it is forbidden. The wordmark slot must occupy the same vertical extent on every page regardless of whether the wordmark text is rendered on that page.
 
 Completion rules:
 
@@ -793,8 +933,25 @@ Walkthrough tests:
 - Guide replay Skip does not reset walkthrough completion or tip state
 - Guide replay Start does not reset walkthrough completion or tip state
 - replay returns to Guide
-- Back/Next navigate pages correctly
-- walkthrough progress dots render and update correctly
+- page 1 shows Skip and Next; no Back is present
+- page 2 shows Skip, Back, and Next
+- page 3 shows Skip, Back, and Next
+- page 4 shows Back and Start; no Skip and no Next are present
+- Skip on pages 1, 2, and 3 exits the walkthrough
+- Back on page 2 returns to page 1
+- Back on page 3 returns to page 2
+- Back on page 4 returns to page 3
+- Next on page 1 advances to page 2
+- Next on page 2 advances to page 3
+- Next on page 3 advances to page 4
+- Start on page 4 completes the walkthrough
+- swipe left advances to the next page
+- swipe right returns to the previous page
+- swipe does not navigate past page 4 or before page 1
+- replay entry uses the same page navigation model as first-run entry
+- progress dots advance correctly during button navigation
+- progress dots advance correctly during swipe navigation
+- progress dots are not interactive
 - no walkthrough over permission/rationale/permanent denial states
 - no normal camera content or live preview while first-run gate state is loading
 - rotation/recomposition does not reopen walkthrough after completion

@@ -1,13 +1,13 @@
-﻿package com.isardomains.sameview.guide
+package com.isardomains.sameview.guide
 
 import androidx.annotation.StringRes
 import com.isardomains.sameview.R
 
 enum class WalkthroughPageId {
-    CHOOSE_PHOTO,
+    THEN_AND_NOW,
     ALIGN_OVERLAY,
-    CAPTURE,
-    COMPARE
+    TAKE_SHOT,
+    SEE_WHAT_CHANGED
 }
 
 data class WalkthroughPage(
@@ -19,9 +19,9 @@ data class WalkthroughPage(
 object WalkthroughContent {
     val pages: List<WalkthroughPage> = listOf(
         WalkthroughPage(
-            id = WalkthroughPageId.CHOOSE_PHOTO,
-            titleRes = R.string.walkthrough_page_choose_photo_title,
-            bodyRes = R.string.walkthrough_page_choose_photo_body
+            id = WalkthroughPageId.THEN_AND_NOW,
+            titleRes = R.string.walkthrough_page_then_and_now_title,
+            bodyRes = R.string.walkthrough_page_then_and_now_body
         ),
         WalkthroughPage(
             id = WalkthroughPageId.ALIGN_OVERLAY,
@@ -29,14 +29,14 @@ object WalkthroughContent {
             bodyRes = R.string.walkthrough_page_align_overlay_body
         ),
         WalkthroughPage(
-            id = WalkthroughPageId.CAPTURE,
-            titleRes = R.string.walkthrough_page_capture_title,
-            bodyRes = R.string.walkthrough_page_capture_body
+            id = WalkthroughPageId.TAKE_SHOT,
+            titleRes = R.string.walkthrough_page_take_shot_title,
+            bodyRes = R.string.walkthrough_page_take_shot_body
         ),
         WalkthroughPage(
-            id = WalkthroughPageId.COMPARE,
-            titleRes = R.string.walkthrough_page_compare_title,
-            bodyRes = R.string.walkthrough_page_compare_body
+            id = WalkthroughPageId.SEE_WHAT_CHANGED,
+            titleRes = R.string.walkthrough_page_see_what_changed_title,
+            bodyRes = R.string.walkthrough_page_see_what_changed_body
         )
     )
 }

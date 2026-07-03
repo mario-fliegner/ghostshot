@@ -168,17 +168,19 @@
     <string name="about_feedback_no_email_app">Keine E-Mail-App gefunden</string>
 
     <!-- Walkthrough -->
-    <string name="walkthrough_page_choose_photo_title">Foto waehlen</string>
-    <string name="walkthrough_page_choose_photo_body">Waehle ein Foto,\ndas du nachstellen moechtest.</string>
-    <string name="walkthrough_page_align_overlay_title">Overlay ausrichten</string>
-    <string name="walkthrough_page_align_overlay_body">Verschiebe und skaliere das Overlay,\nbis es zum Original passt.</string>
-    <string name="walkthrough_page_capture_title">Aufnehmen</string>
-    <string name="walkthrough_page_capture_body">Nimm ein neues Foto\naus derselben Position auf.</string>
-    <string name="walkthrough_page_compare_title">Vergleichen</string>
-    <string name="walkthrough_page_compare_body">Vergleiche das Original\nmit deinem neuen Foto.</string>
-    <string name="walkthrough_skip">Ueberspringen</string>
+    <string name="walkthrough_page_then_and_now_title">Einen Moment nachstellen</string>
+    <string name="walkthrough_page_then_and_now_body">Wähle ein Foto aus.\nGeh zurück, wo es aufgenommen wurde.\nSieh, wie es sich verändert hat.</string>
+    <string name="walkthrough_page_align_overlay_title">Foto ausrichten</string>
+    <string name="walkthrough_page_align_overlay_body">Geh zurück an denselben Standort. Verschiebe und skaliere es, bis alles passt.</string>
+    <string name="walkthrough_page_take_shot_title">Foto aufnehmen</string>
+    <string name="walkthrough_page_take_shot_body">Wenn alles passt, halte den Moment fest.</string>
+    <string name="walkthrough_page_see_what_changed_title">Sieh, was sich verändert hat</string>
+    <string name="walkthrough_page_see_what_changed_body">Das Foto, das du ausgewählt hast.\nDer Moment, den du nachgestellt hast.\nDer Unterschied zwischen beiden.</string>
+    <string name="walkthrough_then_label">Damals</string>
+    <string name="walkthrough_now_label">Jetzt</string>
+    <string name="walkthrough_skip">Überspringen</string>
     <string name="walkthrough_next">Weiter</string>
-    <string name="walkthrough_back">Zurueck</string>
+    <string name="walkthrough_back">Zurück</string>
     <string name="walkthrough_start">Start</string>
 
     <!-- Guide -->

@@ -177,14 +177,16 @@
 
 
     <!-- Walkthrough -->
-    <string name="walkthrough_page_choose_photo_title">Choose a photo</string>
-    <string name="walkthrough_page_choose_photo_body">Pick a photo\nto recreate.</string>
-    <string name="walkthrough_page_align_overlay_title">Align the overlay</string>
-    <string name="walkthrough_page_align_overlay_body">Move and scale the overlay\nto match the original photo.</string>
-    <string name="walkthrough_page_capture_title">Capture</string>
-    <string name="walkthrough_page_capture_body">Take a new photo from\nthe same position.</string>
-    <string name="walkthrough_page_compare_title">Compare</string>
-    <string name="walkthrough_page_compare_body">Compare the original\nand your new photo.</string>
+    <string name="walkthrough_page_then_and_now_title">Recreate a moment</string>
+    <string name="walkthrough_page_then_and_now_body">Pick a photo.\nGo back to where it was taken.\nSee how it\'s changed.</string>
+    <string name="walkthrough_page_align_overlay_title">Line up the photo</string>
+    <string name="walkthrough_page_align_overlay_body">Return to the same spot. Move and resize it until everything lines up.</string>
+    <string name="walkthrough_page_take_shot_title">Take the shot</string>
+    <string name="walkthrough_page_take_shot_body">When everything lines up, capture the moment.</string>
+    <string name="walkthrough_page_see_what_changed_title">See what changed</string>
+    <string name="walkthrough_page_see_what_changed_body">The photo you chose.\nThe moment you recreated.\nThe difference between them.</string>
+    <string name="walkthrough_then_label">Then</string>
+    <string name="walkthrough_now_label">Now</string>
     <string name="walkthrough_skip">Skip</string>
     <string name="walkthrough_next">Next</string>
     <string name="walkthrough_back">Back</string>
