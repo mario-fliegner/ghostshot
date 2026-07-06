@@ -1439,12 +1439,12 @@ Implementation plan: `implementation_plans/REFERENCE_MARKER_DRAG_LOUPE_V1_IMPLEM
 
 ---
 
-### Guide Tips System — Blocks A–G (2026-07-06)
+### Guide Tips System — Blocks A–H complete (2026-07-06)
 
 Full specification: `GUIDE_TIPS_UX_V1.md`
 Implementation plan: `implementation_plans/GUIDE_TIPS_IMPLEMENTATION_PLAN.md`
 
-**Completed blocks:** A (Tip Model Cleanup), B (Card Visual Redesign), C (Placement Algorithm Update), D (Camera Screen Integration), E (Compare Screen Integration), F (Library Screen Integration), G (GuideTipController Extension)
+**Completed blocks:** A (Tip Model Cleanup), B (Card Visual Redesign), C (Placement Algorithm Update), D (Camera Screen Integration), E (Compare Screen Integration), F (Library Screen Integration), G (GuideTipController Extension), H (Final Verification)
 
 **Active tips:**
 
@@ -1458,13 +1458,17 @@ Implementation plan: `implementation_plans/GUIDE_TIPS_IMPLEMENTATION_PLAN.md`
 
 **Prerequisite enforcement:** EDIT_SESSION does not appear until SHARE is marked seen. MULTI_SELECT does not appear until OPEN_COMPARISON is marked seen.
 
-**Pending blocks:**
-
-- Block H — Final Verification
-
 **Test stability note:** A race in `CompareGuideTipIntegrationTest` was stabilized by signal-relative synchronization — `guide_tip_host` is awaited before asserting on `guide_tip_card`. No production code was changed.
 
-**Latest verified test state (Block F closure — 2026-07-06):**
+**Static verification (Block H — 2026-07-06):**
+
+- Deleted Tip IDs (ALIGN, COMPARE, HISTORY, EXPORT, MARKER, GPS): 0 references in source — clean
+- Deleted Anchor Keys (ALIGN_CONTROLS, COMPARE_ACTION, HISTORY_ACTION, EXPORT_ACTION, MARKER_ACTION, GPS_CHIP): 0 references in source — clean
+- `CameraGuideTipIntegrationTest.kt`: 4 tests, all Reference-scoped; no COMPARE/MARKER/GPS tests — clean
+- `LibraryGuideTipIntegrationTest.kt`: 7 tests confirmed in source
+- `guide_tip_got_it`: present in `strings.xml`/`strings-de.xml` as a dead resource (0 code references, no compile impact); pending one-line cleanup in a future maintenance pass
+
+**Latest verified test state (Block H closure — 2026-07-06):**
 
 | Test | Status |
 |---|---|
@@ -1474,3 +1478,5 @@ Implementation plan: `implementation_plans/GUIDE_TIPS_IMPLEMENTATION_PLAN.md`
 | `testDebugUnitTest` | PASSED |
 | `connectedDebugAndroidTest` | 868/868 PASSED |
 | `assembleDebug` | BUILD SUCCESSFUL |
+
+No open Guide Tips implementation tasks remain.

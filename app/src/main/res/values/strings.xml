@@ -204,7 +204,6 @@
     <string name="guide_show_tips_again_confirm">Show tips again</string>
     <string name="guide_show_tips_again_cancel">Cancel</string>
     <string name="guide_tip_learn_more">Learn more</string>
-    <string name="guide_tip_got_it">Got it</string>
     <string name="guide_tip_dismiss">Dismiss</string>
     <string name="guide_tip_reference_title">Reference photos</string>
     <string name="guide_tip_reference_body">Choose an earlier photo to line up the same view.</string>
