@@ -1,5 +1,6 @@
 ﻿package com.isardomains.sameview.guide
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +42,7 @@ class GuideTipController @Inject constructor(
             .filter { tip -> tip.scope == context.scope }
             .filter { tip -> tip.id in context.eligibleTipIds }
             .filterNot { tip -> tip.id in seenTipIds }
+            .filterNot { tip -> tip.prerequisiteTipId != null && tip.prerequisiteTipId !in seenTipIds }
             .sortedBy { tip -> tip.priority }
             .firstOrNull()
 
@@ -50,7 +52,9 @@ class GuideTipController @Inject constructor(
 
     suspend fun dismissActiveTip(reason: GuideTipDismissReason) {
         val tipId = _activeTipId.value ?: return
-        repository.markTipSeen(tipId)
+        if (reason == GuideTipDismissReason.LEARN_MORE) {
+            repository.markTipSeen(tipId)
+        }
         _activeTipId.value = null
         waitingForUserActionAfterDismissal = true
     }
@@ -62,4 +66,14 @@ class GuideTipController @Inject constructor(
     fun onUserAction() {
         waitingForUserActionAfterDismissal = false
     }
+
+    suspend fun completeTip(tipId: GuideTipId) {
+        repository.markTipSeen(tipId)
+        if (_activeTipId.value == tipId) {
+            _activeTipId.value = null
+        }
+        waitingForUserActionAfterDismissal = true
+    }
+
+    fun observeTipSeen(tipId: GuideTipId): Flow<Boolean> = repository.observeTipSeen(tipId)
 }

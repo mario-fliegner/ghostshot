@@ -4,7 +4,8 @@ import androidx.annotation.StringRes
 
 enum class GuideTipScope {
     CAMERA,
-    COMPARE
+    COMPARE,
+    LIBRARY
 }
 
 data class GuideTip(
@@ -14,5 +15,6 @@ data class GuideTip(
     val anchorKey: GuideTipAnchorKey,
     val topicId: GuideTopicId?,
     val scope: GuideTipScope,
-    val priority: Int
+    val priority: Int,
+    val prerequisiteTipId: GuideTipId? = null
 )

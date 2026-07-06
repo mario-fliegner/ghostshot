@@ -1436,3 +1436,38 @@ Implementation plan: `implementation_plans/REFERENCE_MARKER_DRAG_LOUPE_V1_IMPLEM
 - `assembleRelease` — BUILD SUCCESSFUL
 
 **Manual validation still required:** border alignment with non-zero overlay offset on a physical device (three screenshot cases: letterboxed portrait, pillarboxed landscape, COMPARE_WITH_PREVIEW with panned image).
+
+---
+
+### Guide Tips System — Blocks A–E, G (2026-07-06)
+
+Full specification: `GUIDE_TIPS_UX_V1.md`
+Implementation plan: `implementation_plans/GUIDE_TIPS_IMPLEMENTATION_PLAN.md`
+
+**Completed blocks:** A (Tip Model Cleanup), B (Card Visual Redesign), C (Placement Algorithm Update), D (Camera Screen Integration), E (Compare Screen Integration), G (GuideTipController Extension)
+
+**Active tips:**
+
+| Tip ID | Scope | Completion Event |
+|---|---|---|
+| REFERENCE | CAMERA | Successful reference image import (`CameraViewModel.onReferenceImageSelected`) |
+| SHARE | COMPARE | Export dropdown opened (`showExportMenu = true`) |
+| EDIT_SESSION | COMPARE | Navigation to Edit Session screen (`addOnDestinationChangedListener` in `MainActivity`) |
+| OPEN_COMPARISON | LIBRARY | First session tile tap — Block F not yet implemented |
+| MULTI_SELECT | LIBRARY | Multi-select activated — Block F not yet implemented |
+
+**Prerequisite enforcement:** EDIT_SESSION does not appear until SHARE is marked seen. MULTI_SELECT does not appear until OPEN_COMPARISON is marked seen.
+
+**Pending blocks:**
+- Block F — Library Screen Integration (`CompareLibraryScreen`; OPEN_COMPARISON and MULTI_SELECT tips)
+- Block H — Final Verification (after Block F)
+
+**Test stability note:** A race in `CompareGuideTipIntegrationTest` was stabilized by signal-relative synchronization — `guide_tip_host` is awaited before asserting on `guide_tip_card`. No production code was changed.
+
+**Latest verified test state (Block E closure — 2026-07-06):**
+
+| Test | Status |
+|---|---|
+| `connectedDebugAndroidTest` | 861/861 PASSED |
+| `testDebugUnitTest` | PASSED |
+| `assembleDebug` | BUILD SUCCESSFUL |

@@ -6,6 +6,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,6 +59,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +73,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -131,6 +135,8 @@ import com.isardomains.sameview.ui.theme.SameViewCompareOriginalLetterboxBackgro
 import com.isardomains.sameview.ui.theme.SameViewTextPrimary
 import com.isardomains.sameview.ui.theme.SameViewTextSecondary
 import java.io.File
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -200,9 +206,29 @@ fun CompareScreen(
         guideTipAnchors = guideTipAnchors + (anchor.key to anchor)
     }
 
+    val shareTipCompleted by remember(guideTipController) {
+        guideTipController?.observeTipSeen(GuideTipId.SHARE) ?: flowOf(false)
+    }.collectAsState(initial = false)
+    var sliderInteractionDetected by remember { mutableStateOf(false) }
+    var isSliderInteractionReady by remember { mutableStateOf(false) }
+    var isEditSessionTipDelayReady by remember { mutableStateOf(false) }
+    var compareViewportBounds by remember { mutableStateOf<Rect?>(null) }
+
+    LaunchedEffect(sliderInteractionDetected) {
+        if (sliderInteractionDetected) {
+            delay(1000L)
+            isSliderInteractionReady = true
+        }
+    }
+    LaunchedEffect(Unit) {
+        delay(1200L)
+        isEditSessionTipDelayReady = true
+    }
+
     val compareTipBlocked = isFullscreen || showExportMenu || showMoreMenu || showDeleteDialog || isBackupInProgress
-    val compareEligibleTipIds = buildSet {
-        if (sessionId != null) add(GuideTipId.EXPORT)
+    val compareEligibleTipIds = buildSet<GuideTipId> {
+        if (sessionId != null && isSliderInteractionReady && !shareTipCompleted) add(GuideTipId.SHARE)
+        if (sessionId != null && shareTipCompleted && isEditSessionTipDelayReady) add(GuideTipId.EDIT_SESSION)
     }.filter { tipId ->
         val tip = GuideTipRegistry.tipFor(tipId)
         tip == null || guideTipAnchors.containsKey(tip.anchorKey)
@@ -331,10 +357,13 @@ fun CompareScreen(
                     if (sessionId != null) {
                         Box {
                             IconButton(
-                                onClick = { showExportMenu = true },
+                                onClick = {
+                                    showExportMenu = true
+                                    guideTipScope.launch { guideTipController?.completeTip(GuideTipId.SHARE) }
+                                },
                                 modifier = Modifier
-                                    .guideTipAnchor(GuideTipAnchorKey.EXPORT_ACTION, onGuideTipAnchor)
                                     .testTag("compare_screen_export_button")
+                                    .guideTipAnchor(GuideTipAnchorKey.SHARE_ACTION, onGuideTipAnchor)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Share,
@@ -386,7 +415,9 @@ fun CompareScreen(
                         Box {
                             IconButton(
                                 onClick = { showMoreMenu = true },
-                                modifier = Modifier.testTag("compare_screen_more_menu_button")
+                                modifier = Modifier
+                                    .testTag("compare_screen_more_menu_button")
+                                    .guideTipAnchor(GuideTipAnchorKey.OVERFLOW_ACTION, onGuideTipAnchor)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.MoreVert,
@@ -475,9 +506,13 @@ fun CompareScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(width = targetWidth, height = targetHeight)
+                                        .onGloballyPositioned { compareViewportBounds = it.boundsInRoot() }
                                         .then(
                                             if (hasValidInput) Modifier.pointerInput(Unit) {
-                                                detectTapGestures { isFullscreen = !isFullscreen }
+                                                detectTapGestures {
+                                                    isFullscreen = !isFullscreen
+                                                    guideTipController?.onUserAction()
+                                                }
                                             } else Modifier
                                         )
                                 ) {
@@ -493,6 +528,10 @@ fun CompareScreen(
                                             contentScale = compareContentScale,
                                             referenceDate = referenceDate,
                                             captureTimestampMs = timestamp ?: 0L,
+                                            onMeaningfulSliderInteraction = {
+                                                sliderInteractionDetected = true
+                                                guideTipController?.onUserAction()
+                                            },
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .testTag("compare_screen_shell_content")
@@ -506,6 +545,7 @@ fun CompareScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
+                                .onGloballyPositioned { compareViewportBounds = it.boundsInRoot() }
                                 .padding(
                                     start = if (isFullscreen) 0.dp else 24.dp,
                                     end = if (isFullscreen) 0.dp else 24.dp,
@@ -514,7 +554,10 @@ fun CompareScreen(
                                 )
                                 .then(
                                     if (hasValidInput) Modifier.pointerInput(Unit) {
-                                        detectTapGestures { isFullscreen = !isFullscreen }
+                                        detectTapGestures {
+                                            isFullscreen = !isFullscreen
+                                            guideTipController?.onUserAction()
+                                        }
                                     } else Modifier
                                 ),
                             contentAlignment = Alignment.Center
@@ -532,6 +575,10 @@ fun CompareScreen(
                                     contentScale = compareContentScale,
                                     referenceDate = referenceDate,
                                     captureTimestampMs = timestamp ?: 0L,
+                                    onMeaningfulSliderInteraction = {
+                                        sliderInteractionDetected = true
+                                        guideTipController?.onUserAction()
+                                    },
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .testTag("compare_screen_shell_content")
@@ -542,25 +589,32 @@ fun CompareScreen(
                 }
             }
         }
-        GuideTipHost(
-            activeTip = activeGuideTip,
-            anchors = guideTipAnchors.values.toList(),
-            windowWidthSizeClass = windowWidthSizeClass,
-            onGotIt = { _ ->
-                guideTipScope.launch {
-                    guideTipController?.dismissActiveTip(GuideTipDismissReason.GOT_IT)
-                    activeGuideTip = null
-                }
-            },
-            onLearnMore = { _, topicId ->
-                guideTipScope.launch {
-                    guideTipController?.dismissActiveTip(GuideTipDismissReason.LEARN_MORE)
-                    activeGuideTip = null
-                    onOpenGuideTopic(topicId)
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        AnimatedVisibility(
+            visible = activeGuideTip != null,
+            enter = fadeIn(animationSpec = tween(200, easing = FastOutLinearInEasing)),
+            exit = fadeOut(animationSpec = tween(150, easing = LinearOutSlowInEasing))
+        ) {
+            GuideTipHost(
+                activeTip = activeGuideTip,
+                anchors = guideTipAnchors.values.toList(),
+                windowWidthSizeClass = windowWidthSizeClass,
+                isLandscape = isLandscape,
+                onGotIt = { _ ->
+                    guideTipScope.launch {
+                        guideTipController?.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+                        activeGuideTip = null
+                    }
+                },
+                onLearnMore = { _, topicId ->
+                    guideTipScope.launch {
+                        guideTipController?.dismissActiveTip(GuideTipDismissReason.LEARN_MORE)
+                        activeGuideTip = null
+                        onOpenGuideTopic(topicId)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }
 
@@ -866,6 +920,7 @@ private fun CompareSliderViewport(
     contentScale: ContentScale = ContentScale.Fit,
     referenceDate: String? = null,
     captureTimestampMs: Long = 0L,
+    onMeaningfulSliderInteraction: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -978,11 +1033,29 @@ private fun CompareSliderViewport(
                     .clip(RoundedCornerShape(CompareViewportCornerRadius))
                     .background(SameViewAppSurface)
                     .pointerInput(imageBounds) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            sliderFraction = (sliderFraction + (dragAmount.x / imageBounds.widthPx))
-                                .coerceIn(0f, 1f)
-                        }
+                        var dragStartMs = 0L
+                        var horizontalDragPx = 0f
+                        var meaningfulFired = false
+                        detectDragGestures(
+                            onDragStart = {
+                                dragStartMs = System.currentTimeMillis()
+                                horizontalDragPx = 0f
+                                meaningfulFired = false
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                horizontalDragPx += abs(dragAmount.x)
+                                sliderFraction = (sliderFraction + (dragAmount.x / imageBounds.widthPx))
+                                    .coerceIn(0f, 1f)
+                                if (!meaningfulFired &&
+                                    horizontalDragPx > 8.dp.toPx() &&
+                                    System.currentTimeMillis() - dragStartMs > 100L
+                                ) {
+                                    meaningfulFired = true
+                                    onMeaningfulSliderInteraction()
+                                }
+                            }
+                        )
                     }
                     .testTag("compare_viewport")
                     .semantics {

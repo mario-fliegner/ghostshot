@@ -4,12 +4,9 @@ import androidx.compose.ui.geometry.Rect
 
 enum class GuideTipAnchorKey {
     REFERENCE_BUTTON,
-    ALIGN_CONTROLS,
-    COMPARE_ACTION,
-    HISTORY_ACTION,
-    EXPORT_ACTION,
-    MARKER_ACTION,
-    GPS_CHIP
+    SHARE_ACTION,
+    OVERFLOW_ACTION,
+    LIBRARY_GRID_AREA
 }
 
 data class GuideTipAnchor(

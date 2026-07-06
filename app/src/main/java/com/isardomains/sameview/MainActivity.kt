@@ -36,6 +36,7 @@ import com.isardomains.sameview.guide.FirstRunWalkthroughGateState
 import com.isardomains.sameview.guide.GuideDetailScreen
 import com.isardomains.sameview.guide.GuideRepository
 import com.isardomains.sameview.guide.GuideTipController
+import com.isardomains.sameview.guide.GuideTipId
 import com.isardomains.sameview.guide.GuideRoute
 import com.isardomains.sameview.guide.ROUTE_GUIDE
 import com.isardomains.sameview.guide.ROUTE_GUIDE_DETAIL_WITH_ARGS
@@ -513,6 +514,9 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
+                        }
+                        LaunchedEffect(Unit) {
+                            guideTipController.completeTip(GuideTipId.EDIT_SESSION)
                         }
                         Box(modifier = Modifier.fillMaxSize()) {
                             EditSessionScreen(

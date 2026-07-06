@@ -28,7 +28,9 @@ data class GuideTipPlacementInput(
     val anchorBounds: Rect?,
     val windowWidthSizeClass: WindowWidthSizeClass,
     val marginPx: Float,
-    val gapPx: Float
+    val gapPx: Float,
+    val isLandscape: Boolean = false,
+    val exclusionZones: List<Rect> = emptyList()
 )
 
 fun calculateGuideTipPlacement(input: GuideTipPlacementInput): GuideTipPlacementResult {
@@ -45,24 +47,34 @@ fun calculateGuideTipPlacement(input: GuideTipPlacementInput): GuideTipPlacement
         return GuideTipPlacementResult.Deferred
     }
 
-    return candidateSides(input.windowWidthSizeClass)
+    return candidateSides(input.windowWidthSizeClass, input.isLandscape)
         .asSequence()
         .mapNotNull { side -> placedCandidate(input, anchor, side) }
         .firstOrNull()
         ?: GuideTipPlacementResult.Deferred
 }
 
-private fun candidateSides(windowWidthSizeClass: WindowWidthSizeClass): List<GuideTipPlacementSide> =
-    if (windowWidthSizeClass == WindowWidthSizeClass.Compact) {
+private fun candidateSides(
+    windowWidthSizeClass: WindowWidthSizeClass,
+    isLandscape: Boolean
+): List<GuideTipPlacementSide> = when {
+    windowWidthSizeClass == WindowWidthSizeClass.Compact && !isLandscape ->
         listOf(GuideTipPlacementSide.ABOVE, GuideTipPlacementSide.BELOW)
-    } else {
+    windowWidthSizeClass == WindowWidthSizeClass.Compact && isLandscape ->
+        listOf(
+            GuideTipPlacementSide.ABOVE,
+            GuideTipPlacementSide.BELOW,
+            GuideTipPlacementSide.START,
+            GuideTipPlacementSide.END
+        )
+    else ->
         listOf(
             GuideTipPlacementSide.END,
             GuideTipPlacementSide.START,
             GuideTipPlacementSide.ABOVE,
             GuideTipPlacementSide.BELOW
         )
-    }
+}
 
 private fun placedCandidate(
     input: GuideTipPlacementInput,
@@ -105,6 +117,9 @@ private fun placedCandidate(
     val cardRect = Rect(x, y, x + cardWidth, y + cardHeight)
     val safeRect = Rect(margin, margin, containerWidth - margin, containerHeight - margin)
     if (!safeRect.containsRect(cardRect) || cardRect.overlapsRect(anchor)) {
+        return null
+    }
+    if (input.exclusionZones.any { zone -> cardRect.overlapsRect(zone) }) {
         return null
     }
 

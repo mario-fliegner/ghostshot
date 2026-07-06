@@ -27,6 +27,12 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+// Card surface color (SameViewAppSurface) is not tested here. Asserting a Card's containerColor
+// via Compose semantics requires either screenshot comparison (device-dependent, brittle) or a
+// custom semantics property that does not exist in the current codebase. The color is verified
+// visually and is enforced structurally by passing SameViewAppSurface directly to
+// CardDefaults.cardColors() in GuideTipHost.kt.
+
 @RunWith(AndroidJUnit4::class)
 class GuideTipHostTest {
 
@@ -49,16 +55,16 @@ class GuideTipHostTest {
         composeRule.onNodeWithTag("guide_tip_title").assertIsDisplayed()
         composeRule.onNodeWithTag("guide_tip_body").assertIsDisplayed()
         composeRule.onNodeWithTag("guide_tip_learn_more").assertIsDisplayed()
-        composeRule.onNodeWithTag("guide_tip_got_it").assertIsDisplayed()
+        composeRule.onNodeWithTag("guide_tip_dismiss").assertIsDisplayed()
         composeRule.onNodeWithTag("guide_tip_pointer").assertIsDisplayed()
     }
 
     @Test
-    fun gotIt_invokesCallbackForActiveTip() {
+    fun dismiss_invokesCallbackForActiveTip() {
         var dismissedTip: GuideTip? = null
         setHostContent(onGotIt = { dismissedTip = it })
 
-        composeRule.onNodeWithTag("guide_tip_got_it").performClick()
+        composeRule.onNodeWithTag("guide_tip_dismiss").performClick()
         composeRule.waitForIdle()
 
         assertEquals(GuideTipId.REFERENCE, dismissedTip?.id)
@@ -101,6 +107,19 @@ class GuideTipHostTest {
         )
 
         composeRule.onNodeWithTag("guide_tip_card").assertDoesNotExist()
+    }
+
+    @Test
+    fun card_maxWidthDoesNotExceed280dp() {
+        setHostContent()
+
+        val node = composeRule.onNodeWithTag("guide_tip_card").fetchSemanticsNode()
+        val maxExpectedWidthPx = with(composeRule.density) { 280.dp.roundToPx() }
+        val actualWidthPx = node.boundsInRoot.width.toInt()
+        assertTrue(
+            "Card width $actualWidthPx px exceeds 280 dp ($maxExpectedWidthPx px)",
+            actualWidthPx <= maxExpectedWidthPx
+        )
     }
 
     @Test
@@ -237,5 +256,3 @@ class GuideTipHostTest {
         instrumentation.uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
     }
 }
-
-

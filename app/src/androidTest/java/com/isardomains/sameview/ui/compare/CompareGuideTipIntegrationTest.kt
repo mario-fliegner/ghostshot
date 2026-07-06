@@ -1,5 +1,8 @@
 package com.isardomains.sameview.ui.compare
 
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -7,8 +10,11 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.geometry.Offset
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -25,10 +31,10 @@ import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -43,58 +49,193 @@ class CompareGuideTipIntegrationTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private var scenario: ActivityScenario<ComponentActivity>? = null
     private var dataStoreFile: File? = null
+    private var dataStoreScope: CoroutineScope? = null
+    private val tempFiles = mutableListOf<File>()
 
     @After
     fun tearDown() {
         scenario?.close()
         scenario = null
+        dataStoreScope?.cancel()
+        dataStoreScope = null
         dataStoreFile?.delete()
         dataStoreFile = null
+        tempFiles.forEach { it.delete() }
+        tempFiles.clear()
     }
 
     @Test
-    fun exportTip_appearsForSavedSessionContext() {
-        val controller = GuideTipController(createRepository())
-
-        setCompareContent(controller = controller)
-
-        composeRule.onNodeWithTag("guide_tip_card").assertIsDisplayed()
-    }
-
-    @Test
-    fun exportTip_gotItMarksTipSeen() = runBlocking {
+    fun editSessionTip_notEligibleWithoutShareCompleted() {
+        // autoAdvance = true: waitForIdle() advances the Compose test clock so LaunchedEffect
+        // delays and AnimatedVisibility animations are processed. Without it, the clock stays
+        // paused and nothing advances even after Thread.sleep.
+        composeRule.mainClock.autoAdvance = true
         val repository = createRepository()
         val controller = GuideTipController(repository)
+        setCompareContent(controller)
 
-        setCompareContent(controller = controller)
-        composeRule.onNodeWithTag("guide_tip_card").assertIsDisplayed()
-        composeRule.onNodeWithTag("guide_tip_got_it").performClick()
-        waitUntilTipSeen(repository)
+        // First sleep + idle: lets the real-time delay(1200L) fire and processes the resulting
+        // state change (isEditSessionTipDelayReady = true), which launches evaluate().
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+        // Second sleep + idle: lets evaluate()'s DataStore IO complete and then processes the
+        // resulting composition (activeGuideTip assignment + any animation).
+        Thread.sleep(300)
+        composeRule.waitForIdle()
 
-        assertTrue(repository.observeSeenTipIds().first().contains(GuideTipId.EXPORT))
+        // EDIT_SESSION must not appear — SHARE has not been completed
+        composeRule.onNodeWithTag("guide_tip_card").assertDoesNotExist()
     }
 
     @Test
-    fun exportTip_learnMoreOpensShareGuideTopicAndMarksSeen() = runBlocking {
+    fun editSessionTip_anchorsToOverflowButton() {
+        // autoAdvance = true: waitForIdle() advances the Compose test clock so LaunchedEffect
+        // delays and AnimatedVisibility animations are processed.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        runBlocking { repository.markTipSeen(GuideTipId.SHARE) }
+        val controller = GuideTipController(repository)
+        setCompareContent(controller)
+
+        // Two sleep+waitForIdle passes: first advances the Compose clock past the 1200ms
+        // screen-entry delay; second lets the evaluate() chain and DataStore IO settle.
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+        Thread.sleep(500)
+        composeRule.waitForIdle()
+
+        // DIAGNOSTIC: first wait for guide_tip_host to appear (activeGuideTip set)
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_host").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        // DIAGNOSTIC: then check whether guide_tip_card also appears (placement succeeded)
+        composeRule.waitUntil(timeoutMillis = 3000) {
+            runCatching {
+                val b = composeRule.onNodeWithTag("guide_tip_card").fetchSemanticsNode().boundsInRoot
+                b.width > 0f && b.height > 0f
+            }.getOrDefault(false)
+        }
+        // Anchor button (OVERFLOW_ACTION) must be visible — tip points to it
+        composeRule.onNodeWithTag("compare_screen_more_menu_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun shareTip_appearsAfterSliderInteraction() {
+        // autoAdvance = true: waitForIdle() advances the Compose test clock so LaunchedEffect
+        // delays and AnimatedVisibility animations are processed.
+        composeRule.mainClock.autoAdvance = true
         val repository = createRepository()
         val controller = GuideTipController(repository)
-        var openedTopic: GuideTopicId? = null
+        val refUri = createImageUri("ref")
+        val capUri = createImageUri("cap")
+        setCompareContent(controller, refUri, capUri)
 
-        setCompareContent(
-            controller = controller,
-            onOpenGuideTopic = { openedTopic = it }
-        )
-        composeRule.onNodeWithTag("guide_tip_card").assertIsDisplayed()
-        composeRule.onNodeWithTag("guide_tip_learn_more").performClick()
-        composeRule.waitUntil(timeoutMillis = 5_000) { openedTopic != null }
-        waitUntilTipSeen(repository)
+        // Wait for the viewport to render with real images
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("compare_viewport").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
 
-        assertEquals(GuideTopicId.SHARE_COMPARISON_IMAGE, openedTopic)
-        assertTrue(repository.observeSeenTipIds().first().contains(GuideTipId.EXPORT))
+        // Diagnostic: 3-phase gesture to satisfy the 100ms wall-clock check.
+        // Phase 1: DOWN. Phase 2: small MOVE to cross touch slop so onDragStart fires
+        // and dragStartMs is captured. Thread.sleep(150) so real wall time elapses AFTER
+        // dragStartMs is set. Phase 3: large MOVE so the onDrag check fires with both
+        // horizontalDragPx > 8dp AND System.currentTimeMillis() - dragStartMs > 100ms.
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(Offset(200f, centerY))
+        }
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            moveBy(Offset(40f, 0f))
+        }
+        Thread.sleep(150)
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            moveBy(Offset(460f, 0f))
+            up()
+        }
+
+        // Wait longer than the 1000ms SHARE delay; real-time sleep lets the LaunchedEffect
+        // delay fire, then waitForIdle() processes state changes and advances the Compose clock.
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+
+        // Poll until the tip card exists with positive bounds in root.
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_host").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+    }
+
+    @Test
+    fun shareTip_completesOnExportMenuOpen() {
+        // autoAdvance = true: waitForIdle() advances the Compose test clock so LaunchedEffect
+        // delays and AnimatedVisibility animations are processed.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val refUri = createImageUri("ref")
+        val capUri = createImageUri("cap")
+        setCompareContent(controller, refUri, capUri)
+
+        // Wait for the viewport to render with real images
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("compare_viewport").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+
+        // 3-phase real-time gesture: DOWN → small MOVE to cross touch slop (onDragStart fires,
+        // dragStartMs captured) → Thread.sleep(150) → large MOVE + UP so onDrag fires with
+        // both horizontalDragPx > 8dp AND System.currentTimeMillis() - dragStartMs > 100ms.
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(Offset(200f, centerY))
+        }
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            moveBy(Offset(40f, 0f))
+        }
+        Thread.sleep(150)
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            moveBy(Offset(460f, 0f))
+            up()
+        }
+
+        // Wait longer than the 1000ms SHARE delay; real-time sleep lets the LaunchedEffect
+        // delay fire, then waitForIdle() processes state changes and advances the Compose clock.
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+
+        // Wait for guide_tip_host first (activeGuideTip set), then for guide_tip_card placement.
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_host").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        composeRule.waitUntil(timeoutMillis = 3000) {
+            runCatching {
+                val b = composeRule.onNodeWithTag("guide_tip_card").fetchSemanticsNode().boundsInRoot
+                b.width > 0f && b.height > 0f
+            }.getOrDefault(false)
+        }
+
+        // Click the export button — triggers completeTip(SHARE) and opens the export menu,
+        // both of which cause the tip to be dismissed.
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+
+        // Let state propagation and the 150ms fade-out animation complete.
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("guide_tip_card").assertDoesNotExist()
+        assertTrue(runBlocking { repository.observeTipSeen(GuideTipId.SHARE).first() })
     }
 
     private fun setCompareContent(
         controller: GuideTipController,
+        referenceImageUri: Uri? = null,
+        captureImageUri: Uri? = null,
         onOpenGuideTopic: (GuideTopicId) -> Unit = {}
     ) {
         wakeTestDevice()
@@ -108,8 +249,8 @@ class CompareGuideTipIntegrationTest {
             activity.setContent {
                 SameViewTheme {
                     CompareScreen(
-                        referenceImageUri = null,
-                        captureImageUri = null,
+                        referenceImageUri = referenceImageUri,
+                        captureImageUri = captureImageUri,
                         onBack = {},
                         sessionId = "session-1",
                         onShareComparisonImage = {},
@@ -126,20 +267,28 @@ class CompareGuideTipIntegrationTest {
         composeRule.waitForIdle()
     }
 
-    private fun waitUntilTipSeen(repository: GuideRepository) {
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            runBlocking { repository.observeSeenTipIds().first().contains(GuideTipId.EXPORT) }
-        }
-    }
-
     private fun createRepository(): GuideRepository {
         val file = File(context.cacheDir, "guide-tip-${UUID.randomUUID()}.preferences_pb")
         dataStoreFile = file
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        dataStoreScope = scope
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+            scope = scope,
             produceFile = { file }
         )
         return GuideRepository(dataStore)
+    }
+
+    private fun createImageUri(prefix: String): Uri {
+        val file = File.createTempFile(prefix, ".png", context.cacheDir)
+        tempFiles += file
+        val bitmap = Bitmap.createBitmap(120, 200, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(Color.RED)
+        file.outputStream().use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        }
+        bitmap.recycle()
+        return Uri.fromFile(file)
     }
 
     private fun wakeTestDevice() {
@@ -148,7 +297,3 @@ class CompareGuideTipIntegrationTest {
         instrumentation.uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
     }
 }
-
-
-
-

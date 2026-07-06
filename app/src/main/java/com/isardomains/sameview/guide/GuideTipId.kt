@@ -1,13 +1,11 @@
-﻿package com.isardomains.sameview.guide
+package com.isardomains.sameview.guide
 
 enum class GuideTipId(val storedValue: String) {
     REFERENCE("reference"),
-    ALIGN("align"),
-    COMPARE("compare"),
-    HISTORY("history"),
-    EXPORT("export"),
-    MARKER("marker"),
-    GPS("gps");
+    SHARE("share"),
+    EDIT_SESSION("edit_session"),
+    OPEN_COMPARISON("open_comparison"),
+    MULTI_SELECT("multi_select");
 
     companion object {
         fun fromStoredValue(value: String): GuideTipId? =

@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -53,38 +54,108 @@ class CameraGuideTipIntegrationTest {
     }
 
     @Test
-    fun compareTip_anchorsToCompareButtonWhenCompareInputExists() {
-        setCameraControlsContent(
-            activeTipId = GuideTipId.COMPARE,
-            compareInput = CompareInput(
-                referenceImageUri = Uri.parse("content://sameview/reference"),
-                captureImageUri = Uri.parse("content://sameview/capture")
-            )
-        )
-
-        composeRule.onNodeWithTag("guide_tip_card").assertIsDisplayed()
-    }
-
-    @Test
-    fun markerTip_defersUntilMarkerActionIsVisible() {
-        setCameraControlsContent(
-            activeTipId = GuideTipId.MARKER,
-            referenceUri = Uri.parse("content://sameview/reference")
-        )
-
-        composeRule.onNodeWithTag("guide_tip_card").assertDoesNotExist()
-        composeRule.onNodeWithTag("reference_action_slot").performClick()
+    fun referenceTip_notDisplayed_whenActiveTipIsNull() {
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                SameViewTheme {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        GuideTipHost(
+                            activeTip = null,
+                            anchors = emptyList(),
+                            windowWidthSizeClass = WindowWidthSizeClass.Compact,
+                            onGotIt = {},
+                            onLearnMore = { _, _ -> },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("guide_tip_card").assertIsDisplayed()
+        composeRule.onNodeWithTag("guide_tip_card").assertDoesNotExist()
     }
 
     @Test
-    fun gpsTip_anchorsToGpsChipWhenGuidanceIsVisible() {
-        setCameraControlsContent(
-            activeTipId = GuideTipId.GPS,
-            gpsGuidanceState = GpsGuidanceState.Neutral
-        )
+    fun captureButtonBounds_reportedViaCallback() {
+        var capturedBounds: Rect? = null
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                SameViewTheme {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        CameraControlsOverlay(
+                            referenceUri = null,
+                            alpha = 0.5f,
+                            onAlphaChange = {},
+                            onSelectReferenceImage = {},
+                            onResetOverlay = {},
+                            onCapture = {},
+                            isLandscape = false,
+                            onCaptureButtonBoundsChanged = { capturedBounds = it },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        assert(capturedBounds != null) { "onCaptureButtonBoundsChanged never fired" }
+        assert(capturedBounds!!.width > 0f) { "captureButtonBounds width was zero" }
+        assert(capturedBounds!!.height > 0f) { "captureButtonBounds height was zero" }
+    }
 
+    @Test
+    fun referenceTip_displayedWithExclusionZone() {
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                SameViewTheme {
+                    var anchors by remember { mutableStateOf<Map<GuideTipAnchorKey, GuideTipAnchor>>(emptyMap()) }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        CameraControlsOverlay(
+                            referenceUri = null,
+                            alpha = 0.5f,
+                            onAlphaChange = {},
+                            onSelectReferenceImage = {},
+                            onResetOverlay = {},
+                            onCapture = {},
+                            isLandscape = false,
+                            onGuideTipAnchor = { anchor -> anchors = anchors + (anchor.key to anchor) },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        GuideTipHost(
+                            activeTip = GuideTipRegistry.tipFor(GuideTipId.REFERENCE),
+                            anchors = anchors.values.toList(),
+                            windowWidthSizeClass = WindowWidthSizeClass.Compact,
+                            onGotIt = {},
+                            onLearnMore = { _, _ -> },
+                            exclusionZones = listOf(Rect(0f, 0f, 1f, 1f)),
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag("guide_tip_card").assertIsDisplayed()
     }
 

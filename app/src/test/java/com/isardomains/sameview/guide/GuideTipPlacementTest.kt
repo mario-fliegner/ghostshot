@@ -1,0 +1,120 @@
+package com.isardomains.sameview.guide
+
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntSize
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class GuideTipPlacementTest {
+
+    /**
+     * Compact portrait: anchor near top of screen so ABOVE exits the safe zone.
+     * BELOW would be placed but the exclusion zone (simulating the Capture button) covers
+     * the card position. Both candidates rejected → Deferred.
+     */
+    @Test
+    fun exclusionZone_captureButton_defers_whenAllSidesBlocked() {
+        val captureButtonBounds = Rect(150f, 140f, 270f, 260f)
+        val result = calculateGuideTipPlacement(
+            GuideTipPlacementInput(
+                containerSize = IntSize(420, 900),
+                cardSize = IntSize(220, 100),
+                anchorBounds = Rect(180f, 100f, 240f, 140f),
+                windowWidthSizeClass = WindowWidthSizeClass.Compact,
+                exclusionZones = listOf(captureButtonBounds),
+                marginPx = 16f,
+                gapPx = 8f
+            )
+        )
+        assertEquals(GuideTipPlacementResult.Deferred, result)
+    }
+
+    /**
+     * Medium: anchor in the top bar. ABOVE exits the safe zone. START, BELOW, and END all
+     * land on the exclusion zone (simulating the compare viewport). All candidates rejected → Deferred.
+     */
+    @Test
+    fun exclusionZone_compareViewport_defers_whenAllSidesBlocked() {
+        val compareViewportBounds = Rect(0f, 90f, 720f, 900f)
+        val result = calculateGuideTipPlacement(
+            GuideTipPlacementInput(
+                containerSize = IntSize(720, 900),
+                cardSize = IntSize(220, 100),
+                anchorBounds = Rect(600f, 50f, 670f, 90f),
+                windowWidthSizeClass = WindowWidthSizeClass.Medium,
+                exclusionZones = listOf(compareViewportBounds),
+                marginPx = 16f,
+                gapPx = 8f
+            )
+        )
+        assertEquals(GuideTipPlacementResult.Deferred, result)
+    }
+
+    /**
+     * Compact landscape: container is very short, so ABOVE and BELOW both fail the safe-zone
+     * check. With isLandscape=true, START is tried next and succeeds → Placed(START).
+     * With isLandscape=false (portrait), only ABOVE and BELOW are candidates → Deferred.
+     */
+    @Test
+    fun compactLandscape_placesSide_whenAboveAndBelowFail_portraitDefers() {
+        val input = GuideTipPlacementInput(
+            containerSize = IntSize(900, 200),
+            cardSize = IntSize(220, 120),
+            anchorBounds = Rect(400f, 40f, 500f, 160f),
+            windowWidthSizeClass = WindowWidthSizeClass.Compact,
+            marginPx = 16f,
+            gapPx = 8f
+        )
+
+        val landscapeResult = calculateGuideTipPlacement(input.copy(isLandscape = true))
+        assertEquals(
+            GuideTipPlacementSide.START,
+            (landscapeResult as GuideTipPlacementResult.Placed).side
+        )
+
+        val portraitResult = calculateGuideTipPlacement(input.copy(isLandscape = false))
+        assertEquals(GuideTipPlacementResult.Deferred, portraitResult)
+    }
+
+    /**
+     * Compact portrait: a 280 px wide card in a 360 px wide container fits within the safe zone
+     * (360 - 2×16 = 328 ≥ 280). Placement must not be deferred due to width constraints.
+     */
+    @Test
+    fun compact_280pxCard_in360pxContainer_places_notDeferred() {
+        val result = calculateGuideTipPlacement(
+            GuideTipPlacementInput(
+                containerSize = IntSize(360, 640),
+                cardSize = IntSize(280, 100),
+                anchorBounds = Rect(160f, 200f, 200f, 240f),
+                windowWidthSizeClass = WindowWidthSizeClass.Compact,
+                marginPx = 16f,
+                gapPx = 8f
+            )
+        )
+        assertTrue("Expected Placed but got Deferred", result is GuideTipPlacementResult.Placed)
+    }
+
+    /**
+     * An exclusion zone covering the entire container surface blocks every candidate side.
+     * The algorithm must return Deferred rather than place the card over the exclusion zone.
+     */
+    @Test
+    fun allSidesBlocked_byExclusionZone_returnsDeferred() {
+        val fullContainerExclusion = Rect(0f, 0f, 800f, 600f)
+        val result = calculateGuideTipPlacement(
+            GuideTipPlacementInput(
+                containerSize = IntSize(800, 600),
+                cardSize = IntSize(200, 100),
+                anchorBounds = Rect(350f, 250f, 450f, 350f),
+                windowWidthSizeClass = WindowWidthSizeClass.Medium,
+                exclusionZones = listOf(fullContainerExclusion),
+                marginPx = 16f,
+                gapPx = 8f
+            )
+        )
+        assertEquals(GuideTipPlacementResult.Deferred, result)
+    }
+}

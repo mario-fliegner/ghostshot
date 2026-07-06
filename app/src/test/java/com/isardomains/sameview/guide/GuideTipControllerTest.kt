@@ -33,16 +33,16 @@ class GuideTipControllerTest {
     fun evaluate_activatesOnlyOneTipAtATime() = runTest {
         val controller = GuideTipController(createRepository())
         val context = GuideTipEvaluationContext(
-            scope = GuideTipScope.CAMERA,
-            eligibleTipIds = setOf(GuideTipId.REFERENCE, GuideTipId.ALIGN)
+            scope = GuideTipScope.COMPARE,
+            eligibleTipIds = setOf(GuideTipId.SHARE, GuideTipId.EDIT_SESSION)
         )
 
         val firstTip = controller.evaluate(context)
         val secondTip = controller.evaluate(context)
 
-        assertEquals(GuideTipId.REFERENCE, firstTip?.id)
+        assertEquals(GuideTipId.SHARE, firstTip?.id)
         assertNull(secondTip)
-        assertEquals(GuideTipId.REFERENCE, controller.activeTipId.value)
+        assertEquals(GuideTipId.SHARE, controller.activeTipId.value)
     }
 
     @Test
@@ -50,17 +50,17 @@ class GuideTipControllerTest {
         val repository = createRepository()
         val controller = GuideTipController(repository)
 
-        repository.markTipSeen(GuideTipId.REFERENCE)
+        repository.markTipSeen(GuideTipId.SHARE)
 
         val tip = controller.evaluate(
             GuideTipEvaluationContext(
-                scope = GuideTipScope.CAMERA,
-                eligibleTipIds = setOf(GuideTipId.REFERENCE, GuideTipId.ALIGN)
+                scope = GuideTipScope.COMPARE,
+                eligibleTipIds = setOf(GuideTipId.SHARE, GuideTipId.EDIT_SESSION)
             )
         )
 
-        assertEquals(GuideTipId.ALIGN, tip?.id)
-        assertEquals(GuideTipId.ALIGN, controller.activeTipId.value)
+        assertEquals(GuideTipId.EDIT_SESSION, tip?.id)
+        assertEquals(GuideTipId.EDIT_SESSION, controller.activeTipId.value)
     }
 
     @Test
@@ -80,7 +80,7 @@ class GuideTipControllerTest {
     }
 
     @Test
-    fun dismissActiveTip_marksTipSeenAndClearsActiveTip() = runTest {
+    fun dismissActiveTip_gotIt_doesNotMarkTipSeen() = runTest {
         val repository = createRepository()
         val controller = GuideTipController(repository)
 
@@ -93,7 +93,7 @@ class GuideTipControllerTest {
         controller.dismissActiveTip(GuideTipDismissReason.GOT_IT)
 
         assertNull(controller.activeTipId.value)
-        assertEquals(setOf(GuideTipId.REFERENCE), repository.observeSeenTipIds().first())
+        assertEquals(emptySet<GuideTipId>(), repository.observeSeenTipIds().first())
     }
 
     @Test
@@ -101,7 +101,7 @@ class GuideTipControllerTest {
         val controller = GuideTipController(createRepository())
         val context = GuideTipEvaluationContext(
             scope = GuideTipScope.CAMERA,
-            eligibleTipIds = setOf(GuideTipId.REFERENCE, GuideTipId.ALIGN)
+            eligibleTipIds = setOf(GuideTipId.REFERENCE)
         )
 
         controller.evaluate(context)
@@ -111,7 +111,7 @@ class GuideTipControllerTest {
 
         controller.onUserAction()
 
-        assertEquals(GuideTipId.ALIGN, controller.evaluate(context)?.id)
+        assertEquals(GuideTipId.REFERENCE, controller.evaluate(context)?.id)
     }
 
     @Test
@@ -146,6 +146,94 @@ class GuideTipControllerTest {
 
         assertNull(controller.activeTipId.value)
         assertEquals(setOf(GuideTipId.REFERENCE), repository.observeSeenTipIds().first())
+    }
+
+    @Test
+    fun completeTip_marksSeenInRepository() = runTest {
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+
+        controller.completeTip(GuideTipId.REFERENCE)
+
+        assertEquals(setOf(GuideTipId.REFERENCE), repository.observeSeenTipIds().first())
+    }
+
+    @Test
+    fun completeTip_clearsActiveTipIfActive() = runTest {
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+
+        controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.CAMERA,
+                eligibleTipIds = setOf(GuideTipId.REFERENCE)
+            )
+        )
+        controller.completeTip(GuideTipId.REFERENCE)
+
+        assertNull(controller.activeTipId.value)
+    }
+
+    @Test
+    fun completeTip_doesNotClearActiveTipIfDifferentTipIsActive() = runTest {
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+
+        controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.CAMERA,
+                eligibleTipIds = setOf(GuideTipId.REFERENCE)
+            )
+        )
+        controller.completeTip(GuideTipId.SHARE)
+
+        assertEquals(GuideTipId.REFERENCE, controller.activeTipId.value)
+    }
+
+    @Test
+    fun completeTip_setsWaitingForUserAction() = runTest {
+        val controller = GuideTipController(createRepository())
+
+        controller.completeTip(GuideTipId.REFERENCE)
+
+        assertNull(
+            controller.evaluate(
+                GuideTipEvaluationContext(
+                    scope = GuideTipScope.CAMERA,
+                    eligibleTipIds = setOf(GuideTipId.REFERENCE)
+                )
+            )
+        )
+    }
+
+    @Test
+    fun evaluate_editSession_notEligibleWithoutShareCompleted() = runTest {
+        val controller = GuideTipController(createRepository())
+
+        val tip = controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.COMPARE,
+                eligibleTipIds = setOf(GuideTipId.EDIT_SESSION)
+            )
+        )
+
+        assertNull(tip)
+        assertNull(controller.activeTipId.value)
+    }
+
+    @Test
+    fun evaluate_multiSelect_notEligibleWithoutOpenComparisonCompleted() = runTest {
+        val controller = GuideTipController(createRepository())
+
+        val tip = controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.LIBRARY,
+                eligibleTipIds = setOf(GuideTipId.MULTI_SELECT)
+            )
+        )
+
+        assertNull(tip)
+        assertNull(controller.activeTipId.value)
     }
 }
 

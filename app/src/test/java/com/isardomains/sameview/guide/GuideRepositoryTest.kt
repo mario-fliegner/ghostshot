@@ -60,7 +60,7 @@ class GuideRepositoryTest {
 
         assertEquals(setOf(GuideTipId.REFERENCE), repository.observeSeenTipIds().first())
         assertTrue(repository.observeTipSeen(GuideTipId.REFERENCE).first())
-        assertFalse(repository.observeTipSeen(GuideTipId.ALIGN).first())
+        assertFalse(repository.observeTipSeen(GuideTipId.SHARE).first())
     }
 
     @Test
@@ -95,7 +95,7 @@ class GuideRepositoryTest {
         val seenTipIdsKey = stringSetPreferencesKey("seen_tip_ids")
 
         dataStore.edit { prefs ->
-            prefs[seenTipIdsKey] = setOf(GuideTipId.ALIGN.storedValue)
+            prefs[seenTipIdsKey] = setOf(GuideTipId.SHARE.storedValue)
         }
 
         assertFalse(repository.observeWalkthroughCompleted().first())
