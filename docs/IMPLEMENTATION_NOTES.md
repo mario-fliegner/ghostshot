@@ -1439,12 +1439,12 @@ Implementation plan: `implementation_plans/REFERENCE_MARKER_DRAG_LOUPE_V1_IMPLEM
 
 ---
 
-### Guide Tips System — Blocks A–E, G (2026-07-06)
+### Guide Tips System — Blocks A–G (2026-07-06)
 
 Full specification: `GUIDE_TIPS_UX_V1.md`
 Implementation plan: `implementation_plans/GUIDE_TIPS_IMPLEMENTATION_PLAN.md`
 
-**Completed blocks:** A (Tip Model Cleanup), B (Card Visual Redesign), C (Placement Algorithm Update), D (Camera Screen Integration), E (Compare Screen Integration), G (GuideTipController Extension)
+**Completed blocks:** A (Tip Model Cleanup), B (Card Visual Redesign), C (Placement Algorithm Update), D (Camera Screen Integration), E (Compare Screen Integration), F (Library Screen Integration), G (GuideTipController Extension)
 
 **Active tips:**
 
@@ -1453,21 +1453,24 @@ Implementation plan: `implementation_plans/GUIDE_TIPS_IMPLEMENTATION_PLAN.md`
 | REFERENCE | CAMERA | Successful reference image import (`CameraViewModel.onReferenceImageSelected`) |
 | SHARE | COMPARE | Export dropdown opened (`showExportMenu = true`) |
 | EDIT_SESSION | COMPARE | Navigation to Edit Session screen (`addOnDestinationChangedListener` in `MainActivity`) |
-| OPEN_COMPARISON | LIBRARY | First session tile tap — Block F not yet implemented |
-| MULTI_SELECT | LIBRARY | Multi-select activated — Block F not yet implemented |
+| OPEN_COMPARISON | LIBRARY | First session tile tap in `CompareLibraryScreen` (before navigation) |
+| MULTI_SELECT | LIBRARY | Multi-select activated via long-press in `CompareLibraryScreen` |
 
 **Prerequisite enforcement:** EDIT_SESSION does not appear until SHARE is marked seen. MULTI_SELECT does not appear until OPEN_COMPARISON is marked seen.
 
 **Pending blocks:**
-- Block F — Library Screen Integration (`CompareLibraryScreen`; OPEN_COMPARISON and MULTI_SELECT tips)
-- Block H — Final Verification (after Block F)
+
+- Block H — Final Verification
 
 **Test stability note:** A race in `CompareGuideTipIntegrationTest` was stabilized by signal-relative synchronization — `guide_tip_host` is awaited before asserting on `guide_tip_card`. No production code was changed.
 
-**Latest verified test state (Block E closure — 2026-07-06):**
+**Latest verified test state (Block F closure — 2026-07-06):**
 
 | Test | Status |
 |---|---|
-| `connectedDebugAndroidTest` | 861/861 PASSED |
+| `LibraryGuideTipIntegrationTest` | 7/7 PASSED |
+| `CompareLibraryScreenTest` | 74/74 PASSED |
+| `CompareGuideTipIntegrationTest` | 4/4 PASSED |
 | `testDebugUnitTest` | PASSED |
+| `connectedDebugAndroidTest` | 868/868 PASSED |
 | `assembleDebug` | BUILD SUCCESSFUL |

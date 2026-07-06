@@ -55,7 +55,7 @@ The following five tips form the complete tip set for V1.
 | 2 | `SHARE` | Compare | Share button | First meaningful compare-slider interaction; ~1 s deferred | None | Share menu opened | Yes |
 | 3 | `EDIT_SESSION` | Compare | Overflow menu button | `SHARE` tip completed; Edit Session screen never opened | `SHARE` completed | Edit Session screen opened | Yes |
 | 4 | `OPEN_COMPARISON` | Library | Stable grid-area anchor | ≥ 1 comparison exists; comparison tile never tapped; user opens library screen | None | First comparison tile tapped in the Comparisons screen | No |
-| 5 | `MULTI_SELECT` | Library | Stable grid-area anchor | Compare screen already opened; multi-select never used | None | Multi-select activated | No |
+| 5 | `MULTI_SELECT` | Library | Stable grid-area anchor | Compare screen already opened; multi-select never used | OPEN_COMPARISON completed | Multi-select activated | No |
 
 Priority within each scope (lower number shows first when multiple are simultaneously eligible):
 

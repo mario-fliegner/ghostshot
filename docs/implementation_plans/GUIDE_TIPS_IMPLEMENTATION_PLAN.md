@@ -394,7 +394,7 @@ Latest verified test state:
 
 ---
 
-### Block F — Library Screen Integration (New)
+### Block F — Library Screen Integration (New) **[DONE]**
 
 **Goal:** Add guide tip support to `CompareLibraryScreen`. New screen scope. New stable phantom anchor. New tip host. Wire completion events.
 
@@ -557,6 +557,26 @@ Create `LibraryGuideTipIntegrationTest.kt` with 7 tests (spec §26.2):
 - `multiSelectTip_notEligible_withoutOpenComparisonCompleted`
 - `multiSelectTip_showsAfterOpenComparisonCompleted`
 - Stable anchor: `libraryGridAreaAnchor_alwaysReportedRegardlessOfScrollState`
+
+**Block F completion note (2026-07-06):**
+
+All Block F goals achieved:
+
+- Library scope wired in `CompareLibraryScreen.kt` (`GuideTipScope.LIBRARY`)
+- OPEN_COMPARISON tip: stable phantom anchor at grid-area position; completes on first comparison tile tap (before navigation)
+- MULTI_SELECT tip: completes on long-press multi-select activation; OPEN_COMPARISON prerequisite enforced
+- Scroll-blocked condition: `derivedStateOf { lazyGridState.isScrollInProgress }` covers drag and fling; tips suppressed while scrolling
+- 600 ms screen-entry delay applied before any library tip becomes eligible
+- GuideTipHost added as top layer in `CompareLibraryScreen`; AnimatedVisibility with 200 ms/150 ms fade
+
+Latest verified test state:
+
+- `LibraryGuideTipIntegrationTest` — 7/7 PASSED
+- `CompareLibraryScreenTest` — 74/74 PASSED
+- `CompareGuideTipIntegrationTest` — 4/4 PASSED
+- `testDebugUnitTest` — PASSED
+- `connectedDebugAndroidTest` — 868/868 PASSED
+- `assembleDebug` — BUILD SUCCESSFUL
 
 ---
 

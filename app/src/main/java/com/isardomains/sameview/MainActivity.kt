@@ -301,7 +301,11 @@ class MainActivity : ComponentActivity() {
                                 onToggleFavorite = { sessionId -> viewModel.toggleFavorite(sessionId) },
                                 isBackupInProgress = uiState.isBackupInProgress,
                                 isDeletionInProgress = uiState.isDeletionInProgress,
-                                backupSuccessGeneration = backupSuccessGeneration
+                                backupSuccessGeneration = backupSuccessGeneration,
+                                guideTipController = guideTipController,
+                                onGuideTipLearnMore = { topicId ->
+                                    navController.navigate(guideDetailRoute(topicId))
+                                }
                             )
                             SnackbarHost(
                                 hostState = snackbarHostState,

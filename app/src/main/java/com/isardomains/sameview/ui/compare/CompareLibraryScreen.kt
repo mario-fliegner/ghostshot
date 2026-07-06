@@ -1,9 +1,16 @@
 package com.isardomains.sameview.ui.compare
 
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -25,6 +32,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,32 +67,50 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.isardomains.sameview.R
+import com.isardomains.sameview.guide.GuideTipAnchor
+import com.isardomains.sameview.guide.GuideTipAnchorKey
+import com.isardomains.sameview.guide.GuideTipController
+import com.isardomains.sameview.guide.GuideTipDismissReason
+import com.isardomains.sameview.guide.GuideTipEvaluationContext
+import com.isardomains.sameview.guide.GuideTipHost
+import com.isardomains.sameview.guide.GuideTipId
+import com.isardomains.sameview.guide.GuideTipRegistry
+import com.isardomains.sameview.guide.GuideTipScope
+import com.isardomains.sameview.guide.GuideTopicId
 import com.isardomains.sameview.ui.camera.ScannedSession
 import com.isardomains.sameview.ui.settings.LibraryFilter
 import com.isardomains.sameview.ui.settings.LibrarySortOrder
@@ -99,6 +125,10 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -118,9 +148,12 @@ fun CompareLibraryScreen(
     isDeletionInProgress: Boolean = false,
     backupSuccessGeneration: Long = 0L,
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
+    guideTipController: GuideTipController? = null,
+    onGuideTipLearnMore: ((GuideTopicId) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val resources = LocalResources.current
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var selectionMode by remember { mutableStateOf(false) }
     var selectedSessionIds by remember { mutableStateOf(emptySet<String>()) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -128,6 +161,21 @@ fun CompareLibraryScreen(
     // IDs captured at backup-initiation time, persisted across Activity recreation so the
     // SAF callback always receives the original selection even after process death.
     var pendingBackupSessionIds by rememberSaveable { mutableStateOf(listOf<String>()) }
+
+    val coroutineScope = rememberCoroutineScope()
+    val lazyGridState = rememberLazyGridState()
+    var guideTipAnchors by remember { mutableStateOf(emptyMap<GuideTipAnchorKey, GuideTipAnchor>()) }
+
+    val openComparisonTipCompleted by remember(guideTipController) {
+        guideTipController?.observeTipSeen(GuideTipId.OPEN_COMPARISON) ?: flowOf(false)
+    }.collectAsState(initial = false)
+    val multiSelectTipCompleted by remember(guideTipController) {
+        guideTipController?.observeTipSeen(GuideTipId.MULTI_SELECT) ?: flowOf(false)
+    }.collectAsState(initial = false)
+    val activeGuideTipId by remember(guideTipController) {
+        guideTipController?.activeTipId ?: MutableStateFlow<GuideTipId?>(null)
+    }.collectAsState()
+    val activeGuideTip = activeGuideTipId?.let { GuideTipRegistry.tipFor(it) }
 
     // Filter then sort; cached on any input change.
     val displayedSessions = remember(sessions, libraryFilter, librarySortOrder) {
@@ -164,6 +212,7 @@ fun CompareLibraryScreen(
         if (displayedSessions.isEmpty()) {
             selectionMode = false
             selectedSessionIds = emptySet()
+            guideTipAnchors = emptyMap()
         }
     }
 
@@ -173,6 +222,51 @@ fun CompareLibraryScreen(
             selectionMode = false
             selectedSessionIds = emptySet()
         }
+    }
+
+    val isGridScrollInProgress by remember { derivedStateOf { lazyGridState.isScrollInProgress } }
+    val libraryEligibleTipIds = remember(
+        displayedSessions,
+        openComparisonTipCompleted,
+        multiSelectTipCompleted,
+        guideTipAnchors
+    ) {
+        buildSet<GuideTipId> {
+            if (displayedSessions.isNotEmpty() && !openComparisonTipCompleted) {
+                add(GuideTipId.OPEN_COMPARISON)
+            }
+            if (openComparisonTipCompleted && !multiSelectTipCompleted) {
+                add(GuideTipId.MULTI_SELECT)
+            }
+        }.filter { id ->
+            val tip = GuideTipRegistry.tipFor(id)
+            tip == null || guideTipAnchors.containsKey(tip.anchorKey)
+        }.toSet()
+    }
+    val libraryTipBlocked = selectionMode ||
+        showDeleteConfirmDialog ||
+        isBackupInProgress ||
+        isGridScrollInProgress ||
+        showSortFilterMenu
+
+    LaunchedEffect(libraryEligibleTipIds, libraryTipBlocked) {
+        val controller = guideTipController ?: return@LaunchedEffect
+        if (libraryTipBlocked) {
+            controller.clearActiveTipWithoutMarkingSeen()
+        } else {
+            delay(600)
+            controller.evaluate(
+                GuideTipEvaluationContext(
+                    scope = GuideTipScope.LIBRARY,
+                    eligibleTipIds = libraryEligibleTipIds,
+                    isBlockedByTransientUi = false
+                )
+            )
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { guideTipController?.clearActiveTipWithoutMarkingSeen() }
     }
 
     BackHandler(enabled = selectionMode) {
@@ -395,170 +489,236 @@ fun CompareLibraryScreen(
             } // end Column
         }
     ) { innerPadding ->
-        if (sessions.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
-                    .testTag("compare_library_empty_state"),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (sessions.isEmpty()) {
+                Box(
                     modifier = Modifier
-                        .widthIn(max = 520.dp)
-                        .fillMaxWidth()
-                        .testTag("compare_library_empty_card"),
-                    shape = MaterialTheme.shapes.medium,
-                    color = SameViewAppSurface,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .testTag("compare_library_empty_state"),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Surface(
+                        modifier = Modifier
+                            .widthIn(max = 520.dp)
+                            .fillMaxWidth()
+                            .testTag("compare_library_empty_card"),
+                        shape = MaterialTheme.shapes.medium,
+                        color = SameViewAppSurface,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(SameViewAppSurfaceElevated),
-                            contentAlignment = Alignment.Center
+                        Column(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.CompareArrows,
-                                contentDescription = null,
-                                tint = SameViewTextPrimary.copy(alpha = 0.88f),
-                                modifier = Modifier.size(24.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(SameViewAppSurfaceElevated),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.CompareArrows,
+                                    contentDescription = null,
+                                    tint = SameViewTextPrimary.copy(alpha = 0.88f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Text(
+                                text = stringResource(R.string.compare_library_empty_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = SameViewTextPrimary,
+                                textAlign = TextAlign.Center
                             )
-                        }
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Text(
-                            text = stringResource(R.string.compare_library_empty_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = SameViewTextPrimary,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = stringResource(R.string.compare_library_empty_body),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SameViewTextSecondary,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Button(
-                            onClick = onBack,
-                            colors = ButtonDefaults.buttonColors(
-                                contentColor = SameViewTextPrimary
-                            ),
-                            modifier = Modifier.testTag("compare_library_empty_cta")
-                        ) {
-                            Text(stringResource(R.string.compare_library_empty_cta))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = stringResource(R.string.compare_library_empty_body),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = SameViewTextSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Button(
+                                onClick = onBack,
+                                colors = ButtonDefaults.buttonColors(
+                                    contentColor = SameViewTextPrimary
+                                ),
+                                modifier = Modifier.testTag("compare_library_empty_cta")
+                            ) {
+                                Text(stringResource(R.string.compare_library_empty_cta))
+                            }
                         }
                     }
                 }
-            }
-        } else if (displayedSessions.isEmpty()) {
-            // Favorites-only filter active but no sessions are favorited yet
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
-                    .testTag("compare_library_empty_favorites_state"),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
+            } else if (displayedSessions.isEmpty()) {
+                // Favorites-only filter active but no sessions are favorited yet
+                Box(
                     modifier = Modifier
-                        .widthIn(max = 520.dp)
-                        .fillMaxWidth()
-                        .testTag("compare_library_empty_favorites_card"),
-                    shape = MaterialTheme.shapes.medium,
-                    color = SameViewAppSurface,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .testTag("compare_library_empty_favorites_state"),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Surface(
+                        modifier = Modifier
+                            .widthIn(max = 520.dp)
+                            .fillMaxWidth()
+                            .testTag("compare_library_empty_favorites_card"),
+                        shape = MaterialTheme.shapes.medium,
+                        color = SameViewAppSurface,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(SameViewAppSurfaceElevated),
-                            contentAlignment = Alignment.Center
+                        Column(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                tint = SameViewStarFavorited.copy(alpha = 0.6f),
-                                modifier = Modifier.size(24.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(SameViewAppSurfaceElevated),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = SameViewStarFavorited.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Text(
+                                text = stringResource(R.string.compare_library_empty_favorites_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = SameViewTextPrimary,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = stringResource(R.string.compare_library_empty_favorites_body),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = SameViewTextSecondary,
+                                textAlign = TextAlign.Center
                             )
                         }
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Text(
-                            text = stringResource(R.string.compare_library_empty_favorites_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = SameViewTextPrimary,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = stringResource(R.string.compare_library_empty_favorites_body),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SameViewTextSecondary,
-                            textAlign = TextAlign.Center
-                        )
                     }
                 }
-            }
-        } else {
-            val columnCount = when (windowWidthSizeClass) {
-                WindowWidthSizeClass.Medium -> 3
-                WindowWidthSizeClass.Expanded -> 4
-                else -> 2
-            }
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(columnCount),
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .testTag("compare_library_grid")
-            ) {
-                items(displayedSessions, key = { it.sessionId }) { session ->
-                    CompareSessionTile(
-                        session = session,
-                        isSelected = session.sessionId in selectedSessionIds,
-                        isSelectionMode = selectionMode,
-                        onToggleFavorite = { onToggleFavorite(session.sessionId) },
-                        onClick = {
-                            if (selectionMode) {
-                                val newSelection = if (session.sessionId in selectedSessionIds) {
-                                    selectedSessionIds - session.sessionId
-                                } else {
-                                    selectedSessionIds + session.sessionId
-                                }
-                                selectedSessionIds = newSelection
-                                if (newSelection.isEmpty()) {
-                                    selectionMode = false
-                                }
-                            } else {
-                                onSessionClick(session)
+            } else {
+                val columnCount = when (windowWidthSizeClass) {
+                    WindowWidthSizeClass.Medium -> 3
+                    WindowWidthSizeClass.Expanded -> 4
+                    else -> 2
+                }
+                val density = LocalDensity.current
+                // Grid section wrapped in a Box that applies innerPadding, so both the
+                // phantom anchor and the LazyVerticalGrid share the same content origin.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    // Stable phantom anchor positioned at the logical start of the grid area.
+                    // Zero-height, always in composition while the grid is visible, so the
+                    // placement algorithm always has a valid anchor regardless of scroll state.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(0.dp)
+                            .onGloballyPositioned { coordinates ->
+                                val rootBounds = coordinates.boundsInRoot()
+                                guideTipAnchors = mapOf(
+                                    GuideTipAnchorKey.LIBRARY_GRID_AREA to GuideTipAnchor(
+                                        key = GuideTipAnchorKey.LIBRARY_GRID_AREA,
+                                        bounds = Rect(
+                                            left = rootBounds.left,
+                                            top = rootBounds.top,
+                                            right = rootBounds.left + with(density) { 120.dp.toPx() },
+                                            bottom = rootBounds.top + with(density) { 80.dp.toPx() }
+                                        )
+                                    )
+                                )
                             }
-                        },
-                        onLongClick = {
-                            if (!selectionMode) {
-                                selectionMode = true
-                                selectedSessionIds = setOf(session.sessionId)
-                            }
-                        }
                     )
+                    LazyVerticalGrid(
+                        state = lazyGridState,
+                        columns = GridCells.Fixed(columnCount),
+                        contentPadding = PaddingValues(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("compare_library_grid")
+                    ) {
+                        items(displayedSessions, key = { it.sessionId }) { session ->
+                            CompareSessionTile(
+                                session = session,
+                                isSelected = session.sessionId in selectedSessionIds,
+                                isSelectionMode = selectionMode,
+                                onToggleFavorite = { onToggleFavorite(session.sessionId) },
+                                onClick = {
+                                    guideTipController?.onUserAction()
+                                    if (selectionMode) {
+                                        val newSelection = if (session.sessionId in selectedSessionIds) {
+                                            selectedSessionIds - session.sessionId
+                                        } else {
+                                            selectedSessionIds + session.sessionId
+                                        }
+                                        selectedSessionIds = newSelection
+                                        if (newSelection.isEmpty()) {
+                                            selectionMode = false
+                                        }
+                                    } else {
+                                        coroutineScope.launch {
+                                            guideTipController?.completeTip(GuideTipId.OPEN_COMPARISON)
+                                        }
+                                        onSessionClick(session)
+                                    }
+                                },
+                                onLongClick = {
+                                    guideTipController?.onUserAction()
+                                    if (!selectionMode) {
+                                        coroutineScope.launch {
+                                            guideTipController?.completeTip(GuideTipId.MULTI_SELECT)
+                                        }
+                                        selectionMode = true
+                                        selectedSessionIds = setOf(session.sessionId)
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
+            }
+
+            // Guide tip overlay — topmost layer; touches pass through outside the card bounds.
+            AnimatedVisibility(
+                visible = activeGuideTip != null,
+                enter = fadeIn(animationSpec = tween(200, easing = FastOutLinearInEasing)),
+                exit = fadeOut(animationSpec = tween(150, easing = LinearOutSlowInEasing))
+            ) {
+                GuideTipHost(
+                    activeTip = activeGuideTip,
+                    anchors = guideTipAnchors.values.toList(),
+                    windowWidthSizeClass = windowWidthSizeClass,
+                    isLandscape = isLandscape,
+                    onGotIt = { _ ->
+                        coroutineScope.launch {
+                            guideTipController?.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+                        }
+                    },
+                    onLearnMore = { _, topicId ->
+                        coroutineScope.launch {
+                            guideTipController?.dismissActiveTip(GuideTipDismissReason.LEARN_MORE)
+                        }
+                        onGuideTipLearnMore?.invoke(topicId)
+                    }
+                )
             }
         }
     }
