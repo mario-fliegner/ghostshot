@@ -487,6 +487,12 @@ fun CameraScreen(
                 }
             }
 
+            DisposableEffect(guideTipController) {
+                onDispose {
+                    guideTipController?.clearActiveTipWithoutMarkingSeen()
+                }
+            }
+
             LaunchedEffect(Unit) {
                 viewModel.refreshSavedSessions()
             }
