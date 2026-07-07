@@ -175,6 +175,60 @@ class CompareGuideTipIntegrationTest {
     }
 
     @Test
+    fun shareTip_remainsVisibleWithoutFurtherInteraction() {
+        // Regression guard: a smoke test reported the SHARE tip appearing then disappearing
+        // immediately with no further user interaction. autoAdvance = true: waitForIdle()
+        // advances the Compose test clock so LaunchedEffect delays and AnimatedVisibility
+        // animations are processed.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val refUri = createImageUri("ref")
+        val capUri = createImageUri("cap")
+        setCompareContent(controller, refUri, capUri)
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("compare_viewport").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+
+        // 3-phase real-time gesture (see shareTip_appearsAfterSliderInteraction for details):
+        // DOWN → small MOVE to cross touch slop → Thread.sleep(150) → large MOVE + UP so both
+        // horizontalDragPx > 8dp and the 100ms wall-clock check are satisfied.
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(Offset(200f, centerY))
+        }
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            moveBy(Offset(40f, 0f))
+        }
+        Thread.sleep(150)
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            moveBy(Offset(460f, 0f))
+            up()
+        }
+
+        // Wait longer than the 1000ms SHARE delay for the tip to appear.
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_host").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.SHARE, controller.activeTipId.value)
+
+        // No further interaction at all: the tip must stay put, not silently clear itself
+        // via a spurious re-run of the eligibility effect.
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("guide_tip_card").assertIsDisplayed()
+        assertEquals(GuideTipId.SHARE, controller.activeTipId.value)
+        assertFalse(runBlocking { repository.observeTipSeen(GuideTipId.SHARE).first() })
+    }
+
+    @Test
     fun shareTip_completesOnExportMenuOpen() {
         // autoAdvance = true: waitForIdle() advances the Compose test clock so LaunchedEffect
         // delays and AnimatedVisibility animations are processed.

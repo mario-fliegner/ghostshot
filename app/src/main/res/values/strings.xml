@@ -404,7 +404,7 @@
     <string name="edit_session_field_title">Title</string>
     <string name="edit_session_placeholder_title">e.g. Family trip</string>
     <string name="edit_session_field_description">Description</string>
-    <string name="edit_session_placeholder_description">Add notes about this comparison</string>
+    <string name="edit_session_placeholder_description">Add notes about this moment</string>
     <string name="edit_session_field_reference_date">Reference date</string>
     <string name="edit_session_placeholder_reference_date">e.g. 2008 or 2008-06</string>
     <string name="edit_session_reference_date_hint">e.g. 2008 or 2008-06</string>

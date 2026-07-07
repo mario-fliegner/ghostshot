@@ -616,7 +616,7 @@ No open Session Metadata Editor Block UX3 tasks remain.
 Block UX2 completed (2026-06-09) — Session Metadata Editor UX Refinement V2:
 
 - **Sentence case unified** — all visible text in the Session Metadata Editor now uses sentence case consistently: "Edit session", "Save changes", "Reference photo", "Session date", "Current photo". No Title Case labels remain.
-- **Placeholders corrected** — all generic placeholder text replaced with concrete examples: Title → "e.g. Summer vacation in Italy", Description → "Add notes about this comparison", Place name → "e.g. Marienplatz", City → "e.g. Munich", Country → "e.g. Germany".
+- **Placeholders corrected** — all generic placeholder text replaced with concrete examples: Title → "e.g. Summer vacation in Italy", Description → "Add notes about this moment", Place name → "e.g. Marienplatz", City → "e.g. Munich", Country → "e.g. Germany".
 - **Session date moved** — "Session date" display (read-only, from `captureTimestampMs`) moved from the Reference photo card into the Session card; shown below the Description field when a capture timestamp is available.
 - **Filename removed** — filename label and value removed from the Reference photo card; `edit_session_label_filename` string resource removed; `referenceFilename` derivation and `referenceSourceDisplayName` collection removed from `EditSessionScreen`.
 - **Current photo card added** — new fourth card between "Reference photo" and "Location"; shows only the capture thumbnail (`capture.jpg`); no labels, no metadata, no actions.

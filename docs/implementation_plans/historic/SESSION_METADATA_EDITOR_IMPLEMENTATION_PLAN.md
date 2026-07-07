@@ -745,7 +745,7 @@ Unify sentence case across all visible text, correct placeholders to use concret
 - `edit_session_card_reference_photo`: "Reference Photo" → "Reference photo" (sentence case)
 - `edit_session_label_session_date`: "Session Date" → "Session date" (sentence case)
 - `edit_session_placeholder_title`: "Add a title" → "e.g. Summer vacation in Italy"
-- `edit_session_placeholder_description`: "Add a description" → "Add notes about this comparison"
+- `edit_session_placeholder_description`: "Add a description" → "Add notes about this moment"
 - `edit_session_placeholder_place_name`: "Add a place name" → "e.g. Marienplatz"
 - `edit_session_placeholder_city`: "Add a city" → "e.g. Munich"
 - `edit_session_placeholder_country`: "Add a country" → "e.g. Germany"

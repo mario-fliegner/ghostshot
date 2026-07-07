@@ -221,9 +221,15 @@ fun CompareScreen(
             isSliderInteractionReady = true
         }
     }
-    LaunchedEffect(Unit) {
-        delay(1200L)
-        isEditSessionTipDelayReady = true
+    // Screen-entry delay is measured from the prerequisite (SHARE completed) per
+    // GUIDE_TIPS_UX_V1.md §7.3, not from CompareScreen's own composition entry — otherwise
+    // the delay is already elapsed by the time SHARE completes in any real session, and
+    // EDIT_SESSION appears with no pause at all instead of the intended 1200ms buffer.
+    LaunchedEffect(shareTipCompleted) {
+        if (shareTipCompleted) {
+            delay(1200L)
+            isEditSessionTipDelayReady = true
+        }
     }
 
     val compareTipBlocked = isFullscreen || showExportMenu || showMoreMenu || showDeleteDialog || isBackupInProgress
