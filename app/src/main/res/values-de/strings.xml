@@ -202,8 +202,8 @@
     <string name="guide_tip_share_body">Erstelle ein Bild oder Video, um deinen Vergleich zu teilen.</string>
     <string name="guide_tip_edit_session_title">Details hinzufügen</string>
     <string name="guide_tip_edit_session_body">Füge einen Titel, ein Datum oder einen Ort zu deinem Moment hinzu.</string>
-    <string name="guide_tip_open_comparison_title">Moment öffnen</string>
-    <string name="guide_tip_open_comparison_body">Tippe auf einen Moment, um Vorher und Nachher zu sehen.\nHalte gedrückt, um mehrere Momente auszuwählen.</string>
+    <string name="guide_tip_open_comparison_title">Vergleich öffnen</string>
+    <string name="guide_tip_open_comparison_body">Tippe auf einen Vergleich, um ihn zu öffnen.\nHalte einen Vergleich gedrückt, um mehrere auszuwählen.</string>
     <string name="guide_topic_getting_started_title">Erste Schritte</string>
     <string name="guide_topic_getting_started_summary">Dieselbe Ansicht aufnehmen und vergleichen.</string>
     <string name="guide_topic_reference_photos_title">Referenzfotos</string>

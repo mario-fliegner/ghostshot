@@ -1,4 +1,4 @@
-﻿package com.isardomains.sameview.guide
+package com.isardomains.sameview.guide
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,4 +77,15 @@ class GuideTipController @Inject constructor(
     }
 
     fun observeTipSeen(tipId: GuideTipId): Flow<Boolean> = repository.observeTipSeen(tipId)
+
+    /**
+     * Resets all in-memory guide tip state, so the controller behaves like a freshly
+     * constructed instance (equivalent to a real app start). Used by "Show tips again" —
+     * without this, [waitingForUserActionAfterDismissal] or [_activeTipId] could survive
+     * a reset even though the persisted seen_tip_ids were cleared.
+     */
+    fun resetInMemoryState() {
+        _activeTipId.value = null
+        waitingForUserActionAfterDismissal = false
+    }
 }

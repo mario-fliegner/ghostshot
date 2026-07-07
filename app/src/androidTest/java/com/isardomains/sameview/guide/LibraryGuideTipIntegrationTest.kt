@@ -8,12 +8,14 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.longClick
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -170,7 +172,10 @@ class LibraryGuideTipIntegrationTest {
     }
 
     @Test
-    fun openComparisonTip_completesOnTileTap() {
+    fun openComparisonTip_tileTapDoesNotMarkSeen() {
+        // Product decision: OPEN_COMPARISON completes via Dismiss only (GUIDE_TIPS_UX_V1.md
+        // §6.2/§7.4/§15.3). Tapping a comparison tile navigates as normal but must not mark
+        // the tip seen.
         composeRule.mainClock.autoAdvance = true
         val repository = createRepository()
         val controller = GuideTipController(repository)
@@ -184,12 +189,110 @@ class LibraryGuideTipIntegrationTest {
         Thread.sleep(300)
         composeRule.waitForIdle()
 
-        // Tap the session tile — triggers completeTip(OPEN_COMPARISON).
         composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId").performClick()
         Thread.sleep(300)
         composeRule.waitForIdle()
 
+        assertFalse(runBlocking { repository.observeTipSeen(GuideTipId.OPEN_COMPARISON).first() })
+    }
+
+    @Test
+    fun openComparisonTip_reappearsAfterTileTapWithoutDismiss() {
+        // Tile tap without Dismiss must leave OPEN_COMPARISON eligible: leaving the screen
+        // clears the active tip via the existing dispose cleanup
+        // (clearActiveTipWithoutMarkingSeen()), not via completion, so it appears again on
+        // the next Library visit.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val screenVisible = mutableStateOf(true)
+        setLibraryContent(
+            controller = controller,
+            sessions = listOf(createFakeSession()),
+            screenVisible = screenVisible
+        )
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+
+        // Tile tap (no Dismiss) — navigates away without completing.
+        composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId").performClick()
+        composeRule.waitForIdle()
+
+        // Leave the screen (simulating navigation to CompareScreen).
+        screenVisible.value = false
+        composeRule.waitForIdle()
+        assertFalse(runBlocking { repository.observeTipSeen(GuideTipId.OPEN_COMPARISON).first() })
+
+        // Re-open the Library.
+        screenVisible.value = true
+        composeRule.waitForIdle()
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+    }
+
+    @Test
+    fun openComparisonTip_dismissMarksSeenAndPreventsReappearance() {
+        // Dismiss is OPEN_COMPARISON's only completion path: it must mark the tip seen and
+        // permanently prevent reappearance on subsequent Library visits.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val screenVisible = mutableStateOf(true)
+        setLibraryContent(
+            controller = controller,
+            sessions = listOf(createFakeSession()),
+            screenVisible = screenVisible
+        )
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_dismiss").performClick()
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
         assertTrue(runBlocking { repository.observeTipSeen(GuideTipId.OPEN_COMPARISON).first() })
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card").assertDoesNotExist()
+
+        // Leave and re-open the Library — must not reappear.
+        screenVisible.value = false
+        composeRule.waitForIdle()
+        screenVisible.value = true
+        composeRule.waitForIdle()
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card").assertDoesNotExist()
     }
 
     @Test
@@ -228,6 +331,254 @@ class LibraryGuideTipIntegrationTest {
 
         assertNull(controller.activeTipId.value)
         assertFalse(runBlocking { repository.observeTipSeen(GuideTipId.OPEN_COMPARISON).first() })
+    }
+
+    @Test
+    fun openComparisonTip_reappearsAfterShowTipsAgain_evenIfAnotherTipWasDismissedFirst() {
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+
+        // Simulate a completely unrelated tip already dismissed earlier in the same app
+        // session (e.g. REFERENCE in CameraScreen). This sets waitingForUserActionAfterDismissal
+        // on the controller, which OPEN_COMPARISON must not remain blocked by forever.
+        runBlocking {
+            controller.evaluate(
+                GuideTipEvaluationContext(
+                    scope = GuideTipScope.CAMERA,
+                    eligibleTipIds = setOf(GuideTipId.REFERENCE)
+                )
+            )
+            controller.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+        }
+
+        val screenVisible = mutableStateOf(true)
+        setLibraryContent(
+            controller = controller,
+            sessions = listOf(createFakeSession()),
+            screenVisible = screenVisible
+        )
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        // Bug reproduction: without a reset, OPEN_COMPARISON stays blocked by the leftover
+        // anti-spam flag from the unrelated REFERENCE dismissal above.
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card").assertDoesNotExist()
+
+        // "Show tips again": clears persisted seen ids AND the controller's in-memory state.
+        runBlocking { repository.resetContextualTips() }
+        controller.resetInMemoryState()
+
+        // Re-open the Library (dispose + remount), matching a real navigate-away-and-back.
+        screenVisible.value = false
+        composeRule.waitForIdle()
+        screenVisible.value = true
+        composeRule.waitForIdle()
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+    }
+
+    @Test
+    fun openComparisonTip_survivesInstantaneousTouchOnGrid_notClearedByBriefPulse() {
+        // Regression guard: a smoke test reported OPEN_COMPARISON appearing then disappearing
+        // after ~200ms on a real device. Root cause (confirmed via logcat): any scroll delta,
+        // however brief/incidental, immediately set isScrollInProgress=true and instantly
+        // cleared the tip. This test drives a single instantaneous touch (down+move+up
+        // delivered back-to-back with no real wall-clock time in between) on the grid,
+        // simulating an incidental touch settling right as the tip is visible — it must not
+        // be cleared by such a brief pulse.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val manySessions = (1..30).map { i ->
+            createFakeSession(id = "session-$i", timestamp = fakeTimestamp + i)
+        }
+        setLibraryContent(controller = controller, sessions = manySessions)
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+
+        composeRule.onNodeWithTag("compare_library_grid").performTouchInput {
+            down(Offset(centerX, centerY))
+            moveBy(Offset(0f, -20f))
+            up()
+        }
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card").assertIsDisplayed()
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+    }
+
+    @Test
+    fun openComparisonTip_recoversAfterGenuineScrollSettles_notPermanentlyRemoved() {
+        // A real, sustained scroll must still correctly block the tip while scrolling is in
+        // progress — that part of §8.3 is unchanged. Once the scroll fully settles, the block
+        // must be temporary: after the normal re-entry delay the tip must reappear rather than
+        // staying gone for the rest of the session.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val manySessions = (1..30).map { i ->
+            createFakeSession(id = "session-$i", timestamp = fakeTimestamp + i)
+        }
+        setLibraryContent(controller = controller, sessions = manySessions)
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+
+        // A single continuous swipe (interpolated move events with no gap in between,
+        // unlike a paused multi-step gesture) so isScrollInProgress stays true throughout,
+        // well past the 150ms debounce, instead of flickering between discrete move() calls.
+        composeRule.onNodeWithTag("compare_library_grid").performTouchInput {
+            swipe(
+                start = Offset(centerX, centerY),
+                end = Offset(centerX, centerY - 400f),
+                durationMillis = 400
+            )
+        }
+
+        // Gone while genuinely scrolling (checked immediately after the swipe; the fling
+        // settle following a swipe keeps isScrollInProgress true briefly afterward too).
+        assertNull(controller.activeTipId.value)
+
+        // Not permanently gone: reappears once settled + the normal re-entry delay.
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+    }
+
+    @Test
+    fun openComparisonTip_reappearsAfterShowTipsAgain_followingDismissInSameSession() {
+        // Regression guard: root cause was a combined delay(600)+evaluate() LaunchedEffect
+        // that got cancelled and restarted by transient eligibility churn (e.g. the
+        // openComparisonTipCompleted collectAsState briefly reporting its initial false on
+        // every re-mount), so evaluate() could go unreached indefinitely. Reproduces: Dismiss
+        // completes OPEN_COMPARISON (the only completion path) -> leave Library -> "Show
+        // tips again" (repository reset + controller in-memory reset) -> re-open Library ->
+        // OPEN_COMPARISON must become eligible and appear again.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val screenVisible = mutableStateOf(true)
+        setLibraryContent(
+            controller = controller,
+            sessions = listOf(createFakeSession()),
+            screenVisible = screenVisible
+        )
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+
+        // Dismiss completes OPEN_COMPARISON in this same session.
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_dismiss").performClick()
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+        assertTrue(runBlocking { repository.observeTipSeen(GuideTipId.OPEN_COMPARISON).first() })
+
+        // Leave Library, then "Show tips again" (Guide screen action).
+        screenVisible.value = false
+        composeRule.waitForIdle()
+        runBlocking { repository.resetContextualTips() }
+        controller.resetInMemoryState()
+
+        // Re-open Library after the reset.
+        screenVisible.value = true
+        composeRule.waitForIdle()
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+    }
+
+    @Test
+    fun openComparisonTip_notPermanentlyBlockedByTransientEligibilityChurn() {
+        // Rapid, repeated blocked-state churn (selection mode on/off) right after mount,
+        // simulating transient recomposition churn during the entry-delay window. Before the
+        // fix, each such churn cancelled the combined delay+evaluate effect and restarted its
+        // 600ms delay from zero — if churn kept recurring, evaluate() could go unreached
+        // indefinitely. The decoupled entry-delay effect must be immune to this: it keeps
+        // ticking regardless of how often libraryTipBlocked flips during the window.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        setLibraryContent(controller = controller, sessions = listOf(createFakeSession()))
+
+        repeat(5) {
+            composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
+                .performTouchInput { longClick() }
+            composeRule.waitForIdle()
+            composeRule.onNodeWithTag("compare_library_cancel_button").performClick()
+            composeRule.waitForIdle()
+        }
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
     }
 
     // ── Long-press / multi-select (no guide tip involved) ──────────────────────

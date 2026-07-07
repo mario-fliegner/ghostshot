@@ -1,4 +1,4 @@
-﻿package com.isardomains.sameview.guide
+package com.isardomains.sameview.guide
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,7 +15,8 @@ data class GuideUiState(
 
 @HiltViewModel
 class GuideViewModel @Inject constructor(
-    private val guideRepository: GuideRepository
+    private val guideRepository: GuideRepository,
+    private val guideTipController: GuideTipController
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GuideUiState())
     val uiState: StateFlow<GuideUiState> = _uiState.asStateFlow()
@@ -31,6 +32,7 @@ class GuideViewModel @Inject constructor(
     fun onResetTipsConfirmed() {
         viewModelScope.launch {
             guideRepository.resetContextualTips()
+            guideTipController.resetInMemoryState()
             _uiState.value = _uiState.value.copy(showResetTipsConfirmation = false)
         }
     }

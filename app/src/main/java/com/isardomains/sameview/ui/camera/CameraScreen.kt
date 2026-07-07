@@ -428,6 +428,14 @@ fun CameraScreen(
                     viewModel.onCompareDisabledTapped(referenceUri)
                 }
             }
+            // Opening Comparisons/History is a normal user action and must release the
+            // anti-spam gate (waitingForUserActionAfterDismissal) set by a previous tip
+            // dismissal/completion — otherwise OPEN_COMPARISON can stay blocked in Library
+            // even though it was never seen and Library has no transient UI blocking it.
+            val onOpenHistoryClick: () -> Unit = {
+                guideTipController?.onUserAction()
+                onOpenCompareLibrary()
+            }
 
             LaunchedEffect(overlayInteractionGeneration) {
                 if (overlayInteractionGeneration > 0L) {
@@ -909,7 +917,7 @@ fun CameraScreen(
                 // ── Layer 7: Top-right navigation ─────────────────────────────────────
                 if (isLandscape) {
                     CameraLandscapeTopActions(
-                        onOpenHistory = onOpenCompareLibrary,
+                        onOpenHistory = onOpenHistoryClick,
                         onOpenSettings = onOpenSettings,
                         onOpenGuide = onOpenGuide,
                         onOpenAbout = onOpenAbout,
@@ -919,7 +927,7 @@ fun CameraScreen(
                     )
                 } else {
                     CameraTopRightActions(
-                        onOpenHistory = onOpenCompareLibrary,
+                        onOpenHistory = onOpenHistoryClick,
                         onOpenSettings = onOpenSettings,
                         onOpenGuide = onOpenGuide,
                         onOpenAbout = onOpenAbout,

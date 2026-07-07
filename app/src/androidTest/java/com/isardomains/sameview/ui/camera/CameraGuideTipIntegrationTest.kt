@@ -19,6 +19,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -31,9 +32,12 @@ import com.isardomains.sameview.guide.GuideRepository
 import com.isardomains.sameview.guide.GuideTipAnchor
 import com.isardomains.sameview.guide.GuideTipAnchorKey
 import com.isardomains.sameview.guide.GuideTipController
+import com.isardomains.sameview.guide.GuideTipDismissReason
+import com.isardomains.sameview.guide.GuideTipEvaluationContext
 import com.isardomains.sameview.guide.GuideTipHost
 import com.isardomains.sameview.guide.GuideTipId
 import com.isardomains.sameview.guide.GuideTipRegistry
+import com.isardomains.sameview.guide.GuideTipScope
 import com.isardomains.sameview.ui.settings.SettingsRepository
 import com.isardomains.sameview.ui.theme.SameViewTheme
 import java.io.File
@@ -45,6 +49,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -260,6 +265,63 @@ class CameraGuideTipIntegrationTest {
 
         val seenTipIds = runBlocking { harness.repository.observeSeenTipIds().first() }
         assertTrue(GuideTipId.REFERENCE in seenTipIds)
+    }
+
+    // ── History/Comparisons icon must release the anti-spam gate ────────────────────────
+    //
+    // Root cause: dismissing/completing any tip sets waitingForUserActionAfterDismissal on
+    // the controller (a global, cross-scope flag). Every other navigation-triggering click in
+    // this codebase (Compare button, Library tile taps, Compare viewport taps) already calls
+    // onUserAction() to release it. The History/Comparisons icon did not, so OPEN_COMPARISON
+    // (or any other tip) could stay blocked in Library even with empty seen_tip_ids and no
+    // Library-side transient UI blocking it.
+
+    @Test
+    fun historyButtonClick_releasesAntiSpamGateAfterPriorTipDismissal() {
+        val harness = mountCameraScreenForGuideTipTest()
+
+        // Pre-mark REFERENCE as seen so CameraScreen's own (800ms-delayed) REFERENCE
+        // eligibility effect can never select it and touch activeTipId in the background
+        // while this test manipulates COMPARE/LIBRARY scope state directly below — keeps
+        // the test deterministic regardless of exact timing.
+        runBlocking { harness.repository.markTipSeen(GuideTipId.REFERENCE) }
+
+        // Simulate an earlier tip dismissal elsewhere in the session (e.g. SHARE in
+        // CompareScreen), which sets waitingForUserActionAfterDismissal on the controller.
+        runBlocking {
+            harness.controller.evaluate(
+                GuideTipEvaluationContext(
+                    scope = GuideTipScope.COMPARE,
+                    eligibleTipIds = setOf(GuideTipId.SHARE)
+                )
+            )
+            harness.controller.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+        }
+
+        // Confirm the gate is actually blocking a different, unrelated, still-unseen tip
+        // before the click — otherwise this test would prove nothing.
+        val blockedBeforeClick = runBlocking {
+            harness.controller.evaluate(
+                GuideTipEvaluationContext(
+                    scope = GuideTipScope.LIBRARY,
+                    eligibleTipIds = setOf(GuideTipId.OPEN_COMPARISON)
+                )
+            )
+        }
+        assertNull(blockedBeforeClick)
+
+        composeRule.onNodeWithTag("camera_history_button").performClick()
+        composeRule.waitForIdle()
+
+        val tipAfterClick = runBlocking {
+            harness.controller.evaluate(
+                GuideTipEvaluationContext(
+                    scope = GuideTipScope.LIBRARY,
+                    eligibleTipIds = setOf(GuideTipId.OPEN_COMPARISON)
+                )
+            )
+        }
+        assertEquals(GuideTipId.OPEN_COMPARISON, tipAfterClick?.id)
     }
 
     private class CameraGuideTipHarness(

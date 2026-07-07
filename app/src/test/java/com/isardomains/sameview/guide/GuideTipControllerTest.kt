@@ -248,6 +248,42 @@ class GuideTipControllerTest {
         assertNull(tip)
         assertNull(controller.activeTipId.value)
     }
+
+    @Test
+    fun resetInMemoryState_clearsActiveTipAndAntiSpamFlag() = runTest {
+        val controller = GuideTipController(createRepository())
+
+        // Pre-load state: an active tip plus the anti-spam flag from a prior dismissal,
+        // simulating a controller that has already been used earlier in the session.
+        controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.CAMERA,
+                eligibleTipIds = setOf(GuideTipId.REFERENCE)
+            )
+        )
+        controller.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+        // dismissActiveTip already clears activeTipId; re-evaluate to prove the anti-spam
+        // flag alone blocks a different tip before reset.
+        val blockedBeforeReset = controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.LIBRARY,
+                eligibleTipIds = setOf(GuideTipId.OPEN_COMPARISON)
+            )
+        )
+        assertNull(blockedBeforeReset)
+
+        controller.resetInMemoryState()
+
+        assertNull(controller.activeTipId.value)
+        // If waitingForUserActionAfterDismissal were still true, this would also return null.
+        val tipAfterReset = controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.LIBRARY,
+                eligibleTipIds = setOf(GuideTipId.OPEN_COMPARISON)
+            )
+        )
+        assertEquals(GuideTipId.OPEN_COMPARISON, tipAfterReset?.id)
+    }
 }
 
 

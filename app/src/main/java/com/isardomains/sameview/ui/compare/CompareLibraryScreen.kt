@@ -214,6 +214,19 @@ fun CompareLibraryScreen(
     }
 
     val isGridScrollInProgress by remember { derivedStateOf { lazyGridState.isScrollInProgress } }
+    // A raw scroll blip (e.g. incidental touch settling right as the grid first lays out)
+    // must not instantly and irrecoverably clear the tip. Only a scroll that is still in
+    // progress after a short debounce counts as a real, deliberate scroll for blocking
+    // purposes — momentary blips settle within the debounce window and never set this true.
+    var isGridScrollBlockConfirmed by remember { mutableStateOf(false) }
+    LaunchedEffect(isGridScrollInProgress) {
+        if (isGridScrollInProgress) {
+            delay(150)
+            isGridScrollBlockConfirmed = true
+        } else {
+            isGridScrollBlockConfirmed = false
+        }
+    }
     val libraryEligibleTipIds = remember(displayedSessions, openComparisonTipCompleted) {
         buildSet<GuideTipId> {
             if (displayedSessions.isNotEmpty() && !openComparisonTipCompleted) {
@@ -224,15 +237,25 @@ fun CompareLibraryScreen(
     val libraryTipBlocked = selectionMode ||
         showDeleteConfirmDialog ||
         isBackupInProgress ||
-        isGridScrollInProgress ||
+        isGridScrollBlockConfirmed ||
         showSortFilterMenu
 
-    LaunchedEffect(libraryEligibleTipIds, libraryTipBlocked) {
+    // Screen-entry delay is a one-shot, stably-keyed effect, decoupled from eligibility
+    // evaluation — otherwise a transient state change (e.g. openComparisonTipCompleted's
+    // collectAsState briefly reporting its initial false before the real persisted value
+    // arrives) restarts the delay from zero on every such blip, and evaluate() may never
+    // actually run before the user navigates away again.
+    var isLibraryEntryDelayElapsed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(600L)
+        isLibraryEntryDelayElapsed = true
+    }
+
+    LaunchedEffect(libraryEligibleTipIds, libraryTipBlocked, isLibraryEntryDelayElapsed) {
         val controller = guideTipController ?: return@LaunchedEffect
         if (libraryTipBlocked) {
             controller.clearActiveTipWithoutMarkingSeen()
-        } else {
-            delay(600)
+        } else if (isLibraryEntryDelayElapsed) {
             controller.evaluate(
                 GuideTipEvaluationContext(
                     scope = GuideTipScope.LIBRARY,
@@ -244,7 +267,9 @@ fun CompareLibraryScreen(
     }
 
     DisposableEffect(Unit) {
-        onDispose { guideTipController?.clearActiveTipWithoutMarkingSeen() }
+        onDispose {
+            guideTipController?.clearActiveTipWithoutMarkingSeen()
+        }
     }
 
     BackHandler(enabled = selectionMode) {
@@ -647,9 +672,13 @@ fun CompareLibraryScreen(
                                             selectionMode = false
                                         }
                                     } else {
-                                        coroutineScope.launch {
-                                            guideTipController?.completeTip(GuideTipId.OPEN_COMPARISON)
-                                        }
+                                        // OPEN_COMPARISON completes via Dismiss only (see
+                                        // GUIDE_TIPS_UX_V1.md §6.2/§7.4/§15.3) — tapping a tile
+                                        // does not complete or mark it seen. If it was visible,
+                                        // leaving this screen clears it via the existing dispose
+                                        // cleanup (clearActiveTipWithoutMarkingSeen()) without
+                                        // persisting completion, so it reappears on the next
+                                        // Library visit.
                                         onSessionClick(session)
                                     }
                                 },

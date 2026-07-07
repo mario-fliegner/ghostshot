@@ -54,7 +54,7 @@ The following four tips form the complete tip set for V1.
 | 1 | `REFERENCE` | Camera | Reference button | CameraScreen entered after walkthrough; no reference loaded | None | Reference image successfully selected | Yes |
 | 2 | `SHARE` | Compare | Share button | First meaningful compare-slider interaction; ~1 s deferred | None | Share menu opened | Yes |
 | 3 | `EDIT_SESSION` | Compare | Overflow menu button | `SHARE` tip completed; Edit Session screen never opened | `SHARE` completed | Edit Session screen opened | Yes |
-| 4 | `OPEN_COMPARISON` | Library | Inline card above the grid (no anchor) | ≥ 1 comparison exists; comparison tile never tapped; user opens library screen | None | First comparison tile tapped in the Comparisons screen | No |
+| 4 | `OPEN_COMPARISON` | Library | Inline card above the grid (no anchor) | ≥ 1 comparison exists; tip not yet dismissed; user opens library screen | None | Dismiss only | No |
 
 `OPEN_COMPARISON`'s copy covers both Library actions (opening a comparison and multi-select) — see §7.4 and §22.1. `MULTI_SELECT` was removed as a separate tip; see §5.
 
@@ -103,7 +103,7 @@ This is distinct from navigating away from a screen while a tip is visible witho
 | `REFERENCE` | `CameraViewModel.onReferenceImageSelected()` succeeds | `CameraViewModel` |
 | `SHARE` | Share menu dropdown opens in `CompareScreen` | `CompareScreen` (on `showExportMenu = true`) |
 | `EDIT_SESSION` | Edit Session route is pushed in `MainActivity` | `MainActivity` navigation event handler |
-| `OPEN_COMPARISON` | First comparison tile tapped in `CompareLibraryScreen` (before navigation) | `CompareLibraryScreen` tile tap handler |
+| `OPEN_COMPARISON` | Dismiss only — tapping a comparison tile does **not** complete or mark the tip seen | `GuideTipController.dismissActiveTip(GOT_IT)` (Dismiss button in the inline card) |
 
 Completion is recorded by calling `GuideRepository.markTipSeen(tipId)`. `GuideTipController.dismissActiveTip()` calls `markTipSeen(tipId)` unconditionally, for **both** `GuideTipDismissReason.GOT_IT` (Dismiss) and `GuideTipDismissReason.LEARN_MORE` (Learn more) — the `reason` argument no longer changes whether persistence happens, only which button the user tapped (kept for callers/analytics). All other completions call `markTipSeen()` directly from the feature event site, then call `guideTipController.clearActiveTipWithoutMarkingSeen()` if a tip is currently active, to dismiss the visual without double-persisting.
 
@@ -126,7 +126,7 @@ Tips that have `learnMore = true` show a **Learn more** action (label: "Learn mo
 - Marks the tip as completed via `dismissActiveTip(GuideTipDismissReason.LEARN_MORE)`, which calls `GuideRepository.markTipSeen(tipId)`.
 - The tip does not appear again.
 
-Tips with `learnMore = false` (`OPEN_COMPARISON`) show only the Dismiss action — which is now their only path to completion besides the feature event itself.
+Tips with `learnMore = false` (`OPEN_COMPARISON`) show only the Dismiss action — which is `OPEN_COMPARISON`'s **only** path to completion. Tapping a comparison tile is not a completion event for `OPEN_COMPARISON` (see §7.4/§15.3): the tip remains eligible and reappears on the next Library visit unless the user explicitly dismissed it.
 
 ### 6.5 Navigate Away Without Completing
 
@@ -200,11 +200,11 @@ When the user leaves a screen while a tip is visible:
 
 **Screen entry delay:** 600 ms after CompareLibraryScreen enters the resumed state.
 
-**Presentation:** Unlike other tips, OPEN_COMPARISON does **not** render via the floating `GuideTipHost`/pointer mechanism and has no anchor at all. It refers to the whole grid, not one specific spot, so a pointer aimed at a single point is misleading — and a floating card risks covering the only tile (few sessions) or reads as a banner stuck to the grid top (many sessions). Instead, `CompareLibraryScreen` renders a dedicated inline `Card` directly above the `LazyVerticalGrid`, in normal layout flow (the grid takes the remaining space via `Modifier.weight(1f)`), so it reserves real space and can never overlap a tile at any session count. No pointer. Visual language (surface color, border, typography, action styling) mirrors the `GuideTipHost` card so the two presentations still read as one system. Dismiss and completion continue to call the same `GuideTipController` functions (`dismissActiveTip`, `completeTip`) as every other tip — only the rendering path differs.
+**Presentation:** Unlike other tips, OPEN_COMPARISON does **not** render via the floating `GuideTipHost`/pointer mechanism and has no anchor at all. It refers to the whole grid, not one specific spot, so a pointer aimed at a single point is misleading — and a floating card risks covering the only tile (few sessions) or reads as a banner stuck to the grid top (many sessions). Instead, `CompareLibraryScreen` renders a dedicated inline `Card` directly above the `LazyVerticalGrid`, in normal layout flow (the grid takes the remaining space via `Modifier.weight(1f)`), so it reserves real space and can never overlap a tile at any session count. No pointer. Visual language (surface color, border, typography, action styling) mirrors the `GuideTipHost` card so the two presentations still read as one system. Dismiss continues to call the same `GuideTipController` function (`dismissActiveTip`) as every other tip's Dismiss action — only the rendering path differs. `completeTip()` is **not** called for `OPEN_COMPARISON` anywhere.
 
 **Copy scope:** This tip's copy covers both Library actions in one card — opening a comparison (tap) and multi-select (long-press) — since the former `MULTI_SELECT` tip was merged into it (§5). See §22.1 for the exact strings.
 
-**Clears when:** First comparison tile is tapped (tip completes, before navigation), tip is dismissed, or any blocking condition becomes true.
+**Clears when:** Tip is dismissed (permanent completion), or any blocking condition becomes true (temporary — the tip remains eligible and reappears once unblocked). Tapping a comparison tile does **not** complete the tip: it still triggers `onUserAction()` and navigates to `CompareScreen` as normal, but leaves `OPEN_COMPARISON` eligible for future Library visits. Leaving the Library screen (e.g. by tapping a tile, or navigating back) without dismissing clears the active tip via the existing dispose cleanup (`clearActiveTipWithoutMarkingSeen()`, §15.3) without marking it seen, so it reappears on the next Library visit.
 
 ---
 
@@ -601,7 +601,7 @@ val libraryTipBlocked = isMultiSelectActive ||
 
 **Completion event:**
 
-- OPEN_COMPARISON: Tile tap handler in CompareLibraryScreen → call `guideTipController?.completeTip(GuideTipId.OPEN_COMPARISON)` immediately on tap, before navigating to `CompareScreen`. The completion event is the tap itself; whether the user proceeds to view the comparison is irrelevant.
+- OPEN_COMPARISON: Dismiss only, via the inline card's Dismiss action (`guideTipController?.dismissActiveTip(GuideTipDismissReason.GOT_IT)`). The tile tap handler in `CompareLibraryScreen` does **not** call `completeTip()` and does **not** mark the tip seen — it still calls `guideTipController?.onUserAction()` and navigates to `CompareScreen` as normal. If `OPEN_COMPARISON` was visible at tap time, it is cleared from the active-tip state by the existing dispose cleanup when the screen is left (`clearActiveTipWithoutMarkingSeen()`), not by completion — so the tip remains eligible and reappears on the next Library visit unless it was dismissed.
 
 The long-press handler that activates multi-select mode (`selectionMode = true`) does **not** call any guide tip function — multi-select discovery is now taught by `OPEN_COMPARISON`'s copy (§7.4), not gated by a separate tip completion.
 
