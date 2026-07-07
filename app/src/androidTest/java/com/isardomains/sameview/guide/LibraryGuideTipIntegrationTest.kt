@@ -6,6 +6,8 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -32,6 +34,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -187,6 +192,44 @@ class LibraryGuideTipIntegrationTest {
         assertTrue(runBlocking { repository.observeTipSeen(GuideTipId.OPEN_COMPARISON).first() })
     }
 
+    @Test
+    fun openComparisonTipVisible_screenDisposed_clearsControllerWithoutMarkingSeen() {
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val screenVisible = mutableStateOf(true)
+        setLibraryContent(
+            controller = controller,
+            sessions = listOf(createFakeSession()),
+            screenVisible = screenVisible
+        )
+
+        // Real-time sleep lets the 600ms screen-entry delay fire (same pattern as
+        // openComparisonTip_showsWhenSessionExists above).
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+
+        // Simulate navigating away: CompareLibraryScreen leaves composition without
+        // completing or dismissing the tip. The existing DisposableEffect(Unit) in
+        // CompareLibraryScreen.kt must clear the controller's active tip without
+        // marking it seen.
+        screenVisible.value = false
+        composeRule.waitForIdle()
+
+        assertNull(controller.activeTipId.value)
+        assertFalse(runBlocking { repository.observeTipSeen(GuideTipId.OPEN_COMPARISON).first() })
+    }
+
     // ── Long-press / multi-select (no guide tip involved) ──────────────────────
 
     @Test
@@ -213,7 +256,8 @@ class LibraryGuideTipIntegrationTest {
     private fun setLibraryContent(
         controller: GuideTipController,
         sessions: List<ScannedSession>,
-        libraryFilter: LibraryFilter = LibraryFilter.ALL
+        libraryFilter: LibraryFilter = LibraryFilter.ALL,
+        screenVisible: MutableState<Boolean> = mutableStateOf(true)
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -225,15 +269,17 @@ class LibraryGuideTipIntegrationTest {
             }
             activity.setContent {
                 SameViewTheme {
-                    CompareLibraryScreen(
-                        sessions = sessions,
-                        onRefresh = {},
-                        onSessionClick = {},
-                        onBack = {},
-                        libraryFilter = libraryFilter,
-                        windowWidthSizeClass = WindowWidthSizeClass.Compact,
-                        guideTipController = controller
-                    )
+                    if (screenVisible.value) {
+                        CompareLibraryScreen(
+                            sessions = sessions,
+                            onRefresh = {},
+                            onSessionClick = {},
+                            onBack = {},
+                            libraryFilter = libraryFilter,
+                            windowWidthSizeClass = WindowWidthSizeClass.Compact,
+                            guideTipController = controller
+                        )
+                    }
                 }
             }
         }
