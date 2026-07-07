@@ -80,7 +80,7 @@ class GuideTipControllerTest {
     }
 
     @Test
-    fun dismissActiveTip_gotIt_doesNotMarkTipSeen() = runTest {
+    fun dismissActiveTip_gotIt_marksTipSeen() = runTest {
         val repository = createRepository()
         val controller = GuideTipController(repository)
 
@@ -93,11 +93,11 @@ class GuideTipControllerTest {
         controller.dismissActiveTip(GuideTipDismissReason.GOT_IT)
 
         assertNull(controller.activeTipId.value)
-        assertEquals(emptySet<GuideTipId>(), repository.observeSeenTipIds().first())
+        assertEquals(setOf(GuideTipId.REFERENCE), repository.observeSeenTipIds().first())
     }
 
     @Test
-    fun antiSpam_requiresUserActionAfterDismissalBeforeNextTip() = runTest {
+    fun dismissActiveTip_gotIt_tipNeverReappearsEvenAfterUserAction() = runTest {
         val controller = GuideTipController(createRepository())
         val context = GuideTipEvaluationContext(
             scope = GuideTipScope.CAMERA,
@@ -106,12 +106,40 @@ class GuideTipControllerTest {
 
         controller.evaluate(context)
         controller.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+        controller.onUserAction()
 
         assertNull(controller.evaluate(context))
+    }
+
+    @Test
+    fun antiSpam_blocksADifferentTipUntilUserActionAfterDismissal() = runTest {
+        val controller = GuideTipController(createRepository())
+
+        controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.CAMERA,
+                eligibleTipIds = setOf(GuideTipId.REFERENCE)
+            )
+        )
+        controller.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+
+        val blockedTip = controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.COMPARE,
+                eligibleTipIds = setOf(GuideTipId.SHARE)
+            )
+        )
+        assertNull(blockedTip)
 
         controller.onUserAction()
 
-        assertEquals(GuideTipId.REFERENCE, controller.evaluate(context)?.id)
+        val nextTip = controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.COMPARE,
+                eligibleTipIds = setOf(GuideTipId.SHARE)
+            )
+        )
+        assertEquals(GuideTipId.SHARE, nextTip?.id)
     }
 
     @Test

@@ -52,9 +52,10 @@ class GuideTipController @Inject constructor(
 
     suspend fun dismissActiveTip(reason: GuideTipDismissReason) {
         val tipId = _activeTipId.value ?: return
-        if (reason == GuideTipDismissReason.LEARN_MORE) {
-            repository.markTipSeen(tipId)
-        }
+        // Dismiss (GOT_IT) and Learn more (LEARN_MORE) both mark the tip permanently seen —
+        // dismissing is completion, not a temporary hide. `reason` is kept for callers/analytics
+        // to distinguish which action the user took, even though persistence is now identical.
+        repository.markTipSeen(tipId)
         _activeTipId.value = null
         waitingForUserActionAfterDismissal = true
     }

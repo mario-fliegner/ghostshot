@@ -88,9 +88,11 @@ The following tips from the prior implementation are **permanently removed**.
 
 ### 6.1 Completed vs. Dismissed
 
-**Completed** means the user has meaningfully discovered or used the feature. Completion is permanent. Completed tips never appear again unless the user explicitly resets tip state from the Guide screen.
+**Completed** means the user has meaningfully discovered or used the feature, or has explicitly dismissed the tip card. Completion is permanent. Completed tips never appear again unless the user explicitly resets tip state from the Guide screen.
 
-**Dismissed** means the user manually closed the tip card without performing the feature action. Dismissal is not completion. A dismissed tip may re-appear under its normal trigger conditions in a future session, subject to the anti-spam cooldown.
+**Dismissed** means the user manually closed the tip card via the Dismiss action, without performing the feature action. **Dismissal is completion** — tapping Dismiss marks the tip as permanently seen, identically to Learn more. A dismissed tip does **not** re-appear under any circumstance short of an explicit tip-state reset from the Guide screen.
+
+This is distinct from navigating away from a screen while a tip is visible without tapping either action (§6.5), which does **not** complete the tip.
 
 ### 6.2 Completion Events Per Tip
 
@@ -102,16 +104,16 @@ The following tips from the prior implementation are **permanently removed**.
 | `OPEN_COMPARISON` | First comparison tile tapped in `CompareLibraryScreen` (before navigation) | `CompareLibraryScreen` tile tap handler |
 | `MULTI_SELECT` | Multi-select mode is activated in `CompareLibraryScreen` | `CompareLibraryScreen` long-press handler |
 
-Completion is recorded by calling `GuideRepository.markTipSeen(tipId)`. The `GuideTipController` continues to use `dismissActiveTip(GuideTipDismissReason.LEARN_MORE)` when Learn more is tapped. All other completions call `markTipSeen()` directly from the feature event site, then call `guideTipController.clearActiveTipWithoutMarkingSeen()` if a tip is currently active, to dismiss the visual without double-persisting.
+Completion is recorded by calling `GuideRepository.markTipSeen(tipId)`. `GuideTipController.dismissActiveTip()` calls `markTipSeen(tipId)` unconditionally, for **both** `GuideTipDismissReason.GOT_IT` (Dismiss) and `GuideTipDismissReason.LEARN_MORE` (Learn more) — the `reason` argument no longer changes whether persistence happens, only which button the user tapped (kept for callers/analytics). All other completions call `markTipSeen()` directly from the feature event site, then call `guideTipController.clearActiveTipWithoutMarkingSeen()` if a tip is currently active, to dismiss the visual without double-persisting.
 
 ### 6.3 Manual Dismiss
 
 Each tip card provides a **Dismiss** action (label: "Dismiss"). Tapping Dismiss:
 
 - Hides the tip immediately with fade-out animation.
-- Does **not** mark the tip as completed.
-- Sets `waitingForUserActionAfterDismissal = true` in `GuideTipController`, preventing another tip from appearing until the user performs a normal UI action.
-- The tip is eligible to appear again in a future session under its normal trigger conditions.
+- **Marks the tip as completed** via `dismissActiveTip(GuideTipDismissReason.GOT_IT)`, which calls `GuideRepository.markTipSeen(tipId)` — identically to Learn more.
+- Sets `waitingForUserActionAfterDismissal = true` in `GuideTipController`. Since the dismissed tip is now permanently completed, this flag no longer serves to delay that same tip's reappearance (it will never reappear). It still prevents a **different** eligible tip from immediately taking its place; the next tip only becomes eligible to show after the user performs a normal UI action (see §8.4).
+- The tip never appears again, in this or any future session, unless the user explicitly resets tip state from the Guide screen.
 
 The `dismissActiveTip(GuideTipDismissReason.GOT_IT)` path in `GuideTipController` is used for Dismiss.
 
@@ -123,7 +125,7 @@ Tips that have `learnMore = true` show a **Learn more** action (label: "Learn mo
 - Marks the tip as completed via `dismissActiveTip(GuideTipDismissReason.LEARN_MORE)`, which calls `GuideRepository.markTipSeen(tipId)`.
 - The tip does not appear again.
 
-Tips with `learnMore = false` (Open Comparison, Multi Select) show only the Dismiss action.
+Tips with `learnMore = false` (Open Comparison, Multi Select) show only the Dismiss action — which is now their only path to completion besides the feature event itself.
 
 ### 6.5 Navigate Away Without Completing
 
@@ -254,7 +256,7 @@ Tips must appear only after scrolling has fully settled. A tip that appears duri
 ### 8.4 Global Rules
 
 - Only one tip may be visible at any time.
-- After any dismissal or completion event, a tip must not appear again until the user performs a normal UI action (`onUserAction()` is called in `GuideTipController`).
+- After any dismissal or completion event, a **different** eligible tip must not immediately take the dismissed/completed tip's place until the user performs a normal UI action (`onUserAction()` is called in `GuideTipController`). Since dismissal is now itself completion (§6.1, §6.3), this rule only governs the transition to the *next* tip — the dismissed/completed tip itself never reappears regardless of this flag.
 - Tips must not appear during any active permission dialog.
 
 ---
@@ -762,7 +764,7 @@ Dedicated DataStore file: `sameview_guide` (unchanged).
 | `walkthrough_completed` | Boolean | Whether first-run walkthrough has been completed |
 | `seen_tip_ids` | StringSet | Completed tip IDs (storedValues) |
 
-No new DataStore keys are introduced. The existing `seen_tip_ids` key stores completed (not dismissed) tip IDs under the new model. Dismissed-without-completion tips are not persisted.
+No new DataStore keys are introduced. The existing `seen_tip_ids` key stores completed tip IDs, which now includes tips the user dismissed via the Dismiss action — Dismiss and Learn more both persist to this key identically (§6.1, §6.3). The only way a tip is *not* persisted is navigating away from the screen without tapping either action (§6.5).
 
 ### 21.3 Reset
 
@@ -860,7 +862,7 @@ Tip placement behavior must not conflict with the overlay, control, or navigatio
 | Placement: card max width ≤ 280 dp in 360 dp container | `GuideTipPlacementTest` |
 | Placement: Deferred when no safe side exists | `GuideTipPlacementTest` |
 | Controller: completeTip marks seen and clears active | `GuideTipControllerTest` |
-| Controller: dismissed tip is not marked seen | `GuideTipControllerTest` |
+| Controller: dismissed tip (GOT_IT) is marked seen, identically to Learn more | `GuideTipControllerTest` |
 | Controller: EDIT_SESSION not eligible without SHARE completed | `GuideTipControllerTest` |
 | Controller: MULTI_SELECT not eligible without OPEN_COMPARISON completed | `GuideTipControllerTest` |
 | Repository: resetContextualTips removes seen_tip_ids | `GuideRepositoryTest` |
@@ -888,7 +890,7 @@ Tip placement behavior must not conflict with the overlay, control, or navigatio
 | Card max width ≤ 280 dp at runtime | `GuideTipHostTest` |
 | Pointer is displayed and directional (test tag present) | `GuideTipHostTest` |
 | Fade in animation: tip visible after 200 ms | `GuideTipHostTest` |
-| Dismiss does not mark tip seen in repository | `GuideTipHostTest` |
+| Dismiss marks tip seen in repository (same as Learn more) | `GuideTipHostTest` |
 | Learn more marks tip seen and navigates | `GuideTipHostTest` |
 
 ---
