@@ -58,6 +58,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -249,6 +250,12 @@ fun CompareScreen(
                     isBlockedByTransientUi = compareTipBlocked
                 )
             )
+        }
+    }
+
+    DisposableEffect(guideTipController) {
+        onDispose {
+            guideTipController?.clearActiveTipWithoutMarkingSeen()
         }
     }
 

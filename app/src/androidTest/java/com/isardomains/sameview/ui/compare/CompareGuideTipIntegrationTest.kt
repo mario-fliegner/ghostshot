@@ -8,6 +8,8 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -35,6 +37,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -232,11 +237,105 @@ class CompareGuideTipIntegrationTest {
         assertTrue(runBlocking { repository.observeTipSeen(GuideTipId.SHARE).first() })
     }
 
+    // ── Stability Fix Block 2: SHARE/EDIT_SESSION poison-state regression tests ─────────
+    //
+    // These reuse the existing real-CompareScreen + real-GuideTipController/GuideRepository
+    // harness above, extended with a visibility toggle on setCompareContent so the screen's
+    // composition can be disposed deterministically (simulating navigating away) without
+    // needing real back-stack navigation.
+
+    @Test
+    fun shareTipVisible_screenDisposed_clearsControllerWithoutMarkingSeen() {
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        val refUri = createImageUri("ref")
+        val capUri = createImageUri("cap")
+        val screenVisible = mutableStateOf(true)
+        setCompareContent(controller, refUri, capUri, screenVisible = screenVisible)
+
+        // Wait for the viewport to render with real images
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("compare_viewport").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+
+        // 3-phase real-time gesture (see shareTip_appearsAfterSliderInteraction for details):
+        // DOWN → small MOVE to cross touch slop → Thread.sleep(150) → large MOVE + UP so both
+        // horizontalDragPx > 8dp and the 100ms wall-clock check are satisfied.
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            down(Offset(200f, centerY))
+        }
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            moveBy(Offset(40f, 0f))
+        }
+        Thread.sleep(150)
+        composeRule.onNodeWithTag("compare_viewport").performTouchInput {
+            moveBy(Offset(460f, 0f))
+            up()
+        }
+
+        // Wait longer than the 1000ms SHARE delay; real-time sleep lets the LaunchedEffect
+        // delay fire, then waitForIdle() processes state changes and advances the Compose clock.
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_host").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.SHARE, controller.activeTipId.value)
+
+        // Simulate navigating away: CompareScreen leaves composition without completing or
+        // dismissing the tip. Prior to the Block 2 fix, this left the singleton
+        // GuideTipController's _activeTipId stuck forever, blocking all future tips.
+        screenVisible.value = false
+        composeRule.waitForIdle()
+
+        assertNull(controller.activeTipId.value)
+        assertFalse(runBlocking { repository.observeTipSeen(GuideTipId.SHARE).first() })
+    }
+
+    @Test
+    fun editSessionTipVisible_screenDisposed_clearsControllerWithoutMarkingSeen() {
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        runBlocking { repository.markTipSeen(GuideTipId.SHARE) }
+        val controller = GuideTipController(repository)
+        val screenVisible = mutableStateOf(true)
+        setCompareContent(controller, screenVisible = screenVisible)
+
+        // Two sleep+waitForIdle passes: first advances the Compose clock past the 1200ms
+        // screen-entry delay; second lets the evaluate() chain and DataStore IO settle.
+        Thread.sleep(1500)
+        composeRule.waitForIdle()
+        Thread.sleep(500)
+        composeRule.waitForIdle()
+
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_host").fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.EDIT_SESSION, controller.activeTipId.value)
+
+        // Simulate navigating away while EDIT_SESSION is visible (e.g. Back, Delete, or
+        // Create Video / Share Comparison navigation instead of opening Edit Session).
+        screenVisible.value = false
+        composeRule.waitForIdle()
+
+        assertNull(controller.activeTipId.value)
+        assertFalse(runBlocking { repository.observeTipSeen(GuideTipId.EDIT_SESSION).first() })
+    }
+
     private fun setCompareContent(
         controller: GuideTipController,
         referenceImageUri: Uri? = null,
         captureImageUri: Uri? = null,
-        onOpenGuideTopic: (GuideTopicId) -> Unit = {}
+        onOpenGuideTopic: (GuideTopicId) -> Unit = {},
+        screenVisible: MutableState<Boolean> = mutableStateOf(true)
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -248,19 +347,21 @@ class CompareGuideTipIntegrationTest {
             }
             activity.setContent {
                 SameViewTheme {
-                    CompareScreen(
-                        referenceImageUri = referenceImageUri,
-                        captureImageUri = captureImageUri,
-                        onBack = {},
-                        sessionId = "session-1",
-                        onShareComparisonImage = {},
-                        isShareComparisonAvailable = true,
-                        onCreateVideo = {},
-                        isCreateVideoAvailable = true,
-                        windowWidthSizeClass = WindowWidthSizeClass.Compact,
-                        guideTipController = controller,
-                        onOpenGuideTopic = onOpenGuideTopic
-                    )
+                    if (screenVisible.value) {
+                        CompareScreen(
+                            referenceImageUri = referenceImageUri,
+                            captureImageUri = captureImageUri,
+                            onBack = {},
+                            sessionId = "session-1",
+                            onShareComparisonImage = {},
+                            isShareComparisonAvailable = true,
+                            onCreateVideo = {},
+                            isCreateVideoAvailable = true,
+                            windowWidthSizeClass = WindowWidthSizeClass.Compact,
+                            guideTipController = controller,
+                            onOpenGuideTopic = onOpenGuideTopic
+                        )
+                    }
                 }
             }
         }
