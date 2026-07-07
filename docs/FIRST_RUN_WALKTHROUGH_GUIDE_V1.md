@@ -459,10 +459,13 @@ The walkthrough screen is divided into four fixed layout slots. Slot positions m
 
 Portrait (single-column) slot order:
 
+0. Leading slack slot — a spacer above the image slot, weighted equally with the text slot below. This centers the image slot and text slot together as one group between the top safe area and the progress dots slot. The spacer is weight-based, not content-based: its size depends only on the fixed heights of the other slots, never on per-page title or body length, so the image slot position stays identical across all four pages.
 1. Image slot — the mockup illustration. The slot height is determined by the image aspect ratio and does not change between pages.
 2. Text slot — the page title and body copy. This is the only slot that absorbs variation in content length. The slot boundaries are fixed. The title and body copy are top-aligned within the slot. Remaining space accumulates below the body text, between the body and the progress dots slot. Short body text produces more space below it; longer body text reduces that space. The slot itself does not grow or shrink between pages. Layout stability takes precedence over equalized copy lengths across pages.
 3. Progress dots slot — the row of progress indicator dots. The slot position is fixed directly below the text slot on every page.
 4. Navigation button slot — the row of navigation buttons. The slot position is fixed directly below the progress dots slot on every page.
+
+The leading slack slot and the text slot's remaining space are not bundled with the progress dots slot or navigation button slot into a single centered block — the dots and button slots keep their own fixed position below, unaffected by how the leading slack slot is sized. This satisfies the forbidden-pattern rule below while still visually centering the image and text as a group.
 
 Landscape (two-column) arrangement:
 

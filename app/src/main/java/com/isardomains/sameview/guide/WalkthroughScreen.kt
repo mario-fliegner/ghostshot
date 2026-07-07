@@ -169,6 +169,13 @@ fun WalkthroughScreen(
                             .testTag("walkthrough_single_column_layout"),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Leading slack: same weight as the text slot below, so the image+text
+                        // group is centered between the top safe area and the dots/buttons
+                        // footer. Weight-based, not content-based, so it stays independent of
+                        // per-page text length and the image slot position stays identical
+                        // across all four pages.
+                        Spacer(modifier = Modifier.weight(1f))
+
                         // Image slot: height fixed by aspect ratio — position never changes.
                         HorizontalPager(
                             state = pagerState,
@@ -203,7 +210,7 @@ fun WalkthroughScreen(
                             WalkthroughTextSlot(page = currentPage)
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         // Dots slot: fixed position — never moves regardless of text length.
                         WalkthroughProgressDots(
@@ -211,7 +218,7 @@ fun WalkthroughScreen(
                             pageCount = pages.size
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         // Button slot: fixed position — never moves regardless of text length.
                         WalkthroughButtons(
@@ -222,6 +229,10 @@ fun WalkthroughScreen(
                             onNext = onNext,
                             onStart = onStart
                         )
+
+                        // Portrait-only extra bottom breathing room, separate from the shared
+                        // Box padding (which also applies to landscape).
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
