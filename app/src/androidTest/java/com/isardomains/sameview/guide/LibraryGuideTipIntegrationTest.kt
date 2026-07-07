@@ -334,6 +334,42 @@ class LibraryGuideTipIntegrationTest {
     }
 
     @Test
+    fun openComparisonTip_survivesLateForeignClearFromAnotherScreen() {
+        // Regression guard for the cross-screen singleton race: Compose Navigation may dispose
+        // an outgoing screen (e.g. CameraScreen) well after CompareLibraryScreen has already
+        // mounted and made OPEN_COMPARISON active. That screen's own dispose cleanup — now
+        // scoped via clearActiveTipWithoutMarkingSeen(expectedTipId) — must not wipe out
+        // OPEN_COMPARISON when it targets a different tip id.
+        composeRule.mainClock.autoAdvance = true
+        val repository = createRepository()
+        val controller = GuideTipController(repository)
+        setLibraryContent(
+            controller = controller,
+            sessions = listOf(createFakeSession())
+        )
+
+        Thread.sleep(900)
+        composeRule.waitForIdle()
+        Thread.sleep(300)
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5000) {
+            runCatching {
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }.getOrDefault(false)
+        }
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+
+        // Simulate CameraScreen's late dispose firing after Library already made its own tip
+        // active — it only ever targets its own tip (REFERENCE), never Library's.
+        controller.clearActiveTipWithoutMarkingSeen(GuideTipId.REFERENCE)
+        composeRule.waitForIdle()
+
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card").assertIsDisplayed()
+    }
+
+    @Test
     fun openComparisonTip_reappearsAfterShowTipsAgain_evenIfAnotherTipWasDismissedFirst() {
         composeRule.mainClock.autoAdvance = true
         val repository = createRepository()

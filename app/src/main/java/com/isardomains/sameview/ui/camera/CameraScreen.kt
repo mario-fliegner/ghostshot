@@ -480,7 +480,7 @@ fun CameraScreen(
                 val controller = guideTipController ?: return@LaunchedEffect
                 val currentTip = activeGuideTip
                 if (currentTip != null && (cameraTipBlocked || currentTip.id !in cameraEligibleTipIds)) {
-                    controller.clearActiveTipWithoutMarkingSeen()
+                    controller.clearActiveTipWithoutMarkingSeen(currentTip.id)
                     activeGuideTip = null
                     return@LaunchedEffect
                 }
@@ -497,7 +497,10 @@ fun CameraScreen(
 
             DisposableEffect(guideTipController) {
                 onDispose {
-                    guideTipController?.clearActiveTipWithoutMarkingSeen()
+                    // CameraScreen only ever owns REFERENCE. Scoped so a late dispose (Compose
+                    // Navigation may tear this screen down well after the next screen has
+                    // already mounted) can't wipe out a different screen's active tip.
+                    guideTipController?.clearActiveTipWithoutMarkingSeen(GuideTipId.REFERENCE)
                 }
             }
 

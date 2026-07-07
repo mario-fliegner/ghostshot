@@ -244,7 +244,7 @@ fun CompareScreen(
         val controller = guideTipController ?: return@LaunchedEffect
         val currentTip = activeGuideTip
         if (currentTip != null && (compareTipBlocked || currentTip.id !in compareEligibleTipIds)) {
-            controller.clearActiveTipWithoutMarkingSeen()
+            controller.clearActiveTipWithoutMarkingSeen(currentTip.id)
             activeGuideTip = null
             return@LaunchedEffect
         }
@@ -261,7 +261,12 @@ fun CompareScreen(
 
     DisposableEffect(guideTipController) {
         onDispose {
-            guideTipController?.clearActiveTipWithoutMarkingSeen()
+            // CompareScreen owns SHARE and EDIT_SESSION. Only one can be active at a time, so
+            // at most one of these two calls has any effect — scoped so a late dispose (Compose
+            // Navigation may tear this screen down well after the next screen has already
+            // mounted) can't wipe out a different screen's active tip.
+            guideTipController?.clearActiveTipWithoutMarkingSeen(GuideTipId.SHARE)
+            guideTipController?.clearActiveTipWithoutMarkingSeen(GuideTipId.EDIT_SESSION)
         }
     }
 

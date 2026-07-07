@@ -60,8 +60,17 @@ class GuideTipController @Inject constructor(
         waitingForUserActionAfterDismissal = true
     }
 
-    fun clearActiveTipWithoutMarkingSeen() {
-        _activeTipId.value = null
+    /**
+     * Clears the active tip without marking it seen. When [expectedTipId] is non-null, the
+     * clear only takes effect if that tip is the one currently active — this makes the call
+     * ownership-safe for screens whose dispose/cleanup may run late (after Compose Navigation
+     * has already moved on to a different screen that has since made its own tip active).
+     * Passing `null` preserves the original unconditional-clear behavior.
+     */
+    fun clearActiveTipWithoutMarkingSeen(expectedTipId: GuideTipId? = null) {
+        if (expectedTipId == null || _activeTipId.value == expectedTipId) {
+            _activeTipId.value = null
+        }
     }
 
     fun onUserAction() {

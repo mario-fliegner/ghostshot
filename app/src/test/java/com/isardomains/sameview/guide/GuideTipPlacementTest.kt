@@ -117,4 +117,65 @@ class GuideTipPlacementTest {
         )
         assertEquals(GuideTipPlacementResult.Deferred, result)
     }
+
+    /**
+     * Landscape, wide/tall-enough container, anchor near the right edge with a non-zero
+     * safeInsetRightPx simulating a horizontal system bar/cutout (e.g. status bar shifted to the
+     * side in landscape). ABOVE is chosen (landscape prefers ABOVE first) and its horizontal
+     * centering on the anchor would overshoot the raw container edge, forcing a clamp. The placed
+     * card must stay fully inside the inset-adjusted safe zone, not just inside the raw container
+     * width.
+     */
+    @Test
+    fun landscapeAnchorNearRightEdge_withSafeInsetRight_clampsInsideInsetAdjustedZone() {
+        val safeInsetRightPx = 80f
+        val result = calculateGuideTipPlacement(
+            GuideTipPlacementInput(
+                containerSize = IntSize(900, 900),
+                cardSize = IntSize(220, 100),
+                anchorBounds = Rect(820f, 400f, 880f, 460f),
+                windowWidthSizeClass = WindowWidthSizeClass.Compact,
+                marginPx = 16f,
+                gapPx = 8f,
+                isLandscape = true,
+                safeInsetRightPx = safeInsetRightPx
+            )
+        )
+
+        val placed = result as GuideTipPlacementResult.Placed
+        assertEquals(GuideTipPlacementSide.ABOVE, placed.side)
+        assertTrue(
+            "Card right edge ${placed.offset.x + 220} must stay within inset-adjusted safe zone ${900 - 16 - safeInsetRightPx}",
+            placed.offset.x + 220 <= 900 - 16 - safeInsetRightPx
+        )
+    }
+
+    /**
+     * Same geometry as above but with safeInsetRightPx = 0f (the default). This pins down that
+     * the default/unset behavior is unchanged by the new inset parameters — the card clamps to
+     * the raw container edge instead of the (now absent) inset-adjusted one.
+     */
+    @Test
+    fun landscapeAnchorNearRightEdge_withoutSafeInset_matchesDefaultBehavior() {
+        val result = calculateGuideTipPlacement(
+            GuideTipPlacementInput(
+                containerSize = IntSize(900, 900),
+                cardSize = IntSize(220, 100),
+                anchorBounds = Rect(820f, 400f, 880f, 460f),
+                windowWidthSizeClass = WindowWidthSizeClass.Compact,
+                marginPx = 16f,
+                gapPx = 8f,
+                isLandscape = true,
+                safeInsetRightPx = 0f
+            )
+        )
+
+        val placed = result as GuideTipPlacementResult.Placed
+        assertEquals(GuideTipPlacementSide.ABOVE, placed.side)
+        assertEquals(664, placed.offset.x)
+        assertTrue(
+            "Card right edge ${placed.offset.x + 220} must stay within default safe zone ${900 - 16}",
+            placed.offset.x + 220 <= 900 - 16
+        )
+    }
 }

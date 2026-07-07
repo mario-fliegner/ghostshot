@@ -160,6 +160,45 @@ class GuideTipControllerTest {
     }
 
     @Test
+    fun clearActiveTipWithoutMarkingSeen_scopedToWrongTipId_doesNotClearActiveTip() = runTest {
+        // Regression guard: a late/stale dispose from a screen that isn't foreground anymore
+        // (e.g. CameraScreen disposing well after CompareLibraryScreen has already made
+        // OPEN_COMPARISON active) must not wipe out a different screen's active tip.
+        val controller = GuideTipController(createRepository())
+        controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.LIBRARY,
+                eligibleTipIds = setOf(GuideTipId.OPEN_COMPARISON)
+            )
+        )
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+
+        controller.clearActiveTipWithoutMarkingSeen(GuideTipId.REFERENCE)
+        assertEquals(GuideTipId.OPEN_COMPARISON, controller.activeTipId.value)
+
+        controller.clearActiveTipWithoutMarkingSeen(GuideTipId.OPEN_COMPARISON)
+        assertNull(controller.activeTipId.value)
+    }
+
+    @Test
+    fun clearActiveTipWithoutMarkingSeen_nullExpectedTipId_clearsUnconditionally() = runTest {
+        // Preserves the original unconditional-clear behavior for callers that don't track a
+        // specific tip.
+        val controller = GuideTipController(createRepository())
+        controller.evaluate(
+            GuideTipEvaluationContext(
+                scope = GuideTipScope.CAMERA,
+                eligibleTipIds = setOf(GuideTipId.REFERENCE)
+            )
+        )
+        assertEquals(GuideTipId.REFERENCE, controller.activeTipId.value)
+
+        controller.clearActiveTipWithoutMarkingSeen()
+
+        assertNull(controller.activeTipId.value)
+    }
+
+    @Test
     fun dismissActiveTip_withLearnMore_marksTipSeenAndClearsActiveTip() = runTest {
         val repository = createRepository()
         val controller = GuideTipController(repository)

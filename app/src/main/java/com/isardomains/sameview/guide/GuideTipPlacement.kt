@@ -30,7 +30,9 @@ data class GuideTipPlacementInput(
     val marginPx: Float,
     val gapPx: Float,
     val isLandscape: Boolean = false,
-    val exclusionZones: List<Rect> = emptyList()
+    val exclusionZones: List<Rect> = emptyList(),
+    val safeInsetLeftPx: Float = 0f,
+    val safeInsetRightPx: Float = 0f
 )
 
 fun calculateGuideTipPlacement(input: GuideTipPlacementInput): GuideTipPlacementResult {
@@ -107,8 +109,14 @@ private fun placedCandidate(
         GuideTipPlacementSide.END -> anchor.center.y - cardHeight / 2f
     }
 
+    val safeLeft = margin + input.safeInsetLeftPx
+    val safeRight = containerWidth - margin - input.safeInsetRightPx
+    if (cardWidth > safeRight - safeLeft) {
+        return null
+    }
+
     val x = if (side == GuideTipPlacementSide.ABOVE || side == GuideTipPlacementSide.BELOW) {
-        rawX.coerceIn(margin, containerWidth - margin - cardWidth)
+        rawX.coerceIn(safeLeft, safeRight - cardWidth)
     } else {
         rawX
     }
@@ -119,7 +127,7 @@ private fun placedCandidate(
     }
 
     val cardRect = Rect(x, y, x + cardWidth, y + cardHeight)
-    val safeRect = Rect(margin, margin, containerWidth - margin, containerHeight - margin)
+    val safeRect = Rect(safeLeft, margin, safeRight, containerHeight - margin)
     if (!safeRect.containsRect(cardRect) || cardRect.overlapsRect(anchor)) {
         return null
     }

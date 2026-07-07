@@ -254,7 +254,10 @@ fun CompareLibraryScreen(
     LaunchedEffect(libraryEligibleTipIds, libraryTipBlocked, isLibraryEntryDelayElapsed) {
         val controller = guideTipController ?: return@LaunchedEffect
         if (libraryTipBlocked) {
-            controller.clearActiveTipWithoutMarkingSeen()
+            // OPEN_COMPARISON is the only Library tip. Scoped so this doesn't wipe out a
+            // different screen's active tip in the brief window before this screen's own tip
+            // has become active (e.g. a stale value still observed from the previous screen).
+            controller.clearActiveTipWithoutMarkingSeen(GuideTipId.OPEN_COMPARISON)
         } else if (isLibraryEntryDelayElapsed) {
             controller.evaluate(
                 GuideTipEvaluationContext(
@@ -268,7 +271,10 @@ fun CompareLibraryScreen(
 
     DisposableEffect(Unit) {
         onDispose {
-            guideTipController?.clearActiveTipWithoutMarkingSeen()
+            // CompareLibraryScreen only ever owns OPEN_COMPARISON. Scoped so a late dispose
+            // (Compose Navigation may tear this screen down well after the next screen has
+            // already mounted) can't wipe out a different screen's active tip.
+            guideTipController?.clearActiveTipWithoutMarkingSeen(GuideTipId.OPEN_COMPARISON)
         }
     }
 
