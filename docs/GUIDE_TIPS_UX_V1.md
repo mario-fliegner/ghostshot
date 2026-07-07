@@ -282,9 +282,10 @@ These rules override all other placement considerations.
 | Card surface | `SameViewAppSurface` | `0xFF17202F` |
 | Title text | `onSurface` → White | `0xFFFFFFFF` |
 | Body text | `SameViewTextSecondary` | `0xFFC7CCD6` |
-| Action button text (Learn more) | `SameViewAccent` | `0xFF4F8CFF` |
-| Action button text (Dismiss) | `SameViewTextSecondary` | `0xFFC7CCD6` |
-| Pointer fill | `SameViewAppSurface` | `0xFF17202F` (matches card) |
+| Action label text (Learn more) | `SameViewAccent` | `0xFF4F8CFF` |
+| Action label text (Dismiss) | `SameViewAccent` (same as Learn more) | `0xFF4F8CFF` |
+| Pointer fill | `SameViewAccent` | `0xFF4F8CFF` (solid accent fill, no card-color match) |
+| Card border | `SameViewAccent` | `0xFF4F8CFF`, 0.5 dp stroke |
 
 The card must use `containerColor = SameViewAppSurface` explicitly. It must **not** use `MaterialTheme.colorScheme.surfaceVariant`, which resolves to the slider-track grey `0xFF666666` in the current theme.
 
@@ -292,13 +293,19 @@ The card must use `containerColor = SameViewAppSurface` explicitly. It must **no
 
 | Property | Value |
 |---|---|
-| Max width | 280 dp |
-| Internal padding (all sides) | 14 dp |
+| Max width (ceiling, not a fixed width) | 260 dp |
+| Internal padding (top/start/end) | 12 dp |
+| Internal padding (bottom) | 0 dp |
+| Vertical spacing: title → body | 6 dp |
+| Vertical spacing: body → actions | 4 dp |
 | Card shape | `RoundedCornerShape(12.dp)` |
 | Elevation | 6 dp |
+| Border | `BorderStroke(0.5.dp, SameViewAccent)` |
 | Min width | Wrap content (do not fill below 200 dp) |
 
-The card uses `fillMaxWidth()` within a `maxCardWidth`-constrained measure pass (SubcomposeLayout). The max card width is `min(280.dp, containerWidth - 32.dp)`.
+The card is **content-based**, not `fillMaxWidth()`: neither the `Card` nor the action `Row` apply `fillMaxWidth()`. The card measures to the width of its widest line (title, wrapped body, or the action row) and only grows up to the `maxCardWidth` ceiling — `min(260.dp, containerWidth - 32.dp)` — if the content needs it. Short copy (e.g. the REFERENCE tip) renders a visibly narrower card; longer copy that already needs to wrap still reaches the same 260 dp ceiling as before, so no tip's text is at greater truncation risk than previously.
+
+Internal bottom padding is `0.dp` because the action label touch-target boxes (see §10.4) already provide their own ~15 dp of vertical space below the visible label text — adding further declared bottom padding on top of that would recreate the previous bottom-heavy imbalance. Top padding stays at 12 dp since the title has no equivalent built-in inset above it.
 
 ### 10.3 Typography
 
@@ -309,16 +316,19 @@ The card uses `fillMaxWidth()` within a `maxCardWidth`-constrained measure pass 
 | Learn more button | `MaterialTheme.typography.labelMedium` | Normal |
 | Dismiss button | `MaterialTheme.typography.labelMedium` | Normal |
 
-Body text must use `maxLines = 2` with `overflow = TextOverflow.Ellipsis`. Copy must be written to fit within two lines at the default system font scale on a 280 dp card.
+Body text must use `maxLines = 2` with `overflow = TextOverflow.Ellipsis`. Copy must be written to fit within two lines at the default system font scale on a 260 dp card.
 
 ### 10.4 Actions Layout
 
 Actions row is positioned at the bottom of the card content column.
 
-- Learn more (when `learnMore = true`): `TextButton` aligned to start of the row.
-- Dismiss: `TextButton` aligned to end of the row.
-- When `learnMore = false`: only Dismiss, aligned to end.
-- No divider between buttons and body text. The 8 dp vertical spacer between body and actions provides visual separation.
+- Learn more and Dismiss are **not** `TextButton`s. Each is a custom `Box(Modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = ...))` with `contentAlignment = Alignment.CenterStart`, containing a plain `Text`. This avoids Material3's `TextButton` internals (`ButtonDefaults.MinHeight = 40.dp` plus the enforced 48 dp minimum interactive size stacking on top), which previously made it impossible to control the vertical gap below the action row precisely — no `contentPadding` value could compensate for it.
+- The 48 dp `heightIn(min = ...)` on each action box **is** the touch target — same minimum size Material3 enforces automatically on `TextButton`, just explicit and directly controlled instead of implicit.
+- Both actions are grouped together and aligned to the **start** of the row (`Arrangement.spacedBy(24.dp, alignment = Alignment.Start)`), matching the body text's left edge — not spread across the full card width and not right-aligned. Learn more (when present) sits immediately before Dismiss with a 24 dp gap between them, so Dismiss sits further right without being squeezed against Learn more or crowding the card's right edge. Neither the row nor the card use `fillMaxWidth()` (see §10.2), so this row no longer forces the card to its max width.
+- When `learnMore = false`: only Dismiss renders, still start-aligned.
+- No divider between actions and body text. The 4 dp vertical spacer between body and actions provides visual separation.
+- Learn more and Dismiss both render their label in `SameViewAccent` — no special secondary/grey treatment for Dismiss.
+- Label text starts flush with the box's left edge (`contentAlignment = Alignment.CenterStart`, no internal content padding), so the visible label aligns exactly with Title/Body's left edge.
 
 ### 10.5 No Dialog Appearance Rules
 
@@ -327,33 +337,37 @@ The tip card must not appear dialog-like. Prohibited:
 - Full-screen overlay or dim behind the card.
 - Spotlight or punch-through revealing the anchor.
 - Modal blocking behavior.
-- Card wider than 280 dp.
+- Card wider than 260 dp.
 - Card taller than necessary to contain two body lines and actions.
 
 ---
 
 ## 11. Pointer Specification
 
-The pointer is a filled **equilateral triangle** drawn in `SameViewAppSurface` (`0xFF17202F`), matching the card surface color. It is drawn as a Canvas element positioned outside the card's rounded-corner boundary, visually extending from the card edge toward the anchor.
+The pointer is a filled **equilateral triangle** drawn solid in `SameViewAccent` (`0xFF4F8CFF`) — no border, outline, or stroke. The pointer is the primary visual connector between the card and the anchor, so it uses the brand accent color directly rather than matching the card surface color. It is drawn as a Canvas element positioned outside the card's rounded-corner boundary, visually extending from the card edge toward the anchor.
 
 ### 11.1 Dimensions
 
 | Property | Value |
 |---|---|
-| Triangle base | 14 dp |
-| Triangle height | 8 dp |
+| Triangle base (ABOVE/BELOW) | 20 dp |
+| Triangle height (ABOVE/BELOW) | 12 dp |
+| Triangle base (START/END) | 20 dp |
+| Triangle height (START/END) | 12 dp |
 | Gap between pointer tip and anchor bounds | 4 dp (this is `gapPx` in placement) |
+
+For START/END, the triangle's dimensions are transposed: the 20 dp "base" spans vertically along the card's side edge and the 12 dp "height" is the horizontal reach toward the anchor.
 
 ### 11.2 Position Per Placement Side
 
 | Placement side | Pointer position |
 |---|---|
-| ABOVE (card above anchor) | Triangle extends downward from card bottom edge, centered horizontally on the card |
-| BELOW (card below anchor) | Triangle extends upward from card top edge, centered horizontally on the card |
+| ABOVE (card above anchor) | Triangle extends downward from card bottom edge, horizontally positioned to track the anchor's horizontal center |
+| BELOW (card below anchor) | Triangle extends upward from card top edge, horizontally positioned to track the anchor's horizontal center |
 | START (card to the left of anchor) | Triangle extends rightward from card right edge, centered vertically on the card |
 | END (card to the right of anchor) | Triangle extends leftward from card left edge, centered vertically on the card |
 
-The pointer is always centered on the edge of the card — it does not track the anchor's center position along the edge. This simplifies implementation and remains visually coherent for all currently defined anchors.
+For ABOVE/BELOW, the pointer tracks the anchor's horizontal center along the card edge, clamped to the card's safe inner span (inset from each rounded corner) so the triangle never runs into a rounded corner. This keeps the pointer visually aimed at the anchor even when the card itself is horizontally clamped away from the anchor's center (see §14.4). For START/END, the pointer remains centered on the vertical edge of the card and does not track the anchor's vertical position — this is unchanged and still applies.
 
 ### 11.3 Implementation Approach
 
@@ -451,12 +465,12 @@ For each `WindowWidthSizeClass`:
 | Class | Portrait candidate order | Landscape candidate order |
 |---|---|---|
 | Compact | ABOVE, BELOW | ABOVE, BELOW, START, END |
-| Medium | END, START, ABOVE, BELOW | END, START, ABOVE, BELOW |
-| Expanded | END, START, ABOVE, BELOW | END, START, ABOVE, BELOW |
+| Medium | END, START, ABOVE, BELOW | ABOVE, BELOW, START, END |
+| Expanded | END, START, ABOVE, BELOW | ABOVE, BELOW, START, END |
 
-The current implementation only offers ABOVE and BELOW for Compact. For the Library and Compare screens, where the anchor may be on the side of the screen, the Compact landscape candidate list must include START and END.
+Landscape candidate order depends on `isLandscape` alone, not on `WindowWidthSizeClass` — **any** landscape orientation prefers ABOVE/BELOW first, falling back to START/END. This is because phones commonly cross from Compact into Medium width class once rotated to landscape (their portrait height becomes the landscape width), and the Medium/Expanded side-placement order is intended for wide, tablet-style layouts, not a rotated phone. Keying the branch on width class alone previously caused a landscape phone measuring as Medium to fall through to side placement instead of the intended ABOVE/BELOW-first order. Portrait candidate order still depends on `WindowWidthSizeClass` as before (Compact: ABOVE/BELOW only; Medium/Expanded: side placement first) — only the landscape column changed.
 
-Implementation: pass an `isLandscape: Boolean` parameter to `candidateSides()` in addition to `WindowWidthSizeClass`. When `isCompact && isLandscape`, include all four sides.
+Implementation: pass an `isLandscape: Boolean` parameter to `candidateSides()` in addition to `WindowWidthSizeClass`. When `isLandscape`, include all four sides in ABOVE/BELOW/START/END order, regardless of width class.
 
 ### 14.2 Margins
 
@@ -816,7 +830,7 @@ Tip placement adapts to `WindowWidthSizeClass` as described in §14.1.
 On all size classes:
 
 - Max card width: 280 dp (never stretches).
-- Tips must not appear far from their anchor (Compact layout: prefer ABOVE/BELOW; Medium/Expanded: prefer side placement).
+- Tips must not appear far from their anchor (Portrait: Compact prefers ABOVE/BELOW, Medium/Expanded prefers side placement; any landscape orientation prefers ABOVE/BELOW first, regardless of width class — see §14.1).
 - Deferred tips are suppressed silently and re-evaluated on next eligible state change.
 
 Tip placement behavior must not conflict with the overlay, control, or navigation areas defined in `RESPONSIVE_LAYOUT_SYSTEM_V1.md` for each screen.

@@ -196,8 +196,8 @@
     <string name="guide_show_tips_again_cancel">Abbrechen</string>
     <string name="guide_tip_learn_more">Mehr erfahren</string>
     <string name="guide_tip_dismiss">Schliessen</string>
-    <string name="guide_tip_reference_title">Referenzfotos</string>
-    <string name="guide_tip_reference_body">Waehle ein frueheres Foto, um dieselbe Ansicht auszurichten.</string>
+    <string name="guide_tip_reference_title">Referenz hinzufügen</string>
+    <string name="guide_tip_reference_body">Wähle ein Foto zum Nachstellen.</string>
     <string name="guide_tip_share_title">Vergleich teilen</string>
     <string name="guide_tip_share_body">Exportiere ein Schiebebild oder Video aus deinem gespeicherten Vergleich.</string>
     <string name="guide_tip_edit_session_title">Session bearbeiten</string>

@@ -205,8 +205,8 @@
     <string name="guide_show_tips_again_cancel">Cancel</string>
     <string name="guide_tip_learn_more">Learn more</string>
     <string name="guide_tip_dismiss">Dismiss</string>
-    <string name="guide_tip_reference_title">Reference photos</string>
-    <string name="guide_tip_reference_body">Choose an earlier photo to line up the same view.</string>
+    <string name="guide_tip_reference_title">Add reference</string>
+    <string name="guide_tip_reference_body">Choose a photo to recreate.</string>
     <string name="guide_tip_share_title">Share your comparison</string>
     <string name="guide_tip_share_body">Export a slider image or video from your saved comparison.</string>
     <string name="guide_tip_edit_session_title">Edit session details</string>

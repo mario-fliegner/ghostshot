@@ -58,15 +58,19 @@ private fun candidateSides(
     windowWidthSizeClass: WindowWidthSizeClass,
     isLandscape: Boolean
 ): List<GuideTipPlacementSide> = when {
-    windowWidthSizeClass == WindowWidthSizeClass.Compact && !isLandscape ->
-        listOf(GuideTipPlacementSide.ABOVE, GuideTipPlacementSide.BELOW)
-    windowWidthSizeClass == WindowWidthSizeClass.Compact && isLandscape ->
+    // Phones frequently cross into Medium width class once rotated to landscape (the portrait
+    // height becomes the landscape width), so this must key on isLandscape alone rather than
+    // Compact && isLandscape — otherwise a landscape phone falls through to the Medium/Expanded
+    // side-placement order below, which is meant for wide tablet-style layouts, not rotated phones.
+    isLandscape ->
         listOf(
             GuideTipPlacementSide.ABOVE,
             GuideTipPlacementSide.BELOW,
             GuideTipPlacementSide.START,
             GuideTipPlacementSide.END
         )
+    windowWidthSizeClass == WindowWidthSizeClass.Compact ->
+        listOf(GuideTipPlacementSide.ABOVE, GuideTipPlacementSide.BELOW)
     else ->
         listOf(
             GuideTipPlacementSide.END,

@@ -1,18 +1,21 @@
 package com.isardomains.sameview.guide
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,6 +25,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,9 +33,11 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.isardomains.sameview.R
+import com.isardomains.sameview.ui.theme.SameViewAccent
 import com.isardomains.sameview.ui.theme.SameViewAppSurface
 import com.isardomains.sameview.ui.theme.SameViewTextSecondary
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 @Composable
 fun GuideTipHost(
@@ -55,7 +61,7 @@ fun GuideTipHost(
         }
         val marginPx = 16.dp.roundToPx().toFloat()
         val gapPx = 8.dp.roundToPx().toFloat()
-        val maxCardWidth = min(280.dp.roundToPx(), constraints.maxWidth - (marginPx * 2).toInt())
+        val maxCardWidth = min(260.dp.roundToPx(), constraints.maxWidth - (marginPx * 2).toInt())
 
         if (tip == null || anchor == null || maxCardWidth <= 0) {
             return@SubcomposeLayout layout(constraints.maxWidth, constraints.maxHeight) {}
@@ -110,15 +116,21 @@ fun GuideTipHost(
         val pointerPlaceables = if (placement is GuideTipPlacementResult.Placed) {
             val isVertical = placement.side == GuideTipPlacementSide.ABOVE ||
                     placement.side == GuideTipPlacementSide.BELOW
-            val pointerWidthPx = if (isVertical) 14.dp.roundToPx() else 8.dp.roundToPx()
-            val pointerHeightPx = if (isVertical) 8.dp.roundToPx() else 14.dp.roundToPx()
+            val pointerWidthPx = if (isVertical) 20.dp.roundToPx() else 12.dp.roundToPx()
+            val pointerHeightPx = if (isVertical) 12.dp.roundToPx() else 20.dp.roundToPx()
             val cardX = placement.offset.x
             val cardY = placement.offset.y
-            val cardCenterX = cardX + cardWidth / 2
             val cardCenterY = cardY + cardHeight / 2
             pointerOffsetX = when (placement.side) {
                 GuideTipPlacementSide.ABOVE,
-                GuideTipPlacementSide.BELOW -> cardCenterX - pointerWidthPx / 2
+                GuideTipPlacementSide.BELOW -> {
+                    // Track the anchor's horizontal center along the card edge, clamped to the
+                    // card's safe inner span so the triangle never runs into a rounded corner.
+                    val cornerInsetPx = 12.dp.roundToPx()
+                    val minX = cardX + cornerInsetPx
+                    val maxX = cardX + cardWidth - pointerWidthPx - cornerInsetPx
+                    (anchor.bounds.center.x.roundToInt() - pointerWidthPx / 2).coerceIn(minX, maxX)
+                }
                 GuideTipPlacementSide.START -> cardX + cardWidth
                 GuideTipPlacementSide.END -> cardX - pointerWidthPx
             }
@@ -163,31 +175,33 @@ private fun GuideTipCard(
 ) {
     Card(
         modifier = if (isMeasurement) {
-            Modifier
-                .fillMaxWidth()
-                .clearAndSetSemantics { }
+            Modifier.clearAndSetSemantics { }
         } else {
-            Modifier
-                .fillMaxWidth()
-                .testTag("guide_tip_card")
+            Modifier.testTag("guide_tip_card")
         },
         colors = CardDefaults.cardColors(containerColor = SameViewAppSurface),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        border = BorderStroke(0.5.dp, SameViewAccent)
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 0.dp)
+                .then(
+                    if (isMeasurement) {
+                        Modifier
+                    } else {
+                        Modifier.testTag("guide_tip_placement_${placementSide.name.lowercase()}")
+                    }
+                )
         ) {
-            if (!isMeasurement) {
-                Box(modifier = Modifier.testTag("guide_tip_placement_${placementSide.name.lowercase()}"))
-            }
             Text(
                 text = stringResource(tip.titleRes),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = if (isMeasurement) Modifier else Modifier.testTag("guide_tip_title")
             )
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = stringResource(tip.bodyRes),
                 style = MaterialTheme.typography.bodySmall,
@@ -196,34 +210,52 @@ private fun GuideTipCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = if (isMeasurement) Modifier else Modifier.testTag("guide_tip_body")
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = if (tip.topicId != null) Arrangement.SpaceBetween else Arrangement.End,
+                horizontalArrangement = Arrangement.spacedBy(24.dp, alignment = Alignment.Start),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (tip.topicId != null) {
-                    TextButton(
-                        onClick = { tip.topicId?.let(onLearnMore) },
-                        modifier = if (isMeasurement) Modifier else Modifier.testTag("guide_tip_learn_more")
+                    Box(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .clickable(onClick = { tip.topicId?.let(onLearnMore) }, role = Role.Button)
+                            .then(if (isMeasurement) Modifier else Modifier.testTag("guide_tip_learn_more")),
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        Text(stringResource(R.string.guide_tip_learn_more))
+                        Text(
+                            text = stringResource(R.string.guide_tip_learn_more),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = SameViewAccent
+                        )
                     }
                 }
-                TextButton(
-                    onClick = onGotIt,
-                    modifier = if (isMeasurement) Modifier else Modifier.testTag("guide_tip_dismiss")
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable(onClick = onGotIt, role = Role.Button)
+                        .then(if (isMeasurement) Modifier else Modifier.testTag("guide_tip_dismiss")),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(stringResource(R.string.guide_tip_dismiss))
+                    Text(
+                        text = stringResource(R.string.guide_tip_dismiss),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = SameViewAccent
+                    )
                 }
             }
         }
     }
 }
 
-/** Draws a filled directional triangle in [SameViewAppSurface], pointing toward the anchor. */
+/**
+ * Draws a filled directional triangle in [SameViewAccent], pointing toward the anchor.
+ * Solid accent fill, no border/outline/stroke — the pointer itself is the primary visual
+ * connector between the card and the anchor.
+ */
 @Composable
 private fun GuideTipPointer(side: GuideTipPlacementSide) {
-    val color = SameViewAppSurface
+    val fillColor = SameViewAccent
     Canvas(modifier = Modifier.testTag("guide_tip_pointer")) {
         val path = Path()
         when (side) {
@@ -256,6 +288,6 @@ private fun GuideTipPointer(side: GuideTipPlacementSide) {
                 path.close()
             }
         }
-        drawPath(path, color)
+        drawPath(path, fillColor)
     }
 }
