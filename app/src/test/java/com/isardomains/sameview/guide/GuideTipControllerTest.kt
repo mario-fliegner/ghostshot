@@ -248,21 +248,6 @@ class GuideTipControllerTest {
         assertNull(tip)
         assertNull(controller.activeTipId.value)
     }
-
-    @Test
-    fun evaluate_multiSelect_notEligibleWithoutOpenComparisonCompleted() = runTest {
-        val controller = GuideTipController(createRepository())
-
-        val tip = controller.evaluate(
-            GuideTipEvaluationContext(
-                scope = GuideTipScope.LIBRARY,
-                eligibleTipIds = setOf(GuideTipId.MULTI_SELECT)
-            )
-        )
-
-        assertNull(tip)
-        assertNull(controller.activeTipId.value)
-    }
 }
 
 

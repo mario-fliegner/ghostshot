@@ -40,16 +40,6 @@ object GuideTipRegistry {
             topicId = null,
             scope = GuideTipScope.LIBRARY,
             priority = 1
-        ),
-        GuideTip(
-            id = GuideTipId.MULTI_SELECT,
-            titleRes = R.string.guide_tip_multi_select_title,
-            bodyRes = R.string.guide_tip_multi_select_body,
-            anchorKey = GuideTipAnchorKey.LIBRARY_GRID_AREA,
-            topicId = null,
-            scope = GuideTipScope.LIBRARY,
-            priority = 2,
-            prerequisiteTipId = GuideTipId.OPEN_COMPARISON
         )
     )
 

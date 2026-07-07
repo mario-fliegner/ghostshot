@@ -47,15 +47,16 @@ This feature must not introduce:
 
 ## 4. Tip Set
 
-The following five tips form the complete tip set for V1.
+The following four tips form the complete tip set for V1.
 
 | # | ID | Screen scope | Anchor target | Show trigger | Prerequisite | Completion event | Learn more |
 |---|---|---|---|---|---|---|---|
 | 1 | `REFERENCE` | Camera | Reference button | CameraScreen entered after walkthrough; no reference loaded | None | Reference image successfully selected | Yes |
 | 2 | `SHARE` | Compare | Share button | First meaningful compare-slider interaction; ~1 s deferred | None | Share menu opened | Yes |
 | 3 | `EDIT_SESSION` | Compare | Overflow menu button | `SHARE` tip completed; Edit Session screen never opened | `SHARE` completed | Edit Session screen opened | Yes |
-| 4 | `OPEN_COMPARISON` | Library | Stable grid-area anchor | ≥ 1 comparison exists; comparison tile never tapped; user opens library screen | None | First comparison tile tapped in the Comparisons screen | No |
-| 5 | `MULTI_SELECT` | Library | Stable grid-area anchor | Compare screen already opened; multi-select never used | OPEN_COMPARISON completed | Multi-select activated | No |
+| 4 | `OPEN_COMPARISON` | Library | Inline card above the grid (no anchor) | ≥ 1 comparison exists; comparison tile never tapped; user opens library screen | None | First comparison tile tapped in the Comparisons screen | No |
+
+`OPEN_COMPARISON`'s copy covers both Library actions (opening a comparison and multi-select) — see §7.4 and §22.1. `MULTI_SELECT` was removed as a separate tip; see §5.
 
 Priority within each scope (lower number shows first when multiple are simultaneously eligible):
 
@@ -63,7 +64,7 @@ Priority within each scope (lower number shows first when multiple are simultane
 |---|---|
 | Camera | REFERENCE (1) |
 | Compare | SHARE (1), EDIT_SESSION (2) |
-| Library | OPEN_COMPARISON (1), MULTI_SELECT (2) |
+| Library | OPEN_COMPARISON (1) |
 
 Only one tip is visible at a time across all scopes.
 
@@ -81,6 +82,7 @@ The following tips from the prior implementation are **permanently removed**.
 | `COMPARE` | Compare button | The Compare button is a primary bottom-bar action. A tip on a primary visible action adds noise without value. Users who have a capture can see the Compare button is enabled. |
 | `HISTORY` | History icon | The history icon uses a standard history/library icon. The copy ("Favorites") was misaligned with the anchor target (history library access). The library is always visible in the top bar and does not require tip discovery. |
 | `EXPORT` | Export icon | Replaced by `SHARE`. The EXPORT tip was triggered on first CompareScreen open rather than after first slider engagement, making it appear before the user had meaningfully used the comparison. |
+| `MULTI_SELECT` | Stable grid-area anchor (`LIBRARY_GRID_AREA`) | Merged into `OPEN_COMPARISON`. Both tips covered the same Library grid with no distinct anchor — `OPEN_COMPARISON`'s copy now teaches opening a comparison and long-press-to-select in one card, shown once instead of two sequential tips. The actual multi-select feature (long-press, selection mode) is unaffected — it was never gated by this tip. |
 
 ---
 
@@ -102,7 +104,6 @@ This is distinct from navigating away from a screen while a tip is visible witho
 | `SHARE` | Share menu dropdown opens in `CompareScreen` | `CompareScreen` (on `showExportMenu = true`) |
 | `EDIT_SESSION` | Edit Session route is pushed in `MainActivity` | `MainActivity` navigation event handler |
 | `OPEN_COMPARISON` | First comparison tile tapped in `CompareLibraryScreen` (before navigation) | `CompareLibraryScreen` tile tap handler |
-| `MULTI_SELECT` | Multi-select mode is activated in `CompareLibraryScreen` | `CompareLibraryScreen` long-press handler |
 
 Completion is recorded by calling `GuideRepository.markTipSeen(tipId)`. `GuideTipController.dismissActiveTip()` calls `markTipSeen(tipId)` unconditionally, for **both** `GuideTipDismissReason.GOT_IT` (Dismiss) and `GuideTipDismissReason.LEARN_MORE` (Learn more) — the `reason` argument no longer changes whether persistence happens, only which button the user tapped (kept for callers/analytics). All other completions call `markTipSeen()` directly from the feature event site, then call `guideTipController.clearActiveTipWithoutMarkingSeen()` if a tip is currently active, to dismiss the visual without double-persisting.
 
@@ -125,7 +126,7 @@ Tips that have `learnMore = true` show a **Learn more** action (label: "Learn mo
 - Marks the tip as completed via `dismissActiveTip(GuideTipDismissReason.LEARN_MORE)`, which calls `GuideRepository.markTipSeen(tipId)`.
 - The tip does not appear again.
 
-Tips with `learnMore = false` (Open Comparison, Multi Select) show only the Dismiss action — which is now their only path to completion besides the feature event itself.
+Tips with `learnMore = false` (`OPEN_COMPARISON`) show only the Dismiss action — which is now their only path to completion besides the feature event itself.
 
 ### 6.5 Navigate Away Without Completing
 
@@ -199,24 +200,11 @@ When the user leaves a screen while a tip is visible:
 
 **Screen entry delay:** 600 ms after CompareLibraryScreen enters the resumed state.
 
-**Anchor:** `LIBRARY_GRID_AREA` — stable grid-area phantom anchor (see §13.4).
+**Presentation:** Unlike other tips, OPEN_COMPARISON does **not** render via the floating `GuideTipHost`/pointer mechanism and has no anchor at all. It refers to the whole grid, not one specific spot, so a pointer aimed at a single point is misleading — and a floating card risks covering the only tile (few sessions) or reads as a banner stuck to the grid top (many sessions). Instead, `CompareLibraryScreen` renders a dedicated inline `Card` directly above the `LazyVerticalGrid`, in normal layout flow (the grid takes the remaining space via `Modifier.weight(1f)`), so it reserves real space and can never overlap a tile at any session count. No pointer. Visual language (surface color, border, typography, action styling) mirrors the `GuideTipHost` card so the two presentations still read as one system. Dismiss and completion continue to call the same `GuideTipController` functions (`dismissActiveTip`, `completeTip`) as every other tip — only the rendering path differs.
+
+**Copy scope:** This tip's copy covers both Library actions in one card — opening a comparison (tap) and multi-select (long-press) — since the former `MULTI_SELECT` tip was merged into it (§5). See §22.1 for the exact strings.
 
 **Clears when:** First comparison tile is tapped (tip completes, before navigation), tip is dismissed, or any blocking condition becomes true.
-
-### 7.5 Multi Select Tip
-
-**Trigger conditions (all must be true):**
-
-- CompareLibraryScreen is active and resumed.
-- `OPEN_COMPARISON` tip is completed.
-- `MULTI_SELECT` tip is not yet completed.
-- No transient UI is blocking (see §8).
-
-**Screen entry delay:** 600 ms after CompareLibraryScreen enters the resumed state with both conditions satisfied.
-
-**Anchor:** `LIBRARY_GRID_AREA` — same stable grid-area anchor as Open Comparison.
-
-**Clears when:** Multi-select mode is activated (tip completes), tip is dismissed, or any blocking condition becomes true.
 
 ---
 
@@ -446,15 +434,11 @@ If a new tip becomes eligible while an existing tip is fading out, the new tip a
 **Binding:** `Modifier.guideTipAnchor(GuideTipAnchorKey.OVERFLOW_ACTION, onGuideTipAnchor)` applied to the overflow icon button.  
 **Valid when:** Element is in composition and has non-zero bounds.
 
-### 13.4 LIBRARY_GRID_AREA
+### 13.4 LIBRARY_GRID_AREA (legacy, no longer wired)
 
-**Screen:** Library (CompareLibraryScreen)  
-**Target UI element:** A stable phantom anchor placed at the fixed top-left entry point of the comparison grid area — immediately before the `LazyVerticalGrid` composable, not on any individual tile.  
-**Why stable anchor:** Comparison tiles are in a lazy grid and scroll out of composition. Anchoring to the first tile would cause the anchor bounds to become zero when the tile scrolls off screen, making the placement algorithm defer the tip mid-session. The grid-area anchor is always in the composition tree regardless of scroll state.  
-**Binding:** `Modifier.onGloballyPositioned { ... }` applied to a zero-size `Box` placed immediately before the `LazyVerticalGrid` in the screen's content column, at the same horizontal and vertical alignment as where the first tile would appear.  
-**Bounds:** The anchor bounds report the position of the top-left grid entry point with a nominal size sufficient for placement (e.g., `width = 120 dp, height = 80 dp`) hardcoded to approximate the first visible tile dimensions.
+**Status:** Since `MULTI_SELECT` was removed and merged into `OPEN_COMPARISON` (§5), no Library tip floats via `GuideTipHost` anymore — `OPEN_COMPARISON` renders as an inline card with no anchor (§7.4). The phantom-anchor registration code (the zero-size `Box` with `onGloballyPositioned`, the `guideTipAnchors` state, and the `GuideTipHost`/`AnimatedVisibility` overlay) has been removed from `CompareLibraryScreen`.
 
-Implementation note: use `onGloballyPositioned` with `boundsInRoot()` on a composable that is always rendered (not lazy), positioned at the grid start coordinates.
+The `GuideTipAnchorKey.LIBRARY_GRID_AREA` enum value itself is kept, because `OPEN_COMPARISON`'s `GuideTip` registry entry still has a non-nullable `anchorKey` field set to it — this value is now vestigial metadata with no runtime anchor behind it. If a future Library tip needs a floating, anchored presentation again, the phantom-anchor pattern previously used here (stable zero-size `Box` placed before `LazyVerticalGrid`, reporting a nominal `120×80dp` bounds) is the established approach — see git history prior to this removal for the reference implementation.
 
 ---
 
@@ -589,7 +573,7 @@ val compareTipBlocked = isFullscreen ||
 
 ### 15.3 Library Screen (CompareLibraryScreen)
 
-**GuideTipHost placement:** New top-layer in CompareLibraryScreen, after the session grid.
+**Presentation:** `OPEN_COMPARISON` is the only Library tip and renders as an inline `Card` above `LazyVerticalGrid` in normal layout flow (§7.4) — there is no `GuideTipHost` placement, no phantom anchor, and no `AnimatedVisibility` overlay in this screen.
 
 **Eligibility signals:**
 
@@ -598,16 +582,10 @@ val libraryEligibleTipIds = buildSet {
     if (sessions.isNotEmpty() && !openComparisonTipCompleted) {
         add(GuideTipId.OPEN_COMPARISON)
     }
-    if (openComparisonTipCompleted && !multiSelectTipCompleted) {
-        add(GuideTipId.MULTI_SELECT)
-    }
-}.filter { tipId ->
-    val tip = GuideTipRegistry.tipFor(tipId)
-    tip == null || guideTipAnchors.containsKey(tip.anchorKey)
-}.toSet()
+}
 ```
 
-`openComparisonTipCompleted` and `multiSelectTipCompleted` are observed from `GuideRepository`.
+`openComparisonTipCompleted` is observed from `GuideRepository`.
 
 **Blocked condition:**
 
@@ -621,36 +599,11 @@ val libraryTipBlocked = isMultiSelectActive ||
 
 `lazyGridState` is the `LazyGridState` instance used by the comparison grid. `isScrollInProgress` is `true` during both pointer-driven drag and momentum fling. Wrap in `derivedStateOf` to avoid unnecessary recompositions during scroll frames.
 
-**Completion events:**
+**Completion event:**
 
 - OPEN_COMPARISON: Tile tap handler in CompareLibraryScreen → call `guideTipController?.completeTip(GuideTipId.OPEN_COMPARISON)` immediately on tap, before navigating to `CompareScreen`. The completion event is the tap itself; whether the user proceeds to view the comparison is irrelevant.
-- MULTI_SELECT: Long-press handler → call `guideTipController?.completeTip(GuideTipId.MULTI_SELECT)`.
 
-**Stable grid anchor:** A zero-size phantom `Box` with `onGloballyPositioned` and a synthetic bounds reporter placed at the logical position of the first grid tile:
-
-```kotlin
-Box(
-    modifier = Modifier
-        .fillMaxWidth()
-        .height(0.dp)
-        .onGloballyPositioned { coordinates ->
-            val rootBounds = coordinates.boundsInRoot()
-            onGuideTipAnchor(
-                GuideTipAnchor(
-                    key = GuideTipAnchorKey.LIBRARY_GRID_AREA,
-                    bounds = Rect(
-                        left = rootBounds.left,
-                        top = rootBounds.top,
-                        right = rootBounds.left + 120.dp.toPx(),
-                        bottom = rootBounds.top + 80.dp.toPx()
-                    )
-                )
-            )
-        }
-)
-```
-
-This phantom anchor is placed immediately before `LazyVerticalGrid` in the screen content column and is always in the composition tree.
+The long-press handler that activates multi-select mode (`selectionMode = true`) does **not** call any guide tip function — multi-select discovery is now taught by `OPEN_COMPARISON`'s copy (§7.4), not gated by a separate tip completion.
 
 ---
 
@@ -698,7 +651,8 @@ New enum values replacing the prior set:
 | `SHARE` | `"share"` |
 | `EDIT_SESSION` | `"edit_session"` |
 | `OPEN_COMPARISON` | `"open_comparison"` |
-| `MULTI_SELECT` | `"multi_select"` |
+
+`MULTI_SELECT` (`"multi_select"`) was added in this migration and later removed — merged into `OPEN_COMPARISON` (§5).
 
 Removed IDs:
 
@@ -745,7 +699,7 @@ New scope set:
 |---|---|
 | `CAMERA` | `REFERENCE` |
 | `COMPARE` | `SHARE`, `EDIT_SESSION` |
-| `LIBRARY` | `OPEN_COMPARISON`, `MULTI_SELECT` |
+| `LIBRARY` | `OPEN_COMPARISON` |
 
 `LIBRARY` is a new scope value. It must be added to the `GuideTipScope` enum.
 
@@ -780,18 +734,16 @@ No new DataStore keys are introduced. The existing `seen_tip_ids` key stores com
 |---|---|
 | `guide_tip_reference_title` | `"Reference photos"` |
 | `guide_tip_reference_body` | `"Choose an earlier photo to line up the same view."` |
-| `guide_tip_share_title` | `"Share your comparison"` |
-| `guide_tip_share_body` | `"Export a slider image or video from your saved comparison."` |
-| `guide_tip_edit_session_title` | `"Edit session details"` |
-| `guide_tip_edit_session_body` | `"Add a title, date, or location to this comparison."` |
-| `guide_tip_open_comparison_title` | `"Open a comparison"` |
-| `guide_tip_open_comparison_body` | `"Tap any comparison to review it side by side."` |
-| `guide_tip_multi_select_title` | `"Select multiple"` |
-| `guide_tip_multi_select_body` | `"Long-press to select comparisons for export or deletion."` |
+| `guide_tip_share_title` | `"Share your moment"` |
+| `guide_tip_share_body` | `"Create an image or video to share your comparison."` |
+| `guide_tip_edit_session_title` | `"Add details"` |
+| `guide_tip_edit_session_body` | `"Add a title, date, or location to your moment."` |
+| `guide_tip_open_comparison_title` | `"Open a moment"` |
+| `guide_tip_open_comparison_body` | `"Tap a moment to see then and now.\nPress and hold to select multiple moments."` |
 | `guide_tip_learn_more` | `"Learn more"` (unchanged) |
 | `guide_tip_dismiss` | `"Dismiss"` |
 
-Remove: `guide_tip_got_it`, `guide_tip_align_title`, `guide_tip_align_body`, `guide_tip_marker_title`, `guide_tip_marker_body`, `guide_tip_gps_title`, `guide_tip_gps_body`, `guide_tip_compare_title`, `guide_tip_compare_body`, `guide_tip_history_title`, `guide_tip_history_body`, `guide_tip_export_title`, `guide_tip_export_body`.
+Remove: `guide_tip_got_it`, `guide_tip_align_title`, `guide_tip_align_body`, `guide_tip_marker_title`, `guide_tip_marker_body`, `guide_tip_gps_title`, `guide_tip_gps_body`, `guide_tip_compare_title`, `guide_tip_compare_body`, `guide_tip_history_title`, `guide_tip_history_body`, `guide_tip_export_title`, `guide_tip_export_body`, `guide_tip_multi_select_title`, `guide_tip_multi_select_body` (`MULTI_SELECT` merged into `OPEN_COMPARISON`, §5).
 
 ### 22.2 German Strings
 
@@ -821,7 +773,7 @@ The following Guide topics must exist for Learn more navigation:
 | `SHARE` | `GuideTopicId.SHARE_COMPARISON_IMAGE` |
 | `EDIT_SESSION` | `GuideTopicId.GETTING_STARTED` (or a dedicated `EDIT_SESSION` topic if created) |
 
-`OPEN_COMPARISON` and `MULTI_SELECT` have no Learn more action and do not require a topic mapping.
+`OPEN_COMPARISON` has no Learn more action and does not require a topic mapping.
 
 ---
 
@@ -864,7 +816,6 @@ Tip placement behavior must not conflict with the overlay, control, or navigatio
 | Controller: completeTip marks seen and clears active | `GuideTipControllerTest` |
 | Controller: dismissed tip (GOT_IT) is marked seen, identically to Learn more | `GuideTipControllerTest` |
 | Controller: EDIT_SESSION not eligible without SHARE completed | `GuideTipControllerTest` |
-| Controller: MULTI_SELECT not eligible without OPEN_COMPARISON completed | `GuideTipControllerTest` |
 | Repository: resetContextualTips removes seen_tip_ids | `GuideRepositoryTest` |
 | Repository: walkthrough_completed unaffected by reset | `GuideRepositoryTest` |
 | Repository: unknown stored IDs are ignored | `GuideRepositoryTest` |
@@ -885,7 +836,7 @@ Tip placement behavior must not conflict with the overlay, control, or navigatio
 | Open Comparison tip does not show in multi-select mode | `LibraryGuideTipIntegrationTest` |
 | Library tip does not appear while grid is scrolling | `LibraryGuideTipIntegrationTest` |
 | Library tip appears after grid scroll settles | `LibraryGuideTipIntegrationTest` |
-| Multi Select tip not eligible without Open Comparison completed | `LibraryGuideTipIntegrationTest` |
+| Long-press activates selection mode regardless of guide tip state | `LibraryGuideTipIntegrationTest` |
 | Card renders with SameViewAppSurface color | `GuideTipHostTest` |
 | Card max width ≤ 280 dp at runtime | `GuideTipHostTest` |
 | Pointer is displayed and directional (test tag present) | `GuideTipHostTest` |

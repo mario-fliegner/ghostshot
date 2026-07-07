@@ -4,8 +4,7 @@ enum class GuideTipId(val storedValue: String) {
     REFERENCE("reference"),
     SHARE("share"),
     EDIT_SESSION("edit_session"),
-    OPEN_COMPARISON("open_comparison"),
-    MULTI_SELECT("multi_select");
+    OPEN_COMPARISON("open_comparison");
 
     companion object {
         fun fromStoredValue(value: String): GuideTipId? =

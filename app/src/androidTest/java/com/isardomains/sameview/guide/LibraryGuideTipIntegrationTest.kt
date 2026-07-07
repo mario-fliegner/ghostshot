@@ -6,6 +6,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -83,14 +84,17 @@ class LibraryGuideTipIntegrationTest {
         Thread.sleep(300)
         composeRule.waitForIdle()
 
+        // OPEN_COMPARISON renders as an inline card above the grid, not via GuideTipHost.
         composeRule.waitUntil(timeoutMillis = 5000) {
             runCatching {
-                composeRule.onAllNodesWithTag("guide_tip_host").fetchSemanticsNodes().isNotEmpty()
+                composeRule.onAllNodesWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNodes().isNotEmpty()
             }.getOrDefault(false)
         }
         composeRule.waitUntil(timeoutMillis = 3000) {
             runCatching {
-                val b = composeRule.onNodeWithTag("guide_tip_card").fetchSemanticsNode().boundsInRoot
+                val b = composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card")
+                    .fetchSemanticsNode().boundsInRoot
                 b.width > 0f && b.height > 0f
             }.getOrDefault(false)
         }
@@ -117,7 +121,7 @@ class LibraryGuideTipIntegrationTest {
         composeRule.waitForIdle()
 
         // Multi-select is a blocker — tip must not appear.
-        composeRule.onNodeWithTag("guide_tip_card").assertDoesNotExist()
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card").assertDoesNotExist()
     }
 
     @Test
@@ -136,7 +140,7 @@ class LibraryGuideTipIntegrationTest {
         composeRule.waitForIdle()
 
         // Empty session list → eligibility empty → no tip.
-        composeRule.onNodeWithTag("guide_tip_card").assertDoesNotExist()
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card").assertDoesNotExist()
     }
 
     @Test
@@ -157,7 +161,7 @@ class LibraryGuideTipIntegrationTest {
         composeRule.waitForIdle()
 
         // displayedSessions is empty → eligibility empty → no tip.
-        composeRule.onNodeWithTag("guide_tip_card").assertDoesNotExist()
+        composeRule.onNodeWithTag("guide_tip_open_comparison_inline_card").assertDoesNotExist()
     }
 
     @Test
@@ -183,56 +187,25 @@ class LibraryGuideTipIntegrationTest {
         assertTrue(runBlocking { repository.observeTipSeen(GuideTipId.OPEN_COMPARISON).first() })
     }
 
-    // ── Multi Select tip ──────────────────────────────────────────────────────
+    // ── Long-press / multi-select (no guide tip involved) ──────────────────────
 
     @Test
-    fun multiSelectTip_notEligibleWithoutOpenComparisonCompleted() {
+    fun longPress_activatesSelectionMode_regardlessOfGuideTipState() {
         composeRule.mainClock.autoAdvance = true
         val repository = createRepository()
-        // OPEN_COMPARISON not seen → MULTI_SELECT must not appear.
+        // MULTI_SELECT was removed as a guide tip; long-press must still enter selection
+        // mode on its own, with no tip completion involved and no prerequisite tip state.
         val controller = GuideTipController(repository)
         setLibraryContent(
             controller = controller,
             sessions = listOf(createFakeSession())
         )
 
-        Thread.sleep(900)
-        composeRule.waitForIdle()
-        Thread.sleep(300)
-        composeRule.waitForIdle()
-
-        // The only eligible tip at this point is OPEN_COMPARISON, not MULTI_SELECT.
-        // We verify MULTI_SELECT is not the shown tip by checking the tip body text is
-        // the Open Comparison body, not the Multi Select body. If no tip is shown at all
-        // (placement deferred), assertDoesNotExist would be misleading — we just confirm
-        // the repository has not marked MULTI_SELECT as seen.
-        assertTrue(!runBlocking { repository.observeTipSeen(GuideTipId.MULTI_SELECT).first() })
-    }
-
-    @Test
-    fun multiSelectTip_completesOnLongPress() {
-        composeRule.mainClock.autoAdvance = true
-        val repository = createRepository()
-        // Pre-complete OPEN_COMPARISON so MULTI_SELECT becomes eligible.
-        runBlocking { repository.markTipSeen(GuideTipId.OPEN_COMPARISON) }
-        val controller = GuideTipController(repository)
-        setLibraryContent(
-            controller = controller,
-            sessions = listOf(createFakeSession())
-        )
-
-        Thread.sleep(900)
-        composeRule.waitForIdle()
-        Thread.sleep(300)
-        composeRule.waitForIdle()
-
-        // Long-press the tile — triggers completeTip(MULTI_SELECT).
         composeRule.onNodeWithTag("compare_library_session_tile_$fakeSessionId")
             .performTouchInput { longClick() }
-        Thread.sleep(300)
         composeRule.waitForIdle()
 
-        assertTrue(runBlocking { repository.observeTipSeen(GuideTipId.MULTI_SELECT).first() })
+        composeRule.onNodeWithTag("compare_library_cancel_button").assertIsDisplayed()
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

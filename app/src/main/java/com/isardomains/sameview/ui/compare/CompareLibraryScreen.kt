@@ -1,18 +1,13 @@
 package com.isardomains.sameview.ui.compare
 
-import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +21,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -48,6 +44,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -80,11 +78,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
@@ -95,18 +89,17 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.isardomains.sameview.R
-import com.isardomains.sameview.guide.GuideTipAnchor
-import com.isardomains.sameview.guide.GuideTipAnchorKey
+import com.isardomains.sameview.guide.GuideTip
 import com.isardomains.sameview.guide.GuideTipController
 import com.isardomains.sameview.guide.GuideTipDismissReason
 import com.isardomains.sameview.guide.GuideTipEvaluationContext
-import com.isardomains.sameview.guide.GuideTipHost
 import com.isardomains.sameview.guide.GuideTipId
 import com.isardomains.sameview.guide.GuideTipRegistry
 import com.isardomains.sameview.guide.GuideTipScope
@@ -153,7 +146,6 @@ fun CompareLibraryScreen(
     modifier: Modifier = Modifier
 ) {
     val resources = LocalResources.current
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var selectionMode by remember { mutableStateOf(false) }
     var selectedSessionIds by remember { mutableStateOf(emptySet<String>()) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -164,17 +156,15 @@ fun CompareLibraryScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val lazyGridState = rememberLazyGridState()
-    var guideTipAnchors by remember { mutableStateOf(emptyMap<GuideTipAnchorKey, GuideTipAnchor>()) }
 
     val openComparisonTipCompleted by remember(guideTipController) {
         guideTipController?.observeTipSeen(GuideTipId.OPEN_COMPARISON) ?: flowOf(false)
     }.collectAsState(initial = false)
-    val multiSelectTipCompleted by remember(guideTipController) {
-        guideTipController?.observeTipSeen(GuideTipId.MULTI_SELECT) ?: flowOf(false)
-    }.collectAsState(initial = false)
     val activeGuideTipId by remember(guideTipController) {
         guideTipController?.activeTipId ?: MutableStateFlow<GuideTipId?>(null)
     }.collectAsState()
+    // OPEN_COMPARISON is the only Library tip and always renders as the inline card above
+    // the grid (see the grid Column below) — it is never floated via GuideTipHost.
     val activeGuideTip = activeGuideTipId?.let { GuideTipRegistry.tipFor(it) }
 
     // Filter then sort; cached on any input change.
@@ -212,7 +202,6 @@ fun CompareLibraryScreen(
         if (displayedSessions.isEmpty()) {
             selectionMode = false
             selectedSessionIds = emptySet()
-            guideTipAnchors = emptyMap()
         }
     }
 
@@ -225,23 +214,12 @@ fun CompareLibraryScreen(
     }
 
     val isGridScrollInProgress by remember { derivedStateOf { lazyGridState.isScrollInProgress } }
-    val libraryEligibleTipIds = remember(
-        displayedSessions,
-        openComparisonTipCompleted,
-        multiSelectTipCompleted,
-        guideTipAnchors
-    ) {
+    val libraryEligibleTipIds = remember(displayedSessions, openComparisonTipCompleted) {
         buildSet<GuideTipId> {
             if (displayedSessions.isNotEmpty() && !openComparisonTipCompleted) {
                 add(GuideTipId.OPEN_COMPARISON)
             }
-            if (openComparisonTipCompleted && !multiSelectTipCompleted) {
-                add(GuideTipId.MULTI_SELECT)
-            }
-        }.filter { id ->
-            val tip = GuideTipRegistry.tipFor(id)
-            tip == null || guideTipAnchors.containsKey(tip.anchorKey)
-        }.toSet()
+        }
     }
     val libraryTipBlocked = selectionMode ||
         showDeleteConfirmDialog ||
@@ -615,36 +593,30 @@ fun CompareLibraryScreen(
                     WindowWidthSizeClass.Expanded -> 4
                     else -> 2
                 }
-                val density = LocalDensity.current
-                // Grid section wrapped in a Box that applies innerPadding, so both the
-                // phantom anchor and the LazyVerticalGrid share the same content origin.
-                Box(
+                // Grid section wrapped in a Column that applies innerPadding. The inline Open
+                // Comparison tip (if active) takes its own row above the grid in normal layout
+                // flow, so it can never overlap a tile regardless of session count — the grid
+                // only gets the remaining space via weight(1f). OPEN_COMPARISON is the only
+                // Library tip and always renders inline here; there is no floating Library tip
+                // and therefore no GuideTipHost/anchor plumbing needed for this screen.
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
-                    // Stable phantom anchor positioned at the logical start of the grid area.
-                    // Zero-height, always in composition while the grid is visible, so the
-                    // placement algorithm always has a valid anchor regardless of scroll state.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(0.dp)
-                            .onGloballyPositioned { coordinates ->
-                                val rootBounds = coordinates.boundsInRoot()
-                                guideTipAnchors = mapOf(
-                                    GuideTipAnchorKey.LIBRARY_GRID_AREA to GuideTipAnchor(
-                                        key = GuideTipAnchorKey.LIBRARY_GRID_AREA,
-                                        bounds = Rect(
-                                            left = rootBounds.left,
-                                            top = rootBounds.top,
-                                            right = rootBounds.left + with(density) { 120.dp.toPx() },
-                                            bottom = rootBounds.top + with(density) { 80.dp.toPx() }
-                                        )
-                                    )
-                                )
-                            }
-                    )
+                    if (activeGuideTip?.id == GuideTipId.OPEN_COMPARISON) {
+                        OpenComparisonInlineTipCard(
+                            tip = activeGuideTip,
+                            onDismiss = {
+                                coroutineScope.launch {
+                                    guideTipController?.dismissActiveTip(GuideTipDismissReason.GOT_IT)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 8.dp)
+                        )
+                    }
                     LazyVerticalGrid(
                         state = lazyGridState,
                         columns = GridCells.Fixed(columnCount),
@@ -652,7 +624,8 @@ fun CompareLibraryScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier
-                            .fillMaxSize()
+                            .fillMaxWidth()
+                            .weight(1f)
                             .testTag("compare_library_grid")
                     ) {
                         items(displayedSessions, key = { it.sessionId }) { session ->
@@ -683,9 +656,6 @@ fun CompareLibraryScreen(
                                 onLongClick = {
                                     guideTipController?.onUserAction()
                                     if (!selectionMode) {
-                                        coroutineScope.launch {
-                                            guideTipController?.completeTip(GuideTipId.MULTI_SELECT)
-                                        }
                                         selectionMode = true
                                         selectedSessionIds = setOf(session.sessionId)
                                     }
@@ -695,30 +665,70 @@ fun CompareLibraryScreen(
                     }
                 }
             }
+        }
+    }
+}
 
-            // Guide tip overlay — topmost layer; touches pass through outside the card bounds.
-            AnimatedVisibility(
-                visible = activeGuideTip != null,
-                enter = fadeIn(animationSpec = tween(200, easing = FastOutLinearInEasing)),
-                exit = fadeOut(animationSpec = tween(150, easing = LinearOutSlowInEasing))
+/**
+ * Inline replacement for the floating GuideTipHost card, used only for OPEN_COMPARISON.
+ * Rendered in normal layout flow above the grid so it reserves real space and can never
+ * overlap a tile, at any session count. No pointer — the tip refers to the whole grid, not
+ * a specific anchor. Visual language (surface color, border, typography, action styling)
+ * mirrors GuideTipHost's card so the two tip presentations still feel like one system.
+ */
+@Composable
+private fun OpenComparisonInlineTipCard(
+    tip: GuideTip,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.testTag("guide_tip_open_comparison_inline_card"),
+        colors = CardDefaults.cardColors(containerColor = SameViewAppSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(0.5.dp, SameViewAccent)
+    ) {
+        Column(
+            modifier = Modifier.padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 0.dp)
+        ) {
+            Text(
+                text = stringResource(tip.titleRes),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.testTag("guide_tip_open_comparison_inline_title")
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(tip.bodyRes),
+                style = MaterialTheme.typography.bodySmall,
+                color = SameViewTextSecondary,
+                // 3 lines (not the global GuideTipHost card's 2): this copy is two full
+                // sentences — one per Library action (open, multi-select) — and must not be
+                // truncated. This only affects the OPEN_COMPARISON inline card, not the
+                // shared floating GuideTipHost card used by other screens.
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("guide_tip_open_comparison_inline_body")
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(24.dp, alignment = Alignment.Start),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                GuideTipHost(
-                    activeTip = activeGuideTip,
-                    anchors = guideTipAnchors.values.toList(),
-                    windowWidthSizeClass = windowWidthSizeClass,
-                    isLandscape = isLandscape,
-                    onGotIt = { _ ->
-                        coroutineScope.launch {
-                            guideTipController?.dismissActiveTip(GuideTipDismissReason.GOT_IT)
-                        }
-                    },
-                    onLearnMore = { _, topicId ->
-                        coroutineScope.launch {
-                            guideTipController?.dismissActiveTip(GuideTipDismissReason.LEARN_MORE)
-                        }
-                        onGuideTipLearnMore?.invoke(topicId)
-                    }
-                )
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable(onClick = onDismiss, role = Role.Button)
+                        .testTag("guide_tip_open_comparison_inline_dismiss"),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = stringResource(R.string.guide_tip_dismiss),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = SameViewAccent
+                    )
+                }
             }
         }
     }
