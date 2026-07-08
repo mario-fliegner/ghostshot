@@ -18,11 +18,6 @@ object GuideTopicRegistry {
             summaryKey = "guide_topic_gps_guidance_summary"
         ),
         GuideTopic(
-            id = GuideTopicId.COMPARE,
-            titleKey = "guide_topic_compare_title",
-            summaryKey = "guide_topic_compare_summary"
-        ),
-        GuideTopic(
             id = GuideTopicId.EXPORT,
             titleKey = "guide_topic_export_title",
             summaryKey = "guide_topic_export_summary"

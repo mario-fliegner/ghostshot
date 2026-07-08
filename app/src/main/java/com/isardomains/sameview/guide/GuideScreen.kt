@@ -400,7 +400,6 @@ private fun GuideTopicId.icon(): ImageVector = when (this) {
     GuideTopicId.GETTING_STARTED -> Icons.Default.Info
     GuideTopicId.REFERENCE_PHOTOS -> Icons.Default.Image
     GuideTopicId.GPS_GUIDANCE -> Icons.Default.LocationOn
-    GuideTopicId.COMPARE -> Icons.AutoMirrored.Filled.CompareArrows
     GuideTopicId.EXPORT -> Icons.Default.Share
 }
 
@@ -409,7 +408,6 @@ fun GuideTopicId.titleRes(): Int = when (this) {
     GuideTopicId.GETTING_STARTED -> R.string.guide_topic_getting_started_title
     GuideTopicId.REFERENCE_PHOTOS -> R.string.guide_topic_reference_photos_title
     GuideTopicId.GPS_GUIDANCE -> R.string.guide_topic_gps_guidance_title
-    GuideTopicId.COMPARE -> R.string.guide_topic_compare_title
     GuideTopicId.EXPORT -> R.string.guide_topic_export_title
 }
 
@@ -418,6 +416,5 @@ fun GuideTopicId.summaryRes(): Int = when (this) {
     GuideTopicId.GETTING_STARTED -> R.string.guide_topic_getting_started_summary
     GuideTopicId.REFERENCE_PHOTOS -> R.string.guide_topic_reference_photos_summary
     GuideTopicId.GPS_GUIDANCE -> R.string.guide_topic_gps_guidance_summary
-    GuideTopicId.COMPARE -> R.string.guide_topic_compare_summary
     GuideTopicId.EXPORT -> R.string.guide_topic_export_summary
 }

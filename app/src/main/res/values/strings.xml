@@ -218,21 +218,12 @@
     <string name="guide_topic_reference_photos_title">Reference photos</string>
     <string name="guide_topic_reference_photos_summary">Adjust, align, and mark details.</string>
     <string name="guide_topic_gps_guidance_title">GPS guidance</string>
-    <string name="guide_topic_gps_guidance_summary">Return to a saved location.</string>
-    <string name="guide_topic_compare_title">Compare</string>
-    <string name="guide_topic_compare_summary">Review past and current views.</string>
+    <string name="guide_topic_gps_guidance_summary">Return to the original location.</string>
     <string name="guide_topic_export_title">Export</string>
     <string name="guide_topic_export_summary">Share, create a video, or back up your session.</string>
-    <string name="guide_detail_visual_camera">Camera view</string>
-    <string name="guide_detail_visual_compare">Compare view</string>
     <string name="guide_detail_visual_reference">Reference controls</string>
     <string name="guide_detail_visual_alignment">Alignment controls</string>
     <string name="guide_detail_visual_markers">Marker controls</string>
-    <string name="guide_detail_visual_gps">GPS guidance</string>
-    <string name="guide_detail_visual_compare_tools">Compare tools</string>
-    <string name="guide_detail_visual_share">Share options</string>
-    <string name="guide_detail_visual_video">Video options</string>
-    <string name="guide_detail_visual_backup">Backup options</string>
     <string name="guide_detail_getting_started_intro">SameView helps you recreate a photo and see what\'s changed, in four simple steps.</string>
     <string name="guide_detail_getting_started_step1_title">Choose a reference photo</string>
     <string name="guide_detail_getting_started_step1_body">Pick a reference photo to guide your new shot.</string>
@@ -254,15 +245,15 @@
     <string name="guide_detail_reference_photos_completion_title">You\'re ready to capture</string>
     <string name="guide_detail_reference_photos_completion_body">Once the reference photo is aligned and marked, capture the new photo for comparison.</string>
     <string name="guide_detail_gps_intro">GPS guidance can help you return near the place where the reference photo was taken.</string>
-    <string name="guide_detail_gps_body_1">When location data is available, SameView can show distance and direction cues.</string>
-    <string name="guide_detail_gps_body_2">Use GPS as a guide only; final composition still depends on the live camera view.</string>
-    <string name="guide_detail_compare_intro">Compare shows the reference and current photo together after capture.</string>
-    <string name="guide_detail_compare_body_1">Use the comparison view to inspect how closely the new shot matches the old one.</string>
-    <string name="guide_detail_compare_body_2">Metadata and session actions stay available without changing the original photos.</string>
-    <string name="guide_detail_export_intro">Export turns a saved comparison into something you can share, watch, or keep safe.</string>
-    <string name="guide_detail_share_body_1">Choose a comparison style and include only the details you want to share.</string>
-    <string name="guide_detail_video_body_1">Pick an animation style, duration, format, and quality before rendering.</string>
-    <string name="guide_detail_backups_body_1">Back up one session from its comparison view or multiple sessions from the library.</string>
+    <string name="guide_detail_gps_enable_heading">Enable GPS guidance</string>
+    <string name="guide_detail_gps_enable_body">GPS guidance is disabled by default and only works when the reference photo contains location data.&lt;br/&gt;&lt;br/&gt;Open &lt;b&gt;Settings → GPS guidance&lt;/b&gt; and enable &lt;b&gt;Recreation guidance&lt;/b&gt; to use location information from reference photos. You can also enable &lt;b&gt;Live direction arrow&lt;/b&gt; for on-screen direction cues.&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Use the camera view&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;GPS guidance helps you return near the original location. Use the live camera view to match the final composition.</string>
+    <string name="guide_detail_export_intro">Export helps you share, animate, or back up your saved sessions.</string>
+    <string name="guide_detail_export_step1_title">Share comparison image</string>
+    <string name="guide_detail_share_body_1">Create a shareable comparison image from a saved session.&lt;br/&gt;&lt;br/&gt;Choose between Split view and Side by side, then select the information you want to include.</string>
+    <string name="guide_detail_export_step2_title">Create video</string>
+    <string name="guide_detail_video_body_1">Turn a comparison into an animated video.&lt;br/&gt;&lt;br/&gt;Choose an animation style, duration, format, and quality before rendering.</string>
+    <string name="guide_detail_export_step3_title">Back up sessions</string>
+    <string name="guide_detail_backups_body_1">Create a backup archive to keep your sessions safe.&lt;br/&gt;&lt;br/&gt;You can back up a single session or multiple sessions from the library.</string>
 
     <!-- Camera top-right navigation -->
     <string name="camera_history_content_description">Open history</string>

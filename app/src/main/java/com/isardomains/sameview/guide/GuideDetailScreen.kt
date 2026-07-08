@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,7 +37,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.isardomains.sameview.R
@@ -83,29 +86,47 @@ fun GuideDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = stringResource(topicId.titleRes()),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.testTag("guide_detail_title")
-                )
-                Text(
                     text = stringResource(content.introRes),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("guide_detail_intro")
                 )
                 content.sections.forEachIndexed { index, section ->
-                    GuideDetailVisual(
-                        label = stringResource(section.visualLabelRes),
-                        imageRes = section.imageRes,
-                        titleRes = section.sectionTitleRes,
-                        modifier = Modifier.testTag("guide_detail_visual_$index")
-                    )
-                    Text(
-                        text = stringResource(section.bodyRes),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.testTag("guide_detail_body_$index")
-                    )
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .widthIn(max = 520.dp)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        GuideDetailVisual(
+                            label = stringResource(section.visualLabelRes),
+                            imageRes = section.imageRes,
+                            titleRes = section.sectionTitleRes,
+                            modifier = Modifier.testTag("guide_detail_visual_$index")
+                        )
+                        if (section.headingBelowImageRes != null) {
+                            Text(
+                                text = stringResource(section.headingBelowImageRes),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.testTag("guide_detail_heading_$index")
+                            )
+                        }
+                        if (section.bodyIsHtml) {
+                            Text(
+                                text = AnnotatedString.fromHtml(stringResource(section.bodyRes)),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.testTag("guide_detail_body_$index")
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(section.bodyRes),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.testTag("guide_detail_body_$index")
+                            )
+                        }
+                    }
                 }
                 topicId.completionContentOrNull()?.let { (completionTitleRes, completionBodyRes) ->
                     GuideDetailCompletionBlock(
@@ -191,17 +212,21 @@ private fun GuideDetailVisual(
             Image(
                 painter = painterResource(imageRes),
                 contentDescription = label,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .widthIn(max = 520.dp)
                     .fillMaxWidth()
-                    .height(190.dp)
+                    .aspectRatio(4f / 3f)
                     .clip(MaterialTheme.shapes.medium)
             )
         } else {
             Card(
                 modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .widthIn(max = 520.dp)
                     .fillMaxWidth()
-                    .height(172.dp),
+                    .aspectRatio(4f / 3f),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(
@@ -240,7 +265,9 @@ private data class GuideDetailSection(
     @param:StringRes val visualLabelRes: Int,
     @param:StringRes val bodyRes: Int,
     @param:DrawableRes val imageRes: Int? = null,
-    @param:StringRes val sectionTitleRes: Int? = null
+    @param:StringRes val sectionTitleRes: Int? = null,
+    @param:StringRes val headingBelowImageRes: Int? = null,
+    val bodyIsHtml: Boolean = false
 )
 
 private fun GuideTopicId.detailContent(): GuideDetailContent = when (this) {
@@ -299,23 +326,39 @@ private fun GuideTopicId.detailContent(): GuideDetailContent = when (this) {
     GuideTopicId.GPS_GUIDANCE -> GuideDetailContent(
         introRes = R.string.guide_detail_gps_intro,
         sections = listOf(
-            GuideDetailSection(R.string.guide_detail_visual_gps, R.string.guide_detail_gps_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_camera, R.string.guide_detail_gps_body_2)
-        )
-    )
-    GuideTopicId.COMPARE -> GuideDetailContent(
-        introRes = R.string.guide_detail_compare_intro,
-        sections = listOf(
-            GuideDetailSection(R.string.guide_detail_visual_compare, R.string.guide_detail_compare_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_compare_tools, R.string.guide_detail_compare_body_2)
+            GuideDetailSection(
+                visualLabelRes = R.string.guide_detail_gps_enable_heading,
+                bodyRes = R.string.guide_detail_gps_enable_body,
+                imageRes = R.drawable.guide_gps_guidance_1,
+                headingBelowImageRes = R.string.guide_detail_gps_enable_heading,
+                bodyIsHtml = true
+            )
         )
     )
     GuideTopicId.EXPORT -> GuideDetailContent(
         introRes = R.string.guide_detail_export_intro,
         sections = listOf(
-            GuideDetailSection(R.string.guide_detail_visual_share, R.string.guide_detail_share_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_video, R.string.guide_detail_video_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_backup, R.string.guide_detail_backups_body_1)
+            GuideDetailSection(
+                visualLabelRes = R.string.guide_detail_export_step1_title,
+                bodyRes = R.string.guide_detail_share_body_1,
+                imageRes = R.drawable.guide_export_1_share_image,
+                sectionTitleRes = R.string.guide_detail_export_step1_title,
+                bodyIsHtml = true
+            ),
+            GuideDetailSection(
+                visualLabelRes = R.string.guide_detail_export_step2_title,
+                bodyRes = R.string.guide_detail_video_body_1,
+                imageRes = R.drawable.guide_export_2_create_video,
+                sectionTitleRes = R.string.guide_detail_export_step2_title,
+                bodyIsHtml = true
+            ),
+            GuideDetailSection(
+                visualLabelRes = R.string.guide_detail_export_step3_title,
+                bodyRes = R.string.guide_detail_backups_body_1,
+                imageRes = R.drawable.guide_export_3_backup_sessions,
+                sectionTitleRes = R.string.guide_detail_export_step3_title,
+                bodyIsHtml = true
+            )
         )
     )
 }

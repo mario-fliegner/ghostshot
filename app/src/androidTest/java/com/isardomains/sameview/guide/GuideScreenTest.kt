@@ -123,7 +123,6 @@ class GuideScreenTest {
         }
 
         composeRule.onNodeWithTag("guide_detail_root").assertIsDisplayed()
-        composeRule.onNodeWithTag("guide_detail_title").assertIsDisplayed()
         composeRule.onNodeWithTag("guide_detail_intro").assertIsDisplayed()
         composeRule.onNodeWithTag("guide_detail_visual_0").assertIsDisplayed()
         composeRule.onNodeWithTag("guide_detail_body_0").assertIsDisplayed()
