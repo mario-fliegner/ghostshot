@@ -40,7 +40,7 @@
     <string name="compare_library_session_selected">Ausgewählt</string>
     <string name="compare_library_session_not_selected">Nicht ausgewählt</string>
     <string name="compare_library_delete_dialog_title">Vergleiche löschen?</string>
-    <string name="compare_library_delete_dialog_message">Die ausgewählten Vergleiche werden unwideruflich gelöscht.</string>
+    <string name="compare_library_delete_dialog_message">Die ausgewählten Vergleiche werden unwiderruflich gelöscht.</string>
     <string name="compare_library_delete_confirm">Löschen</string>
     <string name="compare_library_delete_cancel">Abbrechen</string>
 
@@ -185,17 +185,17 @@
 
     <!-- Guide -->
     <string name="guide_screen_title">So funktioniert\'s</string>
-    <string name="guide_back">Zurueck</string>
+    <string name="guide_back">Zurück</string>
     <string name="camera_overflow_guide">So funktioniert\'s</string>
     <string name="guide_replay_section_title">Erneut anzeigen</string>
     <string name="guide_show_tips_again">Tipps erneut anzeigen</string>
     <string name="guide_show_walkthrough_again">Walkthrough erneut anzeigen</string>
     <string name="guide_show_tips_again_dialog_title">Tipps erneut anzeigen?</string>
-    <string name="guide_show_tips_again_dialog_message">Bereits gesehene Kontexttipps werden wieder angezeigt. Walkthrough-Status und App-Daten bleiben unveraendert.</string>
+    <string name="guide_show_tips_again_dialog_message">Bereits gesehene Kontexttipps werden wieder angezeigt. Walkthrough-Status und App-Daten bleiben unverändert.</string>
     <string name="guide_show_tips_again_confirm">Tipps erneut anzeigen</string>
     <string name="guide_show_tips_again_cancel">Abbrechen</string>
     <string name="guide_tip_learn_more">Mehr erfahren</string>
-    <string name="guide_tip_dismiss">Schliessen</string>
+    <string name="guide_tip_dismiss">Schließen</string>
     <string name="guide_tip_reference_title">Referenz hinzufügen</string>
     <string name="guide_tip_reference_body">Wähle ein Foto zum Nachstellen.</string>
     <string name="guide_tip_share_title">Teile deinen Moment</string>
@@ -205,7 +205,7 @@
     <string name="guide_tip_open_comparison_title">Vergleich öffnen</string>
     <string name="guide_tip_open_comparison_body">Tippe auf einen Vergleich, um ihn zu öffnen.\nHalte einen Vergleich gedrückt, um mehrere auszuwählen.</string>
     <string name="guide_topic_getting_started_title">Erste Schritte</string>
-    <string name="guide_topic_getting_started_summary">Waehle ein Referenzfoto, richte die Aufnahme aus und sieh, was sich veraendert hat.</string>
+    <string name="guide_topic_getting_started_summary">Wähle ein Referenzfoto, richte die Aufnahme aus und sieh, was sich verändert hat.</string>
     <string name="guide_topic_reference_photos_title">Referenzfotos</string>
     <string name="guide_topic_reference_photos_summary">Ausrichten, anpassen und Marker setzen.</string>
     <string name="guide_topic_gps_guidance_title">GPS-Führung</string>
