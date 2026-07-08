@@ -462,7 +462,7 @@ Block 3. The max-width implementation for AboutScreen should verify it matches t
 **Governing spec:** `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8, §19 (primary authority for Guide-specific content and structure)
 
 **Compact behavior:**
-Single-column topic list: one Getting-started hero card (reusing the existing `AboutScreen` hero-card pattern, `ABOUT_SCREEN.md` §10) followed by four standard `SettingsCard`-family topic rows (Reference photos & alignment, GPS guidance, Compare, Export). Full available width. No custom card components are introduced.
+Single-column topic list: one Getting-started hero card (reusing the existing `AboutScreen` hero-card pattern, `ABOUT_SCREEN.md` §10) followed by three standard `SettingsCard`-family topic rows (Reference photos, GPS guidance, Export). Full available width. No custom card components are introduced.
 
 **Medium behavior:**
 Same single-column topic list as Compact. Full available width. No grid.

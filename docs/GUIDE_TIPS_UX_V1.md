@@ -765,19 +765,19 @@ Behavior:
 
 ### 23.2 Guide Topics for Learn More Navigation
 
-The following Guide topics must exist for Learn more navigation. Topic ids reflect the consolidated 5-topic Guide structure in `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8:
+The following Guide topics must exist for Learn more navigation. Topic ids reflect the consolidated 4-topic Guide structure in `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8:
 
 | Tip | Guide topic |
 | --- | --- |
-| `REFERENCE` | `GuideTopicId.REFERENCE_PHOTOS_ALIGNMENT` |
+| `REFERENCE` | `GuideTopicId.REFERENCE_PHOTOS` |
 | `SHARE` | `GuideTopicId.EXPORT` |
 | `EDIT_SESSION` | `GuideTopicId.GETTING_STARTED` (or a dedicated `EDIT_SESSION` topic if created) |
 
 `OPEN_COMPARISON` has no Learn more action and does not require a topic mapping.
 
-Notes on this table following the Guide IA consolidation (old 9-topic structure → new 5-topic structure):
+Notes on this table following the Guide IA consolidation (old 9-topic structure → 5-topic consolidation → current 4-topic structure, after the later removal of the standalone Compare topic):
 
-- `REFERENCE` — the target topic id is renamed from `REFERENCE_PHOTOS` to `REFERENCE_PHOTOS_ALIGNMENT` to match the renamed Guide topic. This is a naming update only; the underlying topic still opens directly to content that starts with reference image selection (`FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8.2), so the tip's Learn more target remains contextually correct. No functional or persistence impact — topic ids are never persisted (§21).
+- `REFERENCE` — the target topic id is `GuideTopicId.REFERENCE_PHOTOS`, matching the shipped Guide topic name "Reference photos" (§8.2). An earlier version of this document planned a rename to `REFERENCE_PHOTOS_ALIGNMENT` to match a working topic name of "Reference photos & alignment"; that rename was never applied to the shipped topic id or name, and this table has been corrected to match. The underlying topic still opens directly to content that starts with reference image selection (`FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8.2), so the tip's Learn more target remains contextually correct. No functional or persistence impact — topic ids are never persisted (§21).
 - `SHARE` — the target topic id changes from `GuideTopicId.SHARE_COMPARISON_IMAGE`, which no longer exists as a standalone topic, to `GuideTopicId.EXPORT`, the consolidated topic that now contains Share comparison image, Create video, and Session backups. `EXPORT`'s detail content leads with Share comparison image (`FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8.3), so Learn more still lands the user on contextually relevant content without deep-linking, anchors, or nested navigation.
 - `EDIT_SESSION` — unaffected by the Guide IA consolidation. Its target and the "or a dedicated topic if created" ambiguity predate this restructuring and are unrelated to it; no change made here.
 - `OPEN_COMPARISON` — unaffected; it has no Learn more action.
