@@ -193,9 +193,9 @@
     <string name="walkthrough_start">Start</string>
 
     <!-- Guide -->
-    <string name="guide_screen_title">Guide</string>
+    <string name="guide_screen_title">How it works</string>
     <string name="guide_back">Back</string>
-    <string name="camera_overflow_guide">Guide</string>
+    <string name="camera_overflow_guide">How it works</string>
     <string name="guide_replay_section_title">Replay</string>
     <string name="guide_show_tips_again">Show tips again</string>
     <string name="guide_show_walkthrough_again">Show walkthrough again</string>
@@ -215,8 +215,8 @@
     <string name="guide_tip_open_comparison_body">Tap a comparison to view it.\nPress and hold a comparison to select multiple items.</string>
     <string name="guide_topic_getting_started_title">Getting started</string>
     <string name="guide_topic_getting_started_summary">Pick a reference photo, line up the shot, and see what\'s changed.</string>
-    <string name="guide_topic_reference_photos_title">Reference photos &amp; alignment</string>
-    <string name="guide_topic_reference_photos_summary">Choose, align, and mark your reference photo.</string>
+    <string name="guide_topic_reference_photos_title">Reference photos</string>
+    <string name="guide_topic_reference_photos_summary">Adjust, align, and mark details.</string>
     <string name="guide_topic_gps_guidance_title">GPS guidance</string>
     <string name="guide_topic_gps_guidance_summary">Return to a saved location.</string>
     <string name="guide_topic_compare_title">Compare</string>
@@ -233,13 +233,26 @@
     <string name="guide_detail_visual_share">Share options</string>
     <string name="guide_detail_visual_video">Video options</string>
     <string name="guide_detail_visual_backup">Backup options</string>
-    <string name="guide_detail_getting_started_intro">SameView helps you line up a new photo with an earlier view, then compare the result.</string>
-    <string name="guide_detail_getting_started_body_1">Start by choosing a reference photo or taking a new shot. The camera stays focused on the view in front of you.</string>
-    <string name="guide_detail_getting_started_body_2">After capture, open Compare to review the old and new views together.</string>
-    <string name="guide_detail_reference_photos_intro">Reference photos give you a visual target while you compose a new image.</string>
-    <string name="guide_detail_reference_photos_body_1">Choose a reference, adjust how it appears, and keep the live view visible while you line things up.</string>
-    <string name="guide_detail_reference_photos_body_2">If the reference does not match the camera frame exactly, use the alignment controls to get close.</string>
-    <string name="guide_detail_markers_body_1">Place markers on corners, edges, or other stable details that should line up again.</string>
+    <string name="guide_detail_getting_started_intro">SameView helps you recreate a photo and see what\'s changed, in four simple steps.</string>
+    <string name="guide_detail_getting_started_step1_title">Choose a reference photo</string>
+    <string name="guide_detail_getting_started_step1_body">Pick a reference photo to guide your new shot.</string>
+    <string name="guide_detail_getting_started_step2_title">Line up the photo</string>
+    <string name="guide_detail_getting_started_step2_body">Return to the same spot and align the reference photo with the live camera view.</string>
+    <string name="guide_detail_getting_started_step3_title">Take the shot</string>
+    <string name="guide_detail_getting_started_step3_body">When everything lines up, capture the new photo.</string>
+    <string name="guide_detail_getting_started_step4_title">See what changed</string>
+    <string name="guide_detail_getting_started_step4_body">Open Compare to review the reference photo and your new capture together.</string>
+    <string name="guide_detail_getting_started_completion_title">Ready for your first comparison?</string>
+    <string name="guide_detail_getting_started_completion_body">Choose a reference photo and start your first comparison.</string>
+    <string name="guide_detail_reference_photos_intro">Reference photos help you line up a new photo with the original view.</string>
+    <string name="guide_detail_reference_photos_step1_title">Pick a reference photo</string>
+    <string name="guide_detail_reference_photos_body_1">Pick a photo you want to recreate.</string>
+    <string name="guide_detail_reference_photos_step2_title">Line up the photo</string>
+    <string name="guide_detail_reference_photos_body_2">Move, resize and fade the reference photo until it matches the live view.</string>
+    <string name="guide_detail_reference_photos_step3_title">Use reference markers</string>
+    <string name="guide_detail_markers_body_1">Place markers on details that stay visible even when the reference photo is faded out.</string>
+    <string name="guide_detail_reference_photos_completion_title">You\'re ready to capture</string>
+    <string name="guide_detail_reference_photos_completion_body">Once the reference photo is aligned and marked, capture the new photo for comparison.</string>
     <string name="guide_detail_gps_intro">GPS guidance can help you return near the place where the reference photo was taken.</string>
     <string name="guide_detail_gps_body_1">When location data is available, SameView can show distance and direction cues.</string>
     <string name="guide_detail_gps_body_2">Use GPS as a guide only; final composition still depends on the live camera view.</string>

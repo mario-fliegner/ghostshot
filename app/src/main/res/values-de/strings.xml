@@ -184,9 +184,9 @@
     <string name="walkthrough_start">Start</string>
 
     <!-- Guide -->
-    <string name="guide_screen_title">Guide</string>
+    <string name="guide_screen_title">So funktioniert\'s</string>
     <string name="guide_back">Zurueck</string>
-    <string name="camera_overflow_guide">Guide</string>
+    <string name="camera_overflow_guide">So funktioniert\'s</string>
     <string name="guide_replay_section_title">Erneut anzeigen</string>
     <string name="guide_show_tips_again">Tipps erneut anzeigen</string>
     <string name="guide_show_walkthrough_again">Walkthrough erneut anzeigen</string>
@@ -206,8 +206,8 @@
     <string name="guide_tip_open_comparison_body">Tippe auf einen Vergleich, um ihn zu öffnen.\nHalte einen Vergleich gedrückt, um mehrere auszuwählen.</string>
     <string name="guide_topic_getting_started_title">Erste Schritte</string>
     <string name="guide_topic_getting_started_summary">Waehle ein Referenzfoto, richte die Aufnahme aus und sieh, was sich veraendert hat.</string>
-    <string name="guide_topic_reference_photos_title">Referenzfotos &amp; Ausrichtung</string>
-    <string name="guide_topic_reference_photos_summary">Referenzfoto auswaehlen, ausrichten und markieren.</string>
+    <string name="guide_topic_reference_photos_title">Referenzfotos</string>
+    <string name="guide_topic_reference_photos_summary">Ausrichten, anpassen und Marker setzen.</string>
     <string name="guide_topic_gps_guidance_title">GPS-Navigation</string>
     <string name="guide_topic_gps_guidance_summary">Zu einem gespeicherten Ort zurueckfinden.</string>
     <string name="guide_topic_compare_title">Vergleich</string>
@@ -224,13 +224,26 @@
     <string name="guide_detail_visual_share">Teilen-Optionen</string>
     <string name="guide_detail_visual_video">Video-Optionen</string>
     <string name="guide_detail_visual_backup">Backup-Optionen</string>
-    <string name="guide_detail_getting_started_intro">SameView hilft dir, ein neues Foto an einer frueheren Ansicht auszurichten und das Ergebnis zu vergleichen.</string>
-    <string name="guide_detail_getting_started_body_1">Beginne mit einem Referenzfoto oder einer neuen Aufnahme. Die Kamera bleibt auf die aktuelle Ansicht fokussiert.</string>
-    <string name="guide_detail_getting_started_body_2">Nach der Aufnahme kannst du im Vergleich die alte und neue Ansicht zusammen pruefen.</string>
-    <string name="guide_detail_reference_photos_intro">Referenzfotos geben dir beim Komponieren eines neuen Bildes ein visuelles Ziel.</string>
-    <string name="guide_detail_reference_photos_body_1">Waehle eine Referenz und passe ihre Darstellung an, waehrend die Live-Ansicht sichtbar bleibt.</string>
-    <string name="guide_detail_reference_photos_body_2">Wenn Referenz und Kamerabild nicht exakt passen, helfen die Ausrichtungssteuerungen.</string>
-    <string name="guide_detail_markers_body_1">Setze Marker auf Ecken, Kanten oder stabile Details, die wieder passen sollen.</string>
+    <string name="guide_detail_getting_started_intro">Mit SameView kannst du ein Foto nachstellen, um zu sehen, was sich verändert hat.</string>
+    <string name="guide_detail_getting_started_step1_title">Referenzfoto wählen</string>
+    <string name="guide_detail_getting_started_step1_body">Wähle ein Referenzfoto, das du nachstellen möchtest.</string>
+    <string name="guide_detail_getting_started_step2_title">Foto ausrichten</string>
+    <string name="guide_detail_getting_started_step2_body">Kehre an den Ort der Aufnahme des Referenzfotos zurück und richte es an der Live-Kameraansicht aus.</string>
+    <string name="guide_detail_getting_started_step3_title">Aufnahme machen</string>
+    <string name="guide_detail_getting_started_step3_body">Wenn alles passt, nimm das neue Foto auf.</string>
+    <string name="guide_detail_getting_started_step4_title">Sieh, was sich verändert hat</string>
+    <string name="guide_detail_getting_started_step4_body">Öffne das Ergebnis, um Referenzfoto und die neue Aufnahme nebeneinander zu sehen.</string>
+    <string name="guide_detail_getting_started_completion_title">Bereit für deinen ersten Vergleich?</string>
+    <string name="guide_detail_getting_started_completion_body">Wähle ein Referenzfoto und starte deinen ersten Vergleich.</string>
+    <string name="guide_detail_reference_photos_intro">Referenzfotos helfen dir dabei, eine neue Aufnahme an der ursprünglichen Ansicht auszurichten.</string>
+    <string name="guide_detail_reference_photos_step1_title">Referenzfoto wählen</string>
+    <string name="guide_detail_reference_photos_body_1">Wähle ein Foto, das du nachstellen möchtest.</string>
+    <string name="guide_detail_reference_photos_step2_title">Foto ausrichten</string>
+    <string name="guide_detail_reference_photos_body_2">Verschiebe, skaliere und passe die Transparenz des Referenzfotos an, bis es zur Live-Ansicht passt.</string>
+    <string name="guide_detail_reference_photos_step3_title">Referenzmarker verwenden</string>
+    <string name="guide_detail_markers_body_1">Setze Marker auf Details, die sichtbar bleiben, auch wenn du das Referenzfoto fast ausblendest.</string>
+    <string name="guide_detail_reference_photos_completion_title">Bereit für die Aufnahme</string>
+    <string name="guide_detail_reference_photos_completion_body">Sobald das Referenzfoto ausgerichtet und markiert ist, nimm das neue Foto für den Vergleich auf.</string>
     <string name="guide_detail_gps_intro">GPS-Navigation kann dich in die Naehe des Aufnahmeorts der Referenz fuehren.</string>
     <string name="guide_detail_gps_body_1">Wenn Standortdaten verfuegbar sind, kann SameView Distanz- und Richtungshinweise anzeigen.</string>
     <string name="guide_detail_gps_body_2">Nutze GPS nur als Hilfe; die genaue Komposition erfolgt ueber die Live-Kamera.</string>
