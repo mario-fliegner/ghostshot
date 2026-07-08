@@ -18,7 +18,7 @@ object GuideTipRegistry {
             titleRes = R.string.guide_tip_share_title,
             bodyRes = R.string.guide_tip_share_body,
             anchorKey = GuideTipAnchorKey.SHARE_ACTION,
-            topicId = GuideTopicId.SHARE_COMPARISON_IMAGE,
+            topicId = GuideTopicId.EXPORT,
             scope = GuideTipScope.COMPARE,
             priority = 1
         ),

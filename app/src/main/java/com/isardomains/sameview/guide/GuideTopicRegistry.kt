@@ -1,4 +1,4 @@
-﻿package com.isardomains.sameview.guide
+package com.isardomains.sameview.guide
 
 object GuideTopicRegistry {
     val topics: List<GuideTopic> = listOf(
@@ -13,11 +13,6 @@ object GuideTopicRegistry {
             summaryKey = "guide_topic_reference_photos_summary"
         ),
         GuideTopic(
-            id = GuideTopicId.MARKERS,
-            titleKey = "guide_topic_markers_title",
-            summaryKey = "guide_topic_markers_summary"
-        ),
-        GuideTopic(
             id = GuideTopicId.GPS_GUIDANCE,
             titleKey = "guide_topic_gps_guidance_title",
             summaryKey = "guide_topic_gps_guidance_summary"
@@ -28,24 +23,9 @@ object GuideTopicRegistry {
             summaryKey = "guide_topic_compare_summary"
         ),
         GuideTopic(
-            id = GuideTopicId.SHARE_COMPARISON_IMAGE,
-            titleKey = "guide_topic_share_comparison_image_title",
-            summaryKey = "guide_topic_share_comparison_image_summary"
-        ),
-        GuideTopic(
-            id = GuideTopicId.CREATE_VIDEO,
-            titleKey = "guide_topic_create_video_title",
-            summaryKey = "guide_topic_create_video_summary"
-        ),
-        GuideTopic(
-            id = GuideTopicId.FAVORITES,
-            titleKey = "guide_topic_favorites_title",
-            summaryKey = "guide_topic_favorites_summary"
-        ),
-        GuideTopic(
-            id = GuideTopicId.BACKUPS,
-            titleKey = "guide_topic_backups_title",
-            summaryKey = "guide_topic_backups_summary"
+            id = GuideTopicId.EXPORT,
+            titleKey = "guide_topic_export_title",
+            summaryKey = "guide_topic_export_summary"
         )
     )
 

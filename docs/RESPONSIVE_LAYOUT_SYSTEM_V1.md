@@ -207,6 +207,7 @@ Detailed per-screen sections follow.
 | CreateVideoScreen (Preview) | Current | Current | Centered player, max-width | No | Yes | Block 5 |
 | SettingsScreen | Current | Current | Max-width bounded | No | Yes | Block 3 |
 | AboutScreen | Current | Current | Max-width bounded (already specified) | No | Yes | Block 3 |
+| Guide main screen | Current (single-column) | Current (single-column) | Max-width bounded, single-column (no topic grid) | No | Yes | New (see §7.10) |
 
 ---
 
@@ -453,6 +454,33 @@ None. `ABOUT_SCREEN.md §10` and this document are fully aligned.
 
 **Action:**
 Block 3. The max-width implementation for AboutScreen should verify it matches the existing spec.
+
+---
+
+### 7.10 Guide Main Screen
+
+**Governing spec:** `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8, §19 (primary authority for Guide-specific content and structure)
+
+**Compact behavior:**
+Single-column topic list: one Getting-started hero card (reusing the existing `AboutScreen` hero-card pattern, `ABOUT_SCREEN.md` §10) followed by four standard `SettingsCard`-family topic rows (Reference photos & alignment, GPS guidance, Compare, Export). Full available width. No custom card components are introduced.
+
+**Medium behavior:**
+Same single-column topic list as Compact. Full available width. No grid.
+
+**Expanded behavior:**
+The topic list column is bounded by a max-width constraint (recommended: 680 dp, matching `SettingsScreen` §7.8, `EditSessionScreen` §7.4, and `CreateVideoScreen` Configuring state §7.5) and centered horizontally. Guide main screen does not use a multi-column topic grid at any width class — this supersedes the two-column tablet topic layout previously described in `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §19.
+
+**Wide Layout allowed:**
+No. Single-column, max-width-bounded layout only, consistent with §5.3 (no side-panel layouts) and the other SettingsCard-family screens.
+
+**Max-Width sufficient:**
+Yes. Guide main screen is a list-of-topics screen structurally equivalent to Settings, not a grid screen — §5.2 grid-scaling rules apply only to `CompareLibraryScreen`.
+
+**Conflict check:**
+`FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §19 previously specified phone/tablet-orientation terminology and a two-column tablet topic grid for the Guide main screen. Both are superseded by this section: Guide main screen responsive behavior now follows `WindowWidthSizeClass` exclusively, per §3.2 and §5.5 of this document. `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §19 has been updated to match (companion change, same date).
+
+**Action:**
+New screen addition to this document (see Addendum below). Not yet scheduled in the §10 roadmap. Recommend grouping with Block 3 (max-width form/settings screens) given identical max-width treatment and shared SettingsCard-family styling; final scheduling is an implementation-planning decision.
 
 ---
 
@@ -864,3 +892,17 @@ In landscape normal mode, the compare viewport has 8 dp bottom padding (`padding
 When the reference image has a portrait aspect ratio and the device is in landscape orientation, `ContentScale.Fit` produces a narrow vertical viewport. The remaining horizontal space shows the app background color. This geometry is intentionally accepted. No zoom, crop, or alternative compare mode compensates for it. Any future change requires an explicit product decision.
 
 Portrait mode and fullscreen mode are otherwise unchanged. The §7.2 statement "Existing behavior. No change." for Medium landscape behavior at the time of Block 4 completion no longer applies. All compare rendering, ContentScale logic, slider behavior, and session data are unchanged.
+
+---
+
+### A8. Guide Main Screen Added (2026-07-07)
+
+Per §11.2, this addendum records that a new screen has been added to this document's scope.
+
+`Guide main screen` (`FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8) is added to the per-screen matrix (§6) and per-screen specification (§7.10). This follows the Guide information architecture consolidation from 9 topics to 5 topics, which removed the rationale for the two-column tablet topic grid previously described in `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §19.
+
+Guide main screen responsive behavior now follows `WindowWidthSizeClass` exclusively, consistent with §3.2 and §5.5. The corresponding phone/tablet-orientation language in `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §19 has been updated to match (companion change, same date).
+
+This addendum does not record implementation. Guide main screen responsive behavior is specified but not yet scheduled or implemented — see §7.10.
+
+**Out of scope for this addendum:** `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §19's "Guide detail screens" and "Walkthrough" subsections still use phone/tablet-orientation terminology and are not addressed here. Guide detail screens and Walkthrough were not part of the Guide Main Screen review that produced this amendment. A future amendment would be required to bring those subsections under this document's `WindowWidthSizeClass` model.

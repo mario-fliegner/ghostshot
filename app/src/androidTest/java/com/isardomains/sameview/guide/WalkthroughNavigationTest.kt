@@ -15,7 +15,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -48,7 +48,7 @@ class WalkthroughNavigationTest {
     fun replayFromGuideOpensWalkthroughAndSkipReturnsToGuide() {
         setNavigationContent()
 
-        composeRule.onNodeWithTag("guide_topic_grid").performScrollToIndex(GuideTopicRegistry.topics.size)
+        composeRule.onNodeWithTag("guide_bottom_actions").performScrollTo()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("guide_show_walkthrough_again").performClick()
         composeRule.waitForIdle()

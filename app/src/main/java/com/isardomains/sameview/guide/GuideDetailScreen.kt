@@ -160,14 +160,8 @@ private fun GuideTopicId.detailContent(): GuideDetailContent = when (this) {
         introRes = R.string.guide_detail_reference_photos_intro,
         sections = listOf(
             GuideDetailSection(R.string.guide_detail_visual_reference, R.string.guide_detail_reference_photos_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_alignment, R.string.guide_detail_reference_photos_body_2)
-        )
-    )
-    GuideTopicId.MARKERS -> GuideDetailContent(
-        introRes = R.string.guide_detail_markers_intro,
-        sections = listOf(
-            GuideDetailSection(R.string.guide_detail_visual_markers, R.string.guide_detail_markers_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_alignment, R.string.guide_detail_markers_body_2)
+            GuideDetailSection(R.string.guide_detail_visual_alignment, R.string.guide_detail_reference_photos_body_2),
+            GuideDetailSection(R.string.guide_detail_visual_markers, R.string.guide_detail_markers_body_1)
         )
     )
     GuideTopicId.GPS_GUIDANCE -> GuideDetailContent(
@@ -184,32 +178,12 @@ private fun GuideTopicId.detailContent(): GuideDetailContent = when (this) {
             GuideDetailSection(R.string.guide_detail_visual_compare_tools, R.string.guide_detail_compare_body_2)
         )
     )
-    GuideTopicId.SHARE_COMPARISON_IMAGE -> GuideDetailContent(
-        introRes = R.string.guide_detail_share_intro,
+    GuideTopicId.EXPORT -> GuideDetailContent(
+        introRes = R.string.guide_detail_export_intro,
         sections = listOf(
             GuideDetailSection(R.string.guide_detail_visual_share, R.string.guide_detail_share_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_compare, R.string.guide_detail_share_body_2)
-        )
-    )
-    GuideTopicId.CREATE_VIDEO -> GuideDetailContent(
-        introRes = R.string.guide_detail_video_intro,
-        sections = listOf(
             GuideDetailSection(R.string.guide_detail_visual_video, R.string.guide_detail_video_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_share, R.string.guide_detail_video_body_2)
-        )
-    )
-    GuideTopicId.FAVORITES -> GuideDetailContent(
-        introRes = R.string.guide_detail_favorites_intro,
-        sections = listOf(
-            GuideDetailSection(R.string.guide_detail_visual_library, R.string.guide_detail_favorites_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_compare, R.string.guide_detail_favorites_body_2)
-        )
-    )
-    GuideTopicId.BACKUPS -> GuideDetailContent(
-        introRes = R.string.guide_detail_backups_intro,
-        sections = listOf(
-            GuideDetailSection(R.string.guide_detail_visual_backup, R.string.guide_detail_backups_body_1),
-            GuideDetailSection(R.string.guide_detail_visual_library, R.string.guide_detail_backups_body_2)
+            GuideDetailSection(R.string.guide_detail_visual_backup, R.string.guide_detail_backups_body_1)
         )
     )
 }

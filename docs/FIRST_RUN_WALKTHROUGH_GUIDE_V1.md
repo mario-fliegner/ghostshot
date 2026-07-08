@@ -195,23 +195,36 @@ Guide is a permanent discovery area.
 Main topics:
 
 - Getting started
-- Reference photos
-- Markers
+- Reference photos & alignment
 - GPS guidance
 - Compare
-- Share comparison image
-- Create video
-- Favorites
-- Backups
+- Export
 
-Each topic opens a dedicated detail screen.
+Each topic opens a dedicated detail screen. Reference photos & alignment and Export are consolidated topics; each covers multiple related sub-features within the standard detail screen format (see §8.2 and §8.3).
+
+The following topics from the prior structure are no longer standalone Guide topics:
+
+| Removed topic | Disposition |
+| --- | --- |
+| `Reference photos` | Merged into `Reference photos & alignment` |
+| `Markers` | Merged into `Reference photos & alignment` |
+| `Share comparison image` | Merged into `Export` |
+| `Create video` | Merged into `Export` |
+| `Backups` | Merged into `Export`, as `Session backups` |
+| `Favorites` | Removed entirely; not merged into any topic. The Favorites feature itself (star toggle, Library filter) is unchanged — it is self-explanatory and does not require dedicated Guide content. |
+
+This consolidation changes only the Guide topic registry contents and Guide detail-page copy. It does not change Guide navigation, persistence, or package architecture (§5–§7).
 
 Guide main screen structure:
 
-- The topic list uses existing SameView visual language.
-- Each topic row contains a Material icon, title, one short description line, and chevron.
-- Example topic copy pattern: `Reference photos` / `Choose and align photos.`
-- Topic rows remain visually distinct from the separated bottom actions.
+- Getting started is not a normal feature topic. It is the Guide's orientation and walkthrough-replay entry point (§8.1) and receives moderate visual emphasis to reflect that distinct role, rendered as the first element on the Guide main screen, above the remaining topic list.
+- Getting started reuses the existing hero-card pattern already established by `AboutScreen` (`ABOUT_SCREEN.md` §10: "hero card aligned with Settings card language"). It does not introduce a new or custom card component.
+- The remaining four topics — Reference photos & alignment, GPS guidance, Compare, Export — are standard topic rows, structurally and visually identical to one another. No topic other than Getting started receives elevated visual weight.
+- Standard topic rows reuse the `SettingsCard` row family already used by `SettingsScreen`, `EditSessionScreen`, and `CreateVideoScreen` (Configuring state). Guide does not introduce a new or custom card component for standard rows.
+- Each standard topic row contains a Material icon, title, one short description line, and chevron.
+- Example topic copy pattern: `Reference photos & alignment` / `Choose, align, and mark your reference photo.`
+- Spacing between topic rows should be generous enough that the 5-topic list does not read as a truncated version of the former 9-topic list. Exact spacing values are an implementation-planning decision, not fixed by this specification.
+- Topic rows (Getting started and standard) remain visually distinct from the separated bottom actions (§8.4).
 
 Guide detail screen structure:
 
@@ -241,7 +254,27 @@ Getting Started should reuse or closely mirror first-run walkthrough content.
 
 Avoid duplicate maintenance by defining shared page/topic content data where practical. The walkthrough may use the same core copy and visual assets with different navigation chrome.
 
-### 8.2 Guide Bottom Actions
+### 8.2 Reference Photos & Alignment
+
+Reference photos & alignment consolidates three sub-features into one detail screen, using the screenshot-plus-short-sentence block format defined above (one screenshot and 1-2 sentences per sub-feature, in order):
+
+- Reference image selection
+- Overlay alignment
+- Reference markers
+
+This uses the detail screen's existing block allowance (introduction plus up to three screenshot/text blocks) exactly as specified — one block per sub-feature. It does not require a new content format or a sectioned/anchored layout.
+
+### 8.3 Export
+
+Export consolidates three sub-features into one detail screen, using the same block format:
+
+- Share comparison image
+- Create video
+- Session backups
+
+Share comparison image content should lead the detail screen (appear first, immediately after the introduction). It is the only Export sub-feature reachable via a Guide Tip `Learn more` action (`SHARE` tip; see `GUIDE_TIPS_UX_V1.md` §23.2). Leading with it keeps that navigation contextually relevant without introducing in-page anchors or deep-linking.
+
+### 8.4 Guide Bottom Actions
 
 Guide main screen contains two visually separated bottom actions:
 
@@ -809,10 +842,12 @@ Large screens should meaningfully use available space while keeping content read
 
 Guide main screen:
 
-- Phone portrait: one-column topic layout.
-- Phone landscape: one-column topic layout; keep reading flow simple and do not switch to a cramped landscape grid.
-- Tablet portrait and tablet landscape: two-column topic layout.
-- Topic cards/rows remain visually grouped and do not stretch a single topic row across the full tablet width.
+Guide main screen responsive behavior follows `WindowWidthSizeClass` exclusively (Compact / Medium / Expanded), per `RESPONSIVE_LAYOUT_SYSTEM_V1.md` §3.2 and §5.5. See `RESPONSIVE_LAYOUT_SYSTEM_V1.md` §7.10 for the full specification. Summary:
+
+- Compact: single-column topic layout (Getting started hero card, then the four standard topic rows), full available width.
+- Medium: single-column topic layout, full available width; no grid.
+- Expanded: single-column topic layout, bounded by a centered max-width container (recommended: 680 dp, matching `SettingsScreen`, `EditSessionScreen`, and `CreateVideoScreen` Configuring state). Guide main screen does not use a multi-column topic grid at any width class.
+- Topic rows fill the width of their containing column — the full screen width on Compact/Medium, the centered max-width container on Expanded — and never stretch to the full screen width when the max-width container is active.
 
 Guide detail screens:
 
