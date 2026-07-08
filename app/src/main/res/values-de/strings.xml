@@ -123,16 +123,16 @@
     <string name="settings_overlay_compare_title">Referenz &amp; Vergleich</string>
     <string name="settings_reset_overlay_after_capture">Referenzfoto nach Aufnahme entfernen</string>
     <string name="settings_auto_open_compare_after_capture">Vergleich nach Aufnahme automatisch öffnen</string>
-    <string name="settings_gps_guidance_title">GPS-Navigation</string>
+    <string name="settings_gps_guidance_title">GPS-Führung</string>
     <string name="settings_recreation_guidance">Entfernung zum Aufnahmeort anzeigen</string>
     <string name="settings_recreation_guidance_rationale_title">Standortzugriff</string>
-    <string name="settings_recreation_guidance_rationale_message">SameView nutzt deinen aktuellen Standort, um dich zum Aufnahmeort des Referenzfotos zu führen. Die im Referenzfoto gespeicherte Position wird, sofern vorhanden, ausschließlich lokal verwendet. Deine Standortdaten werden niemals geteilt oder hochgeladen.</string>
+    <string name="settings_recreation_guidance_rationale_message">SameView zeigt dir ungefähre Entfernung und Richtung zum Aufnahmeort des Referenzfotos an. Deine Standortdaten werden niemals geteilt oder hochgeladen.</string>
     <string name="settings_recreation_guidance_rationale_confirm">Weiter</string>
     <string name="settings_recreation_guidance_rationale_cancel">Abbrechen</string>
     <string name="settings_recreation_guidance_permission_denied">Genauer Standortzugriff erforderlich. Bitte in den Systemeinstellungen erteilen.</string>
     <string name="settings_live_direction_arrow">Richtungspfeil anzeigen</string>
-    <string name="settings_live_direction_arrow_description">Zeigt mithilfe der Gerätesensoren die Richtung zum Referenzstandort an. Die Genauigkeit kann je nach Umgebung variieren.</string>
-    <string name="gps_guidance_chip_description">GPS-Navigation</string>
+    <string name="settings_live_direction_arrow_description">Zeigt mithilfe der Gerätesensoren eine ungefähre Richtung zum Referenzstandort an. Die Genauigkeit hängt vom Gerät und der Umgebung ab. Achte weiterhin auf deine Umgebung.</string>
+    <string name="gps_guidance_chip_description">GPS-Führung</string>
 
     <!-- Settings: Datenschutz -->
     <string name="settings_privacy_title">Datenschutz</string>
@@ -262,7 +262,7 @@
 
     <!-- GPS-Fallback-Dialog (erscheint wenn Photo-Picker-Ergebnis kein GPS hat und Standortführung aktiv ist) -->
     <string name="gps_fallback_dialog_title">Standortdaten nicht verfügbar</string>
-    <string name="gps_fallback_dialog_message">SameView konnte aus dieser Auswahl keine Standortdaten lesen. Wähle das Originalfoto aus, um die GPS-Navigation zu nutzen.</string>
+    <string name="gps_fallback_dialog_message">SameView konnte aus dieser Auswahl keine Standortdaten lesen. Wähle das Originalfoto aus, um die GPS-Führung zu nutzen.</string>
     <string name="gps_fallback_dialog_choose_file_manager">Originalfoto wählen</string>
     <string name="gps_fallback_dialog_continue_without_gps">Ohne GPS fortfahren</string>
 
