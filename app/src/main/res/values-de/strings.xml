@@ -10,7 +10,6 @@
     <string name="open_settings">Einstellungen öffnen</string>
 
     <string name="capture_button_content_description">Foto aufnehmen</string>
-    <string name="capture_button_label">Auslösen</string>
     <string name="capture_saved">Foto gespeichert</string>
     <string name="capture_saved_compare_action">Vergleich ansehen</string>
     <string name="capture_failed">Foto konnte nicht gespeichert werden</string>
@@ -46,12 +45,10 @@
 
     <string name="compare_images">Vergleichen</string>
     <string name="compare_entry_label">Vergleich</string>
-    <string name="compare_library_entry_label">Vergleiche</string>
     <string name="compare_screen_title">Vergleich</string>
     <string name="compare_back">Zur Kamera</string>
     <string name="compare_label_reference">Referenz</string>
     <string name="compare_label_capture">Aktuell</string>
-    <string name="compare_slider_content_description">Vergleichs-Slider</string>
     <string name="compare_label_past">Früher</string>
     <string name="compare_label_present">Heute</string>
     <string name="compare_label_current">Aktuell</string>
@@ -68,12 +65,6 @@
     <string name="compare_original_reference">ORIGINAL</string>
     <string name="compare_show_original_reference">Originalreferenz anzeigen</string>
     <string name="compare_original_reference_active">Originalreferenz sichtbar</string>
-    <string name="compare_screen_edit_title">Titel bearbeiten</string>
-    <string name="compare_screen_edit_title_dialog_title">Titel bearbeiten</string>
-    <string name="compare_screen_edit_title_save">Speichern</string>
-    <string name="compare_screen_edit_title_cancel">Abbrechen</string>
-    <string name="compare_screen_edit_title_hint">Titel</string>
-    <string name="compare_screen_remove_title">Titel entfernen</string>
     <string name="compare_screen_title_save_failed">Titel konnte nicht gespeichert werden</string>
     <string name="compare_session_favorite_update_failed">Favorit konnte nicht aktualisiert werden</string>
     <string name="compare_screen_favorite_mark">Als Favorit markieren</string>
@@ -88,10 +79,6 @@
     <string name="overlay_opacity_label">Deckkraft</string>
     <string name="reset_overlay_label">Zurücksetzen</string>
     <string name="remove_reference_image">Referenzfoto entfernen</string>
-    <string name="remove_reference_image_dialog_title">Referenzfoto entfernen?</string>
-    <string name="remove_reference_image_dialog_message">Das Referenzfoto wird entfernt</string>
-    <string name="remove_reference_image_confirm">Entfernen</string>
-    <string name="remove_reference_image_cancel">Abbrechen</string>
     <string name="toggle_reference_display_mode">Ansicht der Referenz wechseln</string>
     <string name="reference_viewport_mismatch">Referenzfoto kann leicht abweichen</string>
     <string name="reference_format_mismatch_description">Referenzfoto passt evtl. nicht exakt</string>
@@ -161,7 +148,6 @@
     <string name="about_app_name">SameView</string>
     <string name="about_description">Dieselbe Perspektive erneut fotografieren.</string>
     <string name="about_local_device">Zwei Aufnahmen. Ein Vergleich.</string>
-    <string name="about_no_account_required">Keine KI-generierten Bilder.</string>
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_visit_website">Zur Website</string>
     <string name="about_no_browser_app">Kein Browser gefunden</string>
@@ -179,8 +165,6 @@
     <string name="walkthrough_page_take_shot_body">Wenn alles passt, halte den Moment fest.</string>
     <string name="walkthrough_page_see_what_changed_title">Sieh, was sich verändert hat</string>
     <string name="walkthrough_page_see_what_changed_body">Das Foto, das du ausgewählt hast.\nDer Moment, den du nachgestellt hast.\nDer Unterschied zwischen beiden.</string>
-    <string name="walkthrough_then_label">Damals</string>
-    <string name="walkthrough_now_label">Jetzt</string>
     <string name="walkthrough_skip">Überspringen</string>
     <string name="walkthrough_next">Weiter</string>
     <string name="walkthrough_back">Zurück</string>
@@ -215,9 +199,6 @@
     <string name="guide_topic_gps_guidance_summary">Kehre zum ursprünglichen Standort zurück.</string>
     <string name="guide_topic_export_title">Export</string>
     <string name="guide_topic_export_summary">Teilen, ein Video erstellen oder deine Session sichern.</string>
-    <string name="guide_detail_visual_reference">Referenzsteuerung</string>
-    <string name="guide_detail_visual_alignment">Ausrichtungssteuerung</string>
-    <string name="guide_detail_visual_markers">Markersteuerung</string>
     <string name="guide_detail_getting_started_intro">Mit SameView kannst du ein Foto nachstellen, um zu sehen, was sich verändert hat.</string>
     <string name="guide_detail_getting_started_step1_title">Referenzfoto wählen</string>
     <string name="guide_detail_getting_started_step1_body">Wähle ein Referenzfoto, das du nachstellen möchtest.</string>
@@ -329,9 +310,6 @@
     <string name="share_comparison_logo_error">Logo konnte nicht gesetzt werden</string>
     <string name="share_comparison_logo_use_default">Standard-Logo verwenden</string>
 
-    <!-- Video erstellen — Einstiegspunkt (CompareScreen Titelleiste; über Export-Menü erreichbar) -->
-    <string name="create_video_entry_content_description">Video erstellen</string>
-
     <!-- Video erstellen — Export-Abbrechen-Dialog -->
     <string name="create_video_cancel_export_dialog_title">Videoexport abbrechen?</string>
     <string name="create_video_cancel_export_continue">Weiter</string>
@@ -378,14 +356,11 @@
     <string name="edit_session_reference_date_help">Wann wurde das Referenzfoto aufgenommen?\nBeispiele: 2008, 2008-06 oder 2008-06-15.</string>
     <string name="edit_session_reference_metadata_preserved_hint">Metadaten des Referenz-Originals konnten nicht entfernt werden.</string>
     <string name="edit_session_reference_date_error">Gib ein Jahr (z. B. 2008), Jahr-Monat (z. B. 2008-06) oder ein vollständiges Datum (z. B. 2008-06-15) ein.</string>
-    <string name="edit_session_label_session_date">Aufnahmedatum</string>
     <string name="edit_session_label_captured_on">Aufgenommen am</string>
-    <string name="edit_session_captured_on">Aufgenommen am %s</string>
     <string name="edit_session_created">Erstellt am %s</string>
     <string name="edit_session_pick_date_content_description">Datum auswählen</string>
     <string name="edit_session_field_place_name">Name des Ortes</string>
     <string name="edit_session_placeholder_place_name">z. B. Marienplatz</string>
-    <string name="edit_session_field_location_display_name">Aufnahmeort</string>
     <string name="edit_session_field_city">Stadt</string>
     <string name="edit_session_placeholder_city">z. B. München</string>
     <string name="edit_session_field_country">Land</string>
@@ -419,10 +394,7 @@
     <string name="markers_done_button">Fertig</string>
     <string name="markers_empty_hint">Lang drücken zum Platzieren</string>
     <string name="markers_limit_reached">Maximal %d Marker möglich</string>
-    <string name="markers_outside_image">Marker innerhalb des Referenzbilds setzen</string>
     <string name="markers_edit_mode_description">Marker-Bearbeiten-Modus aktiv</string>
-    <string name="marker_delete_hint">Lang drücken zum Löschen</string>
-    <string name="marker_content_description">Referenzmarker %d</string>
 </resources>
 
 
