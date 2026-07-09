@@ -80,7 +80,6 @@
     <string name="reset_overlay_label">Zurücksetzen</string>
     <string name="remove_reference_image">Referenzfoto entfernen</string>
     <string name="toggle_reference_display_mode">Ansicht der Referenz wechseln</string>
-    <string name="reference_viewport_mismatch">Referenzfoto kann leicht abweichen</string>
     <string name="reference_format_mismatch_description">Referenzfoto passt evtl. nicht exakt</string>
     <string name="reference_format_mismatch_bubble">Referenzfoto und Kamerabild haben unterschiedliche Formate</string>
     <string name="reference_image_load_failed">Referenzfoto konnte nicht geladen werden</string>

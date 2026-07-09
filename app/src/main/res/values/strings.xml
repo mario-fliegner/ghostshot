@@ -85,7 +85,6 @@
     <string name="reset_overlay_label">Reset</string>
     <string name="remove_reference_image">Remove reference image</string>
     <string name="toggle_reference_display_mode">Switch overlay mode</string>
-    <string name="reference_viewport_mismatch">Reference may be slightly off</string>
     <string name="reference_format_mismatch_description">Reference format may not match.</string>
     <string name="reference_format_mismatch_bubble">Reference format differs</string>
     <string name="reference_image_load_failed">Couldn\'t load reference image</string>
