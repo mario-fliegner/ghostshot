@@ -137,6 +137,31 @@ class EditSessionViewModelTest {
         assertEquals("Deutschland", vm.locationCountryField.value)
     }
 
+    @Test
+    fun referenceSourceMetadataPreserved_true_whenPreservationIsNotPossible() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields(
+                title = "",
+                referenceDate = "",
+                locationDisplayName = "",
+                locationCity = "",
+                locationCountry = "",
+                referenceSourceMetadataPreserved = true
+            )
+        }
+        advanceUntilIdle()
+        assertTrue(vm.referenceSourceMetadataPreserved.value)
+    }
+
+    @Test
+    fun referenceSourceMetadataPreserved_false_whenMetadataStrippedOrOriginalsAbsent() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        assertFalse(vm.referenceSourceMetadataPreserved.value)
+    }
+
     // ── Error / absence handling ───────────────────────────────────────────────
 
     @Test

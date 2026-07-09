@@ -46,7 +46,8 @@ internal data class InitialSessionFields(
     val description: String = "",
     val captureTimestampMs: Long = 0L,
     val referenceSourceDisplayName: String = "",
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val referenceSourceMetadataPreserved: Boolean = false
 )
 
 /**
@@ -191,6 +192,16 @@ class EditSessionViewModel @Inject constructor(
     /** Raw reference.sourceDisplayName value from metadata.json; empty when absent. */
     val referenceSourceDisplayName: StateFlow<String> = _referenceSourceDisplayName.asStateFlow()
 
+    private val _referenceSourceMetadataPreserved = MutableStateFlow(false)
+    /**
+     * True when `originals.referenceSourcePreservation` in metadata.json is `"not_possible"` —
+     * i.e. Privacy Mode was on at session creation but the reference source format could not be
+     * decoded, so its metadata (EXIF/GPS) was preserved instead of stripped. False for sessions
+     * without an `originals` block (Privacy Mode never used) or with `"metadata_stripped"`.
+     * Read-only; does not affect [isDirty] or [onSave].
+     */
+    val referenceSourceMetadataPreserved: StateFlow<Boolean> = _referenceSourceMetadataPreserved.asStateFlow()
+
     // ── Dirty and saving state ──────────────────────────────────────────────────
 
     private val _isDirty = MutableStateFlow(false)
@@ -259,6 +270,7 @@ class EditSessionViewModel @Inject constructor(
             val captureObj = json.optJSONObject("capture")
             val locationObj = json.optJSONObject("location")
             val additionalObj = json.optJSONObject("additional")
+            val originalsObj = json.optJSONObject("originals")
             InitialSessionFields(
                 title = contentObj?.optString("title", "") ?: "",
                 description = contentObj?.optString("description", "") ?: "",
@@ -272,7 +284,9 @@ class EditSessionViewModel @Inject constructor(
                     optString("sourceUri", "").ifEmpty { null }
                         ?: optString("sourceDisplayName", "").ifEmpty { null }
                 } ?: "",
-                isFavorite = additionalObj?.optBoolean("isFavorite", false) ?: false
+                isFavorite = additionalObj?.optBoolean("isFavorite", false) ?: false,
+                referenceSourceMetadataPreserved =
+                    originalsObj?.optString("referenceSourcePreservation") == "not_possible"
             )
         }
 
@@ -299,6 +313,7 @@ class EditSessionViewModel @Inject constructor(
                 _captureTimestampMs.value = fields.captureTimestampMs
                 _referenceSourceDisplayName.value = fields.referenceSourceDisplayName
                 _isFavorite.value = fields.isFavorite
+                _referenceSourceMetadataPreserved.value = fields.referenceSourceMetadataPreserved
             } catch (e: Exception) {
                 // All fields remain at their initial empty-string / zero values.
             } finally {

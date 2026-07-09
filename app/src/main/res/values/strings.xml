@@ -144,7 +144,7 @@
     <!-- Settings: Privacy -->
     <string name="settings_privacy_title">Privacy</string>
     <string name="settings_strip_originals_metadata_title">Remove metadata from originals</string>
-    <string name="settings_strip_originals_metadata_description">Stores full-resolution session originals without EXIF, GPS, camera or device metadata. Original file formats may be converted when required.</string>
+    <string name="settings_strip_originals_metadata_description">Stores full-resolution session originals without EXIF, GPS, camera or device metadata when supported. Some reference formats may preserve metadata.</string>
 
     <!-- Branding: Symbol picker sheet (V2) -->
     <string name="branding_symbol_picker_title">Choose a symbol</string>
@@ -398,6 +398,7 @@
     <string name="edit_session_placeholder_reference_date">e.g. 2008 or 2008-06</string>
     <string name="edit_session_reference_date_hint">e.g. 2008 or 2008-06</string>
     <string name="edit_session_reference_date_help">When the reference photo was taken.\nExamples: 2008, 2008-06, or 2008-06-15.</string>
+    <string name="edit_session_reference_metadata_preserved_hint">Reference original metadata could not be removed.</string>
     <string name="edit_session_reference_date_error">Enter a year (e.g. 2008), year-month (e.g. 2008-06), or full date (e.g. 2008-06-15).</string>
     <string name="edit_session_label_session_date">Session date</string>
     <string name="edit_session_label_captured_on">Captured on</string>

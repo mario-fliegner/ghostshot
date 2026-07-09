@@ -139,7 +139,7 @@
     <!-- Settings: Datenschutz -->
     <string name="settings_privacy_title">Datenschutz</string>
     <string name="settings_strip_originals_metadata_title">Metadaten aus Originalen entfernen</string>
-    <string name="settings_strip_originals_metadata_description">Speichert Session-Originale in voller Auflösung ohne EXIF-, GPS-, Kamera- oder Geräteinformationen. Ursprüngliche Dateiformate können dabei bei Bedarf konvertiert werden.</string>
+    <string name="settings_strip_originals_metadata_description">Speichert Session-Originale in voller Auflösung ohne EXIF-, GPS-, Kamera- oder Geräteinformationen, sofern unterstützt. Einige Referenzformate können Metadaten beibehalten.</string>
 
     <!-- Branding: Symbol-Auswahl-Sheet (V2) -->
     <string name="branding_symbol_picker_title">Symbol auswählen</string>
@@ -376,6 +376,7 @@
     <string name="edit_session_placeholder_reference_date">z. B. 2008 oder 2008-06</string>
     <string name="edit_session_reference_date_hint">z. B. 2008 oder 2008-06</string>
     <string name="edit_session_reference_date_help">Wann wurde das Referenzfoto aufgenommen?\nBeispiele: 2008, 2008-06 oder 2008-06-15.</string>
+    <string name="edit_session_reference_metadata_preserved_hint">Metadaten des Referenz-Originals konnten nicht entfernt werden.</string>
     <string name="edit_session_reference_date_error">Gib ein Jahr (z. B. 2008), Jahr-Monat (z. B. 2008-06) oder ein vollständiges Datum (z. B. 2008-06-15) ein.</string>
     <string name="edit_session_label_session_date">Aufnahmedatum</string>
     <string name="edit_session_label_captured_on">Aufgenommen am</string>

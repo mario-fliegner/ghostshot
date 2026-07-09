@@ -317,6 +317,24 @@ class EditSessionScreenTest {
         ).assertDoesNotExist()
     }
 
+    // ── Group 6: Privacy Mode Disclosure ──────────────────────────────────────
+
+    @Test
+    fun referenceMetadataPreservedHint_visible_whenPreservationNotPossible() {
+        setEditSessionContent(createSession(referenceSourcePreservation = "not_possible"))
+
+        composeRule.onNodeWithTag("edit_session_reference_metadata_preserved_hint")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun referenceMetadataPreservedHint_notVisible_whenOriginalsBlockAbsent() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_reference_metadata_preserved_hint").assertDoesNotExist()
+    }
+
     // ── Block F.3: Favourite star tests ──────────────────────────────────────
 
     @Test
@@ -402,7 +420,8 @@ class EditSessionScreenTest {
         locationCity: String = "",
         locationCountry: String = "",
         captureTimestampMs: Long = 0L,
-        isFavorite: Boolean = false
+        isFavorite: Boolean = false,
+        referenceSourcePreservation: String? = null
     ): String {
         val sessionId = "edit_test_${System.nanoTime()}"
         val sessionsRoot = File(context.filesDir, "sessions")
@@ -444,6 +463,13 @@ class EditSessionScreenTest {
             put("visibility", "private")
             put("source", "sameview")
         })
+        if (referenceSourcePreservation != null) {
+            json.put("originals", JSONObject().apply {
+                put("privacyMode", true)
+                put("capturePreservation", "metadata_stripped")
+                put("referenceSourcePreservation", referenceSourcePreservation)
+            })
+        }
         File(sessionDir, "metadata.json").writeText(json.toString())
 
         return sessionId

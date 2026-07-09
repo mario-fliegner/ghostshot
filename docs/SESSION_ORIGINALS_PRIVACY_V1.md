@@ -314,7 +314,7 @@ Placed after GPS Guidance in the settings screen. No sub-toggles in V1.
 |---|---|---|
 | **Category header** | Privacy | Datenschutz |
 | **Setting title** | Strip metadata from stored originals | Metadaten aus Originalen entfernen |
-| **Setting subtitle** | Stores full-resolution session originals without EXIF, GPS, or camera metadata. Gallery photos are not affected. | Speichert Session-Originale in voller Auflösung ohne EXIF-, GPS- oder Kamerainformationen. Galeriefotos bleiben unverändert. |
+| **Setting subtitle** | Stores full-resolution session originals without EXIF, GPS, camera or device metadata when supported. Some reference formats may preserve metadata. | Speichert Session-Originale in voller Auflösung ohne EXIF-, GPS-, Kamera- oder Geräteinformationen, sofern unterstützt. Einige Referenzformate können Metadaten beibehalten. |
 
 DataStore key: `strip_originals_metadata`
 Type: Boolean

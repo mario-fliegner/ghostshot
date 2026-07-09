@@ -118,6 +118,7 @@ fun EditSessionScreen(
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     val captureTimestampMs by viewModel.captureTimestampMs.collectAsStateWithLifecycle()
+    val referenceSourceMetadataPreserved by viewModel.referenceSourceMetadataPreserved.collectAsStateWithLifecycle()
 
     // ── UI derivations ─────────────────────────────────────────────────────────
     val context = LocalContext.current
@@ -387,6 +388,15 @@ fun EditSessionScreen(
                         text = stringResource(R.string.edit_session_reference_date_help),
                         style = MaterialTheme.typography.bodySmall,
                         color = SameViewSettingsSecondaryText
+                    )
+                }
+                if (referenceSourceMetadataPreserved) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.edit_session_reference_metadata_preserved_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SameViewSettingsSecondaryText,
+                        modifier = Modifier.testTag("edit_session_reference_metadata_preserved_hint")
                     )
                 }
             }
