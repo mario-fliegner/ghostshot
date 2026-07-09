@@ -173,6 +173,8 @@
     <string name="about_feedback_email" translatable="false">support@sameview.app</string>
     <string name="about_feedback_subject">SameView Feedback</string>
     <string name="about_feedback_no_email_app">No email app found</string>
+    <string name="about_privacy_policy">Privacy Policy</string>
+    <string name="about_privacy_policy_url" translatable="false">https://sameview.app/privacy</string>
 
 
 

@@ -48,6 +48,9 @@ class AboutScreenTest {
         composeRule.onNodeWithTag("about_send_feedback")
             .assertIsDisplayed()
             .assertHasClickAction()
+        composeRule.onNodeWithTag("about_privacy_policy")
+            .assertIsDisplayed()
+            .assertHasClickAction()
     }
 
     @Test
@@ -102,9 +105,36 @@ class AboutScreenTest {
             .assertIsDisplayed()
     }
 
+    @Test
+    fun privacyPolicyClick_invokesPrivacyPolicyAction() {
+        var launchCount = 0
+        setAboutContent(
+            privacyPolicyIntentLauncher = {
+                launchCount++
+                true
+            }
+        )
+
+        composeRule.onNodeWithTag("about_privacy_policy").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, launchCount)
+    }
+
+    @Test
+    fun privacyPolicyClick_whenNoBrowser_showsFallbackMessage() {
+        setAboutContent(privacyPolicyIntentLauncher = { false })
+
+        composeRule.onNodeWithTag("about_privacy_policy").performClick()
+
+        composeRule.onNodeWithText(context.getString(R.string.about_no_browser_app))
+            .assertIsDisplayed()
+    }
+
     private fun setAboutContent(
         feedbackIntentLauncher: ((android.content.Intent) -> Boolean)? = null,
-        websiteIntentLauncher: ((android.content.Intent) -> Boolean)? = null
+        websiteIntentLauncher: ((android.content.Intent) -> Boolean)? = null,
+        privacyPolicyIntentLauncher: ((android.content.Intent) -> Boolean)? = null
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -121,7 +151,8 @@ class AboutScreenTest {
                         versionCode = 99,
                         onBack = {},
                         feedbackIntentLauncher = feedbackIntentLauncher,
-                        websiteIntentLauncher = websiteIntentLauncher
+                        websiteIntentLauncher = websiteIntentLauncher,
+                        privacyPolicyIntentLauncher = privacyPolicyIntentLauncher
                     )
                 }
             }

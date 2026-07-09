@@ -77,7 +77,8 @@ fun AboutScreenContent(
     versionCode: Int,
     onBack: () -> Unit,
     feedbackIntentLauncher: ((Intent) -> Boolean)? = null,
-    websiteIntentLauncher: ((Intent) -> Boolean)? = null
+    websiteIntentLauncher: ((Intent) -> Boolean)? = null,
+    privacyPolicyIntentLauncher: ((Intent) -> Boolean)? = null
 ) {
     val context = LocalContext.current
     val feedbackEmail = stringResource(R.string.about_feedback_email)
@@ -85,12 +86,16 @@ fun AboutScreenContent(
     val noEmailAppMessage = stringResource(R.string.about_feedback_no_email_app)
     val websiteUrl = stringResource(R.string.about_website_url)
     val noWebsiteAppMessage = stringResource(R.string.about_no_browser_app)
+    val privacyPolicyUrl = stringResource(R.string.about_privacy_policy_url)
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val openFeedbackIntent = feedbackIntentLauncher ?: { intent: Intent ->
         startFeedbackIntent(context, intent)
     }
     val openWebsiteIntent = websiteIntentLauncher ?: { intent: Intent ->
+        startFeedbackIntent(context, intent)
+    }
+    val openPrivacyPolicyIntent = privacyPolicyIntentLauncher ?: { intent: Intent ->
         startFeedbackIntent(context, intent)
     }
 
@@ -145,6 +150,14 @@ fun AboutScreenContent(
                         if (!openFeedbackIntent(intent)) {
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar(noEmailAppMessage)
+                            }
+                        }
+                    },
+                    onPrivacyPolicyClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(privacyPolicyUrl))
+                        if (!openPrivacyPolicyIntent(intent)) {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(noWebsiteAppMessage)
                             }
                         }
                     }
@@ -230,7 +243,8 @@ private fun AboutFooter(
     versionName: String,
     versionCode: Int,
     onWebsiteClick: () -> Unit,
-    onFeedbackClick: () -> Unit
+    onFeedbackClick: () -> Unit,
+    onPrivacyPolicyClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -289,6 +303,18 @@ private fun AboutFooter(
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = stringResource(R.string.about_privacy_policy),
+                style = MaterialTheme.typography.labelMedium,
+                color = SameViewAboutActionText,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .semantics { role = Role.Button }
+                    .clickable(onClick = onPrivacyPolicyClick)
+                    .testTag("about_privacy_policy")
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.about_version, versionName, versionCode),
                 style = MaterialTheme.typography.bodySmall,
