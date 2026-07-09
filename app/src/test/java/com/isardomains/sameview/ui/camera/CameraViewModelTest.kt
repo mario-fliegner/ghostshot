@@ -1712,7 +1712,7 @@ class CameraViewModelTest {
         val events = mutableListOf<UiEvent>()
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, { _, _ -> false }
+            fakeSettingsRepository, { _ -> emptyList() }, { _, _ -> false }
         )
 
         val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
@@ -1729,7 +1729,7 @@ class CameraViewModelTest {
     fun deleteSessions_whenDeleteFails_preservesCompareInput() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, { _, _ -> false }
+            fakeSettingsRepository, { _ -> emptyList() }, { _, _ -> false }
         )
         testViewModel.onCaptureSaved(mock(), fakeSavedSessionRef(sessionId = "active-session"))
         assertNotNull(testViewModel.uiState.value.compareInput)
@@ -1782,7 +1782,7 @@ class CameraViewModelTest {
     fun deleteSession_whenDeleteFails_returnsFalse() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, { _, _ -> false }
+            fakeSettingsRepository, { _ -> emptyList() }, { _, _ -> false }
         )
 
         val collectJob = launch(Dispatchers.Main) { testViewModel.uiEvent.collect {} }
@@ -1790,112 +1790,6 @@ class CameraViewModelTest {
         collectJob.cancel()
 
         assertFalse(result)
-    }
-
-    // --- updateSessionTitle ---
-
-    @Test
-    fun updateSessionTitle_trimIsApplied() = runTest {
-        var capturedTitle: String? = "SENTINEL"
-        val testViewModel = CameraViewModel(
-            mock(),
-            UnconfinedTestDispatcher(),
-            { null },
-            fakeSettingsRepository,
-            { _ -> emptyList() },
-            { _, _, t -> capturedTitle = t; true }
-        )
-
-        testViewModel.updateSessionTitle("session-1", "  hello  ")
-        advanceUntilIdle()
-
-        assertEquals("hello", capturedTitle)
-    }
-
-    @Test
-    fun updateSessionTitle_whitespaceOnly_passesNull() = runTest {
-        var capturedTitle: String? = "SENTINEL"
-        val testViewModel = CameraViewModel(
-            mock(),
-            UnconfinedTestDispatcher(),
-            { null },
-            fakeSettingsRepository,
-            { _ -> emptyList() },
-            { _, _, t -> capturedTitle = t; true }
-        )
-
-        testViewModel.updateSessionTitle("session-1", "   ")
-        advanceUntilIdle()
-
-        assertNull(capturedTitle)
-    }
-
-    @Test
-    fun updateSessionTitle_triggersRefresh() = runTest {
-        val fakeSession = ScannedSession(
-            sessionId = "session-1",
-            timestamp = 1000L,
-            referenceFileUri = mock(),
-            captureFileUri = mock()
-        )
-        var sessionList = listOf(fakeSession)
-        val testViewModel = CameraViewModel(
-            mock(),
-            UnconfinedTestDispatcher(),
-            { null },
-            fakeSettingsRepository,
-            { _ -> sessionList },
-            { _, _, _ -> true }
-        )
-
-        testViewModel.updateSessionTitle("session-1", "New Title")
-        advanceUntilIdle()
-
-        assertEquals(listOf(fakeSession), testViewModel.uiState.value.savedSessions)
-    }
-
-    @Test
-    fun updateSessionTitle_updaterReturnsFalse_emitsSnackbarError() = runTest {
-        val testViewModel = CameraViewModel(
-            mock(),
-            UnconfinedTestDispatcher(),
-            { null },
-            fakeSettingsRepository,
-            { _ -> emptyList() },
-            { _, _, _ -> false }
-        )
-        val events = mutableListOf<UiEvent>()
-        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
-
-        testViewModel.updateSessionTitle("session-1", "Some Title")
-        advanceUntilIdle()
-
-        job.cancel()
-        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
-        assertEquals(1, snackbars.size)
-        assertEquals(R.string.compare_screen_title_save_failed, snackbars[0].messageResId)
-    }
-
-    @Test
-    fun updateSessionTitle_updaterThrows_emitsSnackbarFailure() = runTest {
-        val testViewModel = CameraViewModel(
-            mock(),
-            UnconfinedTestDispatcher(),
-            { null },
-            fakeSettingsRepository,
-            { _ -> emptyList() },
-            { _, _, _ -> throw RuntimeException("unexpected disk error") }
-        )
-        val events = mutableListOf<UiEvent>()
-        val job = launch(Dispatchers.Main) { testViewModel.uiEvent.collect { events.add(it) } }
-
-        testViewModel.updateSessionTitle("session-1", "Some Title")
-        advanceUntilIdle()
-
-        job.cancel()
-        val snackbars = events.filterIsInstance<UiEvent.ShowSnackbar>()
-        assertEquals(1, snackbars.size)
-        assertEquals(R.string.compare_screen_title_save_failed, snackbars[0].messageResId)
     }
 
     // --- toggleFavorite ---
@@ -2278,7 +2172,6 @@ class CameraViewModelTest {
             { null },
             fakeSettingsRepository,
             { _ -> emptyList() },
-            null,
             deleter
         )
     }
@@ -3451,7 +3344,7 @@ class CameraViewModelTest {
     fun backupSingleSession_setsIsBackupInProgressTrueDuringAndFalseAfter() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
         )
 
@@ -3468,7 +3361,7 @@ class CameraViewModelTest {
     fun backupSingleSession_success_emitsSessionBackupSuccessSingle() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
         )
         val events = mutableListOf<UiEvent>()
@@ -3488,7 +3381,7 @@ class CameraViewModelTest {
     fun backupSingleSession_failure_emitsSessionBackupError() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Failure("test failure", null) }
         )
         val events = mutableListOf<UiEvent>()
@@ -3508,7 +3401,7 @@ class CameraViewModelTest {
     fun backupSingleSession_secondCallDuringActiveBackup_isIgnored() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
         )
         val events = mutableListOf<UiEvent>()
@@ -3531,7 +3424,7 @@ class CameraViewModelTest {
     fun backupSessions_multipleSessionsSuccess_emitsSessionBackupSuccessMultiWithCount() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(3) }
         )
         val events = mutableListOf<UiEvent>()
@@ -3552,7 +3445,7 @@ class CameraViewModelTest {
     fun backupSessions_singleSessionViaBackupSessions_emitsSessionBackupSuccessSingle() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
         )
         val events = mutableListOf<UiEvent>()
@@ -3573,7 +3466,7 @@ class CameraViewModelTest {
     fun backupSessions_success_emitsBackupSucceededEvent() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(3) }
         )
         val events = mutableListOf<UiEvent>()
@@ -3593,7 +3486,7 @@ class CameraViewModelTest {
     fun backupSessions_failure_doesNotEmitBackupSucceededEvent() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Failure("test failure", null) }
         )
         val events = mutableListOf<UiEvent>()
@@ -3613,7 +3506,7 @@ class CameraViewModelTest {
     fun deleteSessions_duringActiveBackup_isIgnored() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, null, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, null, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
         )
 
@@ -3634,7 +3527,7 @@ class CameraViewModelTest {
     fun backupSessions_whenDeletionInProgress_isIgnored() = runTest {
         val testViewModel = CameraViewModel(
             mock(), StandardTestDispatcher(testScheduler), { null },
-            fakeSettingsRepository, { _ -> emptyList() }, null, { _, _ -> true }, null, null,
+            fakeSettingsRepository, { _ -> emptyList() }, { _, _ -> true }, null, null,
             { _, _, _, _ -> SessionBackupExporter.BackupResult.Success(1) }
         )
         val events = mutableListOf<UiEvent>()

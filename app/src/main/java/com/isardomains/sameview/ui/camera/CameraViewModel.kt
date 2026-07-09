@@ -243,9 +243,6 @@ class CameraViewModel @Inject constructor(
     private var sessionScanner: (Context) -> List<ScannedSession> =
         { ctx -> SessionScanner.scan(ctx) }
 
-    private var sessionTitleUpdater: (File, String, String?) -> Boolean =
-        { root, id, title -> SessionStorage.updateTitle(root, id, title) }
-
     private var sessionDeleter: (File, String) -> Boolean =
         { root, id -> SessionDeleter.delete(root, id) }
 
@@ -372,7 +369,6 @@ class CameraViewModel @Inject constructor(
         referenceImageMetadataReader: (Uri) -> ReferenceImageMetadata?,
         settingsRepository: SettingsRepository,
         sessionScanner: (Context) -> List<ScannedSession> = { ctx -> SessionScanner.scan(ctx) },
-        sessionTitleUpdater: ((File, String, String?) -> Boolean)? = null,
         sessionDeleter: ((File, String) -> Boolean)? = null,
         locationProvider: LocationProvider? = null,
         locationPermissionChecker: (() -> Boolean)? = null,
@@ -384,9 +380,6 @@ class CameraViewModel @Inject constructor(
         this.ioDispatcher = ioDispatcher
         this.referenceImageMetadataReader = referenceImageMetadataReader
         this.sessionScanner = sessionScanner
-        if (sessionTitleUpdater != null) {
-            this.sessionTitleUpdater = sessionTitleUpdater
-        }
         if (sessionDeleter != null) {
             this.sessionDeleter = sessionDeleter
         }
@@ -1291,23 +1284,6 @@ class CameraViewModel @Inject constructor(
 
     private fun isActiveCaptureToken(token: CaptureToken): Boolean {
         return token.id != NO_CAPTURE_TOKEN_ID && activeCaptureTokenId.get() == token.id
-    }
-
-    fun updateSessionTitle(sessionId: String, title: String?) {
-        viewModelScope.launch {
-            val success = try {
-                withContext(ioDispatcher) {
-                    val sessionsRoot = File(context.filesDir, "sessions")
-                    sessionTitleUpdater(sessionsRoot, sessionId, title?.trim()?.ifEmpty { null })
-                }
-            } catch (e: Exception) {
-                false
-            }
-            if (!success) {
-                _uiEvent.emit(UiEvent.ShowSnackbar(R.string.compare_screen_title_save_failed))
-            }
-            refreshSavedSessions()
-        }
     }
 
     /**

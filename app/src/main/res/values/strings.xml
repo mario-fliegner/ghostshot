@@ -69,7 +69,6 @@
     <string name="compare_screen_delete_dialog_title">Delete compare?</string>
     <string name="compare_screen_delete_dialog_message">This comparison will be permanently deleted.</string>
     <string name="compare_screen_more_options">Options</string>
-    <string name="compare_screen_title_save_failed">Couldn\'t save title</string>
     <string name="compare_session_favorite_update_failed">Couldn\'t update favorite</string>
     <string name="compare_screen_favorite_mark">Mark as favorite</string>
     <string name="compare_screen_favorite_remove">Remove from favorites</string>

@@ -313,7 +313,7 @@ Feedback:
 - Titles are trimmed; blank titles are stored as absent
 - CompareScreen allows editing and removing a title
 - CompareLibrary displays titles above timestamps when present
-- Title-save failures, including unexpected exceptions from the title updater, are handled via the existing failure Snackbar (`compare_screen_title_save_failed`); the ViewModel launch does not surface uncaught exceptions
+- Title-save failures were previously handled via a dedicated Snackbar (`compare_screen_title_save_failed`) in `CameraViewModel.updateSessionTitle()`; this path was removed as dead code (2026-07-09) — title editing now goes through the Edit Session flow (`SessionStorage.updateContent()`, `edit_session_save_failed`)
 
 ### Layout
 - Fullscreen `Box` root

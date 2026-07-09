@@ -65,7 +65,6 @@
     <string name="compare_original_reference">ORIGINAL</string>
     <string name="compare_show_original_reference">Originalreferenz anzeigen</string>
     <string name="compare_original_reference_active">Originalreferenz sichtbar</string>
-    <string name="compare_screen_title_save_failed">Titel konnte nicht gespeichert werden</string>
     <string name="compare_session_favorite_update_failed">Favorit konnte nicht aktualisiert werden</string>
     <string name="compare_screen_favorite_mark">Als Favorit markieren</string>
     <string name="compare_screen_favorite_remove">Aus Favoriten entfernen</string>
