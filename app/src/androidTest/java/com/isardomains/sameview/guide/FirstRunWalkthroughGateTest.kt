@@ -57,6 +57,21 @@ class FirstRunWalkthroughGateTest {
     }
 
     @Test
+    fun completedWalkthroughDoesNotReopenAfterRecreate() {
+        setGateHarness(initialCompletionState = WalkthroughCompletionState.Loaded(true))
+
+        waitUntilNodeExists("camera_route_stub")
+        composeRule.onNodeWithTag("walkthrough_screen_root").assertDoesNotExist()
+
+        scenario?.recreate()
+        setGateHarnessContent(initialCompletionState = WalkthroughCompletionState.Loaded(true))
+
+        waitUntilNodeExists("camera_route_stub")
+        composeRule.onNodeWithTag("camera_route_stub").assertIsDisplayed()
+        composeRule.onNodeWithTag("walkthrough_screen_root").assertDoesNotExist()
+    }
+
+    @Test
     fun permissionGrantedAndIncompleteCompletionOpensWalkthroughOnce() {
         var completionState by mutableStateOf<WalkthroughCompletionState>(WalkthroughCompletionState.Loading)
         setGateHarness(
@@ -82,6 +97,19 @@ class FirstRunWalkthroughGateTest {
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        setGateHarnessContent(initialCompletionState, completionStateProvider, onMarkComplete)
+    }
+
+    /**
+     * Re-invokable content setter, split out from [setGateHarness] so recreate-survival tests can
+     * call it again after [ActivityScenario.recreate] — a bare [ComponentActivity] does not
+     * automatically re-run a previous [android.app.Activity.setContent] call on its new instance.
+     */
+    private fun setGateHarnessContent(
+        initialCompletionState: WalkthroughCompletionState = WalkthroughCompletionState.Loaded(false),
+        completionStateProvider: (() -> WalkthroughCompletionState)? = null,
+        onMarkComplete: () -> Unit = {}
+    ) {
         scenario?.onActivity { activity ->
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {

@@ -337,6 +337,34 @@ class WalkthroughScreenTest {
         composeRule.onNodeWithTag("walkthrough_step4_image").assertIsDisplayed()
     }
 
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun pageThreeRemainsUsableAfterRecreate() {
+        setWalkthroughContent()
+
+        repeat(2) {
+            composeRule.onNodeWithTag("walkthrough_next").performClick()
+            composeRule.waitForIdle()
+        }
+        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_take_shot_title))
+            .assertIsDisplayed()
+
+        scenario?.recreate()
+        setWalkthroughScreenContent()
+
+        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_take_shot_title))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("walkthrough_skip").assertIsDisplayed()
+        composeRule.onNodeWithTag("walkthrough_back").assertIsDisplayed()
+        composeRule.onNodeWithTag("walkthrough_next").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("walkthrough_next").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_see_what_changed_title))
+            .assertIsDisplayed()
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun setWalkthroughContent(
@@ -346,6 +374,20 @@ class WalkthroughScreenTest {
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        setWalkthroughScreenContent(windowWidthSizeClass, onSkip, onStart)
+    }
+
+    /**
+     * Re-invokable content setter, split out from [setWalkthroughContent] so recreate-survival
+     * tests can call it again after [ActivityScenario.recreate] — a bare [ComponentActivity] does
+     * not automatically re-run a previous [android.app.Activity.setContent] call on its new
+     * instance.
+     */
+    private fun setWalkthroughScreenContent(
+        windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
+        onSkip: () -> Unit = {},
+        onStart: () -> Unit = {}
+    ) {
         scenario?.onActivity { activity ->
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
