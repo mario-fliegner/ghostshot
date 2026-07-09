@@ -354,7 +354,7 @@ See how it's changed.
 
 The three-fragment structure is intentional. Each fragment conveys one concept: the user provides an existing photo from their collection; they must physically return to where the original photo was taken; the result is a comparison that shows change over time. The location requirement is introduced here so that users encounter it once before page 2 asks them to act on it.
 
-Illustration intent: comparison result. The park scene showing the winter tree on the left ("Then") and the summer tree on the right ("Now"), divided by a comparison slider positioned at approximately 75% from the left edge. "Then" (left) fills approximately 75% of the illustration; "Now" (right) fills approximately 25%. "Then" and "Now" labels visible inside the illustration.
+Illustration intent (as implemented): a full-bleed photorealistic alpine valley landscape (mountains, lake, meadow, path, pine trees), partially desaturated on the left side of the frame and transitioning to full color toward the right. A bordered "reference photo" card is overlaid, showing a tighter crop of the same landscape, with a curved directional arrow pointing from the card to a specific tree in the background — communicating "find this spot in the real world."
 
 ### Page 2 — Align the overlay
 
@@ -364,9 +364,9 @@ Go back to the original spot. Drag and scale the ghost photo over the live camer
 
 Two sentences are used on this page only. The first reinforces the location requirement introduced on page 1. The second describes the alignment action. This is the most conceptually complex step in the workflow and warrants two sentences.
 
-Illustration intent: live camera view of the summer park scene. Ghost overlay of the winter tree visible at approximately 50% opacity, deliberately misaligned — shifted visibly off-position relative to the camera feed. Corner handles visible on the overlay to communicate that it can be dragged and scaled. Alignment is clearly incomplete.
+Illustration intent (as implemented): the same alpine valley landscape, in full color, with a bordered "reference photo" card overlaid centrally. A four-directional move icon and a corner resize icon are shown on the card, communicating that it can be dragged and scaled to align with the surroundings.
 
-This illustration must not appear as two separate photos, vertically stacked photos, or a split-screen editor. It must read as one screen, one camera feed, one translucent layer floating on top.
+This illustration intentionally uses a framed reference-photo card layered over the landscape rather than a single blended, translucent camera-feed overlay. The framed-card treatment is the approved presentation: it must not be flattened into two unrelated, disconnected photos (e.g. side by side or unrelated crops) — the card and the background must read as one connected "photo held up to the view" composition, not as two arbitrary images.
 
 ### Page 3 — Take the shot
 
@@ -376,7 +376,7 @@ Once the overlay lines up, tap the shutter from the same spot.
 
 "From the same spot" briefly reinforces the location requirement without re-explaining it. Page 2 has already established the concept.
 
-Illustration intent: same park camera scene. Alignment is complete. The ghost overlay is at approximately 15% opacity — nearly invisible, settled. The shutter button dominates the lower third of the illustration and is the primary visual focus of this page. A press state is shown on the shutter button. This page must read visually as the "press something" page, clearly distinct from page 2's "move something" illustration. The camera feed and nearly-invisible overlay are background context; the shutter button is foreground content.
+Illustration intent (as implemented): the same alpine valley landscape and reference-photo card, with a large filled white circular disc placed at the bottom of the frame, dominating the lower portion of the illustration. This page must read visually as the "press something" page, clearly distinct from page 2's "move something" illustration.
 
 ### Page 4 — See what changed
 
@@ -386,62 +386,43 @@ Drag the slider to reveal then and now.
 
 "Then and now" in the body copy deliberately echoes page 1's title. The walkthrough opens and closes on the same idea, giving the four-page sequence a sense of arrival.
 
-Illustration intent: comparison result, same park scene. Slider positioned at approximately 22% from the left edge — heavily offset from page 1's 75% position. "Then" (left) fills approximately 22% of the illustration; "Now" (right) fills approximately 78%. "Then" and "Now" labels visible. The slider handle is prominent and clearly off-center toward the left. Despite sharing the same UI pattern as page 1, this illustration must read visually distinct at a glance due to the difference in slider position: page 1 emphasises "Then", page 4 emphasises "Now". The two pages are intentional visual mirrors: both expose approximately 22–25% of the minority side, and both lean strongly and unambiguously toward their respective dominant state.
+Illustration intent (as implemented): the same alpine valley landscape, split by a vertical divide between a desaturated left half and a full-color right half, with a circular "‹ ›" slider-handle icon centered on the divide — reading immediately as a before/after comparison slider. The divide position is visually close to the center of the frame; this page uses a distinct visual pattern from page 1 (slider-divide vs. reference-photo-card-with-arrow) rather than a mirrored variant of the same illustration.
 
 Walkthrough visual direction:
 
-- Use simplified SameView-themed mockups built from Compose UI elements.
-- Do not use screenshots, stock illustrations, external artwork, or PNG-based walkthrough illustrations.
+- Use a single shared photorealistic landscape illustration, rendered as static local WEBP image assets and reused across all four walkthrough pages from a consistent vantage point.
+- Page-specific UI iconography (reference-photo frame, move/resize handles, capture disc, before/after slider handle) is composited directly into each WEBP asset, not rendered as separate Compose overlays.
+- Assets must remain local app assets (`drawable-nodpi`, WEBP). No network images.
 - Visuals communicate the workflow conceptually and do not reproduce exact production UI screens.
-- Page 2 must clearly communicate a reference overlay on top of a live camera view, including overlay positioning and scaling.
-- Page 2 must not appear as two separate photos, vertically stacked photos, or a before/after comparison.
-- Page 3 must be visually distinct from page 2 despite sharing the same camera scene. The shutter button must be the dominant element.
+- Page 2 must clearly communicate that a reference photo is being positioned against the surroundings, including move/resize affordances on the reference-photo card.
+- Page 3 must be visually distinct from page 2 despite sharing the same landscape. The capture disc must be the dominant element.
 
-Illustration system — approved theme:
+Illustration system — current implementation:
 
-A single park scene with one tree is used across all four walkthrough pages. All illustrations depict the same location from the same angle.
+A single alpine valley scene (mountains, lake, meadow, winding path, pine trees) is used across all four walkthrough pages, viewed from a consistent, similar vantage point.
 
-Then state:
+Recurring elements across pages 1–3:
 
-- Winter
-- Bare trunk and branches visible
-- Muted, warm-toned cast
+- Full-bleed background landscape (page 1: partially desaturated on the left side of the frame, transitioning to full color toward the right; pages 2–3: fully saturated).
+- A bordered "reference photo" card overlaid on the landscape, representing the photo the user is trying to recreate.
 
-Now state:
+Page-specific iconography baked into the artwork:
 
-- Late summer
-- Same trunk, same position
-- Full leafy canopy
-- Cooler, greener cast
-
-Stable alignment anchors — unchanged between Then and Now:
-
-- Trunk position
-- Path edge
-- Ground line
-
-These anchors are visible in both states and serve as the visual reference points for overlay alignment in the page 2 illustration. The crown is what changes; the trunk and path do not.
-
-Rationale for the park scene theme:
-
-- Time passage is immediately legible without labels. A bare tree and a full-canopy tree read as different seasons or years without any explanation.
-- Simpler to render as Compose shapes than architecture: trunk silhouette, crown silhouette, ground line, path edge.
-- Works correctly for all four illustration types: comparison slider (pages 1 and 4), alignment overlay (page 2), and capture moment (page 3).
-- Culturally neutral. Not tied to any specific architectural style or geography.
-- Memorable. Before/after illustrations typically use buildings; a park scene with a tree is distinctive and avoids a visual category that is overused in this genre.
+- Page 1: a curved directional arrow from the reference-photo card to a specific tree in the background, implying "find this spot in the real world."
+- Page 2: a four-directional move icon and a corner resize icon overlaid on the reference-photo card, implying "drag and resize this overlay."
+- Page 3: a large white circular disc dominating the lower portion of the frame, implying a capture action.
+- Page 4: a vertical divide between a desaturated left half and a full-color right half, with a circular "‹ ›" slider-handle icon at the divide, implying a before/after comparison.
 
 Visual story narrative:
 
-The four illustrations tell a single coherent story. The user sees the destination first, learns the process in two steps, and returns to the destination.
-
-| Page | Illustration role | Key visual element |
+| Page | Illustration role | Key visual element (as implemented) |
 | --- | --- | --- |
-| 1 | Outcome — show the reward first | Slider at ~75% from left (Then ~75%, Now ~25%) |
-| 2 | Process — alignment step | Ghost overlay misaligned, corner handles visible |
-| 3 | Process — capture moment | Overlay near-invisible, shutter button dominant |
-| 4 | Outcome revisited — reward arrived | Slider at ~22% toward Now |
+| 1 | Match the reference photo to the real location | Reference-photo card + directional arrow to a landscape tree |
+| 2 | Align/adjust the overlay | Reference-photo card + move/resize icons |
+| 3 | Capture the shot | Dominant white capture disc at the bottom of the frame |
+| 4 | Reveal the comparison | Desaturated/full-color split with a centered "‹ ›" slider icon |
 
-The slider positions on pages 1 and 4 are intentionally different. Page 1 shows more "Then" (the past, where the workflow begins). Page 4 shows more "Now" (the result the workflow produces). Despite using the same UI, the two illustrations must be distinguishable at a glance.
+Pages 1 and 4 intentionally use distinct visual patterns rather than a mirrored slider treatment: page 1 uses the reference-photo-card-with-arrow motif, page 4 uses the before/after slider-divide motif. Both are valid, approved presentations of their respective page purpose.
 
 Walkthrough branding:
 
@@ -827,7 +808,7 @@ Tip copy rules:
 
 Guide detail pages use real screenshots and concise supporting text.
 
-The walkthrough uses simplified SameView-themed mockups built from Compose UI elements. It must not use screenshots, stock illustrations, external artwork, or PNG-based walkthrough illustrations.
+The walkthrough uses a shared photorealistic landscape illustration (local WEBP assets under `drawable-nodpi`) reused across all four pages, with page-specific UI iconography composited into the artwork. See §9 "Illustration system — current implementation" for details. It must not use literal screenshots of SameView production UI within the illustration artwork.
 
 Assets must be local app assets. No network images.
 
@@ -1141,3 +1122,7 @@ Manual verification:
 Proceed with implementation planning after review.
 
 The approved direction should use a self-contained `guide` package, dedicated guide persistence, registry-based Guide/topic/tip definitions, and small signal-based integration points from CameraScreen and CompareScreen. This keeps onboarding discoverability out of the camera and compare state machines while preserving SameView's calm, camera-first workflow.
+
+## 25. Revision Log
+
+- 2026-07-09 — Walkthrough visual spec aligned with implemented WEBP artwork.
