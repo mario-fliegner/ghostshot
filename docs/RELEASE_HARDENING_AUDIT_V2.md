@@ -33,13 +33,13 @@ Vollständige Prüfung von App-Code, 19 Spec-Dokumenten und Website-Texten (EN/D
 
 Die wichtigsten 18 Punkte, priorisiert. Details und Belege in den folgenden Abschnitten.
 
-1. **[BLOCKER]** Keine Privacy-Policy-Verlinkung in der App (kein Link, keine URL-Ressource) und voraussichtlich unvollständiges Play-Data-Safety-Formular — verhindert den öffentlichen Play-Store-Upload einer App mit CAMERA + ACCESS_FINE_LOCATION.
+1. **[BLOCKER]** Keine Privacy-Policy-Verlinkung in der App (kein Link, keine URL-Ressource) und voraussichtlich unvollständiges Play-Data-Safety-Formular — verhindert den öffentlichen Play-Store-Upload einer App mit CAMERA + ACCESS_FINE_LOCATION. *In-App-Teil: Status: CLOSED — 2026-07-09 (siehe Abschnitt 02). Play-Console-Anteil (Data-Safety-Formular) bleibt offen.*
 2. **[POSITIV]** Die Website-Privacy-Policy selbst ist bereits inhaltlich sehr detailliert und korrekt — der Fix ist im Kern nur Verlinkung, kein Neuschreiben.
-3. **[HOCH]** `OutOfMemoryError` beim HQ-Bild-Export wird nicht abgefangen (`catch (_: Exception)` fängt keine `Error`-Subklassen) — möglicher App-Crash statt der spezifizierten Fehlermeldung.
-4. **[HOCH]** „Clear markers" ist in `ALIGNMENT_POINTS_V1.md` spezifiziert und im ViewModel implementiert, aber nirgends in der UI verdrahtet — bei 5 gesetzten Markern gibt es keinen Weg, in einem Schritt zurückzusetzen.
+3. **[HOCH]** `OutOfMemoryError` beim HQ-Bild-Export wird nicht abgefangen (`catch (_: Exception)` fängt keine `Error`-Subklassen) — möglicher App-Crash statt der spezifizierten Fehlermeldung. *Status: CLOSED — 2026-07-09.*
+4. **[HOCH]** „Clear markers" ist in `ALIGNMENT_POINTS_V1.md` spezifiziert und im ViewModel implementiert, aber nirgends in der UI verdrahtet — bei 5 gesetzten Markern gibt es keinen Weg, in einem Schritt zurückzusetzen. *Status: REJECTED — Product decision (2026-07-09).*
 5. **[MEDIUM]** Privacy-Mode („Strip metadata from originals") entfernt GPS/EXIF bei bestimmten Referenzbildformaten (altes AVIF, unbekannte MIME-Typen) nicht — ohne jede Anzeige dieses Fallback-Zustands in der UI.
-6. **[MEDIUM]** `filesDir/branding/` ist entgegen der ausdrücklichen Spec-Behauptung nicht vom Android-Auto-Backup ausgeschlossen.
-7. **[MEDIUM]** `sameview_settings`-DataStore ist weiterhin nicht vom Backup ausgeschlossen — GPS-Einstellung kann nach Geräte-Restore inkonsistent mit der tatsächlichen Permission erscheinen (aus Voraudit, unverändert).
+6. **[MEDIUM]** `filesDir/branding/` ist entgegen der ausdrücklichen Spec-Behauptung nicht vom Android-Auto-Backup ausgeschlossen. *Status: CLOSED — 2026-07-09.*
+7. **[MEDIUM]** `sameview_settings`-DataStore ist weiterhin nicht vom Backup ausgeschlossen — GPS-Einstellung kann nach Geräte-Restore inkonsistent mit der tatsächlichen Permission erscheinen (aus Voraudit, unverändert). *Status: REJECTED — Product decision (2026-07-09).*
 8. **[MEDIUM]** Backup-Export mischt privacy-gestrippte und normale Sessions in einem ZIP, ohne jeden Warnhinweis.
 9. **[MEDIUM]** „Recreation Guidance" (GPS-Toggle) erklärt sich dem Nutzer erst *nach* dem Antippen über einen reaktiven Dialog, nicht vorher über einen Beschreibungstext.
 10. **[MEDIUM]** Video-Export-Dateiname enthält den exakten Aufnahme-Zeitstempel (Datum + Uhrzeit) im Klartext im MediaStore — der Bild-Export vermeidet dieses Muster bewusst aus Datenschutzgründen.
@@ -62,6 +62,8 @@ Echte Go-Live-Blocker für den öffentlichen Play-Store-Release.
 ### [BLOCKER] Fehlende Privacy-Policy-Verlinkung + voraussichtlich unvollständiges Data-Safety-Formular
 *Status: bestätigt*
 
+*Fix-Status: CLOSED — 2026-07-09 (In-App-Anteil).* Privacy-Policy-Link („Privacy Policy" / „Datenschutzerklärung", `about_privacy_policy`) wurde in `AboutScreen.kt` (`AboutFooter`) ergänzt, verlinkt auf `https://sameview.app/privacy` (`about_privacy_policy_url`, nicht lokalisiert — die Website übernimmt die Sprachwahl selbst anhand der Browsersprache, Fallback Englisch). Verifikation: `AboutScreenTest.kt` erweitert um `privacyPolicyClick_invokesPrivacyPolicyAction` und `privacyPolicyClick_whenNoBrowser_showsFallbackMessage`, `compileDebugKotlin` und `compileDebugAndroidTestKotlin` erfolgreich. Der Play-Console-Anteil (URL im Store-Listing eintragen, Data-Safety-Formular ausfüllen) ist außerhalb des Repos und bleibt offen — siehe PS-02 in Abschnitt 04.
+
 Google Play verlangt für Apps, die CAMERA und ACCESS_FINE_LOCATION anfragen, eine verlinkbare, öffentlich erreichbare Privacy Policy sowie ein vollständig ausgefülltes Data-Safety-Formular in der Play Console. Beides ist aktuell nicht erfüllt bzw. nicht auffindbar in der App.
 
 **Beleg:** `AboutScreen.kt` enthält nur „Visit website" (`about_website_url` = `https://sameview.app`) und „Send feedback" (mailto). Repo-weite Suche nach `privacy_policy`, `PrivacyPolicy`, `privacy-policy` in `app/src/main` ergibt keine Treffer außer dem unrelated `settings_privacy_title` (bezieht sich auf den Metadaten-Strip-Toggle, nicht auf eine Rechtsseite).
@@ -81,20 +83,26 @@ Kein Blocker im engeren Sinne, aber vor einem öffentlichen Release dringend emp
 ### [HOCH] OutOfMemoryError beim HQ-Bild-Export nicht abgefangen
 *Status: neu*
 
+*Fix-Status: CLOSED — 2026-07-09.* `onShare()` in `ShareComparisonViewModel.kt` fängt jetzt zuerst `kotlinx.coroutines.CancellationException` (rethrow, keine Fehlbehandlung als Render-Fehler) und danach `Throwable` statt `Exception` — `OutOfMemoryError` (und andere `Error`-Subklassen) lösen dieselbe `share_comparison_error_render_failed`-Snackbar aus wie jeder andere Render-Fehler, kein Crash mehr. Verifiziert durch zwei neue Unit-Tests in `ShareComparisonViewModelTest.kt` (`onShare_outOfMemoryError_emitsSnackbarEvent`, `onShare_cancellationException_isRethrown_notReportedAsFailure`) sowie vollständigen `testDebugUnitTest`-Lauf der Testklasse (78/78 grün). `ShareImageRenderer.kt` und alle übrigen Catch-Blöcke bleiben unverändert — siehe Scope-Hinweis unten.
+
 Der HQ-„Original"-Qualitätspfad im Share-Comparison-Image-Feature dekodiert große Originalbilder. Der Fehlerpfad fängt `catch (_: Exception)`, aber `OutOfMemoryError` ist ein `Error`, keine `Exception` — es propagiert ungefangen und crasht die App, statt die spezifizierte `share_comparison_error_render_failed`-Snackbar zu zeigen (Spec-Anforderung HQ-FD-11: „No silent failure").
 
 **Beleg:** `ShareComparisonViewModel.kt`, `onShare()`-Fehlerbehandlung (Zeilen ~544–548).
 
 **Fix:** `catch (_: Exception)` um einen zusätzlichen `catch (_: OutOfMemoryError)`-Zweig (oder `catch (_: Throwable)`) ergänzen, der denselben Snackbar-Pfad auslöst.
 
+**Bewusst out of scope belassen (nicht Teil dieses Fixes):** Der in einer separaten Analyse benannte Nebenbefund zum `canvas`-Bitmap-Cleanup in `ShareImageRenderer.kt` (frühzeitig allokierte Canvas-Bitmap wird bei einem Fehler nach ihrer Erzeugung nicht aktiv recycelt) bleibt unverändert offen und wird bei Bedarf separat bewertet. Ebenso unverändert: alle `catch (_: Exception)`-Stellen innerhalb `ShareImageRenderer.kt` selbst, Branding-Image-Handling, Video Export.
+
 ### [HOCH] „Clear markers" spezifiziert, implementiert, aber nicht verdrahtet
 *Status: neu*
+
+*Status: REJECTED — Product decision (2026-07-09).* „Clear markers" wird nicht implementiert. Begründung: Einzelnes Löschen per Long-Press deckt den Anwendungsfall ab; Markeranzahl ist auf 5 begrenzt; „Hide markers" deckt temporäres Ausblenden ab; Replace/Remove löschen Marker ohnehin automatisch; ein zusätzlicher Menüeintrag würde die Komplexität des Reference-Menüs ohne relevanten Mehrwert erhöhen. Spec-Rücknahme vollständig dokumentiert in `ALIGNMENT_POINTS_V1.md` Revision 10 (2026-07-09) und `ALIGNMENT_POINTS_V1_IMPLEMENTATION_PLAN.md` Revision 7 (2026-07-09). Kein UI-Aufrufer wird ergänzt; `CameraViewModel.clearMarkers()` bleibt unreferenzierter Code — keine App-Code-Änderung im Rahmen dieser Entscheidung.
 
 `ALIGNMENT_POINTS_V1.md §6.2/§6.8/§7.3/§7.4` verlangt einen „Clear markers"-Menüeintrag, der alle Referenzmarker auf einmal entfernt. `CameraViewModel.clearMarkers()` existiert und implementiert das korrekte Zielverhalten — es wird nur von keiner UI-Komponente aufgerufen. Bei einer harten Obergrenze von 5 Markern muss ein Nutzer, der neu beginnen will, jeden Marker einzeln per Long-Press löschen.
 
 **Beleg:** `CameraScreen.kt`, `ReferenceActionStack` (Zeilen ~2372–2491) implementiert Add/Hide/Show/Edit, aber keinen Clear-Eintrag; kein passender String in `strings.xml`.
 
-**Fix:** Menüeintrag in `ReferenceActionStack` ergänzen (sichtbarer und versteckter Marker-Zustand sowie Edit-Modus), verdrahtet auf `viewModel.clearMarkers()`, plus zwei neue String-Ressourcen (EN/DE).
+**Fix:** Menüeintrag in `ReferenceActionStack` ergänzen (sichtbarer und versteckter Marker-Zustand sowie Edit-Modus), verdrahtet auf `viewModel.clearMarkers()`, plus zwei neue String-Ressourcen (EN/DE). **Nicht umgesetzt — siehe REJECTED-Status oben.**
 
 ### [MEDIUM] Privacy-Mode-Fallback preist Wirkung an, die er nicht immer erbringt
 *Status: neu*
@@ -108,6 +116,8 @@ Der Settings-Toggle „Strip metadata from session originals" verspricht in sein
 ### [MEDIUM] `filesDir/branding/` nicht vom Backup ausgeschlossen — Spec-Behauptung stimmt nicht
 *Status: neu*
 
+*Fix-Status: CLOSED — 2026-07-09.* `exclude domain="file" path="branding"` in `backup_rules.xml` sowie in beiden Kanälen (`cloud-backup`, `device-transfer`) von `data_extraction_rules.xml` ergänzt — analog zum bestehenden `sessions`-Ausschluss. `SESSION_BRANDING_V1.md §5.3` ist damit wieder korrekt, keine Spec-Änderung nötig. Verifiziert über `assembleDebug` (BUILD SUCCESSFUL, XML-Ressourcen valide geparst). Kein Kotlin-Code, keine `GlobalBrandingRepository`, kein Manifest, keine Tests geändert. **S-01 (Settings-DataStore-Backup-Ausschluss) bleibt davon unberührt und weiterhin offen** — separater Befund, nicht Teil dieses Fixes.
+
 `SESSION_BRANDING_V1.md §5.3` behauptet explizit, globales Branding sei „consistent with filesDir/sessions/ exclusion" vom Android-Auto-Backup ausgeschlossen. Tatsächlich schließen `backup_rules.xml` und `data_extraction_rules.xml` ausschließlich `path="sessions"` aus — `branding/` als Geschwister-Verzeichnis unter `filesDir` ist nicht abgedeckt.
 
 **Beleg:** `app/src/main/res/xml/backup_rules.xml` Zeile 3; `data_extraction_rules.xml` Zeilen 8 und 11 — beide nur `exclude domain="file" path="sessions"`.
@@ -117,11 +127,13 @@ Der Settings-Toggle „Strip metadata from session originals" verspricht in sein
 ### [MEDIUM] Settings-DataStore weiterhin nicht vom Backup ausgeschlossen
 *Status: Voraudit S-01 · unverändert*
 
+*Status: REJECTED — Product decision (2026-07-09).* Settings-Restore bleibt bewusst erhalten. Begründung: Acht von zehn Settings (`grid_type`, `keep_screen_on`, `reset_overlay_after_capture`, `auto_open_compare_after_capture`, `branding_enabled`, `library_filter`, `library_sort_order`, `strip_originals_metadata`) profitieren direkt und ohne jedes Risiko von Geräte-Restore. Für die zwei permission-gekoppelten Settings (`recreation_guidance`, `live_direction_arrow`) verursacht ein restaurierter „An"-Zustand ohne erteilte Permission keinen funktionalen Fehlzustand — `CameraViewModel.updateGpsActivation()` prüft die Runtime-Permission weiterhin live bei jedem Camera-Screen-Resume; GPS aktiviert sich korrekt erst nach tatsächlicher Erteilung. Kein Crash, kein Datenschutzproblem, kein Datenverlust, kein dauerhaft inkonsistenter Zustand — der Randfall ist durch einmaliges Aus-/Wieder-Einschalten des Toggles selbstheilend. Da DataStore keine Pro-Key-Backup-Exclusion erlaubt, hätte ein vollständiger Ausschluss der Settings-Datei größere Nachteile (Verlust aller zehn Settings bei jedem Gerätewechsel) als der identifizierte, seltene und folgenlose Randfall. `sameview_guide` bleibt aus denselben Gründen bewusst restorebar. Keine Code-, XML- oder Spec-Änderung im Rahmen dieser Entscheidung.
+
 Nach einem Geräte-Restore kann `recreation_guidance = true` wiederhergestellt werden, obwohl `ACCESS_FINE_LOCATION` auf dem neuen Gerät noch nicht erteilt ist — der GPS-Toggle erscheint als aktiv, die GPS-Aktivierung schlägt intern still fehl.
 
 **Beleg:** Gleiche zwei XML-Dateien wie oben — `sameview_settings.preferences_pb` ist in keiner der beiden Exclude-Listen enthalten.
 
-**Fix:** Produktentscheidung treffen (siehe Offene Fragen), dann ggf. DataStore-Datei ebenfalls ausschließen.
+**Fix:** Produktentscheidung treffen (siehe Offene Fragen), dann ggf. DataStore-Datei ebenfalls ausschließen. **Entschieden — siehe REJECTED-Status oben: kein Fix wird umgesetzt.**
 
 ### [MEDIUM] Backup-ZIP mischt Privacy-Status ohne Warnung
 *Status: neu, spec-konform aber UX-Lücke*
@@ -160,7 +172,7 @@ Exportierte Videos heißen `SameView_<sessionId>_<mode>.mp4`, wobei `sessionId` 
 ### [NIEDRIG] Voraudit-Findings ohne erneute Prüfung in diesem Durchgang
 *Status: nicht erneut verifiziert*
 
-Folgende Punkte aus `RELEASE_HARDENING_AUDIT_V1.md` wurden in diesem Audit-Durchgang nicht gezielt erneut geprüft und daher als unverändert offen übernommen: R-01 (kein Crash-Reporting), R-02 (minimale ProGuard-Keep-Rules), R-03 (hardcodierte Coroutines-Test-Version), M-02 (kein networkSecurityConfig), A-02/A-03 (Compare-Slider und Overlay-Gesten ohne TalkBack-Alternative), LC-01 (Einzel-Delete ohne Fehler-Snackbar), S-03 (keine Speicher-Quota für Sessions). Direkt neu bestätigt wurden dagegen: M-01 (behoben), A-04/A-05 (behoben), P-01/P-02/P-03/P-04 (weiterhin offen), S-01/S-02 (weiterhin offen).
+Folgende Punkte aus `RELEASE_HARDENING_AUDIT_V1.md` wurden in diesem Audit-Durchgang nicht gezielt erneut geprüft und daher als unverändert offen übernommen: R-01 (kein Crash-Reporting), R-02 (minimale ProGuard-Keep-Rules), R-03 (hardcodierte Coroutines-Test-Version), M-02 (kein networkSecurityConfig), A-02/A-03 (Compare-Slider und Overlay-Gesten ohne TalkBack-Alternative), LC-01 (Einzel-Delete ohne Fehler-Snackbar), S-03 (keine Speicher-Quota für Sessions). Direkt neu bestätigt wurden dagegen: M-01 (behoben), A-04/A-05 (behoben), P-01/P-02/P-03/P-04 (weiterhin offen), S-01/S-02 (weiterhin offen). *Nachtrag 2026-07-09: S-01 seither REJECTED — Product decision, siehe Abschnitt 03. S-02 weiterhin offen.*
 
 ---
 
@@ -176,6 +188,8 @@ Datenschutzbeauftragter- und Play-Reviewer-Perspektive, getrennt von den allgeme
 
 ### [BLOCKER] P-01 / PS-01 — Keine Privacy-Policy-Verlinkung
 *Status: bestätigt*
+
+*Fix-Status: CLOSED — 2026-07-09.* In-App-Link auf `https://sameview.app/privacy` in `AboutScreen.kt` ergänzt (Strings: `about_privacy_policy` EN/DE, `about_privacy_policy_url` nicht lokalisiert). Verifiziert über erweiterte `AboutScreenTest.kt` sowie erfolgreiche Kotlin-Kompilierung. Play-Console-Eintragung der URL ist damit möglich, aber als externer Schritt nicht Teil dieses Fixes.
 
 Siehe Abschnitt 02. Website-Policy existiert und ist inhaltlich gut — es fehlt nur die Verlinkung in der App und in der Play Console.
 
@@ -247,8 +261,9 @@ Keiner der Website-Punkte oben stellt für sich genommen einen wahrscheinlichen 
 Priorisiert, unabhängig von den Specs geprüft — Camera, Compare, Library, Settings, Guide, Walkthrough, Edit Session, Share, Video Export.
 
 ### [HOCH] „Clear markers" fehlt in der UI
+*Status: REJECTED — Product decision (2026-07-09).*
 
-Siehe Abschnitt 03 — hier zusätzlich als reine UX-Sackgasse eingeordnet: 5-Marker-Limit ohne Mehrfach-Reset zwingt zu wiederholtem Long-Press-Löschen.
+Siehe Abschnitt 03 — hier zusätzlich als reine UX-Sackgasse eingeordnet: 5-Marker-Limit ohne Mehrfach-Reset zwingt zu wiederholtem Long-Press-Löschen. Nach Produktreview bewusst nicht umgesetzt — einzelnes Löschen per Long-Press, das 5er-Limit und „Hide markers" wurden als ausreichend bewertet.
 
 ### [MEDIUM] GPS-Toggle ohne permanente Erklärung
 
@@ -320,11 +335,11 @@ Gleicher Session/Modus-Export erzeugt denselben angeforderten Dateinamen; Androi
 Kleine Änderungen mit überproportional hoher Wirkung vor dem Release.
 
 1. **Privacy-Policy-Link im About-Screen ergänzen** (`sameview.app/privacy`) — löst den Kern des Showstoppers.
-2. **„Clear markers" verdrahten** — ViewModel-Methode existiert bereits, es fehlt nur ein UI-Aufrufer plus zwei Strings.
-3. **`catch (_: OutOfMemoryError)` in `ShareComparisonViewModel.onShare()` ergänzen** — verhindert einen konkreten Crash-Pfad mit einer Zeile.
+2. ~~**„Clear markers" verdrahten** — ViewModel-Methode existiert bereits, es fehlt nur ein UI-Aufrufer plus zwei Strings.~~ *REJECTED — Product decision (2026-07-09), siehe Abschnitt 03.*
+3. **`catch (_: OutOfMemoryError)` in `ShareComparisonViewModel.onShare()` ergänzen** — verhindert einen konkreten Crash-Pfad mit einer Zeile. *Status: CLOSED — 2026-07-09 (umgesetzt als `CancellationException`-Rethrow + `Throwable`-Catch).*
 4. **Tote Strings entfernen**: `compare_screen_edit_title*`, `markers_outside_image`, `about_no_account_required`.
 5. **Permanente Beschreibungszeile unter „Recreation Guidance"** ergänzen, analog zum bereits vorhandenen Muster bei „Live direction arrow".
-6. **`filesDir/branding/` in `backup_rules.xml` und `data_extraction_rules.xml` aufnehmen** — Ein-Zeilen-Fix je Datei, macht die Spec-Aussage wieder wahr.
+6. ~~**`filesDir/branding/` in `backup_rules.xml` und `data_extraction_rules.xml` aufnehmen** — Ein-Zeilen-Fix je Datei, macht die Spec-Aussage wieder wahr.~~ *CLOSED — 2026-07-09, siehe Abschnitt 03.*
 7. **EN/DE-Lösch-Dialogtext angleichen** — entweder DE-Warnung auch in EN übernehmen oder bewusst als Differenz dokumentieren.
 8. **Drei kurze Sätze in beiden Privacy-Policy-Sprachversionen ergänzen**: Privacy-Mode-Toggle, Branding-Feature, Feedback-Mailto.
 
@@ -336,8 +351,8 @@ Alle in diesem Audit gefundenen Abweichungen zwischen Spec-Dokumenten und tatsä
 
 | Spec-Dokument | Abweichung |
 |---|---|
-| ALIGNMENT_POINTS_V1.md §6.2 | „Clear markers"-Menüeintrag gefordert, ViewModel-seitig vorhanden, UI-seitig nicht implementiert. |
-| SESSION_BRANDING_V1.md §5.3 | Behauptet Backup-Ausschluss von `filesDir/branding/` — trifft im aktuellen Code nicht zu. |
+| ALIGNMENT_POINTS_V1.md §6.2 | „Clear markers"-Menüeintrag gefordert, ViewModel-seitig vorhanden, UI-seitig nicht implementiert. **REJECTED — Product decision (2026-07-09):** Anforderung selbst zurückgenommen, siehe `ALIGNMENT_POINTS_V1.md` Revision 10. Keine Abweichung mehr — Spec und Code stimmen überein. |
+| SESSION_BRANDING_V1.md §5.3 | Behauptet Backup-Ausschluss von `filesDir/branding/` — trifft im aktuellen Code nicht zu. **CLOSED — 2026-07-09:** `branding`-Exclude in `backup_rules.xml`/`data_extraction_rules.xml` ergänzt. Keine Abweichung mehr — Spec und Code stimmen überein. |
 | SESSION_ORIGINALS_PRIVACY_V1.md | Verspricht pauschale Metadaten-Entfernung; Code hat einen stillen „not_possible"-Fallback für bestimmte Referenzformate, der Metadaten unverändert lässt. |
 | SHARE_COMPARISON_IMAGE_V1.md §15.3 | Spezifiziert String-Key `share_comparison_info_label` („Information"); Code nutzt `share_comparison_extras_label` („Extras") — Key aus der Spec existiert im Code nicht. |
 | VIDEO_EXPORT_V1.md §18.1 vs. SHARE_COMPARISON_IMAGE_V1.md §27 | Bild-Export-Spec vermeidet Session-ID-basierte Dateinamen bewusst aus Datenschutzgründen; Video-Export-Spec schreibt weiterhin genau dieses Muster vor — die beiden Spec-Dokumente widersprechen sich, und der Code folgt der (aus Datenschutzsicht schwächeren) Video-Spec. |
@@ -373,8 +388,8 @@ Fragen, die vor dem Go-Live eine bewusste Entscheidung brauchen — keine davon 
 7. **Gilt für den Impressum-Betreiber die Kleinunternehmerregelung (§19 UStG)?**
    Falls nicht, fehlt eine USt-ID im Impressum. Nicht aus dem Code/Repo verifizierbar.
 
-8. **War „Clear markers" eine bewusste Scope-Kürzung oder ein übersehener Implementierungsrest?**
-   ViewModel-Methode ist fertig implementiert und ungenutzt — wirkt eher nach einer vergessenen letzten UI-Verdrahtung als nach einer Produktentscheidung.
+8. ~~**War „Clear markers" eine bewusste Scope-Kürzung oder ein übersehener Implementierungsrest?**~~
+   **Beantwortet (2026-07-09):** Bewusste Produktentscheidung — „Clear markers" wird nicht implementiert. Begründung: einzelnes Löschen per Long-Press, 5er-Marker-Limit, „Hide markers" für temporäres Ausblenden und automatisches Löschen bei Replace/Remove decken den Anwendungsfall bereits ab. Dokumentiert in `ALIGNMENT_POINTS_V1.md` Revision 10 und `RELEASE_HARDENING_AUDIT_V2.md` Abschnitt 03 (REJECTED). `CameraViewModel.clearMarkers()` bleibt unreferenzierter Code, bewusst nicht entfernt (keine App-Code-Änderung im Rahmen dieser Entscheidung).
 
 9. **Soll der DE-Lösch-Dialogtext („kann nicht rückgängig gemacht werden") auch ins Englische übernommen werden?**
    Oder war die zusätzliche Warnung in der deutschen Fassung beabsichtigt und soll dort bleiben?
