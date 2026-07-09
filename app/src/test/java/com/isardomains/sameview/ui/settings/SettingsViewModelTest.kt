@@ -200,6 +200,20 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun isLocationPermissionGranted_true_whenCheckerReturnsTrue() {
+        whenever(locationPermissionChecker.isGranted()).thenReturn(true)
+
+        assertTrue(viewModel.isLocationPermissionGranted())
+    }
+
+    @Test
+    fun isLocationPermissionGranted_false_whenCheckerReturnsFalse() {
+        whenever(locationPermissionChecker.isGranted()).thenReturn(false)
+
+        assertFalse(viewModel.isLocationPermissionGranted())
+    }
+
+    @Test
     fun stripOriginalsMetadata_defaultIsFalse() {
         assertEquals(false, viewModel.stripOriginalsMetadata.value)
     }

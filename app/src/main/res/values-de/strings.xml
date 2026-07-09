@@ -130,6 +130,8 @@
     <string name="settings_recreation_guidance_rationale_confirm">Weiter</string>
     <string name="settings_recreation_guidance_rationale_cancel">Abbrechen</string>
     <string name="settings_recreation_guidance_permission_denied">Genauer Standortzugriff erforderlich. Bitte in den Systemeinstellungen erteilen.</string>
+    <string name="settings_recreation_guidance_permission_missing_hint">Standortzugriff wurde noch nicht erteilt.</string>
+    <string name="settings_recreation_guidance_grant_permission_action">Zugriff erlauben</string>
     <string name="settings_live_direction_arrow">Richtungspfeil anzeigen</string>
     <string name="settings_live_direction_arrow_description">Zeigt mithilfe der Gerätesensoren eine ungefähre Richtung zum Referenzstandort an. Die Genauigkeit hängt vom Gerät und der Umgebung ab. Achte weiterhin auf deine Umgebung.</string>
     <string name="gps_guidance_chip_description">GPS-Führung</string>

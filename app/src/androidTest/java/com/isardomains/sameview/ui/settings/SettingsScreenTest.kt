@@ -58,6 +58,7 @@ class SettingsScreenTest {
         liveDirectionArrow: Boolean = false,
         onLiveDirectionArrowChanged: (Boolean) -> Unit = {},
         showLocationPermissionDeniedHint: Boolean = false,
+        showRecreationGuidanceMissingPermissionHint: Boolean = false,
         stripOriginalsMetadata: Boolean = false,
         onStripOriginalsMetadataChanged: (Boolean) -> Unit = {},
         hasBranding: Boolean = false,
@@ -91,6 +92,7 @@ class SettingsScreenTest {
                         liveDirectionArrow = liveDirectionArrow,
                         onLiveDirectionArrowChanged = onLiveDirectionArrowChanged,
                         showLocationPermissionDeniedHint = showLocationPermissionDeniedHint,
+                        showRecreationGuidanceMissingPermissionHint = showRecreationGuidanceMissingPermissionHint,
                         stripOriginalsMetadata = stripOriginalsMetadata,
                         onStripOriginalsMetadataChanged = onStripOriginalsMetadataChanged,
                         hasBranding = hasBranding,
@@ -296,6 +298,44 @@ class SettingsScreenTest {
         setContent(recreationGuidance = false, onRecreationGuidanceChanged = { received = it })
 
         composeRule.onNodeWithTag("settings_recreation_guidance").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, received)
+    }
+
+    @Test
+    fun recreationGuidanceMissingPermissionHint_visible_whenOnAndPermissionMissing() {
+        setContent(
+            recreationGuidance = true,
+            showRecreationGuidanceMissingPermissionHint = true
+        )
+
+        composeRule.onNodeWithText(context.getString(R.string.settings_recreation_guidance_permission_missing_hint))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("settings_recreation_guidance_grant_permission")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun recreationGuidanceMissingPermissionHint_notVisible_whenPermissionGranted() {
+        setContent(
+            recreationGuidance = true,
+            showRecreationGuidanceMissingPermissionHint = false
+        )
+
+        composeRule.onNodeWithTag("settings_recreation_guidance_grant_permission").assertDoesNotExist()
+    }
+
+    @Test
+    fun tap_grantPermission_invokesRecreationGuidanceChangedWithTrue() {
+        var received: Boolean? = null
+        setContent(
+            recreationGuidance = true,
+            showRecreationGuidanceMissingPermissionHint = true,
+            onRecreationGuidanceChanged = { received = it }
+        )
+
+        composeRule.onNodeWithTag("settings_recreation_guidance_grant_permission").performClick()
         composeRule.waitForIdle()
 
         assertEquals(true, received)

@@ -121,6 +121,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Live check of the current ACCESS_FINE_LOCATION grant state. Used by [SettingsScreen] to
+     * show a hint + "Grant permission" action when Recreation Guidance is on but the permission
+     * was never (re-)granted on this device — e.g. after a device restore that brought back the
+     * DataStore value without the OS-level permission grant.
+     */
+    fun isLocationPermissionGranted(): Boolean = locationPermissionChecker.isGranted()
+
     val stripOriginalsMetadata: StateFlow<Boolean> = repository.stripOriginalsMetadata
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 

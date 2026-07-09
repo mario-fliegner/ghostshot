@@ -135,6 +135,8 @@
     <string name="settings_recreation_guidance_rationale_confirm">Continue</string>
     <string name="settings_recreation_guidance_rationale_cancel">Cancel</string>
     <string name="settings_recreation_guidance_permission_denied">Precise location access required. Grant access in system Settings.</string>
+    <string name="settings_recreation_guidance_permission_missing_hint">Location access hasn\'t been granted yet.</string>
+    <string name="settings_recreation_guidance_grant_permission_action">Grant permission</string>
     <string name="settings_live_direction_arrow">Live direction arrow</string>
     <string name="settings_live_direction_arrow_description">Uses device sensors to show an approximate direction to the reference location. Accuracy depends on your device and surroundings. Always stay aware of your surroundings.</string>
     <string name="gps_guidance_chip_description">GPS guidance</string>

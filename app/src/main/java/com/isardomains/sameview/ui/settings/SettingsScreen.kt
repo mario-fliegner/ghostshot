@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +58,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.isardomains.sameview.R
 import androidx.compose.ui.graphics.Color
@@ -89,6 +94,21 @@ fun SettingsScreen(
     var showPermissionDeniedHint by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val brandingLoadError = stringResource(R.string.settings_logo_load_error)
+
+    // Re-checked on ON_RESUME (e.g. after a device restore, or after returning from the system
+    // permission dialog) so a stale "Recreation guidance = on, permission missing" state is
+    // detected without requiring the user to toggle the switch first.
+    var isLocationPermissionGrantedState by remember { mutableStateOf(viewModel.isLocationPermissionGranted()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isLocationPermissionGrantedState = viewModel.isLocationPermissionGranted()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -170,6 +190,7 @@ fun SettingsScreen(
         liveDirectionArrow = liveDirectionArrow,
         onLiveDirectionArrowChanged = viewModel::onLiveDirectionArrowChanged,
         showLocationPermissionDeniedHint = showPermissionDeniedHint,
+        showRecreationGuidanceMissingPermissionHint = recreationGuidance && !isLocationPermissionGrantedState,
         stripOriginalsMetadata = stripOriginalsMetadata,
         onStripOriginalsMetadataChanged = viewModel::onStripOriginalsMetadataChanged,
         hasBranding = hasBranding,
@@ -201,6 +222,7 @@ internal fun SettingsScreenContent(
     liveDirectionArrow: Boolean,
     onLiveDirectionArrowChanged: (Boolean) -> Unit,
     showLocationPermissionDeniedHint: Boolean = false,
+    showRecreationGuidanceMissingPermissionHint: Boolean = false,
     stripOriginalsMetadata: Boolean = false,
     onStripOriginalsMetadataChanged: (Boolean) -> Unit = {},
     hasBranding: Boolean = false,
@@ -310,6 +332,21 @@ internal fun SettingsScreenContent(
                         color = SameViewSettingsSecondaryText,
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
+                }
+                if (showRecreationGuidanceMissingPermissionHint) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.settings_recreation_guidance_permission_missing_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SameViewSettingsSecondaryText
+                    )
+                    TextButton(
+                        onClick = { onRecreationGuidanceChanged(true) },
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+                        modifier = Modifier.testTag("settings_recreation_guidance_grant_permission")
+                    ) {
+                        Text(stringResource(R.string.settings_recreation_guidance_grant_permission_action))
+                    }
                 }
                 Spacer(modifier = Modifier.height(14.dp))
                 LiveDirectionArrowRow(
