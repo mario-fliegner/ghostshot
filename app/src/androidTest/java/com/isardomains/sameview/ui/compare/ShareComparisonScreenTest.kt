@@ -80,7 +80,7 @@ class ShareComparisonScreenTest {
         scenario = null
     }
 
-    // ── T-B3-07: TopAppBar title "Share comparison" visible ───────────────────
+    // ── T-B3-07: TopAppBar title "Share image" visible ───────────────────
 
     @Test
     fun t_b3_07_topAppBarTitleVisible() {

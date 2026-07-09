@@ -99,8 +99,8 @@
     <string name="remove_reference_image_cancel">Cancel</string>
     <string name="toggle_reference_display_mode">Switch overlay mode</string>
     <string name="reference_viewport_mismatch">Reference may be slightly off</string>
-    <string name="reference_format_mismatch_description">Reference may not match perfectly.</string>
-    <string name="reference_format_mismatch_bubble">Reference slightly off</string>
+    <string name="reference_format_mismatch_description">Reference format may not match.</string>
+    <string name="reference_format_mismatch_bubble">Reference format differs</string>
     <string name="reference_image_load_failed">Couldn\'t load reference image</string>
     <string name="reference_removed_snackbar">Reference image removed</string>
     <string name="reference_removed_undo">Undo</string>
@@ -320,10 +320,10 @@
     <!-- Export menu (CompareScreen top app bar) -->
     <string name="export_entry_content_description">Export</string>
     <string name="export_menu_share_comparison_image">Share image</string>
-    <string name="export_menu_create_video">Share video</string>
+    <string name="export_menu_create_video">Create video</string>
 
     <!-- Share Comparison Image screen -->
-    <string name="share_comparison_screen_title">Share comparison</string>
+    <string name="share_comparison_screen_title">Share image</string>
     <string name="share_comparison_style_label">Style</string>
     <string name="share_comparison_style_slider">Split view</string>
     <string name="share_comparison_style_side_by_side">Side by side</string>
