@@ -40,7 +40,7 @@ Die wichtigsten 18 Punkte, priorisiert. Details und Belege in den folgenden Absc
 5. **[MEDIUM]** Privacy-Mode („Strip metadata from originals") entfernt GPS/EXIF bei bestimmten Referenzbildformaten (altes AVIF, unbekannte MIME-Typen) nicht — ohne jede Anzeige dieses Fallback-Zustands in der UI.
 6. **[MEDIUM]** `filesDir/branding/` ist entgegen der ausdrücklichen Spec-Behauptung nicht vom Android-Auto-Backup ausgeschlossen. *Status: CLOSED — 2026-07-09.*
 7. **[MEDIUM]** `sameview_settings`-DataStore ist weiterhin nicht vom Backup ausgeschlossen — GPS-Einstellung kann nach Geräte-Restore inkonsistent mit der tatsächlichen Permission erscheinen (aus Voraudit, unverändert). *Status: REJECTED — Product decision (2026-07-09).*
-8. **[MEDIUM]** Backup-Export mischt privacy-gestrippte und normale Sessions in einem ZIP, ohne jeden Warnhinweis.
+8. **[MEDIUM]** Backup-Export mischt privacy-gestrippte und normale Sessions in einem ZIP, ohne jeden Warnhinweis. *Status: REJECTED — Product decision (2026-07-09).*
 9. **[MEDIUM]** „Recreation Guidance" (GPS-Toggle) erklärt sich dem Nutzer erst *nach* dem Antippen über einen reaktiven Dialog, nicht vorher über einen Beschreibungstext.
 10. **[MEDIUM]** Video-Export-Dateiname enthält den exakten Aufnahme-Zeitstempel (Datum + Uhrzeit) im Klartext im MediaStore — der Bild-Export vermeidet dieses Muster bewusst aus Datenschutzgründen. *Status: CLOSED — export timestamp naming adopted (2026-07-09).*
 11. **[MEDIUM]** Guide-Tips erfüllen die eigenen Accessibility-Vorgaben (Live-Region, dynamische „Learn more"-Beschreibung) nicht.
@@ -140,9 +140,11 @@ Nach einem Geräte-Restore kann `recreation_guidance = true` wiederhergestellt w
 ### [MEDIUM] Backup-ZIP mischt Privacy-Status ohne Warnung
 *Status: neu, spec-konform aber UX-Lücke*
 
+*Status: REJECTED — Product decision (2026-07-09).* Gemischter Privacy-Status in einem Backup-ZIP ist eine normale, erwartbare Konsequenz der Session-Historie, kein Fehlerzustand: Privacy Mode wirkt sich auf die Erstellung und Speicherung neuer Sessions aus, nicht rückwirkend auf bereits gespeicherte Sessions — Sessions von vor der Aktivierung unterscheiden sich zwangsläufig von neueren, gestrippten Sessions. Backup exportiert bewusst und unverändert exakt das, was pro Session tatsächlich auf dem Gerät liegt (`SessionBackupExporter.kt`: byte-for-byte-Kopie ohne jede Transformation, keine Privacy-Klassifikation, keine Auswahl-Filterung). Full-Fidelity-Export ist bereits eine explizite, dokumentierte Produktentscheidung: `SESSION_BACKUP_EXPORT_V1.md §12.2` legt für GPS-Daten bewusst „no warning" fest („the app does not make this choice on behalf of the user"), und `SESSION_ORIGINALS_PRIVACY_V1.md §10` stellt für den Privacy-Fall wortgleich fest: „this is correct and intentional. The backup faithfully reflects what the session contains." Eine Warnung für den Mix-Fall würde einen neuen Scanner (Privacy-Status pro Session einlesen), eine neue Klassifikationslogik (alle clean / alle unclean / gemischt) und einen neuen Dialog-Flow in `CompareLibraryScreen` erfordern — zusätzliche Komplexität, ohne dass dadurch ein realer Fehlerzustand verhindert würde: Es besteht keine Datenschutzverletzung (der Nutzer weiß, welche Sessions er mit welcher Einstellung erstellt hat), kein Datenverlust, kein Korruptionsrisiko, kein Absturzrisiko und kein irreführendes Verhalten — das ZIP enthält exakt das, was die App auf dem Gerät gespeichert hat, nicht mehr und nicht weniger. Daher ist keine Umsetzung geplant. Keine Code-, Test- oder ViewModel-Änderung im Rahmen dieser Entscheidung; lediglich eine klarstellende Ergänzung in `SESSION_ORIGINALS_PRIVACY_V1.md §10` (siehe dort), die den bereits bestehenden Full-Fidelity-Grundsatz explizit auf den Mehrfach-Session-Fall ausweitet.
+
 Ein Mehrfach-Backup aus der Compare Library kann Sessions enthalten, die vor Aktivierung von „Privacy mode" erstellt wurden (voller EXIF/GPS) gemeinsam mit neueren, gestrippten Sessions — in einem ZIP, ohne jede Kennzeichnung. Das entspricht der Spec-Absicht (`SESSION_BACKUP_EXPORT_V1.md`: Backup ist immer „full-fidelity", per Design), ist aber aus Nutzersicht überraschend: Wer „Privacy mode" einschaltet, könnte annehmen, dies schütze auch rückwirkend bereits gesicherte Sessions.
 
-**Fix:** Kein Codefehler, sondern eine Produkt-/UX-Entscheidung — siehe Offene Fragen.
+**Fix:** Kein Codefehler, sondern eine Produkt-/UX-Entscheidung — siehe Offene Fragen. **Entschieden — siehe REJECTED-Status oben: keine Umsetzung geplant.**
 
 ### [MEDIUM] GPS-Toggle erklärt sich erst nach dem Antippen
 *Status: neu*
@@ -387,8 +389,8 @@ Fragen, die vor dem Go-Live eine bewusste Entscheidung brauchen — keine davon 
 4. **Ist der stille Privacy-Mode-Fallback für bestimmte Referenzformate ein akzeptiertes Risiko?**
    Falls nicht: Soll dies dem Nutzer angezeigt werden, oder soll der Import in diesem Fall abgelehnt werden?
 
-5. **Soll ein Warnhinweis ergänzt werden, wenn ein Backup-ZIP gemischte Privacy-Stati enthält?**
-   Aktuell rein spec-konformes „full-fidelity always"-Verhalten ohne jede Nutzer-Kommunikation.
+5. ~~**Soll ein Warnhinweis ergänzt werden, wenn ein Backup-ZIP gemischte Privacy-Stati enthält?**~~
+   **Beantwortet (2026-07-09):** Nein — bewusste Produktentscheidung. Gemischter Privacy-Status ist eine normale Konsequenz der Session-Historie und kein Fehlerzustand; Full-Fidelity-Export ist bereits explizite Spec-Vorgabe (`SESSION_BACKUP_EXPORT_V1.md §12.2`, `SESSION_ORIGINALS_PRIVACY_V1.md §10`). Details siehe Abschnitt 03 (REJECTED).
 
 6. **Ist Crash-Reporting (z. B. Firebase Crashlytics) für den öffentlichen Release weiterhin geplant?**
    Aus dem Voraudit als offener Punkt R-01 übernommen; hier nicht erneut technisch geprüft, aber als Produktentscheidung mit Datenschutz-Trade-off relevant für einen Public-Release.

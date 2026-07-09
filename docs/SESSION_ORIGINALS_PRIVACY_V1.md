@@ -336,6 +336,8 @@ When privacy mode is ON, the backed-up `capture-original.jpg` and `reference-sou
 
 `metadata.json` includes the `originals` block when privacy mode was ON, allowing importers to understand the preservation mode.
 
+**Mixed-session exports:** A single backup ZIP may contain multiple sessions with different privacy histories — for example, sessions created before privacy mode was ever enabled alongside newer sessions created with it ON. This is expected behavior, not a defect: privacy mode affects session creation going forward, not sessions already stored, and backup faithfully mirrors each session's actual on-disk state independently. No cross-session privacy classification, warning, or filtering is performed at export time (see `RELEASE_HARDENING_AUDIT_V2.md` §03, "Backup-ZIP mischt Privacy-Status ohne Warnung", REJECTED — Product decision, 2026-07-09).
+
 ---
 
 ## 11. Scope Boundaries
