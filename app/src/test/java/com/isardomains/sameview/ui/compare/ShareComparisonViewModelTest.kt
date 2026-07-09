@@ -385,6 +385,38 @@ class ShareComparisonViewModelTest {
         assertTrue("Should emit ShowSnackbar", event is ShareComparisonEvent.ShowSnackbar)
     }
 
+    // ── P0-2: OutOfMemoryError must not crash — same fallback as any other failure ──
+
+    @Test
+    fun onShare_outOfMemoryError_emitsSnackbarEvent() = runTest {
+        viewModel.shareRunner = { _, _ -> throw OutOfMemoryError("simulated OOM") }
+
+        viewModel.onShare()
+        advanceUntilIdle()
+
+        val event = viewModel.events.first()
+        assertTrue("OutOfMemoryError must be handled identically to any other render failure — ShowSnackbar, not a crash",
+            event is ShareComparisonEvent.ShowSnackbar)
+        assertFalse("isRendering must reset to false after an OutOfMemoryError failure", viewModel.isRendering.value)
+    }
+
+    @Test
+    fun onShare_cancellationException_isRethrown_notReportedAsFailure() = runTest {
+        viewModel.shareRunner = { _, _ -> throw kotlinx.coroutines.CancellationException("cancelled") }
+
+        val receivedEvents = mutableListOf<ShareComparisonEvent>()
+        val job = launch { viewModel.events.collect { receivedEvents.add(it) } }
+
+        viewModel.onShare()
+        advanceUntilIdle()
+
+        assertTrue("CancellationException must be rethrown, not surfaced as a render-failure Snackbar",
+            receivedEvents.isEmpty())
+        assertFalse("isRendering must still reset to false when the coroutine is cancelled",
+            viewModel.isRendering.value)
+        job.cancel()
+    }
+
     // ── Branding state — driven by previewBrandingBitmap (single source of truth) ─
 
     @Test

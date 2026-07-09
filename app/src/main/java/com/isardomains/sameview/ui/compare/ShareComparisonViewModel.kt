@@ -541,7 +541,9 @@ class ShareComparisonViewModel @Inject constructor(
                     shareRunner(config, context.contentResolver)
                 }
                 _events.send(ShareComparisonEvent.ShareReady(uri))
-            } catch (_: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Throwable) {
                 _events.send(ShareComparisonEvent.ShowSnackbar(R.string.share_comparison_error_render_failed))
             } finally {
                 _isRendering.value = false
