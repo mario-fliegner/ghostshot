@@ -70,7 +70,7 @@
     <!-- Compare screen (detail view) -->
     <string name="compare_screen_delete">Delete compare</string>
     <string name="compare_screen_delete_dialog_title">Delete compare?</string>
-    <string name="compare_screen_delete_dialog_message">This compare will be deleted.</string>
+    <string name="compare_screen_delete_dialog_message">This comparison will be permanently deleted.</string>
     <string name="compare_screen_more_options">Options</string>
     <string name="compare_screen_edit_title">Edit title</string>
     <string name="compare_screen_edit_title_dialog_title">Edit title</string>
@@ -355,7 +355,7 @@
 
     <!-- Create Video — Delete video confirmation dialog -->
     <string name="create_video_delete_dialog_title">Delete video?</string>
-    <string name="create_video_delete_dialog_message">This removes the exported video from your device. Your compare session stays unchanged.</string>
+    <string name="create_video_delete_dialog_message">This permanently removes the exported video from your device. Your comparison stays unchanged.</string>
     <string name="create_video_delete_dialog_confirm">Delete video</string>
     <string name="create_video_delete_dialog_cancel">Cancel</string>
 

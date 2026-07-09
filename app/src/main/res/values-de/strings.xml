@@ -63,7 +63,7 @@
 
     <string name="compare_screen_delete">Vergleich löschen</string>
     <string name="compare_screen_delete_dialog_title">Vergleich löschen?</string>
-    <string name="compare_screen_delete_dialog_message">Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="compare_screen_delete_dialog_message">Dieser Vergleich wird unwiderruflich gelöscht.</string>
     <string name="compare_screen_more_options">Optionen</string>
     <string name="compare_original_reference">ORIGINAL</string>
     <string name="compare_show_original_reference">Originalreferenz anzeigen</string>
@@ -339,7 +339,7 @@
 
     <!-- Video erstellen — Lösch-Bestätigungsdialog -->
     <string name="create_video_delete_dialog_title">Video löschen?</string>
-    <string name="create_video_delete_dialog_message">Die Aktion kann nicht rückgängig gemacht werden. Die Vergleichsbilder werden nicht gelöscht.</string>
+    <string name="create_video_delete_dialog_message">Das exportierte Video wird unwiderruflich von deinem Gerät gelöscht. Dein Vergleich bleibt unverändert.</string>
     <string name="create_video_delete_dialog_confirm">Video löschen</string>
     <string name="create_video_delete_dialog_cancel">Abbrechen</string>
 

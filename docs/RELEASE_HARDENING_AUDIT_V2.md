@@ -281,6 +281,8 @@ Reines Touch-/Drag-Modell für Slider-Verschiebung und Overlay-Reposition/Skalie
 ### [NIEDRIG] EN/DE-Lösch-Dialog unterscheiden sich inhaltlich
 *Status: neu*
 
+*Fix-Status: CLOSED — 2026-07-09.* `compare_screen_delete_dialog_message` in beiden Sprachen angeglichen: EN „This comparison will be permanently deleted.", DE „Dieser Vergleich wird unwiderruflich gelöscht." — beide transportieren jetzt dieselbe Aussage (was gelöscht wird + dass es unwiderruflich ist), analog zum bereits bewährten Muster von `compare_library_delete_dialog_message`. Zusätzlich wurde dieselbe Inkonsistenz bei `create_video_delete_dialog_message` bestätigt und ebenfalls behoben: EN „This permanently removes the exported video from your device. Your comparison stays unchanged.", DE „Das exportierte Video wird unwiderruflich von deinem Gerät gelöscht. Dein Vergleich bleibt unverändert." — DE-Wortwahl „Vergleich" statt des zuvor genutzten Ausreißerbegriffs „Vergleichsbilder" an die im gesamten String-Set dominante Konvention angeglichen. Reine String-Änderung, keine Logik-, Layout- oder Spec-Änderung.
+
 EN: „This compare will be deleted." DE: „Diese Aktion kann nicht rückgängig gemacht werden." — keine Übersetzung derselben Aussage, sondern zwei unterschiedliche Inhalte. Deutsche Nutzer erhalten einen Unwiderruflichkeits-Hinweis, englische nicht.
 
 **Beleg:** `values/strings.xml:73` vs. `values-de/strings.xml:66`, `compare_screen_delete_dialog_message`.
@@ -340,7 +342,7 @@ Kleine Änderungen mit überproportional hoher Wirkung vor dem Release.
 4. **Tote Strings entfernen**: `compare_screen_edit_title*`, `markers_outside_image`, `about_no_account_required`.
 5. **Permanente Beschreibungszeile unter „Recreation Guidance"** ergänzen, analog zum bereits vorhandenen Muster bei „Live direction arrow".
 6. ~~**`filesDir/branding/` in `backup_rules.xml` und `data_extraction_rules.xml` aufnehmen** — Ein-Zeilen-Fix je Datei, macht die Spec-Aussage wieder wahr.~~ *CLOSED — 2026-07-09, siehe Abschnitt 03.*
-7. **EN/DE-Lösch-Dialogtext angleichen** — entweder DE-Warnung auch in EN übernehmen oder bewusst als Differenz dokumentieren.
+7. ~~**EN/DE-Lösch-Dialogtext angleichen** — entweder DE-Warnung auch in EN übernehmen oder bewusst als Differenz dokumentieren.~~ *CLOSED — 2026-07-09, siehe Abschnitt 06.*
 8. **Drei kurze Sätze in beiden Privacy-Policy-Sprachversionen ergänzen**: Privacy-Mode-Toggle, Branding-Feature, Feedback-Mailto.
 
 ---
@@ -391,8 +393,8 @@ Fragen, die vor dem Go-Live eine bewusste Entscheidung brauchen — keine davon 
 8. ~~**War „Clear markers" eine bewusste Scope-Kürzung oder ein übersehener Implementierungsrest?**~~
    **Beantwortet (2026-07-09):** Bewusste Produktentscheidung — „Clear markers" wird nicht implementiert. Begründung: einzelnes Löschen per Long-Press, 5er-Marker-Limit, „Hide markers" für temporäres Ausblenden und automatisches Löschen bei Replace/Remove decken den Anwendungsfall bereits ab. Dokumentiert in `ALIGNMENT_POINTS_V1.md` Revision 10 und `RELEASE_HARDENING_AUDIT_V2.md` Abschnitt 03 (REJECTED). `CameraViewModel.clearMarkers()` bleibt unreferenzierter Code, bewusst nicht entfernt (keine App-Code-Änderung im Rahmen dieser Entscheidung).
 
-9. **Soll der DE-Lösch-Dialogtext („kann nicht rückgängig gemacht werden") auch ins Englische übernommen werden?**
-   Oder war die zusätzliche Warnung in der deutschen Fassung beabsichtigt und soll dort bleiben?
+9. ~~**Soll der DE-Lösch-Dialogtext („kann nicht rückgängig gemacht werden") auch ins Englische übernommen werden?**~~
+   **Beantwortet (2026-07-09):** Beide Sprachen wurden stattdessen auf eine gemeinsame, kombinierte Aussage angeglichen (Löschhinweis + Unwiderruflichkeit), analog zum bereits bewährten `compare_library`-Muster — siehe Abschnitt 06.
 
 ---
 
