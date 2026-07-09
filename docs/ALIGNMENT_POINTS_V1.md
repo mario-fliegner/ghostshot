@@ -15,7 +15,7 @@ Sie ist geschrieben für:
 
 Wenn ein späterer Implementierungsvorschlag mit diesem Dokument in Konflikt steht, gewinnt dieses Dokument — es sei denn, der Nutzer trifft explizit eine abweichende Produktentscheidung.
 
-**Revision:** 8 (2026-06-30) — Done-Button in den zentralen Bottom-Bar-Slot verschoben (ersetzt Capture während Marker Edit Mode). Änderungsprotokoll am Ende.
+**Revision:** 10 (2026-07-09) — Produktentscheidung: „Clear markers" zurückgenommen, wird nicht implementiert. Änderungsprotokoll am Ende.
 
 ---
 
@@ -273,7 +273,6 @@ Das Reference-Menü passt sich dem aktuellen Zustand an.
 ─────────────────────────────────
   Edit markers...
   Hide markers
-  Clear markers
 ─────────────────────────────────
   Replace
   Remove
@@ -289,7 +288,6 @@ Das Reference-Menü passt sich dem aktuellen Zustand an.
 ─────────────────────────────────
   Edit markers...
   Show markers
-  Clear markers
 ─────────────────────────────────
   Replace
   Remove
@@ -304,7 +302,6 @@ Das Reference-Menü passt sich dem aktuellen Zustand an.
   Compare mode
 ─────────────────────────────────
   Hide markers
-  Clear markers
 ─────────────────────────────────
   Replace
   Remove
@@ -313,7 +310,7 @@ Das Reference-Menü passt sich dem aktuellen Zustand an.
 
 „Edit markers..." entfällt (bereits aktiv, nicht gezeigt statt deaktiviert). „Done" ist im Top-Bar sichtbar — kein Menüeintrag dafür.
 
-**Wichtig:** „Hide markers" aus dem aktiven Edit-Modus → blendet Marker aus UND beendet Edit-Modus automatisch (man kann nicht bearbeiten, was man nicht sieht). „Clear markers" aus dem aktiven Edit-Modus → löscht alle Marker UND beendet Edit-Modus.
+**Wichtig:** „Hide markers" aus dem aktiven Edit-Modus → blendet Marker aus UND beendet Edit-Modus automatisch (man kann nicht bearbeiten, was man nicht sieht).
 
 #### Menü: Edit-Modus aktiv, KEINE Marker vorhanden
 
@@ -338,7 +335,6 @@ Kein Marker-Abschnitt — nichts ist vorhanden, was man ausblenden oder löschen
 | Reset | Bleibt aktiv | Unverändert | Unverändert |
 | Compare mode | Bleibt aktiv | Unverändert | Unverändert |
 | Hide markers | **Beendet** | Unverändert | → false |
-| Clear markers | **Beendet** | Gelöscht | → true (default) |
 | Replace | **Beendet** | Gelöscht | → true (default) |
 | Remove | **Beendet** | Gelöscht | → true (default) |
 
@@ -354,7 +350,7 @@ Kein Marker-Abschnitt — nichts ist vorhanden, was man ausblenden oder löschen
 - Subtil — schmaler Rahmen, kein Glow-Effekt
 - Kein Text-Label im Viewport (keine Kamera-Verschmutzung)
 - Erscheint **ausschließlich** während `isMarkerEditModeActive = true`
-- Verschwindet wenn Edit-Modus endet (via Done, Back, Hide, Clear, Replace, Remove)
+- Verschwindet wenn Edit-Modus endet (via Done, Back, Hide, Replace, Remove)
 - Wird nie in gespeicherte Fotos, Compare, Video-Export oder Share-Image gerendert
 
 **Done-Button:**
@@ -459,7 +455,6 @@ Wenn `normalizedPos` außerhalb [0, 1] liegt → kein Marker erstellt (kein Clam
 | „Done" tippen | → inaktiv | Unverändert | Unverändert (bleibt sichtbar) |
 | Back-Geste | → inaktiv | Unverändert | Unverändert (bleibt sichtbar) |
 | „Hide markers" im Menü | → inaktiv | Unverändert | → false |
-| „Clear markers" im Menü | → inaktiv | Explizit geleert | → true |
 | Replace | → inaktiv | Entfallen (Eigentümer wechselt) | → true |
 | Remove | → inaktiv | Entfallen (Eigentümer entfällt) | → true |
 | App-Neustart | → inaktiv | Entfallen (kein Eigentümer) | → true |
@@ -486,7 +481,7 @@ Keine Bestätigung beim Verlassen via Done oder Back.
 | Overlay-Scale (2-Finger) | **Aktiv** | Overlay-Feinabstimmung direkt im Modus |
 | Camera Zoom Mode | **Deaktiviert** | Zoom-Änderung invalidiert Marker-Positionen |
 | Opacity-Slider | **Aktiv** | Nutzer steuert Opacity selbst |
-| Reference-Button | **Aktiv** | Hide, Clear, Replace, Remove, Reset zugänglich |
+| Reference-Button | **Aktiv** | Hide, Replace, Remove, Reset zugänglich |
 | Grid | **Aktiv** (falls eingestellt) | |
 | GPS-Chip | **Aktiv** (falls aktiv) | |
 | Compare Display Mode | **Wählbar** | Marker folgen dem Overlay |
@@ -583,7 +578,6 @@ Legende: „Eigentümer unverändert" = Referenzbild bleibt geladen → Marker b
 | Tap „Done" | Unverändert | Unverändert | → `false` | Eigentümer unverändert |
 | Back-Geste | Unverändert | Unverändert | → `false` | Eigentümer unverändert |
 | Reference-Menü → „Hide markers" | Unverändert | → `false` | → `false` | Eigentümer unverändert |
-| Reference-Menü → „Clear markers" | → `false` | → `true` | → `false` | Nutzer löscht explizit |
 | Reference-Menü → Reset (Overlay-Transform) | Unverändert (Positionen recalc) | Unverändert | bleibt `true` | Eigentümer unverändert; Transform ≠ Eigentümer |
 | Reference-Menü → Compare mode | Unverändert | Unverändert | bleibt `true` | Eigentümer unverändert |
 | Reference-Menü → Replace | Entfallen | → `true` | → `false` | **Eigentümer wechselt** |
@@ -608,7 +602,6 @@ Legende: „Eigentümer unverändert" = Referenzbild bleibt geladen → Marker b
 | Reference-Menü → „Edit markers..." | Unverändert | → `true` | → `true` | Eigentümer unverändert |
 | Reference-Menü → „Show markers" | Unverändert | → `true` | bleibt `false` | Eigentümer unverändert |
 | Reference-Menü → „Hide markers" | Unverändert | → `false` | bleibt `false` | Eigentümer unverändert |
-| Reference-Menü → „Clear markers" | → `false` | → `true` | bleibt `false` | Nutzer löscht explizit |
 | Reference-Menü → Reset (Overlay-Transform) | Unverändert (Positionen recalc) | Unverändert | bleibt `false` | Eigentümer unverändert; Transform ≠ Eigentümer |
 | Reference-Menü → Replace | Entfallen | → `true` | bleibt `false` | **Eigentümer wechselt** |
 | Reference-Menü → Remove | Entfallen | → `true` | bleibt `false` | **Eigentümer entfällt** |
@@ -711,12 +704,6 @@ Alle wesentlichen UX-Entscheidungen sind in Revision 4 geschlossen.
 
 **Mitigierung:** Normalisierte Koordinaten sind Display-Mode-agnostisch; Transformation verwendet immer die Parameter des aktuellen Display-Modes. Explizite Tests erforderlich.
 
-### 10.4 `markersVisible` vs. `markersExist` Konsistenz
-
-**Risiko:** State-Kombination `markersExist = false, markersVisible = false` nach Clear könnte zu unerwartetem Verhalten führen wenn neue Marker gesetzt werden.
-
-**Mitigierung:** Clear setzt `markersVisible = true` (default). Neue Marker erscheinen immer sichtbar, weil Edit-Modus bei Eintritt immer `markersVisible = true` setzt.
-
 ---
 
 ## 11. Explizite Nicht-Ziele
@@ -755,6 +742,26 @@ Keine Änderungen nötig: `SESSION_METADATA_V1.md`, `SESSION_ORIGINALS_V1.md`, `
 ---
 
 ## 13. Änderungsprotokoll
+
+### Revision 10 — 2026-07-09
+
+**Produktentscheidung: „Clear markers" zurückgenommen.**
+
+„Clear markers" wird nicht implementiert und ist nicht länger verpflichtendes Verhalten dieser Spezifikation.
+
+Begründung:
+
+- Marker können bereits einzeln per Long-Press gelöscht werden.
+- Markeranzahl ist auf 5 begrenzt (`MAX_MARKERS`).
+- „Hide markers" deckt temporäres Ausblenden bereits ab.
+- Beim Entfernen oder Ersetzen der Referenz werden Marker ohnehin automatisch gelöscht (`clearMarkersOnReferenceChange()`).
+- Ein zusätzlicher Menüeintrag würde die Komplexität des Reference-Menüs ohne relevanten Mehrwert erhöhen.
+
+Entfernt aus den aktiven Anforderungen (§6.2 Menü-Diagramme und Effekt-Tabelle, §6.3, §6.8, §6.10, §7.3, §7.4): alle Vorkommen von „Clear markers" als Menüeintrag bzw. Zustandsübergang. §10.4 („markersVisible vs. markersExist Konsistenz") vollständig entfernt — das dort beschriebene Risiko und dessen Mitigierung bezogen sich ausschließlich auf „Clear markers". Die verbleibenden Einträge (Reset, Compare mode, Edit markers…, Hide/Show markers, Replace, Remove) sind davon unberührt.
+
+Historische Änderungsprotokoll-Einträge (u. a. Revision 4, die die Umbenennung zu „Clear markers" dokumentiert) bleiben als Aufzeichnung vergangener Entscheidungen unverändert bestehen.
+
+`CameraViewModel.clearMarkers()` bleibt im Code vorhanden, aber unreferenziert — kein UI-Aufrufer wird ergänzt.
 
 ### Revision 9 — 2026-07-01
 

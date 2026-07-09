@@ -12,7 +12,7 @@ Er ergänzt `ALIGNMENT_POINTS_V1.md` (UX-Spezifikation). Bei Konflikten gewinnt 
 
 **Wichtig:** Dieser Plan ist ein Analyse-Dokument. Kein Produktionscode darf auf Basis dieses Dokuments allein implementiert werden — eine separate Implementierungssession mit expliziter Nutzerfreigabe ist erforderlich.
 
-**Revision:** 5 (2026-06-26). Eigentumsmodell als bindende Implementierungsregel eingeführt. Marker-State darf nie in Session-Dateien gespeichert werden. Ownership-Tests ergänzt. Änderungsprotokoll am Ende.
+**Revision:** 7 (2026-07-09). Produktentscheidung: „Clear markers" zurückgenommen, wird nicht implementiert. Änderungsprotokoll am Ende.
 
 ---
 
@@ -239,7 +239,6 @@ Das versehentliche Speichern von Marker-Koordinaten in `metadata.json` oder das 
 | `addMarker(normalizedX, normalizedY)` | Marker hinzufügen; ablehnen wenn limit oder außerhalb [0,1] |
 | `moveMarker(id, normalizedX, normalizedY)` | Position aktualisieren |
 | `removeMarker(id)` | Einzelnen Marker löschen |
-| `clearMarkers()` | Alle Marker löschen; `isEditModeActive = false`; `markersVisible = true` |
 | `hideMarkers()` | `markersVisible = false`; `isEditModeActive = false` |
 | `showMarkers()` | `markersVisible = true` |
 | `clearMarkersOnReferenceChange()` | Intern: bei Replace/Remove/Reset-after-capture |
@@ -304,7 +303,6 @@ object ReferenceMarkerDefaults {
 | `markers_menu_edit` | „Edit markers…" | Menü: Marker vorhanden, Edit-Modus nicht aktiv |
 | `markers_menu_hide` | „Hide markers" | Menü: Marker sichtbar |
 | `markers_menu_show` | „Show markers" | Menü: Marker vorhanden, ausgeblendet |
-| `markers_menu_clear` | „Clear markers" | Menü: Marker vorhanden |
 | `markers_hint_place` | „Long press to place a marker" | Leerstate-Hint im Edit-Modus |
 | `markers_limit_reached` | „Marker limit reached" | Snackbar: max. 5 erreicht |
 | `markers_done` | „Done" | Top-Bar-Button zum Edit-Modus-Verlassen |
@@ -350,7 +348,6 @@ object ReferenceMarkerDefaults {
 | Marker-Limit | `addMarker()` lehnt 6. Marker ab |
 | Außerhalb Referenzbild | `addMarker()` lehnt ab wenn normalisierte Koordinate außerhalb [0,1] |
 | `removeMarker(id)` | Spezifischer Marker entfernt |
-| `clearMarkers()` | Alle Marker gelöscht, `isEditModeActive = false`, `markersVisible = true` |
 | `hideMarkers()` | `markersVisible = false`, `isEditModeActive = false` |
 | `hideMarkers()` aus Edit-Modus | Edit-Modus endet; Marker bleiben |
 | `showMarkers()` | `markersVisible = true`, `isEditModeActive` unverändert |
@@ -414,9 +411,9 @@ object ReferenceMarkerDefaults {
 | Test | Bedingung |
 |---|---|
 | Kein Marker, kein Edit-Modus | Nur „Markers…" als Marker-Eintrag |
-| Marker vorhanden, sichtbar, kein Edit-Modus | „Edit markers…", „Hide markers", „Clear markers" |
-| Marker vorhanden, ausgeblendet, kein Edit-Modus | „Edit markers…", „Show markers", „Clear markers" |
-| Edit-Modus aktiv, Marker vorhanden | „Hide markers", „Clear markers"; kein „Edit markers…" |
+| Marker vorhanden, sichtbar, kein Edit-Modus | „Edit markers…", „Hide markers" |
+| Marker vorhanden, ausgeblendet, kein Edit-Modus | „Edit markers…", „Show markers" |
+| Edit-Modus aktiv, Marker vorhanden | „Hide markers"; kein „Edit markers…" |
 | Edit-Modus aktiv, keine Marker | Kein Marker-Abschnitt im Menü |
 | Kein Marker-Menü ohne Referenz | Kein Marker-Eintrag wenn keine Referenz geladen |
 
@@ -427,7 +424,6 @@ object ReferenceMarkerDefaults {
 | Edit-Modus-Einstieg | Nach „Markers…": Viewport-Rand sichtbar, Done-Button sichtbar |
 | Leerstate-Hint sichtbar | Hint sichtbar wenn Edit-Modus aktiv und keine Marker |
 | Leerstate-Hint weg nach Marker | Hint verschwindet nach erstem Marker |
-| Leerstate-Hint erneut bei Clear | Hint erscheint wieder wenn alle Marker gelöscht |
 | Done beendet Edit-Modus | Viewport-Rand verschwindet; Marker bleiben sichtbar |
 | Back beendet Edit-Modus | CameraScreen bleibt aktiv (kein NavController-Pop); `isEditModeActive = false`; Marker unverändert |
 | Aufnahme blockiert | Capture-Button deaktiviert im Edit-Modus |
@@ -445,7 +441,6 @@ object ReferenceMarkerDefaults {
 | Show markers: wieder sichtbar | Nach „Show markers": Marker gerendert |
 | Edit-Modus aus Hidden: Marker sichtbar | „Edit markers…" von hidden State → Marker erscheinen |
 | Done nach Edit aus Hidden: sichtbar | Marker sichtbar nach Done (kein Rücksprung in Hidden-State) |
-| Clear markers: nicht vorhanden, nicht sichtbar | Nach „Clear markers": keine Marker, kein Rendering |
 
 **Placement und Interaktion:**
 
@@ -602,7 +597,6 @@ Keine Änderungen nötig: `SESSION_METADATA_V1.md`, `SESSION_ORIGINALS_V1.md`, `
 - Grep-Tests: kein „Alignment Points" / „Ausrichtungspunkte" in User-facing Strings
 - Smoke-Tests: Marker setzen, verschieben, löschen
 - Smoke-Tests: Hide / Show Marker
-- Smoke-Tests: Clear Marker
 - Smoke-Tests: Rotation mit Markern
 - Smoke-Tests: Overlay-Reset mit Markern
 - Smoke-Tests: Display-Mode-Wechsel mit Markern
@@ -678,6 +672,16 @@ Kein separates Release für Phase 6 in seiner Gesamtheit.
 ---
 
 ## 12. Änderungsprotokoll
+
+### Revision 7 — 2026-07-09
+
+**Produktentscheidung: „Clear markers" zurückgenommen.**
+
+„Clear markers" wird nicht implementiert. Quelle der Entscheidung: `ALIGNMENT_POINTS_V1.md` Revision 10 (2026-07-09), dort mit vollständiger Begründung dokumentiert.
+
+Entfernt aus diesem Plan: `clearMarkers()`-Zeilen aus den Methoden- und Testtabellen (§5, §7.1), `markers_menu_clear`-String-Ressource (§6), „Clear markers"-Einträge aus den Menüstruktur- und Sichtbarkeits-Testtabellen (§7.4), Leerstate-Hint-Test „erneut bei Clear" (§7.4), Smoke-Test-Eintrag „Clear Marker" (§10).
+
+Die kumulative Entscheidungstabelle in §11 („Alle entschiedenen Punkte, kumuliert Rev 1–5", Zeile „Clear markers … | 4") bleibt als historischer Eintrag unverändert bestehen — sie dokumentiert, was in Revision 4 entschieden wurde, nicht den aktuellen Sollzustand.
 
 ### Revision 6 — 2026-06-30
 
