@@ -100,7 +100,7 @@ These decisions are final and must not be re-evaluated during implementation.
 | FD-04 | Two styles: **Slider** (50/50) and **Side by side** |
 | FD-05 | No watermark, no app branding overlay on the comparison content. The SameView slider handle in the Slider style is a visual identity element, not a watermark — it is part of the comparison presentation, not overlaid marketing content. |
 | FD-17 | Slider style includes the SameView handle at the fixed 50/50 divider position. **Standard handle** (default): white filled circle + `SameViewAccent` directional arrows + white outer ring with top/bottom gaps. **Branding handle** (when session has branding and "Use branding" toggle is ON): white outer ring + white circle (identical visual language to the standard handle) + session `branding-handle.png` logo centered at 72% of circle diameter replacing the arrows; handle is 1.5× the standard handle diameter. Handle is purely visual; no interactivity; no dynamic position; no accessibility action. Video Export (VIDEO_EXPORT_V1.md §16.1) is explicitly unaffected. |
-| FD-18 | **V2 UX REWORK APPLIED (2026-07-XX). See `SESSION_BRANDING_V2_UX_REWORK.md §4` for the authoritative V2 specification.** V2 implemented state: A dedicated "Comparison logo" `SettingsCard` (title: `share_comparison_logo_card_title`) is placed between the Style card and the Information card. The card is rendered only when Slider style is selected; it is completely absent when Side-by-side is selected. Three zones: (1) preview circle + Show logo toggle (populated) or placeholder + state text (empty); (2) `OutlinedButton` pair for "Choose photo" / "Use a symbol" + optional "Use default logo" TextButton; (3) "Remove logo" TextButton with error color (populated only). Settings card uses the same zone pattern, card title "Default logo" (`settings_logo_section_title`). V1 original: toggle inside Style card, always visible. **UX refinement applied (2026-06-26):** (a) "Use default logo" is visible only when a global default exists AND the current session is not already using that default — the button is hidden when pressing it would perform no meaningful change. (b) "Choose photo", "Use a symbol", and "Use default logo" do not modify the Show logo toggle; they only replace the stored comparison logo. Show logo defaults ON when the first logo is added; subsequent replacements leave the toggle unchanged. (c) 16 dp spacer added between the preview circle and the Show logo row. |
+| FD-18 | **V2 UX REWORK APPLIED (2026-07-XX). See `SESSION_BRANDING_V2_UX_REWORK.md §4` for the authoritative V2 specification.** V2 implemented state: A dedicated "Comparison logo" `SettingsCard` (title: `share_comparison_logo_card_title`) is placed between the Style card and the Extras card. The card is rendered only when Slider style is selected; it is completely absent when Side-by-side is selected. Three zones: (1) preview circle + Show logo toggle (populated) or placeholder + state text (empty); (2) `OutlinedButton` pair for "Choose photo" / "Use a symbol" + optional "Use default logo" TextButton; (3) "Remove logo" TextButton with error color (populated only). Settings card uses the same zone pattern, card title "Default logo" (`settings_logo_section_title`). V1 original: toggle inside Style card, always visible. **UX refinement applied (2026-06-26):** (a) "Use default logo" is visible only when a global default exists AND the current session is not already using that default — the button is hidden when pressing it would perform no meaningful change. (b) "Choose photo", "Use a symbol", and "Use default logo" do not modify the Show logo toggle; they only replace the stored comparison logo. Show logo defaults ON when the first logo is added; subsequent replacements leave the toggle unchanged. (c) 16 dp spacer added between the preview circle and the Show logo row. |
 | FD-06 | No GPS coordinates in the exported JPEG (no EXIF GPS tags) |
 | FD-07 | No platform picker in the app. Android Share Sheet opens only on explicit user tap on `[Share]` |
 | FD-08 | Output format: JPEG at 92% quality for both Standard and Original quality tiers |
@@ -110,8 +110,8 @@ These decisions are final and must not be re-evaluated during implementation.
 | FD-12 | No new Manifest permissions required for this feature |
 | FD-13 | Canvas background color: `#0D1424` (SameViewAppBackground). Comparison border color: `#17202F` (SameViewAppSurface) |
 | FD-14 | No crop, no automatic reframe, no content modification of session images |
-| FD-15 | Caption toggles (Title, Date, Location) are NOT persisted. They reset to defaults when the screen re-opens |
-| FD-16 | Default style: Slider. Default quality: Standard. Default toggles: Title ON, Date ON, Location OFF |
+| FD-15 | Caption toggles (Title and date combined, Location) are NOT persisted. They reset to defaults when the screen re-opens |
+| FD-16 | Default style: Slider. Default quality: Standard. Default toggles: Title and date ON, Location OFF |
 
 ---
 
@@ -517,19 +517,21 @@ caption area.**
 
 ---
 
-## 13. Information Toggles
+## 13. Extras Toggles
 
-Three independent optional toggles control what metadata appears in the caption area.
+Two independent optional toggles control what metadata appears in the caption area. They reuse the
+exact labels, string resources, and reset-on-reopen behavior of the "Show title and date" and
+"Show location" toggles in `CreateVideoScreen`.
 
 | Toggle | Label | Default | Persisted |
 |---|---|---|---|
-| Title | "Title" | ON | No |
-| Date | "Date" | ON | No |
-| Location | "Location" | OFF | No |
+| Title and date | "Show title and date" | ON | No |
+| Location | "Show location" | OFF | No |
 
-Toggles are **local export state** within the active `ShareComparisonScreen` session. They reset to
-defaults when the screen is re-opened (same behavior as "Show title and date" and "Show location"
-toggles in `CreateVideoScreen`). No DataStore key is added for any toggle.
+The title and date are still rendered as two separate caption lines internally (see
+`ShareCaptionData` in §19.2) even though a single UI toggle controls both. Toggles are **local
+export state** within the active `ShareComparisonScreen` session. They reset to defaults when the
+screen is re-opened. No DataStore key is added for any toggle.
 
 ### 13.1 Disabled Toggle States
 
@@ -537,18 +539,16 @@ A toggle is **disabled** (visible, grayed out, not tappable) when no content is 
 
 | Toggle | Disabled when |
 |---|---|
-| Title | `content.title` is absent or blank |
-| Date | `computeCompareLabels()` returns Level 5 (no `reference.date`) |
+| Title and date | Both `content.title` is absent/blank AND `computeCompareLabels()` returns Level 5 (no `reference.date`) |
 | Location | All of `location.displayName`, `location.city`, `location.country` are absent |
 
-When a toggle is disabled, a hint line appears below it (same pattern as `CreateVideoScreen`
-disabled Extras toggles):
+When a toggle is disabled, a hint line appears below it, reusing the exact `CreateVideoScreen`
+disabled-hint strings:
 
 | Toggle | Disabled hint |
 |---|---|
-| Title | `share_comparison_no_title_hint`: "Add a title in Edit Session" |
-| Date | `share_comparison_no_date_hint`: "Add a reference date in Edit Session" |
-| Location | `share_comparison_no_location_hint`: "Add location in Edit Session" |
+| Title and date | `create_video_overlay_no_data_hint`: "Add a title or date in Edit Session" |
+| Location | `create_video_overlay_location_no_data_hint`: "Add location details in Edit Session" |
 
 **Disabled toggles remain visible.** Discoverability requires that the user can discover these
 features exist even when metadata is missing.
@@ -560,8 +560,7 @@ exactly the text that will appear in the exported image.
 
 | Toggle | Preview line content |
 |---|---|
-| Title | The title text, or the disabled hint if absent |
-| Date | The computed date pair (e.g., "2008 → 2026"), or the disabled hint |
+| Title and date | Title and computed date pair combined with a " · " separator when both are available (e.g., "My grandparents · 2008 → 2026"); title only or date pair only when just one is available; the disabled hint when neither is available |
 | Location | The location string (e.g., "Grünwald"), or the disabled hint |
 
 The preview line always uses `SameViewSettingsSecondaryText` style. It is never hidden.
@@ -688,7 +687,7 @@ Back navigation from Configuring closes `ShareComparisonScreen` and returns to `
 ### 15.3 Configuring State Layout
 
 > **V2 UX REWORK APPLIED (2026-07-XX).** A dedicated "Logo on handle" card was added
-> between the Style card and the Information card. See `SESSION_BRANDING_V2_UX_REWORK.md §4`.
+> between the Style card and the Extras card. See `SESSION_BRANDING_V2_UX_REWORK.md §4`.
 
 **V2 implemented layout:**
 
@@ -709,12 +708,10 @@ TopAppBar:  ← Back   "Share image"
 └─────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────┐
-│ Information                                 │  ← SettingsCard
-│ [x] Title                                   │  ← SettingsSwitchRow
-│     My grandparents                         │  ← preview line
-│ [x] Date                                    │  ← SettingsSwitchRow
-│     2008 → 2026                             │  ← preview line
-│ [ ] Location                                │  ← SettingsSwitchRow
+│ Extras                                      │  ← SettingsCard
+│ [x] Show title and date                     │  ← SettingsSwitchRow
+│     My grandparents · 2008 → 2026           │  ← preview line
+│ [ ] Show location                           │  ← SettingsSwitchRow
 │     Munich, Germany                         │  ← preview line
 └─────────────────────────────────────────────┘
 
@@ -763,7 +760,7 @@ TopAppBar:  ← Back   "Share comparison"
 **Share button placement rationale:** `ShareComparisonScreen` has no text input fields and therefore
 does not need `imePadding()`. The CTA at the end of the scroll column matches `CreateVideoScreen`
 exactly (not `EditSessionScreen`, which uses a sticky bottomBar only because its Save button must
-stay above the keyboard). With only three compact cards (Style, Information, Quality), the total
+stay above the keyboard). With only three compact cards (Style, Extras, Quality), the total
 scroll height is small enough that the Share button is reachable with minimal scrolling on all
 compact devices.
 
@@ -961,15 +958,17 @@ class ShareComparisonViewModel @Inject constructor(
 
     val style: StateFlow<ShareComparisonStyle>          // default SLIDER
     val quality: StateFlow<ShareQuality>                // default STANDARD
-    val titleEnabled: StateFlow<Boolean>                // default true
-    val dateEnabled: StateFlow<Boolean>                 // default true
+    val titleDateEnabled: StateFlow<Boolean>            // default true
     val locationEnabled: StateFlow<Boolean>             // default false
+    val isTitleDateAvailable: StateFlow<Boolean>        // derived from session metadata
+    val isLocationAvailable: StateFlow<Boolean>         // derived from session metadata
+    val titleDatePreviewText: StateFlow<String?>        // combined title/date preview line
+    val locationPreviewText: StateFlow<String?>         // location preview line
     val isRendering: StateFlow<Boolean>
 
     fun onStyleChanged(style: ShareComparisonStyle)
     fun onQualityChanged(quality: ShareQuality)
-    fun onTitleToggled(enabled: Boolean)
-    fun onDateToggled(enabled: Boolean)
+    fun onTitleDateToggled(enabled: Boolean)
     fun onLocationToggled(enabled: Boolean)
     fun onShare(context: Context)                       // triggers render + Share Sheet
 }
@@ -1006,9 +1005,9 @@ Back from `ShareComparisonScreen` returns to `CompareScreen`. No intermediate na
 | Element | Rule |
 |---|---|
 | TopAppBar | Same `TopAppBar` with Back icon and screen title |
-| Card layout | `SettingsCard` for every section (Style, Information, Quality) |
+| Card layout | `SettingsCard` for every section (Style, Extras, Quality) |
 | Segment controls | `SameViewSegmentControl` for Style and Quality selection |
-| Toggle rows | `SettingsSwitchRow` for Title, Date, Location |
+| Toggle rows | `SettingsSwitchRow` for Show title and date, Show location |
 | Preview placement | Inside the Style card, below the segment control, separated by `HorizontalDivider` |
 | Preview hint text | `SameViewSettingsSecondaryText` for dynamic preview lines |
 | Primary CTA | Full-width `Button` in `Scaffold.bottomBar` |
@@ -1123,17 +1122,15 @@ or product name). This matches all existing SameView string resources.
 | `share_comparison_style_slider` | Segment: "Slider" |
 | `share_comparison_style_side_by_side` | Segment: "Side by side" |
 
-**ShareComparisonScreen — Information card:**
+**ShareComparisonScreen — Extras card:**
 
 | Key | Usage |
 |---|---|
-| `share_comparison_info_label` | SettingsCard title: "Information" |
-| `share_comparison_toggle_title` | Toggle label: "Title" |
-| `share_comparison_toggle_date` | Toggle label: "Date" |
-| `share_comparison_toggle_location` | Toggle label: "Location" |
-| `share_comparison_no_title_hint` | Disabled title hint: "Add a title in Edit Session" |
-| `share_comparison_no_date_hint` | Disabled date hint: "Add a reference date in Edit Session" |
-| `share_comparison_no_location_hint` | Disabled location hint: "Add location in Edit Session" |
+| `share_comparison_extras_label` | SettingsCard title: "Extras" |
+| `create_video_overlay_title_date_label` | Toggle label: "Show title and date" (reused from `CreateVideoScreen`) |
+| `create_video_overlay_no_data_hint` | Disabled title/date hint: "Add a title or date in Edit Session" (reused from `CreateVideoScreen`) |
+| `create_video_overlay_location_label` | Toggle label: "Show location" (reused from `CreateVideoScreen`) |
+| `create_video_overlay_location_no_data_hint` | Disabled location hint: "Add location details in Edit Session" (reused from `CreateVideoScreen`) |
 
 **ShareComparisonScreen — Quality card:**
 
@@ -1230,7 +1227,7 @@ of potential edge cases.
 | `computeCompareLabels()` | `CompareLabelLogic.kt` | Date pair in caption |
 | `SettingsCard` | `SettingsComponents.kt` | All option cards |
 | `SameViewSegmentControl` | `SettingsComponents.kt` | Style and Quality selection |
-| `SettingsSwitchRow` | `SettingsComponents.kt` | Title, Date, Location toggles |
+| `SettingsSwitchRow` | `SettingsComponents.kt` | Show title and date, Show location toggles |
 | `SameViewAppBackground` (#0D1424) | `Color.kt` | Canvas background |
 | `SameViewAppSurface` (#17202F) | `Color.kt` | Comparison border, SbS separator |
 | `MetadataTextSanitizer` | existing | Not directly needed at render time |
@@ -1270,7 +1267,7 @@ No changes to compare mechanics, slider, or session state.
 | T-U-05 | `computeCompareLabels()` Level 1: date line is year pair e.g. "2008 → 2026" |
 | T-U-06 | `ShareComparisonViewModel`: style toggle emits correct `ShareComparisonStyle` |
 | T-U-07 | `ShareComparisonViewModel`: quality toggle emits correct `ShareQuality` |
-| T-U-08 | `ShareComparisonViewModel`: title toggle false → `captionData.titleLine` is null |
+| T-U-08 | `ShareComparisonViewModel`: title/date toggle false → `captionData.titleLine` and `captionData.dateLine` are null |
 | T-U-09 | `ShareComparisonViewModel`: location toggle true → `captionData.locationLine` present when available |
 | T-U-10 | `ShareComparisonViewModel`: all toggles off + no content → `captionData` is null |
 | T-U-11 | `ShareComparisonViewModel`: `isRendering` transitions true → false after render |
@@ -1346,7 +1343,7 @@ no navigation.
 
 **Scope:**
 - `ShareComparisonViewModel` — metadata loading, toggle state, render trigger
-- `ShareComparisonScreen` — full Configuring state UI (Style card with preview, Information
+- `ShareComparisonScreen` — full Configuring state UI (Style card with preview, Extras
   card, Quality card, Share CTA)
 - Navigation route `shareComparisonRoute` in `MainActivity`
 - `strings.xml` (EN + DE): all new i18n keys for `ShareComparisonScreen`
