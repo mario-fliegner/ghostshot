@@ -42,7 +42,7 @@ Die wichtigsten 18 Punkte, priorisiert. Details und Belege in den folgenden Absc
 7. **[MEDIUM]** `sameview_settings`-DataStore ist weiterhin nicht vom Backup ausgeschlossen — GPS-Einstellung kann nach Geräte-Restore inkonsistent mit der tatsächlichen Permission erscheinen (aus Voraudit, unverändert). *Status: REJECTED — Product decision (2026-07-09).*
 8. **[MEDIUM]** Backup-Export mischt privacy-gestrippte und normale Sessions in einem ZIP, ohne jeden Warnhinweis.
 9. **[MEDIUM]** „Recreation Guidance" (GPS-Toggle) erklärt sich dem Nutzer erst *nach* dem Antippen über einen reaktiven Dialog, nicht vorher über einen Beschreibungstext.
-10. **[MEDIUM]** Video-Export-Dateiname enthält den exakten Aufnahme-Zeitstempel (Datum + Uhrzeit) im Klartext im MediaStore — der Bild-Export vermeidet dieses Muster bewusst aus Datenschutzgründen.
+10. **[MEDIUM]** Video-Export-Dateiname enthält den exakten Aufnahme-Zeitstempel (Datum + Uhrzeit) im Klartext im MediaStore — der Bild-Export vermeidet dieses Muster bewusst aus Datenschutzgründen. *Status: CLOSED — export timestamp naming adopted (2026-07-09).*
 11. **[MEDIUM]** Guide-Tips erfüllen die eigenen Accessibility-Vorgaben (Live-Region, dynamische „Learn more"-Beschreibung) nicht.
 12. **[NIEDRIG]** Mehrere tote String-Ressourcen, u. a. ein deutscher String, der fälschlich „Keine KI-generierten Bilder" behauptet — unbenutzt heute, aber eine Stolperfalle, falls reaktiviert.
 13. **[NIEDRIG]** Lösch-Bestätigungstext unterscheidet sich zwischen EN und DE inhaltlich, nicht nur sprachlich.
@@ -156,11 +156,13 @@ Ein Mehrfach-Backup aus der Compare Library kann Sessions enthalten, die vor Akt
 ### [MEDIUM] Video-Dateiname enthält exakten Aufnahme-Zeitstempel
 *Status: neu*
 
+*Fix-Status: CLOSED — export timestamp naming adopted (2026-07-09).* `VideoExportPipeline.buildDisplayName()` verwendet jetzt einen zur Export-Zeit erzeugten Zeitstempel (`SimpleDateFormat("yyyyMMdd_HHmmss")`, Sichtbarkeit von `private` auf `internal` geändert für Testbarkeit) statt der Session-ID — identisches Muster wie `ShareRenderConfig.buildDisplayName()` im Bild-Export. Der Aufnahmezeitpunkt der Session erscheint damit nicht mehr im Dateinamen; Bild- und Video-Export sind jetzt konsistent. `VIDEO_EXPORT_V1.md §18.1` entsprechend aktualisiert (Muster + Begründung ergänzt). Keine Änderung an `VideoRenderConfig`, Overlay-Logik, Export-Verzeichnissen, Session-IDs, `metadata.json`, Backup-Export, Bild-Export oder `ShareComparisonImage`. **Nachrichtlich zur ursprünglichen Befundformulierung unten:** eine spätere, gezielte Analyse dieses Punkts ergab, dass `SHARE_COMPARISON_IMAGE_V1.md §27` den Export-Zeitstempel-Ansatz primär mit Dateisystem-Sicherheit/Eindeutigkeit begründet, nicht explizit mit Datenschutz — der Datenschutz-Nutzen (kein Aufnahmedatum im Dateinamen) ist real, aber ein Nebeneffekt dieser Entscheidung, kein ursprünglich dokumentiertes Ziel.
+
 Exportierte Videos heißen `SameView_<sessionId>_<mode>.mp4`, wobei `sessionId` das Format `YYYY-MM-DD_HH-mm-ss` hat — der exakte Aufnahmezeitpunkt steht also im Klartext im Dateinamen, sichtbar überall dort, wo die Datei landet (Downloads-Ordner, E-Mail-Anhangsname, Chat-Dateiliste). Der Bild-Export vermeidet dieses Muster bewusst und nutzt stattdessen den Export-Zeitpunkt statt des Aufnahme-Zeitpunkts — laut eigener Spec (`SHARE_COMPARISON_IMAGE_V1.md §27`) explizit aus Datenschutzgründen. Die Video-Export-Spec (`VIDEO_EXPORT_V1.md §18.1`) wurde nicht auf dasselbe Muster angehoben.
 
 **Beleg:** `VideoExportPipeline.kt`, `buildDisplayName()` (~Zeilen 202–210); Session-ID-Format bestätigt in `SessionStorage.kt` (~Zeile 120).
 
-**Fix:** Video-Dateinamen analog zum Bild-Export auf einen Export-Zeitstempel statt Session-ID umstellen.
+**Fix:** Video-Dateinamen analog zum Bild-Export auf einen Export-Zeitstempel statt Session-ID umstellen. **Umgesetzt — siehe Fix-Status oben.**
 
 ### [MEDIUM] Guide-Tips erfüllen eigene Accessibility-Vorgaben nicht
 *Status: neu*
@@ -320,6 +322,8 @@ UI zeigt „Extras" (`share_comparison_extras_label`), Spec verlangt „Informat
 
 ### [NIEDRIG] Video-Dateiname kollidiert bei wiederholtem Export
 *Status: neu*
+
+*Fix-Status: CLOSED — als Nebeneffekt behoben (2026-07-09).* Mit der Umstellung von `VideoExportPipeline.buildDisplayName()` auf einen Export-Zeitstempel (siehe MEDIUM-Finding „Video-Dateiname enthält exakten Aufnahme-Zeitstempel" oben) erhält jeder Export automatisch einen frischen, individuellen Zeitstempel — wiederholte Exporte derselben Session/desselben Modus erzeugen dadurch von selbst unterschiedliche Dateinamen, keine Kollision mehr möglich. Kein separater Eingriff nötig; dieselbe Codeänderung deckt beide Findings ab.
 
 Gleicher Session/Modus-Export erzeugt denselben angeforderten Dateinamen; Android dedupliziert automatisch mit „(1)"-Suffix. Kein Datenverlust, aber vermeidbare Unschärfe — der Bild-Export löst dies bereits über einen Export-Zeitstempel.
 

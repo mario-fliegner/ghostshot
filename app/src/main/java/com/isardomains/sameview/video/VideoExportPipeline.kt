@@ -14,6 +14,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Orchestrates the full video export: session images → rendered frames → encoded video → MP4 in MediaStore.
@@ -199,14 +202,25 @@ class VideoExportPipeline(private val context: Context) {
      * Derives the MediaStore display name from sessionDir.name (the session ID)
      * and the video mode, as specified in §18.1.
      */
-    private fun buildDisplayName(config: VideoRenderConfig, sessionDir: File): String {
-        val sessionId = sessionDir.name
+    /**
+     * Builds the MediaStore display name from the export timestamp (not the session's original
+     * capture timestamp) — consistent with [com.isardomains.sameview.image.ShareRenderConfig]'s
+     * image export naming. This keeps the filename itself free of the session's historical
+     * capture date, guarantees a unique name per export, and avoids the export filename
+     * disclosing capture date/time when the user has not opted into the on-video date overlay.
+     *
+     * `sessionDir` is intentionally unused for naming purposes; it remains a parameter because
+     * the caller resolves it from the current export request, not because it contributes to
+     * the filename.
+     */
+    internal fun buildDisplayName(config: VideoRenderConfig, sessionDir: File): String {
+        val exportTimestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val modeSuffix = when (config.videoMode) {
             VideoMode.COMPARE_SLIDER -> "compare_slider"
             VideoMode.BEFORE_AFTER -> "before_after"
             VideoMode.FLASH -> "flash"
         }
-        return "SameView_${sessionId}_${modeSuffix}.mp4"
+        return "SameView_${exportTimestamp}_${modeSuffix}.mp4"
     }
 
     /**

@@ -880,12 +880,30 @@ Video is written to `MediaStore.Video.Media` with:
 
 ```
 RELATIVE_PATH = Movies/SameView
-DISPLAY_NAME  = SameView_<sessionId>_<mode>.mp4
+DISPLAY_NAME  = SameView_<exportTimestamp>_<mode>.mp4
 MIME_TYPE     = video/mp4
 IS_PENDING    = 1
 ```
 
-Where `<mode>` is `compare_slider`, `before_after`, or `flash`.
+Where `<mode>` is `compare_slider`, `before_after`, or `flash`, and `<exportTimestamp>` is the
+time of the export itself (`yyyyMMdd_HHmmss`, e.g. `20260709_154522`) — **not** the session's
+original capture timestamp.
+
+**Filename basis (updated 2026-07-09):** The filename is based on the export timestamp, not on
+the session directory name (which encodes the session's historical capture date/time). This is
+a deliberate decision, made consistent with `SHARE_COMPARISON_IMAGE_V1.md §27`'s image export
+naming:
+
+- The filename describes when the export happened, not when the underlying comparison was
+  originally captured
+- A user who chooses not to enable the on-video title/date/location overlay (`VideoRenderConfig.overlay = null`,
+  the default) no longer has the capture date disclosed through a second, unrelated channel —
+  the exported filename
+- Repeated exports of the same session automatically receive distinct filenames, since each
+  export captures a fresh timestamp — no reliance on MediaStore's automatic `(1)` suffixing for
+  uniqueness
+- No change to session IDs, `metadata.json`, session storage, or the internal `sessions/<id>/`
+  directory — only the MediaStore `DISPLAY_NAME` of the *exported* MP4 file is affected
 
 ### 18.2 IS_PENDING Lifecycle
 
@@ -1198,7 +1216,7 @@ This rule applies to all new string resources in this feature and supersedes any
 
 | Key | Usage |
 |---|---|
-| `create_video_filename` | MediaStore display name: `"SameView_%1$s_%2$s.mp4"` (sessionId, mode) |
+| `create_video_filename` | MediaStore display name: `"SameView_%1$s_%2$s.mp4"` (exportTimestamp, mode) — see §18.1 |
 
 Key names follow the project's existing naming convention. No second naming system is introduced.
 
