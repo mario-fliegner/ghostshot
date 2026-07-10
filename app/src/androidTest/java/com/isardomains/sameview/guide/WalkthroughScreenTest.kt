@@ -415,33 +415,20 @@ class WalkthroughScreenTest {
 
     // ── Root outer padding gutter (root-level gesture host boundary) ────────────
     //
-    // On the real instrumentation device (SM-S911B, 360dp portrait / 780dp landscape available
-    // width), walkthrough_content's 420dp/880dp width cap can never bind — the physical screen
-    // is narrower than the cap plus the root Box's own horizontal padding in both orientations
-    // (confirmed by measurement: content fills the padded area edge-to-edge, margin = padding
-    // only). A Box(Modifier.size(700.dp, 900.dp)) test wrapper cannot force a wider virtual
-    // window either: Modifier.size() coerces to the incoming constraints of the real Activity
-    // window and cannot exceed the physical display, so the wrapper measured at exactly the
-    // device's native resolution regardless of the requested size (verified via boundsInRoot
-    // logging: root == 1080x2340px, the S23's real resolution, not 700x900dp).
+    // .scrollable() now sits before .padding(horizontal = 24dp, vertical = 16dp) in the root
+    // Box's modifier chain (see WalkthroughScreen.kt), so its pointer-input region covers the
+    // full safe-drawing area, including the 24dp/16dp layout padding gutter that was previously
+    // excluded. These tests prove that: a swipe starting in the left or right 24dp margin now
+    // changes the page, in both orientations, while a plain tap in the same region still does
+    // not (below the drag/fling threshold), and first/last-page boundaries remain enforced by
+    // PagerState even when the gesture now genuinely reaches the handler from inside the margin.
     //
-    // Consequently, the specific scenario this task's Scope Confirmation targeted — a swipeable
-    // margin caused by walkthrough_content's width cap — is not reproducible via
-    // connectedDebugAndroidTest on this hardware; it only occurs on tablets, foldables, or
-    // windowed/desktop targets wider than 468dp (portrait) / 928dp (landscape). That gap is
-    // reported in the Abschlussbericht rather than silently glossed over.
-    //
-    // What IS real and provable on this device: the root Box's own .padding(horizontal = 24dp,
-    // vertical = 16dp) is applied BEFORE .scrollable() in the modifier chain (see
-    // WalkthroughScreen.kt), so .scrollable()'s pointer-input region is the padded interior —
-    // it deliberately does not extend into that outer padding gutter. These tests verify that
-    // boundary: gestures starting in the root's outer padding do not change the page, in both
-    // orientations, at both page-sequence boundaries, for both tap and drag. This guards against
-    // a future modifier-order regression accidentally consuming touches in the decorative
-    // padding, without overclaiming coverage of the width-cap scenario.
+    // Real portrait/landscape devices are frequently narrower than 420dp/880dp, so
+    // walkthrough_content is not width-capped here — the measured "margin" below is exactly the
+    // root Box's own 24dp/16dp padding, which is what this task's fix targets.
 
     @Test
-    fun swipeInLeftRootPaddingDoesNotChangePage() {
+    fun swipeInLeftRootPaddingAdvancesToNextPage() {
         setWalkthroughContent(
             windowWidthSizeClass = WindowWidthSizeClass.Compact,
             containerWidth = 700.dp,
@@ -465,23 +452,23 @@ class WalkthroughScreenTest {
         assertTrue("Start point must fall within root bounds", startX > rootBounds.left)
         assertTrue(
             "Start point must fall outside walkthrough_content — this test targets exactly the " +
-                "root Box's own outer padding gutter, not the (on this device unreachable) " +
-                "content-cap margin",
+                "root Box's own 24dp left padding gutter",
             startX < contentBounds.left
         )
 
-        // Leftward drag (decreasing X) would advance to the next page if it registered at all.
+        // Leftward drag (decreasing X) advances to the next page, matching reverseDirection =
+        // true — the same convention already proven by the existing pager-based swipe tests.
         val endX = startX - rootBounds.width * 0.3f
 
         dragHorizontally(startX, endX, y, targetTag = "walkthrough_screen_root")
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_then_and_now_title))
+        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_align_overlay_title))
             .assertIsDisplayed()
     }
 
     @Test
-    fun swipeInRightRootPaddingDoesNotChangePage() {
+    fun swipeInRightRootPaddingAdvancesToNextPage() {
         setWalkthroughContent(
             windowWidthSizeClass = WindowWidthSizeClass.Compact,
             containerWidth = 700.dp,
@@ -502,15 +489,32 @@ class WalkthroughScreenTest {
         assertTrue("Start point must fall within root bounds", startX < rootBounds.right)
         assertTrue(
             "Start point must fall outside walkthrough_content — this test targets exactly the " +
-                "root Box's own outer padding gutter, not the (on this device unreachable) " +
-                "content-cap margin",
+                "root Box's own 24dp right padding gutter",
             startX > contentBounds.right
         )
 
-        // Leftward drag (decreasing X) would advance to the next page if it registered at all.
+        // Leftward drag (decreasing X) advances to the next page; distance is large enough to
+        // cross the whole content area and PagerState's fling threshold.
         val endX = startX - rootBounds.width * 0.5f
 
         dragHorizontally(startX, endX, y, targetTag = "walkthrough_screen_root")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_align_overlay_title))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun tapInMiddleDoesNotChangePage() {
+        setWalkthroughContent()
+
+        // center is TouchInjectionScope's own node-local center — no manual root/local
+        // coordinate conversion needed here (unlike the padding-gutter tests, which must target
+        // walkthrough_screen_root explicitly and therefore compute their own local offsets).
+        composeRule.onNodeWithTag("walkthrough_pager").performTouchInput {
+            down(center)
+            up()
+        }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_then_and_now_title))
@@ -585,7 +589,7 @@ class WalkthroughScreenTest {
     }
 
     @Test
-    fun swipeInLeftRootPaddingInLandscapeDoesNotChangePage() {
+    fun swipeInLeftRootPaddingInLandscapeAdvancesToNextPage() {
         setWalkthroughContent(
             windowWidthSizeClass = WindowWidthSizeClass.Expanded,
             containerWidth = 1200.dp,
@@ -611,12 +615,12 @@ class WalkthroughScreenTest {
         dragHorizontally(startX, endX, y, targetTag = "walkthrough_screen_root")
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_then_and_now_title))
+        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_align_overlay_title))
             .assertIsDisplayed()
     }
 
     @Test
-    fun swipeInRightRootPaddingInLandscapeDoesNotChangePage() {
+    fun swipeInRightRootPaddingInLandscapeAdvancesToNextPage() {
         setWalkthroughContent(
             windowWidthSizeClass = WindowWidthSizeClass.Expanded,
             containerWidth = 1200.dp,
@@ -637,17 +641,22 @@ class WalkthroughScreenTest {
         assertTrue("Start point must fall within root bounds", startX < rootBounds.right)
         assertTrue("Start point must fall outside walkthrough_content", startX > contentBounds.right)
 
-        val endX = startX - rootBounds.width * 0.5f
+        // Landscape's two-column pager is much narrower (shares width with the text column)
+        // than the portrait pager, so the 0.5x-rootWidth distance used by the portrait/wide
+        // variant would overshoot a full page width here and skip past page 2 directly to
+        // page 3 (confirmed via semantics tree dump during diagnosis). 0.3x matches the
+        // left-margin landscape test's already-proven distance.
+        val endX = startX - rootBounds.width * 0.3f
 
         dragHorizontally(startX, endX, y, targetTag = "walkthrough_screen_root")
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_then_and_now_title))
+        composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_align_overlay_title))
             .assertIsDisplayed()
     }
 
     @Test
-    fun swipeInRootPaddingOnPage1DoesNotChangePage() {
+    fun swipeInRootPaddingOnPage1DoesNotGoBeforePage1() {
         setWalkthroughContent(
             windowWidthSizeClass = WindowWidthSizeClass.Compact,
             containerWidth = 700.dp,
@@ -667,8 +676,10 @@ class WalkthroughScreenTest {
         val y = rootBounds.top + rootBounds.height * 0.5f
         assertTrue("Start point must fall outside walkthrough_content", startX < contentBounds.left)
 
-        // Rightward drag (increasing X) would request the previous page if it registered at all
-        // — doubly guarded here since page 1 has no previous page either way.
+        // Rightward drag (increasing X) requests the previous page — this now genuinely reaches
+        // .scrollable() (the padding gutter is no longer excluded), so this test proves the
+        // page-1 boundary is enforced by PagerState, not by the previous architecture's
+        // incidental gesture-handler exclusion.
         val endX = startX + rootBounds.width * 0.3f
 
         dragHorizontally(startX, endX, y, targetTag = "walkthrough_screen_root")
@@ -679,7 +690,7 @@ class WalkthroughScreenTest {
     }
 
     @Test
-    fun swipeInRootPaddingOnPage4DoesNotChangePage() {
+    fun swipeInRootPaddingOnPage4DoesNotAdvancePastPage4() {
         setWalkthroughContent(
             windowWidthSizeClass = WindowWidthSizeClass.Compact,
             containerWidth = 700.dp,
@@ -706,8 +717,8 @@ class WalkthroughScreenTest {
         val y = rootBounds.top + rootBounds.height * 0.5f
         assertTrue("Start point must fall outside walkthrough_content", startX > contentBounds.right)
 
-        // Leftward drag (decreasing X) would request the next page if it registered at all —
-        // doubly guarded here since page 4 has no next page either way.
+        // Leftward drag (decreasing X) requests the next page — genuinely reaches .scrollable()
+        // now, so this proves the page-4 boundary is enforced by PagerState, not by exclusion.
         val endX = startX - rootBounds.width * 0.5f
 
         dragHorizontally(startX, endX, y, targetTag = "walkthrough_screen_root")

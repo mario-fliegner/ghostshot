@@ -65,21 +65,22 @@ fun WalkthroughScreen(
     ) {
         // safeDrawingPadding keeps content clear of status bars, navigation bars, and display
         // cutouts in both portrait and landscape, including reverse-landscape on 3-button nav.
-        // The horizontal swipe gesture lives here — on the full padded/safe-area root area —
-        // rather than on the width-capped walkthrough_content column below, so the entire
-        // visible page (including the side margins beside the centered, width-capped content)
-        // is swipeable, not just the content column itself.
+        // .scrollable() is placed before .padding() so its pointer-input region covers the full
+        // safe-drawing area, including the 24dp/16dp layout padding gutter — the entire visible
+        // page is swipeable, with only real system areas outside safeDrawingPadding() excluded.
+        // .padding() still applies to the Box's children below (contentAlignment = Center), so
+        // visual positions and the 24dp/16dp inset are unchanged.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
                 .scrollable(
                     orientation = Orientation.Horizontal,
                     state = pagerState,
                     flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
                     reverseDirection = true
-                ),
+                )
+                .padding(horizontal = 24.dp, vertical = 16.dp),
             contentAlignment = Alignment.Center
         ) {
             // Text and controls are outside the pager so only one instance is ever composed at a
