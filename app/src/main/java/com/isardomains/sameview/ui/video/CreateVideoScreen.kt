@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,8 +62,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.settings.SameViewSegmentControl
@@ -504,12 +508,23 @@ private fun RenderingContent(
 /**
  * Preview state: auto-playing, looping, muted Media3 ExoPlayer with Share/Delete/Done actions.
  *
+ * The player area is a `weight(1f)` region measured *after* the Actions column has already
+ * claimed its true natural height (Actions remain a non-weighted sibling, unchanged) — so the
+ * area this composable has to work with is already a safe, exact remainder, never an estimate.
+ * Within that safe remainder, a format-correct player card is sized (same 62%-height-cap
+ * principle as [RenderingContent]'s loading card) and centered, rather than stretching the
+ * player to fill the whole remainder — this aligns the finished-preview layout language with
+ * the rendering-preview layout language.
+ *
  * Player lifecycle is tied to composition via [DisposableEffect] — released on exit.
  * Rotation is safe: [state.videoUri] lives in ViewModel and survives configuration change.
+ *
+ * Internal (not private) so [CreateVideoScreenTest] can compose it directly without driving
+ * the full Hilt-backed [CreateVideoViewModel] state machine into the Preview state.
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun PreviewContent(
+internal fun PreviewContent(
     state: CreateVideoState.Preview,
     onDelete: () -> Unit,
     onDone: () -> Unit,
@@ -544,6 +559,11 @@ private fun PreviewContent(
         ExoPlayer.Builder(context).build()
     }
 
+    // Real aspect ratio of the exported MP4, read from the player once its container
+    // metadata is parsed (see the DisposableEffect below). A neutral fallback is used
+    // until then; a single layout reflow is accepted once the real value is known.
+    var videoAspectRatio by remember { mutableStateOf(4f / 3f) }
+
     LaunchedEffect(state.videoUri) {
         player.setMediaItem(MediaItem.fromUri(state.videoUri))
         player.prepare()
@@ -554,6 +574,24 @@ private fun PreviewContent(
 
     DisposableEffect(Unit) {
         onDispose { player.release() }
+    }
+
+    // Separate from the release effect above (left untouched) so listener cleanup always
+    // runs before release, regardless of effect ordering.
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                if (videoSize.width > 0 && videoSize.height > 0) {
+                    val rotated = videoSize.unappliedRotationDegrees == 90 ||
+                        videoSize.unappliedRotationDegrees == 270
+                    val width = if (rotated) videoSize.height else videoSize.width
+                    val height = if (rotated) videoSize.width else videoSize.height
+                    videoAspectRatio = width.toFloat() / height.toFloat()
+                }
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -574,22 +612,53 @@ private fun PreviewContent(
                         .fillMaxHeight()
                 }
             ) {
-                // Video player occupies all remaining space above the buttons
-                AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            useController = false
-                        }
-                    },
-                    update = { playerView ->
-                        playerView.player = player
-                    },
+                // Player area: weighted, so Actions below still get their true natural
+                // height first (unchanged). The player itself no longer stretches to fill
+                // this area — a format-correct card is centered within it instead.
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                )
+                        .testTag("create_video_preview_player_area"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // BoxWithConstraints reads the true, already-safe remaining area — Actions
+                    // were already reserved by the Column's weight mechanism above, so no
+                    // Actions height is estimated or subtracted here.
+                    BoxWithConstraints {
+                        // Same visual height-cap principle as RenderingContent's loading card
+                        // (§7.4 mode preview / §7.5 alignment), calibrated differently: this
+                        // maxHeight is already the safe remainder after Actions' true height
+                        // was reserved by the weight(1f) mechanism above, whereas Rendering's
+                        // 62% applies to the full content area. Applying 62% again here would
+                        // shrink the card a second time — 90% is the correct calibration for
+                        // this already-reduced base. Purely a visual size limit for centering,
+                        // not a stand-in for a measured Actions height.
+                        val maxCardHeight = maxHeight * 0.90f
+                        val cardHeightFromWidth = maxWidth / videoAspectRatio
+                        val effectiveCardHeight = cardHeightFromWidth.coerceAtMost(maxCardHeight)
+                        val effectiveCardWidth = (effectiveCardHeight * videoAspectRatio)
+                            .coerceAtMost(maxWidth)
 
-                // Action buttons at the bottom
+                        AndroidView(
+                            factory = { ctx ->
+                                PlayerView(ctx).apply {
+                                    useController = false
+                                    // Explicit FIT so no future default change can silently crop.
+                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                }
+                            },
+                            update = { playerView ->
+                                playerView.player = player
+                            },
+                            modifier = Modifier
+                                .size(width = effectiveCardWidth, height = effectiveCardHeight)
+                                .testTag("create_video_preview_player_card")
+                        )
+                    }
+                }
+
+                // Action buttons at the bottom — structurally unchanged.
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -609,14 +678,18 @@ private fun PreviewContent(
                         },
                         shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.buttonColors(contentColor = Color.White),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("create_video_action_share")
                     ) {
                         Text(stringResource(R.string.create_video_action_share))
                     }
                     // Secondary action — full-width outlined, clearly below Share in hierarchy
                     OutlinedButton(
                         onClick = onDone,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("create_video_action_done")
                     ) {
                         Text(stringResource(R.string.create_video_action_done))
                     }
@@ -625,7 +698,10 @@ private fun PreviewContent(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterEnd
                     ) {
-                        TextButton(onClick = { showDeleteDialog = true }) {
+                        TextButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.testTag("create_video_action_delete")
+                        ) {
                             Text(stringResource(R.string.create_video_action_delete))
                         }
                     }

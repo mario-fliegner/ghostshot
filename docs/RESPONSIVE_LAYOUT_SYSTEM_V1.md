@@ -373,18 +373,13 @@ No action required.
 **Governing spec:** `VIDEO_EXPORT_V1.md`
 
 **Compact behavior:**
-ExoPlayer fills available width, respects aspect ratio. Existing behavior. No change.
+A format-correct player card (not a full-bleed player) is centered — horizontally and vertically — within the area remaining after the Share / Done / Delete Video actions have already claimed their true natural height. The card's maximum height follows a 90%-of-available-height visual cap applied to that already-reduced remaining area (a different calibration than the Rendering-state loading card's 62% cap on the full content area — see `VIDEO_EXPORT_V1.md §7.5`); at short available heights, only the card shrinks — Actions are never resized or crowded out, since they are measured and reserved first, independently of the card. See Addendum §A9 and §A10.
 
 **Medium behavior:**
-ExoPlayer fills available width, respects aspect ratio. No change.
+Same as Compact — full available width, format-correct centered card, Actions always fully visible. See Addendum §A9 and §A10.
 
 **Expanded behavior:**
-Without intervention, the ExoPlayer container expands to full screen width on a tablet. On a wide landscape tablet, a portrait or square-format exported video would appear with very large letter-boxing bars, and the Share / Done / Delete Video actions would be spread across the full width below the video.
-
-Block 5 addresses this by:
-- Bounding the video player container by a max-width constraint (exact value to be determined in Block 5 based on video aspect ratio considerations)
-- Centering the player horizontally
-- Keeping the Share / Done / Delete Video action buttons grouped below the player, not stretched to full screen width
+Same card sizing and centering rule as Compact/Medium, additionally bounded by the existing 800 dp max-width container (Addendum §A6). This avoids both full-width letterboxing bars on wide tablets and a top-anchored, unbalanced appearance for narrower (e.g. portrait-format) exported videos. No new tablet-specific structure and no two-column layout are introduced.
 
 **Wide Layout allowed:**
 No. Side-by-side player and actions layout is not part of the current responsive architecture.
@@ -393,7 +388,7 @@ No. Side-by-side player and actions layout is not part of the current responsive
 Yes.
 
 **Action:**
-Block 5. Separate from Block 3 because the ExoPlayer aspect ratio and action-button placement require independent analysis.
+Block 5 (Addendum §A6) plus the card sizing/centering refinement in Addendum §A9. `RenderingContent` and `ConfiguringContent` are unaffected by either.
 
 ---
 
@@ -906,3 +901,31 @@ Guide main screen responsive behavior now follows `WindowWidthSizeClass` exclusi
 This addendum does not record implementation. Guide main screen responsive behavior is specified but not yet scheduled or implemented — see §7.10.
 
 **Out of scope for this addendum:** `FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §19's "Guide detail screens" and "Walkthrough" subsections still use phone/tablet-orientation terminology and are not addressed here. Guide detail screens and Walkthrough were not part of the Guide Main Screen review that produced this amendment. A future amendment would be required to bring those subsections under this document's `WindowWidthSizeClass` model.
+
+---
+
+### A9. CreateVideoScreen Preview State — Format-Correct Centered Card (2026-07-10)
+
+Following feedback that the finished-video preview appeared visually unlike the Rendering-state loading preview (full-bleed player starting directly under the TopAppBar, versus a smaller, centered card during rendering), `CreateVideoScreen` Preview State (§7.7) received a card-sizing and centering refinement on top of the Block 5 800 dp max-width constraint (§A6). A prior attempt at this same goal (a fixed `PREVIEW_ACTIONS_RESERVED_HEIGHT` estimate of the Actions block's height) was found to be unreliable on real devices and was fully rolled back before this refinement was designed; this addendum supersedes that rolled-back attempt, not §A6.
+
+- The player area remains a `weight(1f)` region of the existing `Column`, measured *after* the Share/Done/Delete Actions column (an unchanged, non-weighted sibling) has already claimed its true natural height — Actions are never estimated, and can never be crowded out, because their reservation is completely independent of anything that happens inside the player area.
+- Within that already-safe player area, the player is no longer stretched to fill it. A `BoxWithConstraints` reads the true (already-safe) remaining width/height, and a format-correct card is sized against it using the same 62%-of-available-height visual cap principle as `RenderingContent`'s loading card (§7.6) — a visual size limit for centering, not a stand-in for a measured Actions height.
+- The card's aspect ratio is the exported MP4's real aspect ratio, read via `Player.Listener.onVideoSizeChanged` on the existing `ExoPlayer` instance — not from the wizard's selected export format or session viewport ratio, and without extending `CreateVideoState.Preview` or touching `CreateVideoViewModel`. A neutral `4f / 3f` fallback is used until the real size is known; a single layout reflow is accepted once it is.
+- `PlayerView.resizeMode` is set explicitly to `AspectRatioFrameLayout.RESIZE_MODE_FIT`, so no future default-behavior change can silently introduce cropping.
+- No fixed top spacer or device-specific offset is used anywhere in this refinement — the visible gap above the card is a consequence of the card's height cap and its centering within the already-safe player area.
+- Applies uniformly to Compact, Medium, and Expanded; the existing 800 dp Expanded width cap (§A6) is unchanged and composes with this refinement.
+- No changes to the Configuring state, the Rendering state, `CreateVideoViewModel`, the export pipeline, encoder, or MediaStore behavior.
+
+**Status:** Implemented 2026-07-10.
+
+---
+
+### A10. Finished-Preview Card Height Cap Corrected to 90% (2026-07-10)
+
+Real-device validation of §A9 showed that applying the Rendering-state's 62% cap again to the already-reduced Finished-Preview player area made the final preview substantially smaller than the Rendering preview — the same proportional cap was being applied twice to two different-sized bases (§A9's player area is already the remainder *after* Actions reservation, not the full content area §7.6's 62% assumes).
+
+- Finished Preview's card height cap changed from 62% to **90%** of its own safe, already actions-reduced weighted player area.
+- Actions reservation, the `weight(1f)` mechanism, and all other responsive safety guarantees described in §A9 remain unchanged.
+- No other layout change: no new spacer, no new percentage elsewhere, no change to `RenderingContent`, `ConfiguringContent`, the ViewModel, the state machine, or the export pipeline.
+
+**Status:** Implemented 2026-07-10.

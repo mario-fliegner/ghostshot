@@ -316,9 +316,23 @@ TopAppBar:  ← Back   "Video Created"
 `[Delete Video]`: shows a confirmation dialog before deleting. On confirmation: deletes video from MediaStore, returns to `Configuring` state.
 `[Done]` / Back: video remains saved, `CreateVideoScreen` closes. Back behaves identically to Done.
 
+**Video preview card (Compact, Medium, and Expanded):**
+
+The finished-video preview uses a format-correct player card rather than a full-bleed player, aligning its layout language with the Rendering-state loading preview (§7.4). The card's maximum height follows a 90%-of-available-height visual cap; both card dimensions are additionally bounded by the available width. The card's aspect ratio is the *actual* aspect ratio of the exported MP4, read directly from the player once its container metadata is parsed — not from the wizard's selected export format or the session's viewport ratio. Player playback remains `RESIZE_MODE_FIT`: the full video frame is always shown, never cropped.
+
+Both the Rendering-state loading card and the Finished-Preview card use the same *proportional height-cap principle*, but with deliberately different calibrations because they apply to different reference areas: the Rendering state's 62% cap (§7.4) applies to the full available content area below the TopAppBar. The Finished-Preview state's 90% cap applies to the player area that already remains *after* the Share / Done / Delete Video actions have claimed their own natural height — a smaller base than Rendering's. Applying Rendering's 62% figure to this already-reduced base would shrink the card a second time; 90% is the calibration that corresponds to the same visual intent on this smaller base.
+
+The card is centered — horizontally and vertically — within the area that remains after the Share / Done / Delete Video actions have already claimed their own, unestimated natural height. The actions are measured and reserved first; the card only ever uses what remains, so the actions can never be crowded out or resized to accommodate the card. No fixed top spacer or device-specific vertical offset is used — the visible gap above the card is a consequence of the card's height cap and its centering within the remaining area, not an added spacer.
+
+This card sizing and centering rule applies uniformly across Compact, Medium, and Expanded. It is additive to — not a replacement for — the Expanded max-width constraint below.
+
 **Expanded layout (≥ 840 dp):**
 
-On `WindowWidthSizeClass.Expanded`, the video player and all three action buttons are placed together in a centered max-width container (800 dp). The TopAppBar remains full-width. Compact and Medium behavior is unchanged. Navigation, Share flow, Delete flow, and playback behavior are unaffected by this layout constraint.
+On `WindowWidthSizeClass.Expanded`, the video player area and all three action buttons are placed together in a centered max-width container (800 dp). The TopAppBar remains full-width. The 800 dp width constraint applies to Expanded only; Compact and Medium retain full available width. Navigation, Share flow, Delete flow, and playback behavior are unaffected by this layout constraint.
+
+**Scope of this update:**
+
+The card sizing and centering rule above governs the Preview state only. The Configuring state (§7.3) and the Rendering state (§7.4) are unaffected and unchanged.
 
 ### 7.6 Wizard State Persistence
 
