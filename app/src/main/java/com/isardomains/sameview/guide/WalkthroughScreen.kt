@@ -98,6 +98,12 @@ fun WalkthroughScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
+                            .scrollable(
+                                orientation = Orientation.Horizontal,
+                                state = pagerState,
+                                flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
+                                reverseDirection = true
+                            )
                             .testTag("walkthrough_two_column_layout"),
                         horizontalArrangement = Arrangement.spacedBy(40.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -120,13 +126,7 @@ fun WalkthroughScreen(
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight()
-                                .scrollable(
-                                    orientation = Orientation.Horizontal,
-                                    state = pagerState,
-                                    flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
-                                    reverseDirection = true
-                                ),
+                                .fillMaxHeight(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             // Text slot: weight(1f) is the only region that absorbs
@@ -166,6 +166,12 @@ fun WalkthroughScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
+                            .scrollable(
+                                orientation = Orientation.Horizontal,
+                                state = pagerState,
+                                flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
+                                reverseDirection = true
+                            )
                             .testTag("walkthrough_single_column_layout"),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -198,13 +204,7 @@ fun WalkthroughScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f)
-                                .scrollable(
-                                    orientation = Orientation.Horizontal,
-                                    state = pagerState,
-                                    flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
-                                    reverseDirection = true
-                                ),
+                                .weight(1f),
                             contentAlignment = Alignment.TopCenter
                         ) {
                             WalkthroughTextSlot(page = currentPage)
