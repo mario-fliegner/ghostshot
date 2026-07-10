@@ -155,6 +155,8 @@ SameView screens are focused, single-purpose screens. The app's "calm and minima
 
 Side-panels are not planned and not implicitly scheduled. If a future screen were ever to require a side-panel evaluation, that would require a separate analysis, an explicit product decision, and an amendment to this document. Side-panel adoption is not a natural consequence of implementing this responsive system.
 
+**Narrow exception (2026-07-10):** `CreateVideoScreen`'s Finished Preview state uses a side-by-side Row (video player left, Share/Done/Delete Video actions column right) exclusively on `WindowWidthSizeClass.Medium` with short locally available height. This exception applies only to this one screen, this one state, and this one width/height combination — it does not extend to any other screen, state, or width class, and it does not constitute a general side-panel allowance. See §7.7 for the exact condition and geometry, and Addendum §A11 for the product decision record.
+
 ### 5.4 Navigation Structure Does Not Change with Width
 
 SameView uses a single-activity, Navigation Compose architecture with a flat navigation graph.
@@ -375,20 +377,25 @@ No action required.
 **Compact behavior:**
 A format-correct player card (not a full-bleed player) is centered — horizontally and vertically — within the area remaining after the Share / Done / Delete Video actions have already claimed their true natural height. The card's maximum height follows a 90%-of-available-height visual cap applied to that already-reduced remaining area (a different calibration than the Rendering-state loading card's 62% cap on the full content area — see `VIDEO_EXPORT_V1.md §7.5`); at short available heights, only the card shrinks — Actions are never resized or crowded out, since they are measured and reserved first, independently of the card. See Addendum §A9 and §A10.
 
-**Medium behavior:**
+**Medium behavior — sufficient height:**
 Same as Compact — full available width, format-correct centered card, Actions always fully visible. See Addendum §A9 and §A10.
 
+**Medium behavior — short height:**
+When the locally available height (read via `BoxWithConstraints`, not `LocalConfiguration.orientation` and not device detection) is below **420 dp**, the vertical stack is replaced by a side-by-side Row. The player uses its actual, aspect-ratio-derived width — not `weight(1f)` — so the player and the Actions column form one compact shared content group instead of two independently-sized zones; the shared group as a whole is centered (horizontally and vertically) in the available area, with Actions remaining to the right of the player. The player area still spans the full Row height (so the card can be vertically centered within it), and the Actions column remains fixed at **220 dp** wide, natural height, vertically centered in the Row via `Alignment.CenterVertically`. Actions keep their existing order (Share, Done, Delete Video), callbacks, and semantics — only the surrounding column width changes from full-screen to 220 dp. The player card computation is unchanged (90%-of-available-height cap, §7.5), just applied to the Row's height instead of the stack's remainder. This is a narrowly-scoped exception to §5.3 — see that section and Addendum §A11 (original Row implementation) and §A12 (compact shared-group geometry correction).
+
+The 420 dp threshold and 220 dp Actions-column width are specific to this screen and state; they do not reuse or alter §4.2's `CompactHeight` breakpoint (which remains reserved for a future, separately-amended `CameraScreen` decision) and do not change §4.1's width breakpoints.
+
 **Expanded behavior:**
-Same card sizing and centering rule as Compact/Medium, additionally bounded by the existing 800 dp max-width container (Addendum §A6). This avoids both full-width letterboxing bars on wide tablets and a top-anchored, unbalanced appearance for narrower (e.g. portrait-format) exported videos. No new tablet-specific structure and no two-column layout are introduced.
+Same card sizing and centering rule as Compact/Medium, additionally bounded by the existing 800 dp max-width container (Addendum §A6). This avoids both full-width letterboxing bars on wide tablets and a top-anchored, unbalanced appearance for narrower (e.g. portrait-format) exported videos. No new tablet-specific structure and no two-column layout are introduced. The Medium short-height Row does not apply to Expanded.
 
 **Wide Layout allowed:**
-No. Side-by-side player and actions layout is not part of the current responsive architecture.
+No, with one narrow, named exception: the Medium short-height Row described above. This does not constitute a general side-by-side layout allowance for this screen or any other — see §5.3.
 
 **Max-Width sufficient:**
-Yes.
+Yes, for Compact, Medium with sufficient height, and Expanded. Not sufficient on its own for Medium with short height, which is why the Row exception exists.
 
 **Action:**
-Block 5 (Addendum §A6) plus the card sizing/centering refinement in Addendum §A9. `RenderingContent` and `ConfiguringContent` are unaffected by either.
+Block 5 (Addendum §A6), the card sizing/centering refinement in Addendum §A9 (corrected in §A10), and the Medium short-height Row in Addendum §A11 (geometry corrected in §A12). `RenderingContent` and `ConfiguringContent` are unaffected by any of these.
 
 ---
 
@@ -927,5 +934,34 @@ Real-device validation of §A9 showed that applying the Rendering-state's 62% ca
 - Finished Preview's card height cap changed from 62% to **90%** of its own safe, already actions-reduced weighted player area.
 - Actions reservation, the `weight(1f)` mechanism, and all other responsive safety guarantees described in §A9 remain unchanged.
 - No other layout change: no new spacer, no new percentage elsewhere, no change to `RenderingContent`, `ConfiguringContent`, the ViewModel, the state machine, or the export pipeline.
+
+**Status:** Implemented 2026-07-10.
+
+---
+
+### A11. Finished-Preview Medium Short-Height Row Layout (2026-07-10)
+
+Real-device validation (Samsung Galaxy S23, landscape) showed that even after §A10's 90% correction, the vertical-stack layout could not be fixed by calibration alone on `WindowWidthSizeClass.Medium` windows with short available height: the Actions column has a fixed, orientation-independent natural height, so on a short window it consumes a disproportionate share of a much smaller total, leaving only a sliver for the player — while the window's ample width went unused. Root-cause analysis proved this mathematically (any percentage cap on `totalHeight − fixedActionsHeight` degrades toward zero as `totalHeight` shrinks toward `fixedActionsHeight`) and concluded no calibration change could resolve it; a structural change was required.
+
+- On `WindowWidthSizeClass.Medium` with locally available height below **420 dp** (read via `BoxWithConstraints`, not orientation or device detection), `PreviewContent` uses a `Row` instead of the vertical `Column` stack: player area left (`weight(1f)`, full Row height), Actions column right (fixed **220 dp** wide, natural height, `Alignment.CenterVertically`).
+- Compact, Medium with sufficient height, and Expanded are unaffected — they keep the exact vertical-stack code path described in §A9/§A10, unchanged.
+- The player card computation (90% height cap, real aspect ratio, `RESIZE_MODE_FIT`, `Player.Listener`) is unchanged — only the reference area it operates on changes for this one branch (Row height instead of Column remainder).
+- Actions keep their existing order, callbacks, test tags, and confirmation-dialog behavior; only the surrounding column's width changes from full-screen to 220 dp (chosen so the longest existing button labels in English and German — "Delete video" / "Video löschen" — render on one line without wrapping or ellipsizing).
+- This is a narrowly-scoped exception to §5.3 ("No Side-Panel Layouts"), limited to `CreateVideoScreen`'s Finished Preview state, Medium width, and short height only. It does not generalize to other screens, states, or width classes, and does not alter §4.1's width breakpoints or §4.2's `CompactHeight` (which remains reserved for a separate, future `CameraScreen` decision).
+- No changes to `RenderingContent`, `ConfiguringContent`, `CreateVideoViewModel`, the state machine, navigation, the export pipeline, `Player.Listener` behavior, Autoplay/Loop/Mute, or `RESIZE_MODE_FIT`.
+
+**Status:** Implemented 2026-07-10.
+
+---
+
+### A12. Finished-Preview Medium Short-Height Row Geometry Corrected (2026-07-10)
+
+Real-device smoke testing of §A11 showed that although the player was no longer undersized, the Row read as two visually disconnected islands: player left, Actions right, with a large dead area between them. Root-cause analysis found the cause was not the Row structure itself but its internal geometry — the player area's `weight(1f)` claimed the entire remaining Row width regardless of the card's actual (much smaller) rendered size, and the card was centered within that artificially inflated zone rather than relative to Actions. This addendum corrects the geometry; it does not revise §A11's decision to use a Row, and does not change the 420 dp threshold or the 220 dp Actions-column width.
+
+- The player area's `weight(1f)` is replaced by an explicit `widthIn(max = availablePlayerWidth)`, where `availablePlayerWidth = (outerMaxWidth − PreviewActionsColumnWidth).coerceAtLeast(0.dp)` — a precise, non-estimated subtraction of the Actions column's own known fixed width (220 dp already includes its internal padding and `navigationBarsPadding()`, since those apply *inside* its fixed outer width), not a guess about anything variable. The player area keeps `fillMaxHeight()`, so the card computation (90% height cap, §7.5) is unaffected and continues to operate on the full Row height.
+- The `Row` no longer `fillMaxSize()`s; without `weight(1f)` forcing it to fill all available width, it wraps to its true content width (card width + Actions width), so player and Actions form one compact group instead of two independently-positioned zones.
+- The outer `BoxWithConstraints` around the Medium/Compact/Expanded branch decision changes `contentAlignment` from `TopCenter` to `Center`, so the now content-sized Row is centered as a whole in the available area. This is shared with the vertical-stack branch (Compact, Medium with sufficient height, Expanded), but has no effect there — that branch's `Column` always `fillMaxHeight()`s and matches the full available width, making either alignment value equivalent; confirmed by the unchanged Compact/Expanded tests remaining green.
+- Actions-column width (220 dp), threshold (420 dp), button order, styles, callbacks, test tags, and touch targets are unchanged.
+- No changes to `RenderingContent`, `ConfiguringContent`, `CreateVideoViewModel`, the state machine, navigation, the export pipeline, `Player.Listener`, Autoplay/Loop/Mute, `RESIZE_MODE_FIT`, or `videoAspectRatio` determination.
 
 **Status:** Implemented 2026-07-10.

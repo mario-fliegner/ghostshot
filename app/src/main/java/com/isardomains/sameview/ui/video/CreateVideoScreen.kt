@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
@@ -506,6 +507,24 @@ private fun RenderingContent(
 // ── Preview ───────────────────────────────────────────────────────────────────
 
 /**
+ * Fixed Actions-column width used only in the Medium-width, short-available-height Row
+ * layout (see [PreviewContent]). Chosen generously enough that the longest existing button
+ * labels in English and German ("Delete video" / "Video löschen") render on a single line
+ * without ellipsizing or wrapping, given `ButtonDefaults.ContentPadding`'s 24dp horizontal
+ * inset plus this column's own 16dp horizontal padding, while still leaving the majority of
+ * a near-600dp Medium window's width to the player.
+ */
+private val PreviewActionsColumnWidth: Dp = 220.dp
+
+/**
+ * Minimum available height (below the TopAppBar) at or above which the Medium-width Row
+ * layout in [PreviewContent] keeps the standard vertical stack instead of switching to a
+ * side-by-side arrangement. See `RESPONSIVE_LAYOUT_SYSTEM_V1.md` §5.3 (narrow exception),
+ * §7.7, and `VIDEO_EXPORT_V1.md` §7.5.
+ */
+private val PreviewMediumShortHeightThreshold: Dp = 420.dp
+
+/**
  * Preview state: auto-playing, looping, muted Media3 ExoPlayer with Share/Delete/Done actions.
  *
  * The player area is a `weight(1f)` region measured *after* the Actions column has already
@@ -515,6 +534,13 @@ private fun RenderingContent(
  * principle as [RenderingContent]'s loading card) and centered, rather than stretching the
  * player to fill the whole remainder — this aligns the finished-preview layout language with
  * the rendering-preview layout language.
+ *
+ * On `WindowWidthSizeClass.Medium` with short available height (below
+ * [PreviewMediumShortHeightThreshold]), the vertical stack is replaced by a side-by-side Row
+ * (player left, Actions column right) so Actions no longer compete with the player for scarce
+ * vertical space. This is a narrowly-scoped exception to `RESPONSIVE_LAYOUT_SYSTEM_V1.md`
+ * §5.3, limited to this screen, this state, Medium width, and short height only. Compact,
+ * Medium with sufficient height, and Expanded are unaffected.
  *
  * Player lifecycle is tied to composition via [DisposableEffect] — released on exit.
  * Rotation is safe: [state.videoUri] lives in ViewModel and survives configuration change.
@@ -595,114 +621,224 @@ internal fun PreviewContent(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            contentAlignment = Alignment.TopCenter
+            // Center (not TopCenter): needed so the Medium short-height Row below — which no
+            // longer fillMaxSize()s — is centered as a compact group. Harmless for the vertical
+            // stack branch, whose Column always fillMaxHeight()s regardless of alignment.
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) {
-                    Modifier
-                        .widthIn(max = 800.dp)
-                        .fillMaxHeight()
-                } else {
-                    Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                }
-            ) {
-                // Player area: weighted, so Actions below still get their true natural
-                // height first (unchanged). The player itself no longer stretches to fill
-                // this area — a format-correct card is centered within it instead.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .testTag("create_video_preview_player_area"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // BoxWithConstraints reads the true, already-safe remaining area — Actions
-                    // were already reserved by the Column's weight mechanism above, so no
-                    // Actions height is estimated or subtracted here.
-                    BoxWithConstraints {
-                        // Same visual height-cap principle as RenderingContent's loading card
-                        // (§7.4 mode preview / §7.5 alignment), calibrated differently: this
-                        // maxHeight is already the safe remainder after Actions' true height
-                        // was reserved by the weight(1f) mechanism above, whereas Rendering's
-                        // 62% applies to the full content area. Applying 62% again here would
-                        // shrink the card a second time — 90% is the correct calibration for
-                        // this already-reduced base. Purely a visual size limit for centering,
-                        // not a stand-in for a measured Actions height.
-                        val maxCardHeight = maxHeight * 0.90f
-                        val cardHeightFromWidth = maxWidth / videoAspectRatio
-                        val effectiveCardHeight = cardHeightFromWidth.coerceAtMost(maxCardHeight)
-                        val effectiveCardWidth = (effectiveCardHeight * videoAspectRatio)
-                            .coerceAtMost(maxWidth)
+            // Narrow exception to RESPONSIVE_LAYOUT_SYSTEM_V1.md §5.3: Medium width with
+            // short available height switches to a side-by-side Row. No orientation check,
+            // no device detection — purely WindowWidthSizeClass plus a local BoxWithConstraints
+            // height reading, per §5.5.
+            val isMediumShortHeight = windowWidthSizeClass == WindowWidthSizeClass.Medium &&
+                maxHeight < PreviewMediumShortHeightThreshold
 
-                        AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    useController = false
-                                    // Explicit FIT so no future default change can silently crop.
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                }
-                            },
-                            update = { playerView ->
-                                playerView.player = player
-                            },
-                            modifier = Modifier
-                                .size(width = effectiveCardWidth, height = effectiveCardHeight)
-                                .testTag("create_video_preview_player_card")
-                        )
-                    }
-                }
+            if (isMediumShortHeight) {
+                // Player and Actions form one compact group, not two independently-sized
+                // zones: the player's available width is derived explicitly from the known,
+                // fixed Actions-column width (never estimated), so the Row wraps to its true
+                // content width instead of forcing the player into an inflated weight(1f)
+                // zone. coerceAtLeast(0.dp) guards against a negative width in a pathological
+                // configuration; Player + Actions can then never exceed the available width,
+                // since the player's own width is capped by this same subtraction.
+                val availablePlayerWidth = (maxWidth - PreviewActionsColumnWidth).coerceAtLeast(0.dp)
 
-                // Action buttons at the bottom — structurally unchanged.
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Primary action — same visual style as Create Video button
-                    Button(
-                        onClick = {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "video/mp4"
-                                putExtra(Intent.EXTRA_STREAM, state.videoUri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            runCatching { context.startActivity(Intent.createChooser(shareIntent, null)) }
-                        },
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(contentColor = Color.White),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("create_video_action_share")
-                    ) {
-                        Text(stringResource(R.string.create_video_action_share))
-                    }
-                    // Secondary action — full-width outlined, clearly below Share in hierarchy
-                    OutlinedButton(
-                        onClick = onDone,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("create_video_action_done")
-                    ) {
-                        Text(stringResource(R.string.create_video_action_done))
-                    }
-                    // Destructive / tertiary — text-only, right-aligned; tap opens confirmation dialog
+                    // Player area: left, capped at its true available width (not weight(1f)),
+                    // full row height so the card can still be vertically centered within it.
                     Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterEnd
+                        modifier = Modifier
+                            .widthIn(max = availablePlayerWidth)
+                            .fillMaxHeight()
+                            .testTag("create_video_preview_player_area"),
+                        contentAlignment = Alignment.Center
                     ) {
-                        TextButton(
-                            onClick = { showDeleteDialog = true },
-                            modifier = Modifier.testTag("create_video_action_delete")
+                        // Same card-sizing principle as the vertical-stack branch below —
+                        // intentionally duplicated rather than extracted into a shared helper.
+                        BoxWithConstraints {
+                            val maxCardHeight = maxHeight * 0.90f
+                            val cardHeightFromWidth = maxWidth / videoAspectRatio
+                            val effectiveCardHeight = cardHeightFromWidth.coerceAtMost(maxCardHeight)
+                            val effectiveCardWidth = (effectiveCardHeight * videoAspectRatio)
+                                .coerceAtMost(maxWidth)
+
+                            AndroidView(
+                                factory = { ctx ->
+                                    PlayerView(ctx).apply {
+                                        useController = false
+                                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    }
+                                },
+                                update = { playerView ->
+                                    playerView.player = player
+                                },
+                                modifier = Modifier
+                                    .size(width = effectiveCardWidth, height = effectiveCardHeight)
+                                    .testTag("create_video_preview_player_card")
+                            )
+                        }
+                    }
+
+                    // Actions: right, bounded column width, natural height, centered
+                    // vertically by the Row above. Same buttons, order, callbacks, and
+                    // tags as the vertical-stack branch.
+                    Column(
+                        modifier = Modifier
+                            .width(PreviewActionsColumnWidth)
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "video/mp4"
+                                    putExtra(Intent.EXTRA_STREAM, state.videoUri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                runCatching { context.startActivity(Intent.createChooser(shareIntent, null)) }
+                            },
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(contentColor = Color.White),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("create_video_action_share")
                         ) {
-                            Text(stringResource(R.string.create_video_action_delete))
+                            Text(stringResource(R.string.create_video_action_share))
+                        }
+                        OutlinedButton(
+                            onClick = onDone,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("create_video_action_done")
+                        ) {
+                            Text(stringResource(R.string.create_video_action_done))
+                        }
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            TextButton(
+                                onClick = { showDeleteDialog = true },
+                                modifier = Modifier.testTag("create_video_action_delete")
+                            ) {
+                                Text(stringResource(R.string.create_video_action_delete))
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Vertical stack: Compact, Medium with sufficient height, and Expanded.
+                // Unchanged from the prior implementation.
+                Column(
+                    modifier = if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) {
+                        Modifier
+                            .widthIn(max = 800.dp)
+                            .fillMaxHeight()
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight()
+                    }
+                ) {
+                    // Player area: weighted, so Actions below still get their true natural
+                    // height first (unchanged). The player itself no longer stretches to fill
+                    // this area — a format-correct card is centered within it instead.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .testTag("create_video_preview_player_area"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // BoxWithConstraints reads the true, already-safe remaining area — Actions
+                        // were already reserved by the Column's weight mechanism above, so no
+                        // Actions height is estimated or subtracted here.
+                        BoxWithConstraints {
+                            // Same visual height-cap principle as RenderingContent's loading card
+                            // (§7.4 mode preview / §7.5 alignment), calibrated differently: this
+                            // maxHeight is already the safe remainder after Actions' true height
+                            // was reserved by the weight(1f) mechanism above, whereas Rendering's
+                            // 62% applies to the full content area. Applying 62% again here would
+                            // shrink the card a second time — 90% is the correct calibration for
+                            // this already-reduced base. Purely a visual size limit for centering,
+                            // not a stand-in for a measured Actions height.
+                            val maxCardHeight = maxHeight * 0.90f
+                            val cardHeightFromWidth = maxWidth / videoAspectRatio
+                            val effectiveCardHeight = cardHeightFromWidth.coerceAtMost(maxCardHeight)
+                            val effectiveCardWidth = (effectiveCardHeight * videoAspectRatio)
+                                .coerceAtMost(maxWidth)
+
+                            AndroidView(
+                                factory = { ctx ->
+                                    PlayerView(ctx).apply {
+                                        useController = false
+                                        // Explicit FIT so no future default change can silently crop.
+                                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    }
+                                },
+                                update = { playerView ->
+                                    playerView.player = player
+                                },
+                                modifier = Modifier
+                                    .size(width = effectiveCardWidth, height = effectiveCardHeight)
+                                    .testTag("create_video_preview_player_card")
+                            )
+                        }
+                    }
+
+                    // Action buttons at the bottom — structurally unchanged.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Primary action — same visual style as Create Video button
+                        Button(
+                            onClick = {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "video/mp4"
+                                    putExtra(Intent.EXTRA_STREAM, state.videoUri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                runCatching { context.startActivity(Intent.createChooser(shareIntent, null)) }
+                            },
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(contentColor = Color.White),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("create_video_action_share")
+                        ) {
+                            Text(stringResource(R.string.create_video_action_share))
+                        }
+                        // Secondary action — full-width outlined, clearly below Share in hierarchy
+                        OutlinedButton(
+                            onClick = onDone,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("create_video_action_done")
+                        ) {
+                            Text(stringResource(R.string.create_video_action_done))
+                        }
+                        // Destructive / tertiary — text-only, right-aligned; tap opens confirmation dialog
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            TextButton(
+                                onClick = { showDeleteDialog = true },
+                                modifier = Modifier.testTag("create_video_action_delete")
+                            ) {
+                                Text(stringResource(R.string.create_video_action_delete))
+                            }
                         }
                     }
                 }

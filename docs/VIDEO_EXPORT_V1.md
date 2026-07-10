@@ -330,9 +330,13 @@ This card sizing and centering rule applies uniformly across Compact, Medium, an
 
 On `WindowWidthSizeClass.Expanded`, the video player area and all three action buttons are placed together in a centered max-width container (800 dp). The TopAppBar remains full-width. The 800 dp width constraint applies to Expanded only; Compact and Medium retain full available width. Navigation, Share flow, Delete flow, and playback behavior are unaffected by this layout constraint.
 
+**Medium width with short available height:**
+
+On `WindowWidthSizeClass.Medium`, when the locally available height is short, the Preview state uses a side-by-side Row instead of the vertical stack described above: the video player area on the left, the Share / Done / Delete Video actions as a vertical column on the right. All other width/height combinations — Compact, Medium with sufficient height, and Expanded — keep the vertical stack described above, unchanged. The exact height condition, the Row geometry, and the Actions-column width are defined in `RESPONSIVE_LAYOUT_SYSTEM_V1.md §5.3` and `§7.7`, which govern this exception; this section does not restate that condition to avoid two sources of truth for the same threshold.
+
 **Scope of this update:**
 
-The card sizing and centering rule above governs the Preview state only. The Configuring state (§7.3) and the Rendering state (§7.4) are unaffected and unchanged.
+The card sizing and centering rule above, and the Medium short-height Row exception, govern the Preview state only. The Configuring state (§7.3) and the Rendering state (§7.4) are unaffected and unchanged.
 
 ### 7.6 Wizard State Persistence
 
