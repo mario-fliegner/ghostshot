@@ -65,11 +65,21 @@ fun WalkthroughScreen(
     ) {
         // safeDrawingPadding keeps content clear of status bars, navigation bars, and display
         // cutouts in both portrait and landscape, including reverse-landscape on 3-button nav.
+        // The horizontal swipe gesture lives here — on the full padded/safe-area root area —
+        // rather than on the width-capped walkthrough_content column below, so the entire
+        // visible page (including the side margins beside the centered, width-capped content)
+        // is swipeable, not just the content column itself.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .scrollable(
+                    orientation = Orientation.Horizontal,
+                    state = pagerState,
+                    flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
+                    reverseDirection = true
+                ),
             contentAlignment = Alignment.Center
         ) {
             // Text and controls are outside the pager so only one instance is ever composed at a
@@ -98,12 +108,6 @@ fun WalkthroughScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .scrollable(
-                                orientation = Orientation.Horizontal,
-                                state = pagerState,
-                                flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
-                                reverseDirection = true
-                            )
                             .testTag("walkthrough_two_column_layout"),
                         horizontalArrangement = Arrangement.spacedBy(40.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -166,12 +170,6 @@ fun WalkthroughScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .scrollable(
-                                orientation = Orientation.Horizontal,
-                                state = pagerState,
-                                flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
-                                reverseDirection = true
-                            )
                             .testTag("walkthrough_single_column_layout"),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
