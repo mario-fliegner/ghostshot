@@ -133,6 +133,12 @@
 
     <!-- Branding: Symbol picker sheet (V2) -->
     <string name="branding_symbol_picker_title">Choose a symbol</string>
+    <string name="branding_symbol_heart">Heart</string>
+    <string name="branding_symbol_star">Star</string>
+    <string name="branding_symbol_camera">Camera</string>
+    <string name="branding_symbol_home">Home</string>
+    <string name="branding_symbol_pin">Pin</string>
+    <string name="branding_symbol_fire">Fire</string>
 
 
     <!-- Settings: Logo (V2) -->
@@ -322,7 +328,6 @@
     <string name="share_comparison_logo_use_symbol">Use a symbol</string>
     <string name="share_comparison_logo_remove">Remove logo</string>
     <string name="share_comparison_logo_error">Couldn\'t set logo</string>
-    <string name="share_comparison_logo_use_default">Use default logo</string>
 
     <!-- Create Video — Cancel export dialog (Back during Rendering) -->
     <string name="create_video_cancel_export_dialog_title">Cancel video export?</string>

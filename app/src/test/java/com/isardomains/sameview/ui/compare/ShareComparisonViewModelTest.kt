@@ -596,23 +596,6 @@ class ShareComparisonViewModelTest {
     }
 
     @Test
-    fun brandingVersion_increments_afterSuccessfulUseDefault() = runTest {
-        val brandingDir = java.io.File(tempFolder.root, "branding").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(globalBrandingRepository = globalRepo)
-        vm.sessionBrandingCopier = { _, _, _ -> true }
-        advanceUntilIdle()
-        val versionBefore = vm.brandingVersion.value
-
-        vm.onUseDefaultLogo()
-        advanceUntilIdle()
-
-        assertEquals("brandingVersion must increment after use-default write", versionBefore + 1, vm.brandingVersion.value)
-    }
-
-    @Test
     fun brandingVersion_increments_afterAutoCopyFromGlobal() = runTest {
         val brandingDir = java.io.File(tempFolder.root, "branding").also { it.mkdirs() }
         java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
@@ -737,27 +720,6 @@ class ShareComparisonViewModelTest {
         advanceUntilIdle()
 
         assertEquals("sessionBrandingChanged must fire once after remove", 1, signals.size)
-        job.cancel()
-    }
-
-    @Test
-    fun sessionBrandingChanged_emitted_afterSuccessfulUseDefault() = runTest {
-        // GlobalBrandingRepository.getBranding() requires both handle.png AND handle-meta.json.
-        val brandingDir = java.io.File(tempFolder.root, "branding").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(globalBrandingRepository = globalRepo)
-        vm.sessionBrandingCopier = { _, _, _ -> true }
-        advanceUntilIdle()
-
-        val signals = mutableListOf<Unit>()
-        val job = launch { vm.sessionBrandingChanged.collect { signals.add(it) } }
-
-        vm.onUseDefaultLogo()
-        advanceUntilIdle()
-
-        assertEquals("sessionBrandingChanged must fire once after use-default", 1, signals.size)
         job.cancel()
     }
 
@@ -996,171 +958,6 @@ class ShareComparisonViewModelTest {
         assertNotNull("Both must see non-null bitmap", stateForLogoCard)
     }
 
-    // ── isUsingGlobalDefault — Issue 1: "Use default logo" meaningful visibility ──────────────
-    // The button is hidden when pressing it cannot perform a meaningful change.
-
-    @Test
-    fun isUsingGlobalDefault_false_initially() = runTest {
-        val vm = createViewModel()
-        advanceUntilIdle()
-        assertFalse("isUsingGlobalDefault must start false with no branding", vm.isUsingGlobalDefault.value)
-    }
-
-    @Test
-    fun isUsingGlobalDefault_true_afterAutoCopy() = runTest {
-        val brandingDir = java.io.File(tempFolder.root, "branding-ac").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(globalBrandingRepository = globalRepo)
-        var copierHasRun = false
-        vm.sessionBrandingCopier = { _, _, _ -> copierHasRun = true; true }
-        vm.previewBitmapFromFile = { if (copierHasRun) mockBitmapA else null }
-
-        advanceUntilIdle()
-
-        assertTrue("isUsingGlobalDefault must be true after auto-copy fires at init",
-            vm.isUsingGlobalDefault.value)
-    }
-
-    @Test
-    fun isUsingGlobalDefault_true_whenExistingBuiltinMatchesGlobal() = runTest {
-        // Session already has a builtin symbol. Global has the same symbol. No auto-copy.
-        val brandingDir = java.io.File(tempFolder.root, "branding-bi").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"builtin","builtinId":"star"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(
-            globalBrandingRepository = globalRepo,
-            metadataReader = { _ ->
-                ShareMetadataSnapshot(null, null, 0L, null, null, null,
-                    brandingMeta = com.isardomains.sameview.ui.camera.SessionBrandingMeta("builtin", "star"))
-            }
-        )
-        vm.previewBitmapFromFile = { mockBitmapA }  // session already has branding
-
-        advanceUntilIdle()
-
-        assertTrue("isUsingGlobalDefault must be true when session builtin matches global builtin",
-            vm.isUsingGlobalDefault.value)
-    }
-
-    @Test
-    fun isUsingGlobalDefault_false_whenExistingBuiltinDiffersFromGlobal() = runTest {
-        // Session has "heart"; global has "star" — different symbols.
-        val brandingDir = java.io.File(tempFolder.root, "branding-bd").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"builtin","builtinId":"star"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(
-            globalBrandingRepository = globalRepo,
-            metadataReader = { _ ->
-                ShareMetadataSnapshot(null, null, 0L, null, null, null,
-                    brandingMeta = com.isardomains.sameview.ui.camera.SessionBrandingMeta("builtin", "heart"))
-            }
-        )
-        vm.previewBitmapFromFile = { mockBitmapA }
-
-        advanceUntilIdle()
-
-        assertFalse("isUsingGlobalDefault must be false when session builtin differs from global",
-            vm.isUsingGlobalDefault.value)
-    }
-
-    @Test
-    fun isUsingGlobalDefault_false_afterPhotoSelected() = runTest {
-        // Start: auto-copy fired → isUsingGlobalDefault = true.
-        val brandingDir = java.io.File(tempFolder.root, "branding-ps").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(globalBrandingRepository = globalRepo)
-        var copierHasRun = false
-        vm.sessionBrandingCopier = { _, _, _ -> copierHasRun = true; true }
-        vm.previewBitmapFromFile = { if (copierHasRun) mockBitmapA else null }
-        advanceUntilIdle()
-        assertTrue("Pre-condition: isUsingGlobalDefault must be true after auto-copy",
-            vm.isUsingGlobalDefault.value)
-
-        // Choose photo → must clear isUsingGlobalDefault.
-        vm.imageDecoder = { _ -> mock() }
-        vm.brandingNormalizer = { _ -> ByteArray(32) }
-        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
-        vm.previewBitmapFromBytes = { mockBitmapB }
-        vm.onImageUriSelectedForBranding(fakeUri)
-        advanceUntilIdle()
-
-        assertFalse("isUsingGlobalDefault must be false after photo selection",
-            vm.isUsingGlobalDefault.value)
-    }
-
-    @Test
-    fun isUsingGlobalDefault_false_afterSymbolSelected() = runTest {
-        // Start: auto-copy fired → isUsingGlobalDefault = true.
-        val brandingDir = java.io.File(tempFolder.root, "branding-ss").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(globalBrandingRepository = globalRepo)
-        var copierHasRun = false
-        vm.sessionBrandingCopier = { _, _, _ -> copierHasRun = true; true }
-        vm.previewBitmapFromFile = { if (copierHasRun) mockBitmapA else null }
-        advanceUntilIdle()
-        assertTrue("Pre-condition: isUsingGlobalDefault must be true after auto-copy",
-            vm.isUsingGlobalDefault.value)
-
-        // Choose symbol → must clear isUsingGlobalDefault.
-        vm.builtinSymbolRenderer = { _ -> ByteArray(32) }
-        vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
-        vm.previewBitmapFromBytes = { mockBitmapB }
-        vm.onSetSessionBrandingFromSymbol(com.isardomains.sameview.branding.BuiltinBrandingSymbol.HEART)
-        advanceUntilIdle()
-
-        assertFalse("isUsingGlobalDefault must be false after symbol selection",
-            vm.isUsingGlobalDefault.value)
-    }
-
-    @Test
-    fun isUsingGlobalDefault_true_afterUseDefault() = runTest {
-        val brandingDir = java.io.File(tempFolder.root, "branding-ud").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(globalBrandingRepository = globalRepo)
-        // Start with a custom photo (isUsingGlobalDefault = false).
-        vm.previewBitmapFromFile = { mockBitmapA }
-        advanceUntilIdle()
-        assertFalse("Pre-condition: session has own branding, not using global", vm.isUsingGlobalDefault.value)
-
-        vm.sessionBrandingCopier = { _, _, _ -> true }
-        vm.onUseDefaultLogo()
-        advanceUntilIdle()
-
-        assertTrue("isUsingGlobalDefault must be true after onUseDefaultLogo",
-            vm.isUsingGlobalDefault.value)
-    }
-
-    @Test
-    fun isUsingGlobalDefault_false_afterRemove() = runTest {
-        // Start with auto-copy → true. Then remove → false.
-        val brandingDir = java.io.File(tempFolder.root, "branding-rm").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(globalBrandingRepository = globalRepo)
-        var copierHasRun = false
-        vm.sessionBrandingCopier = { _, _, _ -> copierHasRun = true; true }
-        vm.previewBitmapFromFile = { if (copierHasRun) mockBitmapA else null }
-        vm.sessionBrandingRemover = { _, _ -> true }
-        advanceUntilIdle()
-        assertTrue("Pre-condition: isUsingGlobalDefault after auto-copy", vm.isUsingGlobalDefault.value)
-
-        vm.onRemoveSessionBranding()
-        advanceUntilIdle()
-
-        assertFalse("isUsingGlobalDefault must be false after remove", vm.isUsingGlobalDefault.value)
-    }
-
     // ── Issue 2: Logo replacement must not modify Show logo toggle ────────────────────────────
     // "Show logo" represents "export with a logo", not "owns a logo".
     // Replacing the logo must not override an explicit user decision to turn the toggle off.
@@ -1240,48 +1037,20 @@ class ShareComparisonViewModelTest {
     }
 
     @Test
-    fun useDefaultLogo_setsUseBrandingTrue_whenFirstLogoAdded() = runTest {
+    fun autoCopyFromGlobal_setsUseBrandingTrue_whenFirstLogoAdded() = runTest {
+        // Session starts with no branding; global exists → auto-copy fires at init.
         val brandingDir = java.io.File(tempFolder.root, "branding-ud2").also { it.mkdirs() }
         java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
         java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
         val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
         val vm = createViewModel(globalBrandingRepository = globalRepo)
-        vm.sessionBrandingCopier = { _, _, _ -> true }
-        vm.previewBitmapFromBytes = { mockBitmapA }
-        // Session starts with no branding (previewBitmapFromFile = { null } by default).
-        advanceUntilIdle()
-        // auto-copy didn't fire because previewBitmapFromFile returns null after auto-copy too
-        // (no copierHasRun trick here — test just verifies the write path).
-        vm.previewBitmapFromFile = { mockBitmapA }  // now returns a bitmap for the copy call
-        assertFalse("Pre-condition: no branding after init", vm.hasBranding.value)
+        var copierHasRun = false
+        vm.sessionBrandingCopier = { _, _, _ -> copierHasRun = true; true }
+        vm.previewBitmapFromFile = { if (copierHasRun) mockBitmapA else null }
 
-        vm.onUseDefaultLogo()
         advanceUntilIdle()
 
-        assertTrue("useDefaultLogo must set useBranding=true when adding the first logo",
-            vm.useBranding.value)
-    }
-
-    @Test
-    fun useDefaultLogo_doesNotModifyUseBranding_whenAlreadyEnabled() = runTest {
-        // Session has existing logo; toggle OFF; then use default logo.
-        val brandingDir = java.io.File(tempFolder.root, "branding-ud3").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        val globalRepo = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        val vm = createViewModel(globalBrandingRepository = globalRepo)
-        vm.previewBitmapFromFile = { mockBitmapA }
-        vm.sessionBrandingCopier = { _, _, _ -> true }
-        advanceUntilIdle()
-        assertTrue("Pre-condition: useBranding true from init", vm.useBranding.value)
-
-        vm.onToggleUseBranding()
-        assertFalse("Pre-condition: useBranding false after toggle", vm.useBranding.value)
-
-        vm.onUseDefaultLogo()
-        advanceUntilIdle()
-
-        assertFalse("useDefaultLogo must NOT re-enable Show logo when replacing an existing logo",
+        assertTrue("Auto-copy from global must set useBranding=true when adding the first logo",
             vm.useBranding.value)
     }
 
@@ -1310,7 +1079,7 @@ class ShareComparisonViewModelTest {
 
     @Test
     fun multipleChanges_neverShowStaleBrandingState() = runTest {
-        // Full scenario: A → B → remove → use-default → photo.
+        // Full scenario: A → B → remove → photo.
         val vm = createViewModel()
         vm.builtinSymbolRenderer = { _ -> ByteArray(32) }
         vm.sessionBrandingUpdater = { _, _, _, _, _ -> true }
@@ -1335,17 +1104,6 @@ class ShareComparisonViewModelTest {
         vm.onRemoveSessionBranding()
         advanceUntilIdle()
         assertNull("Step remove: null", vm.previewBrandingBitmap.value)
-
-        // Use default → bitmapA (mocked from global file)
-        val brandingDir = java.io.File(tempFolder.root, "branding-d").also { it.mkdirs() }
-        java.io.File(brandingDir, "handle.png").writeBytes(ByteArray(32))
-        java.io.File(brandingDir, "handle-meta.json").writeText("""{"type":"image"}""")
-        vm.previewBitmapFromFile = { mockBitmapA }
-        val globalRepo2 = com.isardomains.sameview.branding.GlobalBrandingRepository(brandingDir)
-        // Inject getBranding() result by using a custom field not available — use onUseDefaultLogo
-        // with the copier already set to true and previewBitmapFromFile returning bitmapA.
-        // We can't easily change globalBrandingRepository mid-flight, so test the remove path.
-        // Instead, verify that after photo selection we get bitmapB again.
 
         // Photo → bitmapB
         vm.previewBitmapFromBytes = { mockBitmapB }

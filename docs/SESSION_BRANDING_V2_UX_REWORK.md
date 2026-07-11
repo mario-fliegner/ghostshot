@@ -85,14 +85,16 @@ All user-facing text uses "logo." The word "branding" does not appear in any str
 
 ### Symbol display names
 
-| Symbol ID | Display name |
-|---|---|
-| `heart` | Heart |
-| `star` | Star |
-| `camera` | Camera |
-| `home` | Home |
-| `pin` | Pin |
-| `fire` | Fire |
+| Symbol ID | Display name (EN) | Display name (DE) |
+|---|---|---|
+| `heart` | Heart | Herz |
+| `star` | Star | Stern |
+| `camera` | Camera | Kamera |
+| `home` | Home | Haus |
+| `pin` | Pin | Standort |
+| `fire` | Fire | Flamme |
+
+The `Symbol ID` values are stable, non-translatable technical identifiers persisted in `metadata.json` as part of the backup/restore contract; they are not user-facing and are unaffected by localization. Only the display names are localized UI labels. The German display names are final, per `DE_LOCALIZATION_UX_REWORK_V1.md` F-05. `pin` → "Standort" is a deliberate, non-literal translation, confirmed as final by that decision.
 
 ### Strings deprecated by V2
 

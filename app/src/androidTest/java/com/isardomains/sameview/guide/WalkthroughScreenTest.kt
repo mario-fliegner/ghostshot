@@ -147,19 +147,19 @@ class WalkthroughScreenTest {
     }
 
     @Test
-    fun page2_hasSkipBackAndNext() {
+    fun page2_hasBackAndNextNoSkip() {
         setWalkthroughContent()
 
         composeRule.onNodeWithTag("walkthrough_next").performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("walkthrough_skip").assertIsDisplayed()
         composeRule.onNodeWithTag("walkthrough_back").assertIsDisplayed()
         composeRule.onNodeWithTag("walkthrough_next").assertIsDisplayed()
+        composeRule.onAllNodesWithTag("walkthrough_skip").assertCountEquals(0)
     }
 
     @Test
-    fun page3_hasSkipBackAndNext() {
+    fun page3_hasBackAndNextNoSkip() {
         setWalkthroughContent()
 
         repeat(2) {
@@ -167,9 +167,9 @@ class WalkthroughScreenTest {
             composeRule.waitForIdle()
         }
 
-        composeRule.onNodeWithTag("walkthrough_skip").assertIsDisplayed()
         composeRule.onNodeWithTag("walkthrough_back").assertIsDisplayed()
         composeRule.onNodeWithTag("walkthrough_next").assertIsDisplayed()
+        composeRule.onAllNodesWithTag("walkthrough_skip").assertCountEquals(0)
     }
 
     @Test
@@ -858,9 +858,9 @@ class WalkthroughScreenTest {
 
         composeRule.onNodeWithText(context.getString(R.string.walkthrough_page_take_shot_title))
             .assertIsDisplayed()
-        composeRule.onNodeWithTag("walkthrough_skip").assertIsDisplayed()
         composeRule.onNodeWithTag("walkthrough_back").assertIsDisplayed()
         composeRule.onNodeWithTag("walkthrough_next").assertIsDisplayed()
+        composeRule.onAllNodesWithTag("walkthrough_skip").assertCountEquals(0)
 
         composeRule.onNodeWithTag("walkthrough_next").performClick()
         composeRule.waitForIdle()

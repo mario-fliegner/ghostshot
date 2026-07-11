@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -99,7 +100,6 @@ fun ShareComparisonScreen(
     val sessionViewportRatio by viewModel.sessionViewportRatio.collectAsStateWithLifecycle()
     val hasBranding by viewModel.hasBranding.collectAsStateWithLifecycle()
     val useBranding by viewModel.useBranding.collectAsStateWithLifecycle()
-    val isUsingGlobalDefault by viewModel.isUsingGlobalDefault.collectAsStateWithLifecycle()
     val previewBrandingBitmap by viewModel.previewBrandingBitmap.collectAsStateWithLifecycle()
 
     val hqAvailable by viewModel.hqAvailable.collectAsStateWithLifecycle()
@@ -286,7 +286,10 @@ fun ShareComparisonScreen(
                                         .weight(1f)
                                         .testTag("share_comparison_logo_choose_photo")
                                 ) {
-                                    Text(stringResource(R.string.share_comparison_logo_choose_photo))
+                                    Text(
+                                        text = stringResource(R.string.share_comparison_logo_choose_photo),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                                 OutlinedButton(
                                     onClick = { showBrandingSymbolSheet = true },
@@ -294,17 +297,10 @@ fun ShareComparisonScreen(
                                         .weight(1f)
                                         .testTag("share_comparison_logo_use_symbol")
                                 ) {
-                                    Text(stringResource(R.string.share_comparison_logo_use_symbol))
-                                }
-                            }
-                            if (viewModel.hasGlobalBranding && !isUsingGlobalDefault) {
-                                TextButton(
-                                    onClick = { viewModel.onUseDefaultLogo() },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("share_comparison_logo_use_default")
-                                ) {
-                                    Text(stringResource(R.string.share_comparison_logo_use_default))
+                                    Text(
+                                        text = stringResource(R.string.share_comparison_logo_use_symbol),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                             }
                         } else {
@@ -348,7 +344,10 @@ fun ShareComparisonScreen(
                                         .weight(1f)
                                         .testTag("share_comparison_logo_choose_photo")
                                 ) {
-                                    Text(stringResource(R.string.share_comparison_logo_choose_photo))
+                                    Text(
+                                        text = stringResource(R.string.share_comparison_logo_choose_photo),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                                 OutlinedButton(
                                     onClick = { showBrandingSymbolSheet = true },
@@ -356,17 +355,10 @@ fun ShareComparisonScreen(
                                         .weight(1f)
                                         .testTag("share_comparison_logo_use_symbol")
                                 ) {
-                                    Text(stringResource(R.string.share_comparison_logo_use_symbol))
-                                }
-                            }
-                            if (viewModel.hasGlobalBranding && !isUsingGlobalDefault) {
-                                TextButton(
-                                    onClick = { viewModel.onUseDefaultLogo() },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("share_comparison_logo_use_default")
-                                ) {
-                                    Text(stringResource(R.string.share_comparison_logo_use_default))
+                                    Text(
+                                        text = stringResource(R.string.share_comparison_logo_use_symbol),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                             }
 

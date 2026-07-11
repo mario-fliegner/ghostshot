@@ -322,19 +322,11 @@ private fun WalkthroughButtons(
             }
         }
         else -> {
-            // Pages 2–3: Skip (low) + Back (medium) + Next (high)
+            // Pages 2–3: Back (medium) + Next (high)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                TextButton(
-                    onClick = onSkip,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("walkthrough_skip")
-                ) {
-                    Text(stringResource(R.string.walkthrough_skip))
-                }
                 OutlinedButton(
                     onClick = onBack,
                     modifier = Modifier

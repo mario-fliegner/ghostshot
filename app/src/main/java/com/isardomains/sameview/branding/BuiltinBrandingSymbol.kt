@@ -16,14 +16,16 @@ enum class BuiltinBrandingSymbol(
     /** Stable identifier written to metadata.json. */
     val id: String,
     /** VectorDrawable resource for this symbol. */
-    val drawableRes: Int
+    val drawableRes: Int,
+    /** Localized display name shown in the symbol picker UI. */
+    val labelRes: Int
 ) {
-    HEART("heart", R.drawable.ic_branding_heart),
-    STAR("star", R.drawable.ic_branding_star),
-    CAMERA("camera", R.drawable.ic_branding_camera),
-    HOME("home", R.drawable.ic_branding_home),
-    PIN("pin", R.drawable.ic_branding_pin),
-    FIRE("fire", R.drawable.ic_branding_fire);
+    HEART("heart", R.drawable.ic_branding_heart, R.string.branding_symbol_heart),
+    STAR("star", R.drawable.ic_branding_star, R.string.branding_symbol_star),
+    CAMERA("camera", R.drawable.ic_branding_camera, R.string.branding_symbol_camera),
+    HOME("home", R.drawable.ic_branding_home, R.string.branding_symbol_home),
+    PIN("pin", R.drawable.ic_branding_pin, R.string.branding_symbol_pin),
+    FIRE("fire", R.drawable.ic_branding_fire, R.string.branding_symbol_fire);
 
     companion object {
         /** Returns the symbol whose [id] matches [id], or null if unrecognized. */

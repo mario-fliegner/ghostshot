@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -436,7 +437,10 @@ internal fun SettingsScreenContent(
                             .weight(1f)
                             .testTag("settings_logo_choose_photo")
                     ) {
-                        Text(stringResource(R.string.settings_logo_choose_photo))
+                        Text(
+                            text = stringResource(R.string.settings_logo_choose_photo),
+                            textAlign = TextAlign.Center
+                        )
                     }
                     OutlinedButton(
                         onClick = { showSymbolSheet = true },
@@ -444,7 +448,10 @@ internal fun SettingsScreenContent(
                             .weight(1f)
                             .testTag("settings_logo_use_symbol")
                     ) {
-                        Text(stringResource(R.string.settings_logo_use_symbol))
+                        Text(
+                            text = stringResource(R.string.settings_logo_use_symbol),
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
 

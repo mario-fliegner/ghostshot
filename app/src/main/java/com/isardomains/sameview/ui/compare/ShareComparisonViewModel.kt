@@ -67,7 +67,7 @@ internal data class ShareMetadataSnapshot(
     val locationCountry: String?,
     /** Width ÷ height of the session viewport; defaults to portrait 9:16. */
     val viewportRatio: Float = 9f / 16f,
-    /** Parsed from metadata.json → branding block. Used at init to derive [isUsingGlobalDefault]. */
+    /** Parsed from metadata.json → branding block. */
     val brandingMeta: SessionBrandingMeta? = null
 )
 
@@ -151,32 +151,6 @@ class ShareComparisonViewModel @Inject constructor(
     fun onToggleUseBranding() {
         _useBranding.value = !_useBranding.value
     }
-
-    /**
-     * True when the current session logo originated from the global default and has not been
-     * replaced by a user-chosen photo or symbol since this screen was opened.
-     *
-     * Used to hide the "Use default logo" button when pressing it would overwrite the session
-     * logo with an identical copy — i.e. when it cannot perform a meaningful change.
-     *
-     * Set to true:
-     *   - when the auto-copy from global fires at screen open (session had no branding)
-     *   - when [onUseDefaultLogo] succeeds
-     *   - at init, when session already has a builtin logo whose type and builtinId match the
-     *     current global default (reliable for symbols; photo logos are conservative → false)
-     *
-     * Set to false:
-     *   - when [onImageUriSelectedForBranding] succeeds
-     *   - when [onSetSessionBrandingFromSymbol] succeeds
-     *   - when [onRemoveSessionBranding] succeeds
-     */
-    private val _isUsingGlobalDefault = MutableStateFlow(false)
-    val isUsingGlobalDefault: StateFlow<Boolean> = _isUsingGlobalDefault.asStateFlow()
-
-    /**
-     * True when global branding exists. Read once at init — plain val, not reactive StateFlow.
-     */
-    val hasGlobalBranding: Boolean = globalBrandingRepository.hasBranding()
 
     private val _brandingError = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val brandingError: SharedFlow<Unit> = _brandingError.asSharedFlow()
@@ -350,16 +324,6 @@ class ShareComparisonViewModel @Inject constructor(
             if (existingBitmap != null) {
                 _previewBrandingBitmap.value = existingBitmap
                 _useBranding.value = true
-                // Derive isUsingGlobalDefault for builtin symbols: compare session meta with global meta.
-                // Reliable for builtin symbols (deterministic output). Photo logos (type="image") have no
-                // stored content hash, so they default to false — the button stays visible as a safe fallback.
-                val globalMeta = withContext(ioDispatcher) { globalBrandingRepository.getBrandingMeta() }
-                val sessionMeta = snapshot.brandingMeta
-                _isUsingGlobalDefault.value = globalMeta != null && sessionMeta != null &&
-                    sessionMeta.type == "builtin" &&
-                    globalMeta.type == "builtin" &&
-                    sessionMeta.builtinId != null &&
-                    sessionMeta.builtinId == globalMeta.builtinId
             } else {
                 // Auto-copy global default when session has no branding.
                 val globalBranding = withContext(ioDispatcher) { globalBrandingRepository.getBranding() }
@@ -379,7 +343,6 @@ class ShareComparisonViewModel @Inject constructor(
                             _brandingVersion.value += 1
                             _sessionBrandingChanged.emit(Unit)
                         }
-                        _isUsingGlobalDefault.value = true
                     }
                 }
             }
@@ -436,7 +399,6 @@ class ShareComparisonViewModel @Inject constructor(
                     val wasEmpty = _previewBrandingBitmap.value == null
                     _previewBrandingBitmap.value = previewBitmapFromBytes(bytes)
                     if (wasEmpty) _useBranding.value = true
-                    _isUsingGlobalDefault.value = false
                     _brandingVersion.value += 1
                     _sessionBrandingChanged.emit(Unit)
                 } else _brandingError.emit(Unit)
@@ -458,7 +420,6 @@ class ShareComparisonViewModel @Inject constructor(
                     val wasEmpty = _previewBrandingBitmap.value == null
                     _previewBrandingBitmap.value = previewBitmapFromBytes(bytes)
                     if (wasEmpty) _useBranding.value = true
-                    _isUsingGlobalDefault.value = false
                     _brandingVersion.value += 1
                     _sessionBrandingChanged.emit(Unit)
                 } else _brandingError.emit(Unit)
@@ -477,31 +438,6 @@ class ShareComparisonViewModel @Inject constructor(
             if (ok) {
                 _previewBrandingBitmap.value = null   // clears hasBranding via derived StateFlow
                 _useBranding.value = false
-                _isUsingGlobalDefault.value = false
-                _sessionBrandingChanged.emit(Unit)
-            } else _brandingError.emit(Unit)
-        }
-    }
-
-    /**
-     * Copies the current global branding into this session.
-     * After a successful copy the session owns an independent copy; future global changes
-     * do NOT affect this session.
-     */
-    fun onUseDefaultLogo() {
-        viewModelScope.launch(ioDispatcher) {
-            val globalBranding = globalBrandingRepository.getBranding()
-            if (globalBranding == null) { _brandingError.emit(Unit); return@launch }
-            val sessionsRoot = File(context.filesDir, "sessions")
-            val ok = sessionBrandingCopier(sessionsRoot, sessionId, globalBranding)
-            if (ok) {
-                // Decode preview from the global file that was just copied to the session.
-                val wasEmpty = _previewBrandingBitmap.value == null
-                val preview = previewBitmapFromFile(globalBranding.file)
-                _previewBrandingBitmap.value = preview
-                if (wasEmpty && preview != null) _useBranding.value = true
-                _isUsingGlobalDefault.value = true
-                _brandingVersion.value += 1
                 _sessionBrandingChanged.emit(Unit)
             } else _brandingError.emit(Unit)
         }

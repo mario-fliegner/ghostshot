@@ -338,8 +338,8 @@ Walkthrough pages:
 | Page | Title | Navigation |
 | --- | --- | --- |
 | 1 | Then and now | Skip + Next |
-| 2 | Align the overlay | Skip + Back + Next |
-| 3 | Take the shot | Skip + Back + Next |
+| 2 | Align the overlay | Back + Next |
+| 3 | Take the shot | Back + Next |
 | 4 | See what changed | Back + Start |
 
 ### Page 1 — Then and now
@@ -358,13 +358,17 @@ Illustration intent (as implemented): a full-bleed photorealistic alpine valley 
 
 ### Page 2 — Align the overlay
 
-Body copy:
+Purpose: The first concrete step of the recreation workflow. Page 1 is the conceptual overview (what SameView does and why); page 2 is where the user is instructed to act — choose a reference photo and align it. This page's title and body now name reference-photo selection explicitly, in addition to the alignment action.
 
-Go back to the original spot. Drag and scale the ghost photo over the live camera view until it lines up.
+Body copy (English-language reference used by this specification; the localized German copy in `DE_LOCALIZATION_UX_REWORK_V1.md` F-08 is authoritative for the shipped product):
 
-Two sentences are used on this page only. The first reinforces the location requirement introduced on page 1. The second describes the alignment action. This is the most conceptually complex step in the workflow and warrants two sentences.
+Choose a reference photo. Move and scale it until the perspective lines up.
 
-Illustration intent (as implemented): the same alpine valley landscape, in full color, with a bordered "reference photo" card overlaid centrally. A four-directional move icon and a corner resize icon are shown on the card, communicating that it can be dragged and scaled to align with the surroundings.
+Two sentences are used on this page only. The first names the reference-photo-selection action explicitly, establishing this page as the workflow's first concrete step. The second describes the alignment action. This is the most conceptually complex step in the workflow and warrants two sentences.
+
+Illustration intent (as implemented, unchanged by this update): the same alpine valley landscape, in full color, with a bordered "reference photo" card overlaid centrally. A four-directional move icon and a corner resize icon are shown on the card, communicating that it can be dragged and scaled to align with the surroundings.
+
+The illustration is not required to depict every element of the page's copy — it continues to focus specifically on the alignment action, consistent with the illustration system's role as a conceptual, not literal, representation of each page (see "Illustration system — current implementation" below). The reference-photo-selection language introduced in the title and first body sentence is carried by copy alone; no illustration change is implied or required by this update.
 
 This illustration intentionally uses a framed reference-photo card layered over the landscape rather than a single blended, translucent camera-feed overlay. The framed-card treatment is the approved presentation: it must not be flattened into two unrelated, disconnected photos (e.g. side by side or unrelated crops) — the card and the background must read as one connected "photo held up to the view" composition, not as two arbitrary images.
 
@@ -441,18 +445,18 @@ Progress indicator:
 Navigation buttons:
 
 - Page 1: `Skip` (low emphasis, left) and `Next` (high emphasis, right).
-- Page 2: `Skip` (low emphasis, left), `Back` (medium emphasis, center), and `Next` (high emphasis, right).
-- Page 3: `Skip` (low emphasis, left), `Back` (medium emphasis, center), and `Next` (high emphasis, right).
+- Page 2: `Back` (medium emphasis, left) and `Next` (high emphasis, right).
+- Page 3: `Back` (medium emphasis, left) and `Next` (high emphasis, right).
 - Page 4: `Back` (medium emphasis, left) and `Start` (high emphasis, right).
-- `Skip` is available on pages 1–3 only. There is no `Skip` on page 4.
+- `Skip` is available on page 1 only. There is no `Skip` on pages 2, 3, or 4.
 - `Start` replaces `Next` on the final page. `Start` is not a skip action; it completes the walkthrough and proceeds to the camera.
 - Swipe left and right is enabled across all pages.
 - Use existing SameView button components, styling, typography, shapes, and color system.
 - Do not introduce walkthrough-specific button styling.
 
-Rationale for the three-button model on pages 2 and 3:
+Rationale for the two-button model on pages 2 and 3 (final, per `DE_LOCALIZATION_UX_REWORK_V1.md` F-12):
 
-`Skip` and `Back` serve different functions and must both be available on intermediate pages. `Skip` exits the walkthrough entirely. `Back` returns to the previous page. Removing `Skip` from intermediate pages forces a user who decides to exit mid-walkthrough to navigate backward to find an exit, which adds friction for users who have already committed time to earlier pages. Both actions must remain available simultaneously.
+`Skip` is available on page 1 only. On pages 2 and 3, three `weight(1f)` buttons (`Skip` + `Back` + `Next`) previously shared the row with only 8dp spacing; on a 360dp-wide device this left roughly 70–80dp of text width per button after padding, making `Skip` the tightest text-wrapping risk found across the whole walkthrough layout — tighter than any title or body text. Removing `Skip` from pages 2 and 3 removes that layout-crowding risk and makes the navigation pattern consistent across all four pages: exit is available only at the start, forward/back navigation only afterward. A user who wants to exit mid-walkthrough uses `Back` to return to page 1, where `Skip` remains available; this is accepted friction, weighed deliberately against the layout constraint.
 
 Future UX evaluation — page 1 title:
 
@@ -955,10 +959,10 @@ Walkthrough tests:
 - Guide replay Start does not reset walkthrough completion or tip state
 - replay returns to Guide
 - page 1 shows Skip and Next; no Back is present
-- page 2 shows Skip, Back, and Next
-- page 3 shows Skip, Back, and Next
+- page 2 shows Back and Next; no Skip is present
+- page 3 shows Back and Next; no Skip is present
 - page 4 shows Back and Start; no Skip and no Next are present
-- Skip on pages 1, 2, and 3 exits the walkthrough
+- Skip on page 1 exits the walkthrough
 - Back on page 2 returns to page 1
 - Back on page 3 returns to page 2
 - Back on page 4 returns to page 3
@@ -1126,3 +1130,4 @@ The approved direction should use a self-contained `guide` package, dedicated gu
 ## 25. Revision Log
 
 - 2026-07-09 — Walkthrough visual spec aligned with implemented WEBP artwork.
+- 2026-07-11 — Documentation consistency update, not a new product decision. Aligned §9 (Walkthrough pages table, Navigation buttons, three-button rationale, Page 2 purpose/body copy) and §21 (Walkthrough tests) with the final, binding product decisions in `DE_LOCALIZATION_UX_REWORK_V1.md`: F-12 (Skip is shown on page 1 only; pages 2–3 use Back + Next) and F-08 (page 2's role now explicitly includes reference-photo selection alongside alignment). Page 2's illustration intent is unchanged; only the copy and navigation-related passages were updated to remove the resulting inconsistency.

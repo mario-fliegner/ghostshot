@@ -73,7 +73,7 @@
     <string name="delete_failed">Vergleich konnte nicht gelöscht werden</string>
 
     <string name="select_reference_image">Referenzfoto auswählen</string>
-    <string name="select_reference_image_label">Referenzfoto</string>
+    <string name="select_reference_image_label">Referenz</string>
     <string name="overlay_content_description">Referenzfoto</string>
     <string name="overlay_opacity_label">Deckkraft</string>
     <string name="reset_overlay_label">Zurücksetzen</string>
@@ -128,6 +128,12 @@
 
     <!-- Branding: Symbol-Auswahl-Sheet (V2) -->
     <string name="branding_symbol_picker_title">Symbol auswählen</string>
+    <string name="branding_symbol_heart">Herz</string>
+    <string name="branding_symbol_star">Stern</string>
+    <string name="branding_symbol_camera">Kamera</string>
+    <string name="branding_symbol_home">Haus</string>
+    <string name="branding_symbol_pin">Standort</string>
+    <string name="branding_symbol_fire">Flamme</string>
 
 
     <!-- Settings: Logo (V2) -->
@@ -155,14 +161,14 @@
     <string name="about_privacy_policy">Datenschutzerklärung</string>
 
     <!-- Walkthrough -->
-    <string name="walkthrough_page_then_and_now_title">Einen Moment nachstellen</string>
-    <string name="walkthrough_page_then_and_now_body">Wähle ein Foto aus.\nGeh zurück, wo es aufgenommen wurde.\nSieh, wie es sich verändert hat.</string>
-    <string name="walkthrough_page_align_overlay_title">Foto ausrichten</string>
-    <string name="walkthrough_page_align_overlay_body">Geh zurück an denselben Standort. Verschiebe und skaliere es, bis alles passt.</string>
+    <string name="walkthrough_page_then_and_now_title">Damals und heute</string>
+    <string name="walkthrough_page_then_and_now_body">Wähle ein Foto aus.\nKehre an den Aufnahmeort zurück.\nSchau dir an, was sich verändert hat.</string>
+    <string name="walkthrough_page_align_overlay_title">Foto wählen und ausrichten</string>
+    <string name="walkthrough_page_align_overlay_body">Wähle ein Referenzfoto aus.\nVerschiebe und skaliere es,\nbis die Perspektive passt.</string>
     <string name="walkthrough_page_take_shot_title">Foto aufnehmen</string>
-    <string name="walkthrough_page_take_shot_body">Wenn alles passt, halte den Moment fest.</string>
-    <string name="walkthrough_page_see_what_changed_title">Sieh, was sich verändert hat</string>
-    <string name="walkthrough_page_see_what_changed_body">Das Foto, das du ausgewählt hast.\nDer Moment, den du nachgestellt hast.\nDer Unterschied zwischen beiden.</string>
+    <string name="walkthrough_page_take_shot_body">Wenn alles passt,\nhalte den Moment fest.</string>
+    <string name="walkthrough_page_see_what_changed_title">Veränderungen entdecken</string>
+    <string name="walkthrough_page_see_what_changed_body">Das Original.\nDeine Aufnahme.\nDer Unterschied dazwischen.</string>
     <string name="walkthrough_skip">Überspringen</string>
     <string name="walkthrough_next">Weiter</string>
     <string name="walkthrough_back">Zurück</string>
@@ -306,7 +312,6 @@
     <string name="share_comparison_logo_use_symbol">Symbol verwenden</string>
     <string name="share_comparison_logo_remove">Logo entfernen</string>
     <string name="share_comparison_logo_error">Logo konnte nicht gesetzt werden</string>
-    <string name="share_comparison_logo_use_default">Standard-Logo verwenden</string>
 
     <!-- Video erstellen — Export-Abbrechen-Dialog -->
     <string name="create_video_cancel_export_dialog_title">Videoexport abbrechen?</string>
@@ -390,7 +395,7 @@
     <string name="markers_show_action">Marker einblenden</string>
     <string name="markers_edit_action">Marker bearbeiten</string>
     <string name="markers_done_button">Fertig</string>
-    <string name="markers_empty_hint">Lang drücken zum Platzieren</string>
+    <string name="markers_empty_hint">Marker durch langes Drücken setzen</string>
     <string name="markers_limit_reached">Maximal %d Marker möglich</string>
     <string name="markers_edit_mode_description">Marker-Bearbeiten-Modus aktiv</string>
 </resources>

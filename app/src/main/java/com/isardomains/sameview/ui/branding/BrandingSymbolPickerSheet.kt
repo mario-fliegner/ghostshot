@@ -75,6 +75,7 @@ fun BrandingSymbolPickerSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     rowSymbols.forEach { symbol ->
+                        val symbolLabel = stringResource(symbol.labelRes)
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
@@ -98,7 +99,7 @@ fun BrandingSymbolPickerSheet(
                                 ) {
                                     Image(
                                         painter = painterResource(symbol.drawableRes),
-                                        contentDescription = symbol.id,
+                                        contentDescription = symbolLabel,
                                         modifier = Modifier.size(40.dp)
                                     )
                                 }
@@ -115,7 +116,7 @@ fun BrandingSymbolPickerSheet(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = symbol.id.replaceFirstChar { it.uppercase() },
+                                text = symbolLabel,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = SameViewSettingsLabelText
                             )
