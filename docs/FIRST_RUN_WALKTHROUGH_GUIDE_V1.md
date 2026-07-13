@@ -209,7 +209,7 @@ The following topics from the prior structure are no longer standalone Guide top
 | `Markers` | Merged into `Reference photos` (the consolidated topic; see note below) |
 | `Share comparison image` | Merged into `Export` |
 | `Create video` | Merged into `Export` |
-| `Backups` | Merged into `Export`, as `Session backups` |
+| `Backups` | Merged into `Export`, as `Back up sessions` |
 | `Favorites` | Removed entirely; not merged into any topic. The Favorites feature itself (star toggle, Library filter) is unchanged — it is self-explanatory and does not require dedicated Guide content. |
 | `Compare` | Removed entirely; not merged into any topic. Compare remains discoverable through the always-visible primary Compare bottom-bar button (`CAMERA_WORKFLOW_UX_V1.md` §5) and CompareScreen's own self-explanatory slider/fullscreen UI. No tip has ever targeted this topic (`GUIDE_TIPS_UX_V1.md` §23.2). |
 
@@ -270,11 +270,11 @@ This uses the detail screen's existing block allowance (introduction plus up to 
 
 Export consolidates three sub-features into one detail screen, using the same block format:
 
-- Share comparison image
+- Share image
 - Create video
-- Session backups
+- Back up sessions
 
-Share comparison image content should lead the detail screen (appear first, immediately after the introduction). It is the only Export sub-feature reachable via a Guide Tip `Learn more` action (`SHARE` tip; see `GUIDE_TIPS_UX_V1.md` §23.2). Leading with it keeps that navigation contextually relevant without introducing in-page anchors or deep-linking.
+Share image content should lead the detail screen (appear first, immediately after the introduction). It is the only Export sub-feature reachable via a Guide Tip `Learn more` action (`SHARE` tip; see `GUIDE_TIPS_UX_V1.md` §23.2). Leading with it keeps that navigation contextually relevant without introducing in-page anchors or deep-linking.
 
 ### 8.4 Guide Bottom Actions
 
@@ -337,18 +337,18 @@ Walkthrough pages:
 
 | Page | Title | Navigation |
 | --- | --- | --- |
-| 1 | Then and now | Skip + Next |
-| 2 | Align the overlay | Back + Next |
+| 1 | Recreate a moment | Skip + Next |
+| 2 | Line up the photo | Back + Next |
 | 3 | Take the shot | Back + Next |
 | 4 | See what changed | Back + Start |
 
-### Page 1 — Then and now
+### Page 1 — Recreate a moment
 
 Purpose: Establish what SameView does and why the user would want it before any workflow step is introduced. This page leads with the outcome — the payoff — rather than the first task in the workflow. It communicates the photo source, the location requirement, and the change-over-time concept in order, so that later pages can build on established context rather than introduce ideas from nothing.
 
 Body copy:
 
-Pick an old photo.
+Pick a photo.
 Go back to where it was taken.
 See how it's changed.
 
@@ -356,15 +356,15 @@ The three-fragment structure is intentional. Each fragment conveys one concept: 
 
 Illustration intent (as implemented): a full-bleed photorealistic alpine valley landscape (mountains, lake, meadow, path, pine trees), partially desaturated on the left side of the frame and transitioning to full color toward the right. A bordered "reference photo" card is overlaid, showing a tighter crop of the same landscape, with a curved directional arrow pointing from the card to a specific tree in the background — communicating "find this spot in the real world."
 
-### Page 2 — Align the overlay
+### Page 2 — Line up the photo
 
-Purpose: The first concrete step of the recreation workflow. Page 1 is the conceptual overview (what SameView does and why); page 2 is where the user is instructed to act — choose a reference photo and align it. This page's title and body now name reference-photo selection explicitly, in addition to the alignment action.
+Purpose: The first concrete step of the recreation workflow. Page 1 is the conceptual overview (what SameView does and why); page 2 is where the user is instructed to act — return to the location and align the reference photo.
 
 Body copy (English-language reference used by this specification; the localized German copy in `DE_LOCALIZATION_UX_REWORK_V1.md` F-08 is authoritative for the shipped product):
 
-Choose a reference photo. Move and scale it until the perspective lines up.
+Return to the same spot. Move and resize it until everything lines up.
 
-Two sentences are used on this page only. The first names the reference-photo-selection action explicitly, establishing this page as the workflow's first concrete step. The second describes the alignment action. This is the most conceptually complex step in the workflow and warrants two sentences.
+Two sentences are used on this page only. The first reinforces the location requirement established on page 1. The second describes the alignment action. This is the most conceptually complex step in the workflow and warrants two sentences.
 
 Illustration intent (as implemented, unchanged by this update): the same alpine valley landscape, in full color, with a bordered "reference photo" card overlaid centrally. A four-directional move icon and a corner resize icon are shown on the card, communicating that it can be dragged and scaled to align with the surroundings.
 
@@ -376,9 +376,7 @@ This illustration intentionally uses a framed reference-photo card layered over 
 
 Body copy:
 
-Once the overlay lines up, tap the shutter from the same spot.
-
-"From the same spot" briefly reinforces the location requirement without re-explaining it. Page 2 has already established the concept.
+Once everything looks right, capture the moment.
 
 Illustration intent (as implemented): the same alpine valley landscape and reference-photo card, with a large filled white circular disc placed at the bottom of the frame, dominating the lower portion of the illustration. This page must read visually as the "press something" page, clearly distinct from page 2's "move something" illustration.
 
@@ -386,9 +384,9 @@ Illustration intent (as implemented): the same alpine valley landscape and refer
 
 Body copy:
 
-Drag the slider to reveal then and now.
-
-"Then and now" in the body copy deliberately echoes page 1's title. The walkthrough opens and closes on the same idea, giving the four-page sequence a sense of arrival.
+The photo you chose.
+The moment you recreated.
+The difference between them.
 
 Illustration intent (as implemented): the same alpine valley landscape, split by a vertical divide between a desaturated left half and a full-color right half, with a circular "‹ ›" slider-handle icon centered on the divide — reading immediately as a before/after comparison slider. The divide position is visually close to the center of the frame; this page uses a distinct visual pattern from page 1 (slider-divide vs. reference-photo-card-with-arrow) rather than a mirrored variant of the same illustration.
 
@@ -460,7 +458,7 @@ Rationale for the two-button model on pages 2 and 3 (final, per `DE_LOCALIZATION
 
 Future UX evaluation — page 1 title:
 
-The approved title is `Then and now`. An alternative — `Same place. Different time.` — was evaluated during the UX analysis and set aside in favour of the current title. This is not an open blocker and must not delay implementation. It may be re-evaluated in a future UX review if there is evidence that the current title underperforms.
+The approved title is `Recreate a moment`. An alternative — `Same place. Different time.` — was evaluated during the UX analysis and set aside in favour of the current title. This is not an open blocker and must not delay implementation. It may be re-evaluated in a future UX review if there is evidence that the current title underperforms.
 
 Responsive behavior:
 
@@ -1131,3 +1129,4 @@ The approved direction should use a self-contained `guide` package, dedicated gu
 
 - 2026-07-09 — Walkthrough visual spec aligned with implemented WEBP artwork.
 - 2026-07-11 — Documentation consistency update, not a new product decision. Aligned §9 (Walkthrough pages table, Navigation buttons, three-button rationale, Page 2 purpose/body copy) and §21 (Walkthrough tests) with the final, binding product decisions in `DE_LOCALIZATION_UX_REWORK_V1.md`: F-12 (Skip is shown on page 1 only; pages 2–3 use Back + Next) and F-08 (page 2's role now explicitly includes reference-photo selection alongside alignment). Page 2's illustration intent is unchanged; only the copy and navigation-related passages were updated to remove the resulting inconsistency.
+- 2026-07-13 — Documentation consistency update, not a new product decision. Synced §9's walkthrough page titles and English body copy (pages 1–4) with the currently shipped `values/strings.xml` content, and removed rationale passages tied to wording no longer used (page 1/4 "then and now" title echo, page 3 "from the same spot" callback, page 2's "names the reference-photo-selection action explicitly" claim). Synced §8's Export sub-feature naming (`Share image`, `Back up sessions`) with the currently shipped `guide_detail_export_step1_title`/`guide_detail_export_step3_title` values in both §8 and §8.3.

@@ -47,9 +47,9 @@ This document does not:
 | F-06 | Walkthrough page 1 — title | „Einen Moment nachstellen“ | „Damals und heute“ | String-only | Low | **Final product decision** |
 | F-07 | Walkthrough page 1 — body | 3-line body, line 2/3 long | 3-line body, final wording (see §5) | String-only | Low | **Final product decision** |
 | F-08 | Walkthrough page 2 — title & body | „Foto ausrichten“ / 1-sentence body | „Foto wählen und ausrichten“ / 3-line body (see §5) | String-only | Low | **Final product decision** |
-| F-09 | Walkthrough page 3 — title & body | „Foto aufnehmen“ / 1-sentence body | title unchanged / 2-line body, same wording (see §5) | String-only | Low | **Final product decision** |
+| F-09 | Walkthrough page 3 — title & body | „Foto aufnehmen“ / 1-sentence body | title unchanged / 2-line body, wording updated (see §5) | String-only | Low | **Final product decision** |
 | F-10 | Walkthrough page 4 — title | „Sieh, was sich verändert hat“ | „Veränderungen entdecken“ | String-only | Low | **Final product decision** |
-| F-11 | Walkthrough page 4 — body | 3-line body, up to 37 chars/line | 3-line body, final wording (see §5) | String-only | Low | **Final product decision** |
+| F-11 | Walkthrough page 4 — body | 3-line body, up to 37 chars/line | 1-line body, final wording (see §5) | String-only | Low | **Final product decision** |
 | F-12 | Walkthrough — navigation | Skip shown on pages 1–3 | Skip shown on page 1 only (exact per-page button set in §5) | Layout/Nav | Medium | **Decided — final** |
 
 ## 4. Implementation Blocks
@@ -316,24 +316,29 @@ bis die Perspektive passt.
 
 ### F-09 — Walkthrough page 3: title & body
 
-**Status: Final product decision.** *(product decision labeled "Seite 3 — Schritt 2")*. Scope is extended from the original finding, which recorded the body as "no change" and did not evaluate the title — the final decision formally confirms both.
+**Status: Final product decision.** *(product decision labeled "Seite 3 — Schritt 2")*. Scope is extended from the original finding, which recorded the body as "no change" and did not evaluate the title — the final decision formally confirms both. The body wording has since been superseded again — see below.
 
 **Current title (DE):** `„Foto aufnehmen“`
 **Final title (DE):** `„Foto aufnehmen“` — unchanged, formally confirmed as final
 
-**Current body (DE):** `„Wenn alles ausgerichtet ist, halte den Moment fest.“` (single continuous sentence)
+**Original body (DE):** `„Wenn alles passt, halte den Moment fest.“` (single continuous sentence, pre-F-09)
+
+**Previous final body (DE, superseded):**
+```
+Wenn alles passt,
+halte den Moment fest.
+```
 
 **Final body (DE):**
 ```
-„Wenn alles ausgerichtet ist, 
+Wenn alles ausgerichtet ist,
 halte den Moment fest.
 ```
-Wording is unchanged from the current text; the final decision formalizes it as an explicit two-line fragment instead of one continuous sentence.
 
-**Reason:** Final, binding product decision.
+**Reason:** Final, binding product decision. Supersedes the prior finalized wording recorded above.
 
 **Affected files:**
-- `app/src/main/res/values-de/strings.xml` — `walkthrough_page_take_shot_body` (line-break formatting only; wording unchanged). `walkthrough_page_take_shot_title` requires no edit — its current value already matches the final decision.
+- `app/src/main/res/values-de/strings.xml` — `walkthrough_page_take_shot_body`. `walkthrough_page_take_shot_title` requires no edit — its current value already matches the final decision.
 
 **Change type:** String-only
 
@@ -364,13 +369,20 @@ Wording is unchanged from the current text; the final decision formalizes it as 
 
 ### F-11 — Walkthrough page 4: body
 
-**Status: Final product decision.** *(product decision labeled "Seite 4 — Ergebnis")*
+**Status: Final product decision.** *(product decision labeled "Seite 4 — Ergebnis")*. Supersedes the prior final body wording — see below.
 
 **Current text (DE):**
 ```
 Das Foto, das du ausgewählt hast.
 Der Moment, den du nachgestellt hast.
 Der Unterschied zwischen beiden.
+```
+
+**Previous final text (DE, superseded):**
+```
+Das Original.
+Deine Aufnahme.
+Der Unterschied dazwischen.
 ```
 
 **Final text (DE):**
@@ -386,7 +398,7 @@ Der Unterschied dazwischen.
 ```
 — superseded by the final text above; do not use.
 
-**Reason:** Final, binding product decision.
+**Reason:** Final, binding product decision. Supersedes the prior finalized three-fragment wording recorded above.
 
 **Affected files:**
 - `app/src/main/res/values-de/strings.xml` — `walkthrough_page_see_what_changed_body`

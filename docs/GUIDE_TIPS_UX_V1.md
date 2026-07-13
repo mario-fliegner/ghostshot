@@ -732,14 +732,14 @@ No new DataStore keys are introduced. The existing `seen_tip_ids` key stores com
 
 | Key | Value |
 |---|---|
-| `guide_tip_reference_title` | `"Reference photos"` |
-| `guide_tip_reference_body` | `"Choose an earlier photo to line up the same view."` |
+| `guide_tip_reference_title` | `"Add reference"` |
+| `guide_tip_reference_body` | `"Choose a photo to recreate."` |
 | `guide_tip_share_title` | `"Share your moment"` |
 | `guide_tip_share_body` | `"Create an image or video to share your comparison."` |
 | `guide_tip_edit_session_title` | `"Add details"` |
 | `guide_tip_edit_session_body` | `"Add a title, date, or location to your moment."` |
-| `guide_tip_open_comparison_title` | `"Open a moment"` |
-| `guide_tip_open_comparison_body` | `"Tap a moment to see then and now.\nPress and hold to select multiple moments."` |
+| `guide_tip_open_comparison_title` | `"Open a comparison"` |
+| `guide_tip_open_comparison_body` | `"Tap a comparison to view it.\nPress and hold a comparison to select multiple items."` |
 | `guide_tip_learn_more` | `"Learn more"` (unchanged) |
 | `guide_tip_dismiss` | `"Dismiss"` |
 
@@ -753,12 +753,12 @@ All visible strings require a German translation in `values-de/strings.xml`. The
 
 ## 23. Guide Screen Integration
 
-### 23.1 Reset Guide Tips
+### 23.1 Show Tips Again
 
-"Reset guide tips" remains in the Guide screen as a bottom action, separate from the topic list. The Guide screen is the only location for this action. It is not added to SettingsScreen.
+"Show tips again" remains in the Guide screen as a bottom action, separate from the topic list. The Guide screen is the only location for this action. It is not added to SettingsScreen.
 
 Behavior:
-- Tapping "Reset guide tips" shows a confirmation dialog.
+- Tapping "Show tips again" shows a confirmation dialog.
 - Confirming calls `GuideRepository.resetContextualTips()`, which removes `seen_tip_ids`.
 - Walkthrough completion state is unaffected.
 - Confirmed reset does not navigate away from the Guide screen.
@@ -778,7 +778,7 @@ The following Guide topics must exist for Learn more navigation. Topic ids refle
 Notes on this table following the Guide IA consolidation (old 9-topic structure → 5-topic consolidation → current 4-topic structure, after the later removal of the standalone Compare topic):
 
 - `REFERENCE` — the target topic id is `GuideTopicId.REFERENCE_PHOTOS`, matching the shipped Guide topic name "Reference photos" (§8.2). An earlier version of this document planned a rename to `REFERENCE_PHOTOS_ALIGNMENT` to match a working topic name of "Reference photos & alignment"; that rename was never applied to the shipped topic id or name, and this table has been corrected to match. The underlying topic still opens directly to content that starts with reference image selection (`FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8.2), so the tip's Learn more target remains contextually correct. No functional or persistence impact — topic ids are never persisted (§21).
-- `SHARE` — the target topic id changes from `GuideTopicId.SHARE_COMPARISON_IMAGE`, which no longer exists as a standalone topic, to `GuideTopicId.EXPORT`, the consolidated topic that now contains Share comparison image, Create video, and Session backups. `EXPORT`'s detail content leads with Share comparison image (`FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8.3), so Learn more still lands the user on contextually relevant content without deep-linking, anchors, or nested navigation.
+- `SHARE` — the target topic id changes from `GuideTopicId.SHARE_COMPARISON_IMAGE`, which no longer exists as a standalone topic, to `GuideTopicId.EXPORT`, the consolidated topic that now contains Share image, Create video, and Back up sessions. `EXPORT`'s detail content leads with Share image (`FIRST_RUN_WALKTHROUGH_GUIDE_V1.md` §8.3), so Learn more still lands the user on contextually relevant content without deep-linking, anchors, or nested navigation.
 - `EDIT_SESSION` — unaffected by the Guide IA consolidation. Its target and the "or a dedicated topic if created" ambiguity predate this restructuring and are unrelated to it; no change made here.
 - `OPEN_COMPARISON` — unaffected; it has no Learn more action.
 
@@ -876,4 +876,4 @@ The following table summarizes what changes relative to the prior tip implementa
 | Library scope | Not supported | New: LIBRARY scope with OPEN_COMPARISON and MULTI_SELECT |
 | Landscape placement | Compact: ABOVE/BELOW only | Compact landscape: all four sides |
 | Exclusion zones | None | Capture button; compare viewport |
-| "Reset guide tips" location | Guide screen ("Show tips again") | Guide screen (unchanged) |
+| "Show tips again" location | Guide screen | Guide screen (unchanged) |
