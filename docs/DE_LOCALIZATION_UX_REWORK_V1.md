@@ -321,11 +321,11 @@ bis die Perspektive passt.
 **Current title (DE):** `„Foto aufnehmen“`
 **Final title (DE):** `„Foto aufnehmen“` — unchanged, formally confirmed as final
 
-**Current body (DE):** `„Wenn alles passt, halte den Moment fest.“` (single continuous sentence)
+**Current body (DE):** `„Wenn alles ausgerichtet ist, halte den Moment fest.“` (single continuous sentence)
 
 **Final body (DE):**
 ```
-Wenn alles passt,
+„Wenn alles ausgerichtet ist, 
 halte den Moment fest.
 ```
 Wording is unchanged from the current text; the final decision formalizes it as an explicit two-line fragment instead of one continuous sentence.
@@ -375,9 +375,7 @@ Der Unterschied zwischen beiden.
 
 **Final text (DE):**
 ```
-Das Original.
-Deine Aufnahme.
-Der Unterschied dazwischen.
+Vergleiche beide Aufnahmen direkt miteinander und entdecke die Unterschiede.
 ```
 
 **Previously proposed (rejected):**

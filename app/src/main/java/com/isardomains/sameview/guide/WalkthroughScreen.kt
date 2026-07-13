@@ -36,11 +36,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.isardomains.sameview.R
 import kotlinx.coroutines.launch
@@ -127,23 +130,24 @@ fun WalkthroughScreen(
                             )
                         }
 
-                        // Right: text slot (weight) + dots + buttons.
+                        // Right: text area (measured max height) + dots + buttons. The text
+                        // area no longer expands via weight, so the group is centered as a
+                        // fixed-height block instead — this keeps it symmetric regardless of
+                        // which page's content is currently shown.
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            // Text slot: weight(1f) is the only region that absorbs
-                            // content-length variation; its boundaries never move.
-                            Box(
+                            WalkthroughTextArea(
+                                currentPage = currentPage,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .weight(1f),
+                                    .testTag("walkthrough_text_area"),
                                 contentAlignment = Alignment.Center
-                            ) {
-                                WalkthroughTextSlot(page = currentPage)
-                            }
+                            )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
@@ -174,11 +178,12 @@ fun WalkthroughScreen(
                             .testTag("walkthrough_single_column_layout"),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Leading slack: same weight as the text slot below, so the image+text
-                        // group is centered between the top safe area and the dots/buttons
-                        // footer. Weight-based, not content-based, so it stays independent of
-                        // per-page text length and the image slot position stays identical
-                        // across all four pages.
+                        // Leading slack: the only weighted child left in this Column, so it
+                        // absorbs whatever height remains after the image, the measured text
+                        // area, and the fixed dots/buttons/spacers. Its value is identical on
+                        // every page since the text area height below it no longer varies by
+                        // page — this is what keeps dots/buttons pinned in place while the image
+                        // moves by however much the reserved text height required.
                         Spacer(modifier = Modifier.weight(1f))
 
                         // Image slot: height fixed by aspect ratio — position never changes.
@@ -197,17 +202,18 @@ fun WalkthroughScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Text slot: top-aligned so the title appears immediately below the
-                        // image. Empty space accumulates below the body text, not between the
-                        // image and title. Slot boundaries are fixed; only content length varies.
-                        Box(
+                        // Text area: height is the measured maximum across all four pages (see
+                        // WalkthroughTextArea), not a weight-based leftover, so the slot fits the
+                        // tallest page instead of clipping it. Top-aligned so the title appears
+                        // immediately below the image; empty space accumulates below the body
+                        // text on shorter pages.
+                        WalkthroughTextArea(
+                            currentPage = currentPage,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f),
+                                .testTag("walkthrough_text_area"),
                             contentAlignment = Alignment.TopCenter
-                        ) {
-                            WalkthroughTextSlot(page = currentPage)
-                        }
+                        )
 
                         Spacer(modifier = Modifier.height(24.dp))
 
@@ -239,10 +245,59 @@ fun WalkthroughScreen(
     }
 }
 
+// Reserves the same text height on every page, measured from all of WalkthroughContent.pages
+// rather than a weight-based leftover split. The measured-height computation never reads
+// currentPage, so it depends only on width/locale/density/font-scale — not on page swipes.
 @Composable
-private fun WalkthroughTextSlot(page: WalkthroughPage) {
+private fun WalkthroughTextArea(
+    currentPage: WalkthroughPage,
+    modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.TopCenter
+) {
+    SubcomposeLayout(modifier = modifier) { constraints ->
+        val measureConstraints = Constraints(
+            minWidth = constraints.maxWidth,
+            maxWidth = constraints.maxWidth,
+            minHeight = 0,
+            maxHeight = Constraints.Infinity
+        )
+
+        val maxTextHeightPx = subcompose("walkthrough_text_measure") {
+            WalkthroughContent.pages.forEach { page ->
+                WalkthroughTextSlot(page = page, isMeasurement = true)
+            }
+        }.maxOf { measurable -> measurable.measure(measureConstraints).height }
+
+        val visiblePlaceables = subcompose("walkthrough_text_visible") {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = contentAlignment
+            ) {
+                WalkthroughTextSlot(page = currentPage)
+            }
+        }.map { measurable ->
+            measurable.measure(
+                Constraints(
+                    minWidth = constraints.maxWidth,
+                    maxWidth = constraints.maxWidth,
+                    minHeight = maxTextHeightPx,
+                    maxHeight = maxTextHeightPx
+                )
+            )
+        }
+
+        layout(constraints.maxWidth, maxTextHeightPx) {
+            visiblePlaceables.forEach { it.place(0, 0) }
+        }
+    }
+}
+
+@Composable
+private fun WalkthroughTextSlot(page: WalkthroughPage, isMeasurement: Boolean = false) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (isMeasurement) Modifier.clearAndSetSemantics {} else Modifier),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -250,7 +305,7 @@ private fun WalkthroughTextSlot(page: WalkthroughPage) {
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
-            modifier = Modifier.testTag("walkthrough_title")
+            modifier = if (isMeasurement) Modifier else Modifier.testTag("walkthrough_title")
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -258,7 +313,7 @@ private fun WalkthroughTextSlot(page: WalkthroughPage) {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.testTag("walkthrough_body")
+            modifier = if (isMeasurement) Modifier else Modifier.testTag("walkthrough_body")
         )
     }
 }
@@ -276,7 +331,9 @@ private fun WalkthroughButtons(
         isLastPage -> {
             // Page 4: Back (medium) + Start (high)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("walkthrough_button_row"),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
@@ -300,7 +357,9 @@ private fun WalkthroughButtons(
         pageIndex == 0 -> {
             // Page 1: Skip (low) + Next (high)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("walkthrough_button_row"),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 TextButton(
@@ -324,7 +383,9 @@ private fun WalkthroughButtons(
         else -> {
             // Pages 2–3: Back (medium) + Next (high)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("walkthrough_button_row"),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(

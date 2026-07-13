@@ -1,5 +1,6 @@
 package com.isardomains.sameview.guide
 
+import android.content.res.Configuration
 import android.os.Build
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -7,8 +8,11 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -27,6 +31,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.isardomains.sameview.R
 import com.isardomains.sameview.ui.theme.SameViewTheme
+import java.util.Locale
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -778,6 +783,149 @@ class WalkthroughScreenTest {
         assertEquals(1, startCount)
     }
 
+    // ── Text-slot measurement fix regression coverage ───────────────────────────
+    //
+    // These target the SubcomposeLayout-based WalkthroughTextArea fix: the text slot's height
+    // is now measured from all four pages instead of a weight-based leftover split. Bounds are
+    // read from tagged nodes (walkthrough_text_area, walkthrough_pager, walkthrough_progress_dots,
+    // walkthrough_button_row) rather than hardcoded pixel values, so they stay valid across
+    // screen sizes.
+
+    @Test
+    fun germanPage2BodyFullyWithinVisibleBounds() {
+        setWalkthroughContentInGerman()
+
+        composeRule.onNodeWithTag("walkthrough_next").performClick()
+        composeRule.waitForIdle()
+
+        val rootBounds = composeRule.onNodeWithTag("walkthrough_screen_root").fetchSemanticsNode().boundsInRoot
+        val bodyBounds = composeRule.onNodeWithTag("walkthrough_body").fetchSemanticsNode().boundsInRoot
+
+        assertTrue(
+            "German page 2 body text must not extend past the visible walkthrough bounds",
+            bodyBounds.bottom <= rootBounds.bottom
+        )
+    }
+
+    @Test
+    fun germanPage4BodyFullyWithinVisibleBounds() {
+        setWalkthroughContentInGerman()
+
+        repeat(3) {
+            composeRule.onNodeWithTag("walkthrough_next").performClick()
+            composeRule.waitForIdle()
+        }
+
+        val rootBounds = composeRule.onNodeWithTag("walkthrough_screen_root").fetchSemanticsNode().boundsInRoot
+        val bodyBounds = composeRule.onNodeWithTag("walkthrough_body").fetchSemanticsNode().boundsInRoot
+
+        assertTrue(
+            "German page 4 body text must not extend past the visible walkthrough bounds",
+            bodyBounds.bottom <= rootBounds.bottom
+        )
+    }
+
+    @Test
+    fun textSlotHeightIsIdenticalAcrossAllPages() {
+        setWalkthroughContentInGerman()
+
+        val heights = mutableListOf(
+            composeRule.onNodeWithTag("walkthrough_text_area").fetchSemanticsNode().boundsInRoot.height
+        )
+        repeat(3) {
+            composeRule.onNodeWithTag("walkthrough_next").performClick()
+            composeRule.waitForIdle()
+            heights += composeRule.onNodeWithTag("walkthrough_text_area").fetchSemanticsNode().boundsInRoot.height
+        }
+
+        heights.drop(1).forEach { height ->
+            assertEquals(
+                "Text-slot height must be identical on every page, not derived per-page",
+                heights.first(),
+                height,
+                0.5f
+            )
+        }
+    }
+
+    @Test
+    fun imageBoundsAreIdenticalAcrossAllPages() {
+        setWalkthroughContentInGerman()
+
+        val bounds = mutableListOf(composeRule.onNodeWithTag("walkthrough_pager").fetchSemanticsNode().boundsInRoot)
+        repeat(3) {
+            composeRule.onNodeWithTag("walkthrough_next").performClick()
+            composeRule.waitForIdle()
+            bounds += composeRule.onNodeWithTag("walkthrough_pager").fetchSemanticsNode().boundsInRoot
+        }
+
+        bounds.drop(1).forEach { b ->
+            assertEquals("Image top must be identical on every page", bounds.first().top, b.top, 0.5f)
+            assertEquals("Image left must be identical on every page", bounds.first().left, b.left, 0.5f)
+            assertEquals("Image width must be identical on every page", bounds.first().width, b.width, 0.5f)
+            assertEquals("Image height must be identical on every page", bounds.first().height, b.height, 0.5f)
+        }
+    }
+
+    @Test
+    fun progressDotsBoundsAreIdenticalAcrossAllPages() {
+        setWalkthroughContentInGerman()
+
+        val bounds = mutableListOf(
+            composeRule.onNodeWithTag("walkthrough_progress_dots").fetchSemanticsNode().boundsInRoot
+        )
+        repeat(3) {
+            composeRule.onNodeWithTag("walkthrough_next").performClick()
+            composeRule.waitForIdle()
+            bounds += composeRule.onNodeWithTag("walkthrough_progress_dots").fetchSemanticsNode().boundsInRoot
+        }
+
+        bounds.drop(1).forEach { b ->
+            assertEquals("Dots top must be identical on every page", bounds.first().top, b.top, 0.5f)
+            assertEquals("Dots left must be identical on every page", bounds.first().left, b.left, 0.5f)
+        }
+    }
+
+    @Test
+    fun buttonRowBoundsAreIdenticalAcrossAllPages() {
+        setWalkthroughContentInGerman()
+
+        val bounds = mutableListOf(
+            composeRule.onNodeWithTag("walkthrough_button_row").fetchSemanticsNode().boundsInRoot
+        )
+        repeat(3) {
+            composeRule.onNodeWithTag("walkthrough_next").performClick()
+            composeRule.waitForIdle()
+            bounds += composeRule.onNodeWithTag("walkthrough_button_row").fetchSemanticsNode().boundsInRoot
+        }
+
+        bounds.drop(1).forEach { b ->
+            assertEquals("Button row top must be identical on every page", bounds.first().top, b.top, 0.5f)
+        }
+    }
+
+    @Test
+    fun hiddenMeasurementPassesDoNotDuplicateVisibleTextNodes() {
+        setWalkthroughContentInGerman()
+
+        composeRule.onAllNodesWithTag("walkthrough_title").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("walkthrough_body").assertCountEquals(1)
+
+        composeRule.onNodeWithTag("walkthrough_next").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onAllNodesWithTag("walkthrough_title").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("walkthrough_body").assertCountEquals(1)
+    }
+
+    @Test
+    fun landscapeTextAreaAndButtonRowRenderCorrectly() {
+        setWalkthroughContent(windowWidthSizeClass = WindowWidthSizeClass.Expanded)
+
+        composeRule.onNodeWithTag("walkthrough_text_area").assertIsDisplayed()
+        composeRule.onNodeWithTag("walkthrough_button_row").assertIsDisplayed()
+    }
+
     // ── Responsive ────────────────────────────────────────────────────────────
 
     @Test
@@ -925,6 +1073,60 @@ class WalkthroughScreenTest {
                             onSkip = onSkip,
                             onStart = onStart
                         )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Forces the walkthrough's own composition into German, independent of the test device's
+     * actual locale, by providing a German-configured [LocalContext]/[LocalConfiguration] around
+     * [WalkthroughScreen] — every `stringResource()` call inside resolves against that override.
+     * Needed because F-08/F-11's German copy (`DE_LOCALIZATION_UX_REWORK_V1.md`) is longer than
+     * the English source strings and is what the text-slot measurement fix targets.
+     */
+    private fun setWalkthroughContentInGerman(
+        windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
+        containerWidth: Dp? = null,
+        containerHeight: Dp? = null
+    ) {
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        val germanConfig = Configuration(context.resources.configuration).apply {
+            setLocale(Locale.GERMAN)
+        }
+        val germanContext = context.createConfigurationContext(germanConfig)
+        scenario?.onActivity { activity ->
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                activity.setShowWhenLocked(true)
+                activity.setTurnScreenOn(true)
+            }
+            activity.setContent {
+                CompositionLocalProvider(
+                    LocalContext provides germanContext,
+                    LocalConfiguration provides germanConfig
+                ) {
+                    SameViewTheme {
+                        if (containerWidth != null && containerHeight != null) {
+                            Box(Modifier.size(width = containerWidth, height = containerHeight)) {
+                                WalkthroughScreen(
+                                    entryMode = WalkthroughEntryMode.FIRST_RUN,
+                                    windowWidthSizeClass = windowWidthSizeClass,
+                                    onSkip = {},
+                                    onStart = {}
+                                )
+                            }
+                        } else {
+                            WalkthroughScreen(
+                                entryMode = WalkthroughEntryMode.FIRST_RUN,
+                                windowWidthSizeClass = windowWidthSizeClass,
+                                onSkip = {},
+                                onStart = {}
+                            )
+                        }
                     }
                 }
             }

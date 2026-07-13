@@ -18,8 +18,8 @@
 
     <string name="compare_library_title">Vergleiche</string>
     <string name="compare_library_empty_title">Noch keine Vergleiche</string>
-    <string name="compare_library_empty_body">Mach ein Foto, um deinen ersten Vergleich zu erstellen.</string>
-    <string name="compare_library_empty_cta">Mach dein erstes Foto</string>
+    <string name="compare_library_empty_body">Dein erster Vergleich beginnt mit einem Foto.</string>
+    <string name="compare_library_empty_cta">Nimm ein Foto auf</string>
     <string name="compare_library_empty_favorites_title">Noch keine Favoriten</string>
     <string name="compare_library_empty_favorites_body">Markiere Vergleiche als Favoriten, um sie schneller zu finden.</string>
     <string name="compare_library_filter_sort_options">Filter- und Sortieroptionen</string>
@@ -166,9 +166,9 @@
     <string name="walkthrough_page_align_overlay_title">Foto wählen und ausrichten</string>
     <string name="walkthrough_page_align_overlay_body">Wähle ein Referenzfoto aus.\nVerschiebe und skaliere es,\nbis die Perspektive passt.</string>
     <string name="walkthrough_page_take_shot_title">Foto aufnehmen</string>
-    <string name="walkthrough_page_take_shot_body">Wenn alles passt,\nhalte den Moment fest.</string>
+    <string name="walkthrough_page_take_shot_body">Wenn alles ausgerichtet ist,\nhalte den Moment fest.</string>
     <string name="walkthrough_page_see_what_changed_title">Veränderungen entdecken</string>
-    <string name="walkthrough_page_see_what_changed_body">Das Original.\nDeine Aufnahme.\nDer Unterschied dazwischen.</string>
+    <string name="walkthrough_page_see_what_changed_body">Vergleiche beide Aufnahmen direkt miteinander und entdecke die Unterschiede.</string>
     <string name="walkthrough_skip">Überspringen</string>
     <string name="walkthrough_next">Weiter</string>
     <string name="walkthrough_back">Zurück</string>
@@ -196,7 +196,7 @@
     <string name="guide_tip_open_comparison_title">Vergleich öffnen</string>
     <string name="guide_tip_open_comparison_body">Tippe auf einen Vergleich, um ihn zu öffnen.\nHalte einen Vergleich gedrückt, um mehrere auszuwählen.</string>
     <string name="guide_topic_getting_started_title">Erste Schritte</string>
-    <string name="guide_topic_getting_started_summary">Wähle ein Referenzfoto, richte die Aufnahme aus und sieh, was sich verändert hat.</string>
+    <string name="guide_topic_getting_started_summary">Wähle ein Referenzfoto, richte die Aufnahme aus und vergleiche beide Bilder.</string>
     <string name="guide_topic_reference_photos_title">Referenzfotos</string>
     <string name="guide_topic_reference_photos_summary">Ausrichten, anpassen und Marker setzen.</string>
     <string name="guide_topic_gps_guidance_title">GPS-Führung</string>
@@ -209,7 +209,7 @@
     <string name="guide_detail_getting_started_step2_title">Foto ausrichten</string>
     <string name="guide_detail_getting_started_step2_body">Kehre an den Ort der Aufnahme des Referenzfotos zurück und richte es an der Live-Kameraansicht aus.</string>
     <string name="guide_detail_getting_started_step3_title">Aufnahme machen</string>
-    <string name="guide_detail_getting_started_step3_body">Wenn alles passt, nimm das neue Foto auf.</string>
+    <string name="guide_detail_getting_started_step3_body">Wenn alles ausgerichtet ist, halte den Moment fest.</string>
     <string name="guide_detail_getting_started_step4_title">Sieh, was sich verändert hat</string>
     <string name="guide_detail_getting_started_step4_body">Öffne das Ergebnis, um Referenzfoto und die neue Aufnahme nebeneinander zu sehen.</string>
     <string name="guide_detail_getting_started_completion_title">Bereit für deinen ersten Vergleich?</string>
