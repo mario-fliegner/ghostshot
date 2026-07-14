@@ -453,7 +453,12 @@ fun CameraScreen(
             LaunchedEffect(referenceUri) {
                 val wasNull = previousReferenceUri == null
                 previousReferenceUri = referenceUri
-                if (wasNull && referenceUri != null) {
+                // If REFERENCE is currently active, Effect B below owns completing it (and
+                // clearing activeGuideTip) exclusively — a second independent completeTip()
+                // call here would race it: whichever call's DataStore write lands first flips
+                // controller.activeTipId, but only Effect B's call also nulls the local
+                // activeGuideTip that the tip card's visibility depends on.
+                if (wasNull && referenceUri != null && activeGuideTip?.id != GuideTipId.REFERENCE) {
                     guideTipScope.launch {
                         guideTipController?.completeTip(GuideTipId.REFERENCE)
                     }
@@ -480,8 +485,19 @@ fun CameraScreen(
                 val controller = guideTipController ?: return@LaunchedEffect
                 val currentTip = activeGuideTip
                 if (currentTip != null && (cameraTipBlocked || currentTip.id !in cameraEligibleTipIds)) {
-                    controller.clearActiveTipWithoutMarkingSeen(currentTip.id)
-                    activeGuideTip = null
+                    // REFERENCE becoming ineligible here (referenceUri != null) means it just
+                    // completed via reference selection, not a generic blocking/eligibility
+                    // loss — complete it (idempotent with Effect A) instead of clearing
+                    // unseen, per GUIDE_TIPS_UX_V1.md §7.1/§6.5.
+                    if (currentTip.id == GuideTipId.REFERENCE && referenceUri != null) {
+                        guideTipScope.launch {
+                            controller.completeTip(GuideTipId.REFERENCE)
+                            activeGuideTip = null
+                        }
+                    } else {
+                        controller.clearActiveTipWithoutMarkingSeen(currentTip.id)
+                        activeGuideTip = null
+                    }
                     return@LaunchedEffect
                 }
                 if (currentTip == null) {
@@ -776,7 +792,21 @@ fun CameraScreen(
                         // ── Layer 2: Reference image overlay ──────────────────────────────
                         // Shares the same viewport container as the preview. Position and scale
                         // use normalised fractions so gesture math in the ViewModel is unchanged.
-                        if (referenceUri != null) {
+                        // The three overlay consumers below share one explicit, constrained size
+                        // derived from uiState.viewportWidth/Height (the value CameraScreen's own
+                        // onSizeChanged already computes correctly) instead of each independently
+                        // self-measuring via an aspectRatio-based modifier.
+                        val hasConstrainedViewport = uiState.viewportWidth > 0 && uiState.viewportHeight > 0
+                        val constrainedOverlayModifier = if (hasConstrainedViewport) {
+                            Modifier
+                                .size(
+                                    width = with(density) { uiState.viewportWidth.toDp() },
+                                    height = with(density) { uiState.viewportHeight.toDp() }
+                                )
+                                .align(Alignment.Center)
+                        } else null
+
+                        if (referenceUri != null && hasConstrainedViewport) {
                             ReferenceImageOverlay(
                                 referenceUri = referenceUri,
                                 metadata = uiState.referenceImageMetadata,
@@ -793,18 +823,15 @@ fun CameraScreen(
                                     overlayInteractionGeneration++
                                     viewModel.onOverlayScaled(zoom)
                                 },
-                                modifier = if (!isLandscape) {
-                                    Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
-                                } else {
-                                    Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)
-                                }
+                                modifier = constrainedOverlayModifier!!
                             )
                         }
 
                         // ── Layer 2.5: Reference marker overlay ───────────────────────────
                         val markersState = uiState.referenceMarkersState
                         if (referenceUri != null &&
-                            (markersState.markersVisible || markersState.isEditModeActive)
+                            (markersState.markersVisible || markersState.isEditModeActive) &&
+                            hasConstrainedViewport
                         ) {
                             ReferenceMarkerOverlay(
                                 markersState = markersState,
@@ -825,28 +852,22 @@ fun CameraScreen(
                                     overlayInteractionGeneration++
                                     viewModel.onOverlayScaled(zoom)
                                 },
-                                modifier = if (!isLandscape) {
-                                    Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
-                                } else {
-                                    Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)
-                                }
+                                modifier = constrainedOverlayModifier!!
                             )
                         }
 
                         // ── Layer 2.7: Edit-mode image rect border ────────────────────────
-                        MarkerEditBorder(
-                            isEditModeActive = uiState.referenceMarkersState.isEditModeActive,
-                            metadata = uiState.referenceImageMetadata,
-                            displayMode = uiState.referenceImageDisplayMode,
-                            overlayOffsetX = uiState.overlayOffsetX,
-                            overlayOffsetY = uiState.overlayOffsetY,
-                            overlayScale = uiState.overlayScale,
-                            modifier = if (!isLandscape) {
-                                Modifier.fillMaxWidth().aspectRatio(9f / 16f).align(Alignment.Center)
-                            } else {
-                                Modifier.fillMaxHeight().aspectRatio(16f / 9f).align(Alignment.Center)
-                            }
-                        )
+                        if (hasConstrainedViewport) {
+                            MarkerEditBorder(
+                                isEditModeActive = uiState.referenceMarkersState.isEditModeActive,
+                                metadata = uiState.referenceImageMetadata,
+                                displayMode = uiState.referenceImageDisplayMode,
+                                overlayOffsetX = uiState.overlayOffsetX,
+                                overlayOffsetY = uiState.overlayOffsetY,
+                                overlayScale = uiState.overlayScale,
+                                modifier = constrainedOverlayModifier!!
+                            )
+                        }
                     }
                 }
 
