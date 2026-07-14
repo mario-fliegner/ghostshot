@@ -5,14 +5,14 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -623,6 +623,15 @@ class ReferenceMarkersOverlayUITest {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    // Fixed, device-independent viewport dimensions for setBorderContent's isolated test_viewport
+    // wrapper. Deliberately not derived from screen bounds, insets, or CameraScreen's runtime
+    // measurements, and deliberately not an exact 9:16 / 16:9 ratio, to decouple this component
+    // test from any device's real geometry and from the aspectRatio-based idealized value.
+    private val BORDER_TEST_VIEWPORT_WIDTH_PORTRAIT_DP = 540.dp
+    private val BORDER_TEST_VIEWPORT_HEIGHT_PORTRAIT_DP = 800.dp
+    private val BORDER_TEST_VIEWPORT_WIDTH_LANDSCAPE_DP = 760.dp
+    private val BORDER_TEST_VIEWPORT_HEIGHT_LANDSCAPE_DP = 420.dp
+
     private fun setOverlayContent(
         markersState: ReferenceMarkersState,
         metadata: ReferenceImageMetadata? = null,
@@ -705,7 +714,9 @@ class ReferenceMarkersOverlayUITest {
         overlayOffsetX: Float = 0f,
         overlayOffsetY: Float = 0f,
         overlayScale: Float = 1f,
-        isLandscape: Boolean = false
+        isLandscape: Boolean = false,
+        viewportWidthDp: Dp = if (isLandscape) BORDER_TEST_VIEWPORT_WIDTH_LANDSCAPE_DP else BORDER_TEST_VIEWPORT_WIDTH_PORTRAIT_DP,
+        viewportHeightDp: Dp = if (isLandscape) BORDER_TEST_VIEWPORT_HEIGHT_LANDSCAPE_DP else BORDER_TEST_VIEWPORT_HEIGHT_PORTRAIT_DP
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -718,10 +729,9 @@ class ReferenceMarkersOverlayUITest {
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
-                            modifier = if (!isLandscape)
-                                Modifier.fillMaxWidth().aspectRatio(9f / 16f).testTag("test_viewport")
-                            else
-                                Modifier.fillMaxHeight().aspectRatio(16f / 9f).testTag("test_viewport")
+                            modifier = Modifier
+                                .size(width = viewportWidthDp, height = viewportHeightDp)
+                                .testTag("test_viewport")
                         ) {
                             MarkerEditBorder(
                                 isEditModeActive = isEditModeActive,
