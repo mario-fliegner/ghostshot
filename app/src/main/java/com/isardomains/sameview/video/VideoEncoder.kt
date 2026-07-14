@@ -8,6 +8,7 @@ import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.os.ParcelFileDescriptor
 import java.io.IOException
+import java.nio.ByteBuffer
 
 /**
  * Encodes Bitmap frames to H.264/AVC or H.265/HEVC using MediaCodec in ByteBuffer input mode.
@@ -40,7 +41,7 @@ internal class VideoEncoder(
 
     // Pre-allocated in start(); reused across all frames.
     private var argbPixels = IntArray(0)
-    private var yuvBytes = ByteArray(0)
+    private var yuvByteCount = 0
 
     init {
         val info = when (codecMimeType) {
@@ -55,8 +56,8 @@ internal class VideoEncoder(
 
     fun start() {
         val pixelCount = width * height
-        argbPixels = IntArray(pixelCount)
-        yuvBytes = ByteArray(pixelCount * 3 / 2)
+        argbPixels = IntArray(width * minOf(BAND_ROW_COUNT, height))
+        yuvByteCount = pixelCount * 3 / 2
 
         val format = MediaFormat.createVideoFormat(codecMimeType, width, height).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, colorFormat)
@@ -73,13 +74,6 @@ internal class VideoEncoder(
 
     fun encodeFrame(bitmap: Bitmap) {
         val c = codec ?: return
-        bitmap.getPixels(argbPixels, 0, width, 0, 0, width, height)
-
-        if (colorFormat == MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar) {
-            argbToNv12(argbPixels, yuvBytes, width, height)
-        } else {
-            argbToI420(argbPixels, yuvBytes, width, height)
-        }
 
         val pts = frameIndex++ * 1_000_000L / frameRateFps
 
@@ -87,14 +81,28 @@ internal class VideoEncoder(
         if (inputIdx >= 0) {
             val buf = c.getInputBuffer(inputIdx)!!
             buf.clear()
-            if (buf.remaining() < yuvBytes.size) {
+            if (buf.remaining() < yuvByteCount) {
                 c.releaseOutputBuffer(inputIdx, false)
                 throw IOException(
-                    "Encoder input buffer too small: ${buf.remaining()} < ${yuvBytes.size}"
+                    "Encoder input buffer too small: ${buf.remaining()} < $yuvByteCount"
                 )
             }
-            buf.put(yuvBytes, 0, yuvBytes.size)
-            c.queueInputBuffer(inputIdx, 0, yuvBytes.size, pts, 0)
+
+            var bandStartRow = 0
+            while (bandStartRow < height) {
+                val bandRowCount = minOf(BAND_ROW_COUNT, height - bandStartRow)
+                bitmap.getPixels(argbPixels, 0, width, 0, bandStartRow, width, bandRowCount)
+
+                if (colorFormat == MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar) {
+                    argbToNv12(argbPixels, buf, width, height, bandStartRow, bandRowCount)
+                } else {
+                    argbToI420(argbPixels, buf, width, height, bandStartRow, bandRowCount)
+                }
+
+                bandStartRow += bandRowCount
+            }
+
+            c.queueInputBuffer(inputIdx, 0, yuvByteCount, pts, 0)
         }
 
         drainOutput(drainUntilEos = false)
@@ -186,6 +194,7 @@ internal class VideoEncoder(
         private const val DRAIN_NORMAL_MAX_ITERATIONS = 50
         private const val DRAIN_EOS_MAX_ITERATIONS = 2_000
         private const val EOS_RETRY_LIMIT = 200
+        private const val BAND_ROW_COUNT = 128
 
         private val PREFERRED_COLOR_FORMATS = intArrayOf(
             MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar, // NV12
@@ -264,43 +273,77 @@ internal class VideoEncoder(
         }
 
         // ARGB → NV12 (YUV420SemiPlanar): Y plane, then interleaved UV plane (U first).
-        private fun argbToNv12(src: IntArray, dst: ByteArray, w: Int, h: Int) {
+        // src holds only the current band (bandRowCount rows starting at bandStartRow);
+        // h is the full frame height, needed to compute the total Y-plane size.
+        private fun argbToNv12(
+            src: IntArray,
+            dst: ByteBuffer,
+            w: Int,
+            h: Int,
+            bandStartRow: Int,
+            bandRowCount: Int
+        ) {
             val ySize = w * h
-            for (i in 0 until ySize) {
-                val p = src[i]
-                val r = (p shr 16) and 0xFF
-                val g = (p shr 8) and 0xFF
-                val b = p and 0xFF
-                dst[i] = (((66 * r + 129 * g + 25 * b + 128) shr 8) + 16).toByte()
+            for (localRow in 0 until bandRowCount) {
+                val globalRow = bandStartRow + localRow
+                for (col in 0 until w) {
+                    val p = src[localRow * w + col]
+                    val r = (p shr 16) and 0xFF
+                    val g = (p shr 8) and 0xFF
+                    val b = p and 0xFF
+                    dst.put(
+                        globalRow * w + col,
+                        (((66 * r + 129 * g + 25 * b + 128) shr 8) + 16).toByte()
+                    )
+                }
             }
-            var uvOffset = ySize
-            for (row in 0 until h step 2) {
+            val blocksPerRowPair = w / 2
+            for (localRow in 0 until bandRowCount step 2) {
+                val globalRow = bandStartRow + localRow
                 for (col in 0 until w step 2) {
-                    val (u, v) = chromaAvg(src, w, h, row, col)
-                    dst[uvOffset++] = u
-                    dst[uvOffset++] = v
+                    val (u, v) = chromaAvg(src, w, bandRowCount, localRow, col)
+                    val blockIndex = (globalRow / 2) * blocksPerRowPair + (col / 2)
+                    val uvOffset = ySize + blockIndex * 2
+                    dst.put(uvOffset, u)
+                    dst.put(uvOffset + 1, v)
                 }
             }
         }
 
         // ARGB → I420 (YUV420Planar): Y plane, then U plane, then V plane.
-        private fun argbToI420(src: IntArray, dst: ByteArray, w: Int, h: Int) {
+        // src holds only the current band (bandRowCount rows starting at bandStartRow);
+        // h is the full frame height, needed to compute the total Y-plane and U/V-plane sizes.
+        private fun argbToI420(
+            src: IntArray,
+            dst: ByteBuffer,
+            w: Int,
+            h: Int,
+            bandStartRow: Int,
+            bandRowCount: Int
+        ) {
             val ySize = w * h
             val uvSize = ySize / 4
-            for (i in 0 until ySize) {
-                val p = src[i]
-                val r = (p shr 16) and 0xFF
-                val g = (p shr 8) and 0xFF
-                val b = p and 0xFF
-                dst[i] = (((66 * r + 129 * g + 25 * b + 128) shr 8) + 16).toByte()
+            for (localRow in 0 until bandRowCount) {
+                val globalRow = bandStartRow + localRow
+                for (col in 0 until w) {
+                    val p = src[localRow * w + col]
+                    val r = (p shr 16) and 0xFF
+                    val g = (p shr 8) and 0xFF
+                    val b = p and 0xFF
+                    dst.put(
+                        globalRow * w + col,
+                        (((66 * r + 129 * g + 25 * b + 128) shr 8) + 16).toByte()
+                    )
+                }
             }
-            var uOffset = ySize
-            var vOffset = ySize + uvSize
-            for (row in 0 until h step 2) {
+            val blocksPerRowPair = w / 2
+            for (localRow in 0 until bandRowCount step 2) {
+                val globalRow = bandStartRow + localRow
                 for (col in 0 until w step 2) {
-                    val (u, v) = chromaAvg(src, w, h, row, col)
-                    dst[uOffset++] = u
-                    dst[vOffset++] = v
+                    val (u, v) = chromaAvg(src, w, bandRowCount, localRow, col)
+                    val blockIndex = (globalRow / 2) * blocksPerRowPair + (col / 2)
+                    dst.put(ySize + blockIndex, u)
+                    dst.put(ySize + uvSize + blockIndex, v)
                 }
             }
         }
