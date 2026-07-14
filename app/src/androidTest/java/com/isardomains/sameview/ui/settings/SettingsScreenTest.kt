@@ -313,6 +313,7 @@ class SettingsScreenTest {
         composeRule.onNodeWithText(context.getString(R.string.settings_recreation_guidance_permission_missing_hint))
             .assertIsDisplayed()
         composeRule.onNodeWithTag("settings_recreation_guidance_grant_permission")
+            .performScrollTo()
             .assertIsDisplayed()
     }
 
@@ -335,7 +336,9 @@ class SettingsScreenTest {
             onRecreationGuidanceChanged = { received = it }
         )
 
-        composeRule.onNodeWithTag("settings_recreation_guidance_grant_permission").performClick()
+        composeRule.onNodeWithTag("settings_recreation_guidance_grant_permission")
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         assertEquals(true, received)
@@ -345,7 +348,9 @@ class SettingsScreenTest {
     fun liveDirectionArrowToggle_isVisible_inGpsGuidanceCard() {
         setContent()
 
-        composeRule.onNodeWithTag("settings_live_direction_arrow").assertIsDisplayed()
+        composeRule.onNodeWithTag("settings_live_direction_arrow")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
@@ -357,7 +362,9 @@ class SettingsScreenTest {
             onLiveDirectionArrowChanged = { received = it }
         )
 
-        composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
+        composeRule.onNodeWithTag("settings_live_direction_arrow")
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         assertEquals(true, received)
@@ -372,7 +379,9 @@ class SettingsScreenTest {
             onLiveDirectionArrowChanged = { received = it }
         )
 
-        composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
+        composeRule.onNodeWithTag("settings_live_direction_arrow")
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         assertEquals(false, received)
@@ -387,7 +396,9 @@ class SettingsScreenTest {
             onLiveDirectionArrowChanged = { received = it }
         )
 
-        composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
+        composeRule.onNodeWithTag("settings_live_direction_arrow")
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         assertEquals(null, received)
@@ -402,7 +413,9 @@ class SettingsScreenTest {
             onLiveDirectionArrowChanged = { received = it }
         )
 
-        composeRule.onNodeWithTag("settings_live_direction_arrow").performClick()
+        composeRule.onNodeWithTag("settings_live_direction_arrow")
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         assertEquals(true, received)

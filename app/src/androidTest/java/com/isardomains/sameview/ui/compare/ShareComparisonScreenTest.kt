@@ -139,10 +139,10 @@ class ShareComparisonScreenTest {
         launch()
         composeRule.onNodeWithText(
             context.getString(R.string.share_comparison_quality_standard)
-        ).assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(
             context.getString(R.string.share_comparison_quality_original)
-        ).assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
     }
 
     // ── Style switch reflects immediately ────────────────────────────────────
