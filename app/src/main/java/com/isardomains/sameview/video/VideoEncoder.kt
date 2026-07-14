@@ -201,6 +201,13 @@ internal class VideoEncoder(
             MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar      // I420
         )
 
+        // Encoders known to crash natively (SIGABRT inside libcodec2_soft_hevcenc.so's rate
+        // control) when actually driven, despite reporting valid capabilities. Excluded from
+        // findHevcEncoder() so callers fall back to AVC instead of hitting the crash.
+        private val KNOWN_UNRELIABLE_HEVC_ENCODERS = setOf(
+            "c2.android.hevc.encoder"
+        )
+
         /**
          * Scans all registered AVC encoders for one that supports a YUV420 ByteBuffer
          * color format. NV12 is preferred; I420 is the fallback.
@@ -238,6 +245,7 @@ internal class VideoEncoder(
             for (preferredFormat in PREFERRED_COLOR_FORMATS) {
                 for (info in list.codecInfos) {
                     if (!info.isEncoder) continue
+                    if (info.name in KNOWN_UNRELIABLE_HEVC_ENCODERS) continue
                     if (MediaFormat.MIMETYPE_VIDEO_HEVC !in info.supportedTypes) continue
                     val caps = try {
                         info.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_HEVC)

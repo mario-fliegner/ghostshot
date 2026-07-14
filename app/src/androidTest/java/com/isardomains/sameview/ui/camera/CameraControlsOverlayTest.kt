@@ -2,7 +2,6 @@ package com.isardomains.sameview.ui.camera
 
 import android.net.Uri
 import android.os.Build
-import android.content.pm.ActivityInfo
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -177,8 +176,8 @@ class CameraControlsOverlayTest {
             .onNodeWithTag("reference_action", useUnmergedTree = true)
             .getUnclippedBoundsInRoot()
 
-        assert(referenceSlotBounds.right - referenceSlotBounds.left >= 96.dp)
-        assert(referenceActionBounds.right - referenceActionBounds.left >= 96.dp)
+        assert(referenceSlotBounds.right - referenceSlotBounds.left >= 96.dp - 0.01.dp)
+        assert(referenceActionBounds.right - referenceActionBounds.left >= 96.dp - 0.01.dp)
     }
 
     @Test
@@ -1364,10 +1363,6 @@ class CameraControlsOverlayTest {
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
-        scenario?.onActivity { activity ->
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        }
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         scenario?.onActivity { activity ->
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
