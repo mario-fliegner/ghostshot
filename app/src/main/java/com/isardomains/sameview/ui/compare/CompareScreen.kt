@@ -66,6 +66,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -1044,13 +1045,15 @@ private fun CompareSliderViewport(
                 imageHeight = intrinsicSize.height
             )
 
+            val currentImageBounds by rememberUpdatedState(imageBounds)
+
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(width = targetWidth, height = targetHeight)
                     .clip(RoundedCornerShape(CompareViewportCornerRadius))
                     .background(SameViewAppSurface)
-                    .pointerInput(imageBounds) {
+                    .pointerInput(Unit) {
                         var dragStartMs = 0L
                         var horizontalDragPx = 0f
                         var meaningfulFired = false
@@ -1063,7 +1066,7 @@ private fun CompareSliderViewport(
                             onDrag = { change, dragAmount ->
                                 change.consume()
                                 horizontalDragPx += abs(dragAmount.x)
-                                sliderFraction = (sliderFraction + (dragAmount.x / imageBounds.widthPx))
+                                sliderFraction = (sliderFraction + (dragAmount.x / currentImageBounds.widthPx))
                                     .coerceIn(0f, 1f)
                                 if (!meaningfulFired &&
                                     horizontalDragPx > 8.dp.toPx() &&
