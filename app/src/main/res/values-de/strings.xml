@@ -159,6 +159,7 @@
     <string name="about_feedback_subject">SameView Feedback</string>
     <string name="about_feedback_no_email_app">Keine E-Mail-App gefunden</string>
     <string name="about_privacy_policy">Datenschutzerklärung</string>
+    <string name="about_privacy_policy_url" translatable="false">https://sameview.app/de/privacy</string>
 
     <!-- Walkthrough -->
     <string name="walkthrough_page_then_and_now_title">Damals und heute</string>
