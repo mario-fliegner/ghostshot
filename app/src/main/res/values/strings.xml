@@ -159,14 +159,14 @@
     <string name="about_local_device">Compare moments. Not just photos.</string>
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_visit_website">Website</string>
-    <string name="about_website_url" translatable="false">https://sameview.app</string>
+    <string name="about_website_url" translatable="false">https://sameview.app/?utm_source=sameview_android&amp;utm_medium=app&amp;utm_campaign=app_links&amp;utm_content=about_website</string>
     <string name="about_no_browser_app">No browser found</string>
     <string name="about_send_feedback">Send Feedback</string>
     <string name="about_feedback_email" translatable="false">support@sameview.app</string>
     <string name="about_feedback_subject">SameView Feedback</string>
     <string name="about_feedback_no_email_app">No email app found</string>
     <string name="about_privacy_policy">Privacy Policy</string>
-    <string name="about_privacy_policy_url" translatable="false">https://sameview.app/en/privacy</string>
+    <string name="about_privacy_policy_url" translatable="false">https://sameview.app/en/privacy?utm_source=sameview_android&amp;utm_medium=app&amp;utm_campaign=app_links&amp;utm_content=about_privacy</string>
 
 
 

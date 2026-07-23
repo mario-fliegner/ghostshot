@@ -17,15 +17,30 @@ import org.junit.Test
 class AboutPrivacyPolicyUrlTest {
 
     @Test
+    fun defaultResource_hasWebsiteUrl() {
+        val url = readStringResource(resDir("values"), "about_website_url")
+        assertEquals(
+            "https://sameview.app/?utm_source=sameview_android&utm_medium=app&utm_campaign=app_links&utm_content=about_website",
+            url
+        )
+    }
+
+    @Test
     fun defaultResource_hasEnglishPrivacyPolicyUrl() {
         val url = readStringResource(resDir("values"), "about_privacy_policy_url")
-        assertEquals("https://sameview.app/en/privacy", url)
+        assertEquals(
+            "https://sameview.app/en/privacy?utm_source=sameview_android&utm_medium=app&utm_campaign=app_links&utm_content=about_privacy",
+            url
+        )
     }
 
     @Test
     fun germanResource_hasGermanPrivacyPolicyUrl() {
         val url = readStringResource(resDir("values-de"), "about_privacy_policy_url")
-        assertEquals("https://sameview.app/de/privacy", url)
+        assertEquals(
+            "https://sameview.app/de/privacy?utm_source=sameview_android&utm_medium=app&utm_campaign=app_links&utm_content=about_privacy",
+            url
+        )
     }
 
     private fun resDir(qualifier: String): File {
