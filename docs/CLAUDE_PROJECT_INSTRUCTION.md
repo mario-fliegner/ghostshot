@@ -209,6 +209,8 @@ Save exactly one file per capture.
 
 ## PRIVACY / PLAY COMPLIANCE
 
+These rules govern normal/local SameView functionality: creating a Comparison, camera/capture, viewing/comparing, editing local metadata, favorites, local session management, Share Image, Video Export, and normal backup/export. They apply without exception to all of that functionality.
+
 - No analytics
 - No tracking
 - No telemetry
@@ -218,7 +220,9 @@ Save exactly one file per capture.
 - No hidden data collection
 - Fully offline by default
 
-Any future data transfer or telemetry is out of scope unless explicitly requested.
+The sole approved exception is the Hosted Comparison feature — a narrow, explicit, user-initiated online capability. It does not weaken these rules for normal SameView use; see "Addendum (2026-08-19 – Hosted Comparison Network Capability)" below.
+
+Any future data transfer or telemetry beyond the approved Hosted Comparison exception is out of scope unless explicitly requested.
 
 ---
 
@@ -691,17 +695,17 @@ Both features:
 
 #### Remains Explicitly Out of Scope
 
-The following remain out of scope regardless of this addendum and must not be implemented:
+The following remain out of scope regardless of this addendum and must not be implemented, as part of the Share Image / Video Export / backup-export features described here:
 
-- Cloud upload or cloud sync of any session data or export file
-- Server-side storage or processing
+- Cloud upload or cloud sync of any session data or export file (except the explicitly approved Hosted Comparison feature — see "Addendum (2026-08-19 – Hosted Comparison Network Capability)" below)
+- Server-side storage or processing (except the explicitly approved Hosted Comparison feature — see below)
 - Social media integrations (direct TikTok, Instagram, WhatsApp, YouTube API calls)
 - Automatic sharing or publishing without explicit user action
-- Online galleries or web viewer features
+- Online galleries or web viewer features (except the explicitly approved Hosted Comparison public viewer — see below)
 - Session synchronization across devices
 - External sharing services beyond Android Share Sheet
 - Background export without foreground user interaction
-- Any feature requiring the INTERNET permission
+- Any feature requiring the INTERNET permission (except the explicitly approved Hosted Comparison feature — see below)
 
 #### CompareScreen TopAppBar — Current Authoritative Structure
 
@@ -724,3 +728,100 @@ The overflow menu (⋮) contains:
 - Backup Session
 
 Full specification: `COMPARE_FLOW_V1.md §43` and `SHARE_COMPARISON_IMAGE_V1.md §6`.
+
+### Addendum (2026-08-19 – Hosted Comparison Network Capability)
+
+This addendum documents an approved architectural exception. It supplements the existing rules above without removing or weakening them for normal/local SameView functionality — see "PRIVACY / PLAY COMPLIANCE" and the "Remains Explicitly Out of Scope" list above, both cross-referenced here.
+
+SameView remains offline-first. Hosted Comparison introduces one explicit, narrowly scoped online capability. This addendum approves that architectural capability; it does not itself implement any permission, dependency, or networking code.
+
+#### Approved network boundary
+
+Normal SameView functionality remains local/offline-first and must not require Internet access merely because Hosted Comparison exists. This includes at minimum:
+
+- creating a Comparison
+- camera/capture workflow
+- viewing/comparing
+- editing local Comparison metadata
+- favorites
+- local session management
+- Share Image
+- Video Export
+- normal SameView backup/export
+- other existing local workflows
+
+Loss of network connectivity must not prevent normal local SameView use.
+
+#### Explicit Hosted exception
+
+Hosted Comparison is the approved exception. Network access is allowed only where required for explicit Hosted/service operations, initially:
+
+- Host online / Publish
+- Update online
+- Delete online
+- explicit Hosted management/service interactions that inherently require the Hosted service
+
+The app may therefore require Android INTERNET capability in the future Hosted implementation. This addendum approves that architectural capability only; it does not add the permission or any networking code now.
+
+#### User intent
+
+Network use for Hosted publication must result from an explicit Hosted action or a clearly Hosted-related management operation. Do not introduce unrelated background network communication. Do not introduce general telemetry, advertising, analytics upload, cloud sync, or account synchronization under this exception.
+
+#### No general cloud dependency
+
+Hosted Comparison must not redefine SameView as cloud-first. Explicitly preserved:
+
+- no SameView account required for ordinary app use
+- no account required for Hosted V1
+- no mandatory cloud synchronization
+- no mandatory cloud backup
+- no server dependency for local Comparison use
+- no requirement to upload all Comparisons
+
+Only Comparisons explicitly selected for Hosted publication are sent to the Hosted service.
+
+#### Network failure boundary
+
+- Hosted operations may fail when offline/unreachable
+- such failure must be isolated from local Comparison functionality
+- local data remains usable
+- local Comparison deletion must not be blocked by Hosted network failure
+- retry/recovery belongs to the Hosted workflow
+
+#### Security boundary
+
+- Hosted communication must use HTTPS
+- server/client input remains untrusted across the network boundary
+- secrets such as Hosted management authority must not be logged
+- network capability must not weaken existing local-data/privacy rules
+
+#### Privacy preprocessing
+
+Hosted image uploads must use the approved privacy-preprocessed temporary upload data, with server-side processing remaining the final trust boundary. Detailed rules live in the Hosted `DATA_AND_PRIVACY` specification (`sameview-web` repository); they are not duplicated here.
+
+#### Dependency discipline
+
+No particular networking dependency is approved by this addendum. The future implementation must first inspect whether existing platform/JDK capabilities are sufficient, or whether a small network dependency is justified. Any dependency addition remains subject to normal implementation scope/review. This addendum does not name or require any specific HTTP/networking library.
+
+#### Background behavior
+
+This addendum does not approve continuous background synchronization. Hosted V1 does not require:
+
+- periodic sync
+- background upload queue
+- push notifications
+- polling
+- always-on service
+- account sync adapter
+
+If a future reliability requirement needs background transfer, that must be separately specified.
+
+#### Manifest rule
+
+The canonical rule is:
+
+- INTERNET permission is forbidden unless required by an explicitly approved SameView online feature
+- Hosted Comparison is such an approved feature
+- adding the permission must occur only in the actual approved Hosted implementation phase
+
+`AndroidManifest.xml` is not modified by this addendum. The INTERNET permission is not yet declared and is not yet used.

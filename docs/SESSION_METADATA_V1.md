@@ -28,6 +28,8 @@ Cross-references from other documents that describe `metadata.json` structure po
 
 **Revision note:** Updated to incorporate product decisions on capture date permanence, reference date granularity, extended metadata blocks (content, reference, location, additional), location as user metadata, favorites, visibility, provenance, and privacy design direction for future uploads.
 
+**Revision note (Hosted Comparison identity):** Adds the optional global Comparison identity `session.comparisonId` as an additive field within the existing metadata version 6, for the approved Hosted Comparison feature. This does not introduce a new metadata version. See §6.8.
+
 ---
 
 ## 2. Purpose
@@ -122,13 +124,16 @@ captureFile
 These fields are set by the system at session creation and must never be modified after save. They represent objective facts about the capture event.
 
 ```text
-sessionId           Session directory name and stable identity key
-capture.timestampMs Capture time in milliseconds since Unix epoch — not user-editable
-captureLocation     GPS fix frozen at capture time (governed by GPS_RECREATION_SYSTEM_V1.md)
-referenceLocation   GPS EXIF from reference image (governed by GPS_RECREATION_SYSTEM_V1.md)
+sessionId              Session directory name and stable identity key
+capture.timestampMs    Capture time in milliseconds since Unix epoch — not user-editable
+captureLocation        GPS fix frozen at capture time (governed by GPS_RECREATION_SYSTEM_V1.md)
+referenceLocation      GPS EXIF from reference image (governed by GPS_RECREATION_SYSTEM_V1.md)
+session.comparisonId   Optional global Comparison identity (UUID v4); immutable once assigned — see §6.8
 ```
 
 `capture.timestampMs` is the canonical capture timestamp. It must be stored explicitly in the session, independent of EXIF data in any image file. It is not the same as `referenceDate`. It is not user-editable under any circumstance.
+
+`sessionId` (the session directory name, written as `session.id` in the current v5/v6 nested structure) is the session's existing local/session-directory identity. It remains required wherever it is currently required today, and its role does not change because Hosted Comparison exists. It originates from a single device's local session-directory naming and is **not** globally unique across independent devices; it must not be used alone as the global Hosted Comparison identity. See §6.8 for the separate, optional `session.comparisonId` field introduced for that purpose.
 
 ### Category 3 — Device-Local Provenance (Immutable, Non-Portable)
 
@@ -215,6 +220,8 @@ referenceLocation           Object?    Optional GPS EXIF from reference image (s
 | 6 | `files.brandingHandle` (optional); new top-level `branding` block (`handleFile`, `type`, `builtinId?`, `updatedAtMs`) | Session branding for Share Comparison Image; see §6.7 and `SESSION_BRANDING_V1.md` |
 
 `SessionScanner.SUPPORTED_VERSIONS` must accept all versions listed: {2, 3, 4, 5, 6}.
+
+`session.comparisonId` is a later additive field within schema version 6 — it is not a new schema version and does not appear as its own row above. See §6.8.
 
 ---
 
@@ -518,6 +525,128 @@ An absent `files.brandingHandle` is valid (no branding). Inconsistency between `
 #### 6.7.4 Backward Compatibility
 
 Sessions at versions 2–5 are unchanged and remain fully valid.
+
+---
+
+### 6.8 Schema v6 — Global Comparison Identity (`session.comparisonId`)
+
+#### 6.8.1 Purpose and Relationship to `sessionId`
+
+`session.comparisonId` is the approved global Comparison identity for the Hosted Comparison feature (SameView Web Hosted publishing). It is introduced as an optional, additive field within the existing metadata version 6 — it does not introduce a new metadata version.
+
+It is a distinct concept from `sessionId` (§4 Category 2, "System Identity"):
+
+| | `sessionId` | `session.comparisonId` |
+| --- | --- | --- |
+| Scope | Local/session-directory identity on one device | Global product-level Comparison identity |
+| Uniqueness | Not globally unique across independent devices | Globally unique (UUID v4) |
+| Required? | Required where already required today | Optional; may be absent |
+| Changes because Hosted Comparison exists? | No — unchanged | New concept, introduced for Hosted Comparison |
+| May be used alone as the Hosted identity? | Must not be | Yes — this is its purpose |
+
+Introducing `session.comparisonId` does not change `sessionId`'s existing format, requirements, or role in any way.
+
+#### 6.8.2 Field Rules
+
+```text
+session.comparisonId   String?   Global Comparison identity; UUID v4, canonical lowercase
+                                  hyphenated textual form (e.g. "3fa85f64-5717-4562-b3fc-2c963f66afa6")
+```
+
+- Generated fully offline, using the platform's standard secure random UUID facility; no external service, no server allocation.
+- Contains no device identifier and no timestamp-derived component.
+- Not secret — safe to persist, export, and log at a minimal, informational level.
+- Immutable once assigned: normal metadata edits, branding changes, and Share Image / Video Export / normal backup export never regenerate or modify it.
+- Optional and additive: sessions at versions 2–6 legitimately may not contain it. Its absence never invalidates an otherwise valid session, and existing readers/scanners continue to accept every currently supported version ({2, 3, 4, 5, 6}) unchanged.
+
+#### 6.8.3 New Comparisons
+
+This describes the future Hosted-capable Android app version, not the already-published current build described elsewhere in this document.
+
+In that future version, a newly created Comparison receives `session.comparisonId` at creation time, alongside the other Category 2 system-identity fields. Once assigned, it does not change: ordinary metadata edits, branding changes, and Share Image / Video Export / normal export do not regenerate it.
+
+#### 6.8.4 Existing Comparisons — Lazy Assignment
+
+Existing (legacy) Comparisons that predate this field are not migrated in bulk merely because the app updates. In particular:
+
+- opening, scanning, editing, or exporting an old Comparison does not by itself assign `session.comparisonId`;
+- no background or startup migration walks existing sessions to add it.
+
+`session.comparisonId` is assigned lazily, only when a feature genuinely requires a global Comparison identity — the initial intended trigger is `Host online` (Hosted publishing). At that point, SameView generates a UUID v4 locally and persists it into the Comparison's `metadata.json` following the existing targeted read/patch/write pattern already used for fields such as `content.title`, `additional.isFavorite`, and `location.*` (see §12.2). This assignment:
+
+- preserves all other existing fields in the metadata document, including unknown/legacy fields;
+- is a single, one-time write — subsequent operations on the same Comparison reuse the already-assigned value;
+- does not require, and must not trigger, any other metadata change.
+
+#### 6.8.5 Persistence and Update Behavior
+
+Assignment of `session.comparisonId` is a targeted, additive metadata update, governed by the same rules as any other Category 2 write (§12.2, §12.4): existing content and unknown/additive fields must remain preserved, the update must not silently rewrite unrelated user metadata, and a failed write must not leave `metadata.json` partially written.
+
+No Hosted management credential (management token or equivalent management authority) is ever written into `metadata.json`. Hosted management state, where it exists, is stored separately from session files entirely — its design belongs to the Hosted management specification, not to this document.
+
+#### 6.8.6 Export Behavior
+
+Because `session.comparisonId` is not secret, normal SameView backup/export (`SESSION_BACKUP_EXPORT_V1.md`) may include it exactly as it does any other metadata field, under the existing full-fidelity, byte-for-byte rule (§13.1):
+
+- if present in `metadata.json`, it remains part of the exported metadata;
+- normal export never removes or regenerates it;
+- normal export never includes a Hosted management credential or equivalent management authority.
+
+Possession of `session.comparisonId` alone never authorizes Hosted Update or Delete for a corresponding Hosted Publication. Normal backup/export is not a Hosted ownership-transfer mechanism.
+
+#### 6.8.7 Import / Restore / Copy Boundary
+
+Current Android backup/export has no restore or import feature. Future duplicate, copy, or restore semantics for `session.comparisonId` (for example, whether restoring a session should preserve or regenerate the identity) are intentionally left undefined here and belong to a later specification, once such a feature exists. This gap does not block current Hosted publishing, which only requires assignment and export of the field as described above.
+
+#### 6.8.8 Security and Privacy
+
+At the metadata level, `session.comparisonId`:
+
+- is not personal authentication data;
+- is not a secret credential;
+- may be persisted and exported normally, like other non-secret Category 2 fields;
+- contains no device identity and no user identity;
+- does not by itself grant Hosted management authority (Update/Delete).
+
+Detailed Hosted credential storage and security design is out of scope for this document and belongs to the separate Hosted management specification.
+
+#### 6.8.9 Relationship to SameView Web
+
+When present, `session.comparisonId` may be preserved by SameView Web as the immutable Comparison identity for Hosted Comparison purposes (see SameView Web's `IMPORTED_COMPARISON_V1.md`, "Global Comparison Identity"). This document does not duplicate that specification; it defines only the Android-side metadata field.
+
+#### 6.8.10 Scanner Validation
+
+For any supported version where `session.comparisonId` is present, `SessionScanner` additionally validates:
+
+- the value is a string;
+- the value matches the canonical UUID v4 textual form (36 characters, lowercase hexadecimal, hyphens at positions 8, 13, 18, and 23, version nibble `4`, variant nibble one of `8`/`9`/`a`/`b`);
+- the field is treated as an immutable system field — it is never read as user-editable content.
+
+Absence of `session.comparisonId` remains valid for every supported version and must not cause validation to reject an otherwise valid session. Hosted management state (publication status, management credential) is never part of local metadata validation — it does not exist in `metadata.json`.
+
+#### 6.8.11 Example
+
+A v6 session after `session.comparisonId` has been assigned (either at creation by a future Hosted-capable app version, or lazily via `Host online`):
+
+```json
+{
+  "version": 6,
+  "session": {
+    "id": "2026-08-19_09-15-00",
+    "createdAtMs": 1755590100000,
+    "comparisonId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  },
+  "files": {
+    "capture": "capture.jpg",
+    "captureOriginal": "capture-original.jpg",
+    "reference": "reference.jpg",
+    "referenceOriginal": "reference-original.jpg",
+    "referenceSourceOriginal": "reference-source-original.jpg"
+  }
+}
+```
+
+This is a separate, additive example, not a replacement for §6.7.3: a v6 session without `session.comparisonId` (as shown in §6.7.3) remains fully valid. The field's presence is not required for a v6 session to be valid.
 
 ---
 
@@ -908,6 +1037,12 @@ All user content fields are optional. Readers must:
 
 The session ID (`YYYY-MM-DD_HH-mm-ss`) is the stable identity of a session. It must not be changed after creation. It is used as the subdirectory name, as `sessionId` in `metadata.json`, and as the ZIP subdirectory name in backups. These three uses must remain consistent.
 
+This local session identity is not globally unique across independent devices; it must not be used alone as a global Hosted Comparison identity. See §6.8 for the separate, optional `session.comparisonId` field that serves that purpose.
+
+### 12.6 Global Comparison Identity Assignment
+
+`session.comparisonId` (§6.8) follows the same write contracts as any other Category 2 field. It is written either at session creation (future Hosted-capable app versions) or, for existing sessions, through exactly one targeted lazy-assignment write the first time a feature genuinely requires it (§6.8.4). That write must follow §12.2 — preserving all existing fields, including unknown ones — and §12.4 — atomic, with no partial-write corruption on failure. No eager or bulk migration of existing sessions is introduced by this field.
+
 ---
 
 ## 13. Backup / Export Rules
@@ -915,6 +1050,8 @@ The session ID (`YYYY-MM-DD_HH-mm-ss`) is the stable identity of a session. It m
 ### 13.1 Full Fidelity — No Stripping
 
 Session backup (defined by `SESSION_BACKUP_EXPORT_V1.md`) copies `metadata.json` byte-for-byte without modification. All user content fields and all new v4 fields are included in every backup automatically. No special handling is required for new fields.
+
+This applies equally to `session.comparisonId` (§6.8) when present: it is included automatically, like any other metadata field, and is never stripped, removed, or regenerated by normal export. A Hosted management credential or equivalent management authority is never written into `metadata.json` and therefore never appears in a normal export — see §6.8.5 and §6.8.6.
 
 ### 13.2 Import Compatibility
 
@@ -993,6 +1130,8 @@ New optional user content fields may be added within existing blocks without a s
 - Documented in this specification or a linked extension document
 
 Recommended practice: increment schema version when introducing new optional fields, even when not architecturally required, to provide a clear signal to future tooling.
+
+`session.comparisonId` (§6.8) is a system-owned analog of this same additive principle: an optional, additive system-identity field added within an existing schema version without a version increment.
 
 ### 15.2 Adding New Required Fields
 
@@ -1215,3 +1354,4 @@ In a future version, the user could be offered the option to populate `location.
 | `COMPARE_FLOW_V1.md` | Defines CompareScreen and Compare Library behavior. User content fields may be displayed in these screens but must not affect compare mechanics, slider behavior, or navigation contracts. |
 | `CLAUDE_PROJECT_INSTRUCTION.md` | Governs overall architecture and change rules. New metadata fields follow the same MVVM + Hilt + Compose patterns. |
 | `IMPLEMENTATION_NOTES.md` | Tracks implemented state. Must be updated when v4 schema fields are implemented and verified. |
+| SameView Web `IMPORTED_COMPARISON_V1.md` ("Global Comparison Identity") | Defines how SameView Web treats `session.comparisonId` when present (immutable identity, preserved through import/edit/export). Cross-referenced only in §6.8.9 of this document, not duplicated. |

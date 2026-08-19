@@ -107,7 +107,7 @@ Since Android 12 (API 31), the system requires that `ACCESS_COARSE_LOCATION` is 
 `ACCESS_COARSE_LOCATION` is therefore declared in the manifest and included in the `permissionLauncher.launch()` call for this reason only. SameView does not use approximate location for any purpose: the `LocationPermissionChecker` requires `ACCESS_FINE_LOCATION` to be granted. If the user selects "Approximate location only", `ACCESS_FINE_LOCATION` is denied, the permission result is treated as not granted, and Recreation Guidance remains OFF.
 
 **Why LocationManager, not FusedLocationProviderClient:**
-SameView has no INTERNET permission and no Google Play Services dependency. `LocationManager` with `GPS_PROVIDER` as primary and `NETWORK_PROVIDER` as fallback is fully sufficient. This keeps the app offline-first with no external service dependency and no Play Services requirement.
+At the time this decision was made, SameView had no INTERNET permission and no Google Play Services dependency. `LocationManager` with `GPS_PROVIDER` as primary and `NETWORK_PROVIDER` as fallback is fully sufficient for GPS Recreation and remains the correct choice regardless of SameView's separately approved Hosted Comparison network capability (see `CLAUDE_PROJECT_INSTRUCTION.md`, "Addendum (2026-08-19 – Hosted Comparison Network Capability)"): GPS Recreation itself requires no network access and no Play Services dependency, and must not begin using any future app-level INTERNET permission. This keeps GPS Recreation offline-first with no external service dependency and no Play Services requirement.
 
 ## Lazy Permission Strategy
 
@@ -529,18 +529,29 @@ Settings → GPS Guidance category (Category 4 as reserved in `SETTINGS_UX_V1.md
 
 # 11. Privacy Rules
 
-- No GPS data is transmitted over any network. The app has no INTERNET permission.
+GPS Recreation is entirely local and offline. The following rules govern GPS Recreation specifically and are unaffected by SameView's separately approved Hosted Comparison network capability — see "Hosted Comparison exception" below.
+
+- No GPS data is transmitted over any network by GPS Recreation. GPS Recreation itself requires no INTERNET permission and makes no network calls.
 - No location history is stored. Only the GPS fix at the moment of capture is persisted in that session's files.
 - Session data (including `metadata.json` with GPS fields) is excluded from Android Auto Backup and device transfer via existing `backup_rules.xml` and `data_extraction_rules.xml` exclusions covering the `sessions/` directory.
 - The "Recreation guidance" toggle gives the user complete control over whether the GPS chip is ever used.
 - Reading GPS EXIF from a reference image is a passive file metadata read that requires no location permission.
 - EXIF GPS in saved photos reflects only the capture location at the exact moment of shutter press.
 
+## Hosted Comparison exception
+
+SameView as a whole may now contain an explicitly approved Hosted Comparison network capability — see `CLAUDE_PROJECT_INSTRUCTION.md`, "Addendum (2026-08-19 – Hosted Comparison Network Capability)". This is a narrow, separately approved exception that does not change any rule above and does not weaken the GPS Recreation System itself:
+
+- The GPS Recreation System itself does not supply or upload its location state. Live GPS guidance data is never transmitted as part of Hosted Comparison. Stored GPS recreation/reference coordinates (`captureLocation`, `referenceLocation` in `metadata.json`) are not transmitted as Hosted metadata.
+- For Hosted publication, Android may prepare privacy-safe temporary copies of the Comparison images (`capture.jpg`, `reference.jpg`). Embedded image metadata, including GPS EXIF, is removed from those temporary copies before network transfer, and the Hosted service independently processes/sanitizes the uploaded image again. This preprocessing is unrelated to, and is not performed by, the GPS Recreation System.
+- The fact that an original local `capture.jpg` may contain embedded GPS EXIF before that privacy preprocessing must not be confused with the GPS Recreation feature intentionally uploading location data — GPS Recreation does not initiate, participate in, or supply data for any network transfer.
+- Any future app-level INTERNET permission exists solely because of separately approved online features such as Hosted Comparison. GPS Recreation must not begin using that permission for any purpose. This document does not imply `AndroidManifest.xml` has already been changed; the permission is not yet declared.
+
 ---
 
 # 12. Explicit Forbidden Behaviors
 
-The following must never be implemented, regardless of future feature requests:
+The following must never be implemented by the GPS Recreation System, regardless of future feature requests to this system:
 
 - No map view, map tile rendering, or map-adjacent visualization
 - No route calculation or step-by-step navigation
@@ -551,13 +562,15 @@ The following must never be implemented, regardless of future feature requests:
 - No automatic overlay adjustment based on GPS data
 - No GPS influence on `ReferenceRenderer.render()`
 - No GPS influence on rendering-relevant fields of `CaptureSessionSnapshot`
-- No location data sharing or upload of any kind
-- No cloud storage of location data
+- No sharing or upload of GPS Recreation's live or stored location data, of any kind, by the GPS Recreation System itself
+- No cloud storage of GPS Recreation location data
 - No AR overlay, camera-plane orientation, or scene anchoring based on GPS
 - No multi-point location management or "saved spots" system
 - No "you've been here before" pattern recognition
 - No Bluetooth or WiFi location scanning beyond standard Android `LocationManager`
 - No modification of saved session GPS data after session save is complete
+
+These rules govern the GPS Recreation System and its own location data. They do not prohibit the separately approved Hosted Comparison feature's privacy-sanitized image upload (see §11 "Hosted Comparison exception"), which does not involve the GPS Recreation System supplying, sharing, or uploading location data.
 
 ---
 
