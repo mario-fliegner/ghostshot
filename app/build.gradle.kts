@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.isardomains.sameview"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.isardomains.sameview"
