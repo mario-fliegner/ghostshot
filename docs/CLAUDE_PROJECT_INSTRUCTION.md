@@ -159,8 +159,8 @@ Do not expand the product scope unless explicitly instructed.
 - Single-Activity architecture
 - Navigation: Navigation Compose
 - minSdk = 29
-- targetSdk = 35
-- compileSdk = 35
+- targetSdk = 36
+- compileSdk = 36
 
 Use modern Android best practices appropriate for a new app targeting current Android versions.
 

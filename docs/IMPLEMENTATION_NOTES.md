@@ -22,7 +22,7 @@ Technical baseline:
 - Material 3
 - MVVM + Hilt
 - CameraX preview
-- minSdk 29 / targetSdk 35
+- minSdk 29 / targetSdk 36 / compileSdk 36
 
 Permissions:
 - CAMERA
@@ -36,6 +36,37 @@ Current release state:
 - No known critical blocker for Closed Testing / Play upload
 - Release build hardening is active: R8, resource shrinking, backup/session exclusions, and debug-log gating
 - A signed release APK has been installed and used successfully on a real device
+
+### Android 16 / API 36 migration
+
+- `compileSdk = 36`
+- `targetSdk = 36`
+- `minSdk = 29` unchanged
+- deprecated `announceForAccessibility()` usage for the two Camera warning bubbles was replaced by Compose `LiveRegionMode.Polite`
+- real-device TalkBack verification passed, including repeat announcement
+- real-device Android 16 verification passed for:
+  - Camera predictive-back cancel/complete
+  - marker-edit back
+  - Compare normal/fullscreen back behavior
+  - Compare Library selection-mode back
+  - Edit Session dirty-state guard
+  - Create Video render-state back guard
+  - Settings permission-dialog back behavior
+  - Walkthrough
+  - system-bar/inset smoke checks
+- automated verification:
+  - 828/828 unit tests
+  - 930/930 instrumentation tests on API 35
+  - 930/930 instrumentation tests on API 36
+  - standalone `pixel2Api36` managed device
+  - existing API 29/33/35 managed devices unchanged
+- build/release verification:
+  - debug build passed
+  - release APK build passed
+  - release AAB build passed
+  - R8/resource shrinking passed
+  - local release artifacts remain unsigned
+  - no dependency modernization was required
 
 ---
 
