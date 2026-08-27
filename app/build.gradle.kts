@@ -51,6 +51,12 @@ android {
                     sdkVersion = 35
                     systemImageSource = "aosp"
                 }
+                create("pixel2Api36") {
+                    device = "Pixel 2"
+                    sdkVersion = 36
+                    systemImageSource = "aosp"
+                    testedAbi = "x86_64"
+                }
             }
             groups {
                 create("allPixel2Devices") {
