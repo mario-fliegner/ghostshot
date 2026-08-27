@@ -87,3 +87,39 @@ private fun parseDateYear(date: String): Int = date.substring(0, 4).toInt()
 private fun parseDateMonth(date: String): Int = date.substring(5, 7).toInt() - 1
 
 private fun parseDateDay(date: String): Int = date.substring(8, 10).toInt()
+
+/**
+ * True when [referenceDate] is strictly later than the capture date derived from
+ * [captureTimestampMs], compared only at the precision actually present in [referenceDate]
+ * (`SESSION_METADATA_EDITOR_V1.md §9` — "Reference Date Must Not Be After Capture Date").
+ *
+ * Comparison is precision-aware, never inventing missing month/day components: a year-only
+ * [referenceDate] is compared by year alone (the same year as capture is never "after"), a
+ * year-month value by year and month, and a full date by year, month, and day (same day is
+ * never "after").
+ *
+ * The capture date is derived using the device's local/default timezone
+ * (`Calendar.getInstance()`), identical to the convention already used by
+ * [computeCompareLabels] above and by the displayed "Captured on" date elsewhere in the app —
+ * this function intentionally does not introduce a UTC interpretation.
+ *
+ * Assumes [referenceDate] is already structurally valid (`SessionStorage.isValidReferenceDate`);
+ * this function performs no format validation of its own.
+ */
+fun isReferenceDateAfterCapture(referenceDate: String, captureTimestampMs: Long): Boolean {
+    val capCal = Calendar.getInstance().apply { timeInMillis = captureTimestampMs }
+
+    val refYear = parseDateYear(referenceDate)
+    val capYear = capCal.get(Calendar.YEAR)
+    if (refYear != capYear) return refYear > capYear
+    if (referenceDate.length < 7) return false
+
+    val refMonth = parseDateMonth(referenceDate)
+    val capMonth = capCal.get(Calendar.MONTH)
+    if (refMonth != capMonth) return refMonth > capMonth
+    if (referenceDate.length < 10) return false
+
+    val refDay = parseDateDay(referenceDate)
+    val capDay = capCal.get(Calendar.DAY_OF_MONTH)
+    return refDay > capDay
+}

@@ -576,6 +576,207 @@ class EditSessionViewModelTest {
         assertFalse(referenceDateUpdaterCalled)
     }
 
+    // ── Block F.1: onSave — reference date vs. capture date order (Issue #3) ──
+
+    private fun captureTimestamp(year: Int, month: Int, day: Int): Long =
+        Calendar.getInstance().apply {
+            set(year, month, day, 12, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+    @Test
+    fun onSave_referenceDateChangedToEarlierDate_savesSuccessfully() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var capturedDate: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "2026-08-27", "", "", "", captureTimestampMs = capture) },
+            referenceDateUpdater = { _, _, date -> capturedDate = date; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2026-08-26")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals("2026-08-26", capturedDate)
+        assertNull(vm.referenceDateError.value)
+    }
+
+    @Test
+    fun onSave_referenceDateChangedToSameCaptureDate_savesSuccessfully() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var capturedDate: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "", captureTimestampMs = capture) },
+            referenceDateUpdater = { _, _, date -> capturedDate = date; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2026-08-27")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals("2026-08-27", capturedDate)
+        assertNull(vm.referenceDateError.value)
+    }
+
+    @Test
+    fun onSave_referenceDateChangedToLaterDate_rejectsSave_setsOrderError() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var referenceDateUpdaterCalled = false
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "", captureTimestampMs = capture) },
+            referenceDateUpdater = { _, _, _ -> referenceDateUpdaterCalled = true; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2026-08-28")
+        vm.onSave()
+        advanceUntilIdle()
+        assertFalse(referenceDateUpdaterCalled)
+        assertEquals(EditSessionViewModel.REFERENCE_DATE_ERROR_ORDER, vm.referenceDateError.value)
+        // No silent correction — the invalid entered value remains exactly as typed.
+        assertEquals("2026-08-28", vm.referenceDateField.value)
+    }
+
+    @Test
+    fun onSave_referenceDateOrderError_isDistinctFromFormatError() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "", captureTimestampMs = capture) }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("not-a-date")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals(EditSessionViewModel.REFERENCE_DATE_ERROR_FORMAT, vm.referenceDateError.value)
+    }
+
+    @Test
+    fun onSave_referenceDateClearedToBlank_ordersCheckSkipped_savesSuccessfully() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var capturedDate: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ ->
+                InitialSessionFields("", "2026-08-27", "", "", "", captureTimestampMs = capture)
+            },
+            referenceDateUpdater = { _, _, date -> capturedDate = date; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("")
+        vm.onSave()
+        advanceUntilIdle()
+        assertNull(capturedDate)
+        assertNull(vm.referenceDateError.value)
+    }
+
+    @Test
+    fun onSave_legacyInvalidReferenceDateUntouched_titleEditSaves() = runTest(testDispatcher) {
+        // reference.date (2026-09-01) is already later than capture (2026-08-27) — a legacy
+        // condition predating Issue #3. Reference Date itself is never touched here.
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var referenceDateUpdaterCalled = false
+        var contentUpdaterCalled = false
+        val vm = createViewModel(
+            reader = { _, _ ->
+                InitialSessionFields("Old Title", "2026-09-01", "", "", "", captureTimestampMs = capture)
+            },
+            contentUpdater = { _, _, _, _ -> contentUpdaterCalled = true; true },
+            referenceDateUpdater = { _, _, _ -> referenceDateUpdaterCalled = true; true }
+        )
+        advanceUntilIdle()
+        vm.onTitleChanged("New Title")
+        vm.onSave()
+        advanceUntilIdle()
+        assertTrue(contentUpdaterCalled)
+        assertFalse(referenceDateUpdaterCalled)
+        assertNull(vm.referenceDateError.value)
+        assertEquals("2026-09-01", vm.referenceDateField.value)
+    }
+
+    @Test
+    fun onSave_legacyInvalidReferenceDateUntouched_locationEditSaves() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var referenceDateUpdaterCalled = false
+        var locationUpdaterCalled = false
+        val vm = createViewModel(
+            reader = { _, _ ->
+                InitialSessionFields("", "2026-09-01", "", "", "", captureTimestampMs = capture)
+            },
+            locationUpdater = { _, _, _, _, _, _ -> locationUpdaterCalled = true; true },
+            referenceDateUpdater = { _, _, _ -> referenceDateUpdaterCalled = true; true }
+        )
+        advanceUntilIdle()
+        vm.onLocationCityChanged("München")
+        vm.onSave()
+        advanceUntilIdle()
+        assertTrue(locationUpdaterCalled)
+        assertFalse(referenceDateUpdaterCalled)
+        assertNull(vm.referenceDateError.value)
+        assertEquals("2026-09-01", vm.referenceDateField.value)
+    }
+
+    @Test
+    fun onSave_legacyInvalidChangedToAnotherInvalidLaterDate_rejected() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var referenceDateUpdaterCalled = false
+        val vm = createViewModel(
+            reader = { _, _ ->
+                InitialSessionFields("", "2026-09-01", "", "", "", captureTimestampMs = capture)
+            },
+            referenceDateUpdater = { _, _, _ -> referenceDateUpdaterCalled = true; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2026-09-02")
+        vm.onSave()
+        advanceUntilIdle()
+        assertFalse(referenceDateUpdaterCalled)
+        assertEquals(EditSessionViewModel.REFERENCE_DATE_ERROR_ORDER, vm.referenceDateError.value)
+    }
+
+    @Test
+    fun onSave_legacyInvalidChangedToCaptureDate_accepted() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var capturedDate: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ ->
+                InitialSessionFields("", "2026-09-01", "", "", "", captureTimestampMs = capture)
+            },
+            referenceDateUpdater = { _, _, date -> capturedDate = date; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2026-08-27")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals("2026-08-27", capturedDate)
+        assertNull(vm.referenceDateError.value)
+    }
+
+    @Test
+    fun onSave_legacyInvalidChangedToEarlierDate_accepted() = runTest(testDispatcher) {
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        var capturedDate: String? = "SENTINEL"
+        val vm = createViewModel(
+            reader = { _, _ ->
+                InitialSessionFields("", "2026-09-01", "", "", "", captureTimestampMs = capture)
+            },
+            referenceDateUpdater = { _, _, date -> capturedDate = date; true }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2026-08-26")
+        vm.onSave()
+        advanceUntilIdle()
+        assertEquals("2026-08-26", capturedDate)
+        assertNull(vm.referenceDateError.value)
+    }
+
+    @Test
+    fun isDirty_trueWhenReferenceDateChangedToOrderInvalidValue() = runTest(testDispatcher) {
+        // Dirty-state tracking must not depend on order validity — only Save enforces the rule.
+        val capture = captureTimestamp(2026, Calendar.AUGUST, 27)
+        val vm = createViewModel(
+            reader = { _, _ -> InitialSessionFields("", "", "", "", "", captureTimestampMs = capture) }
+        )
+        advanceUntilIdle()
+        vm.onReferenceDateChanged("2026-08-28")
+        assertTrue(vm.isDirty.value)
+    }
+
     // ── Block F: onSave — location ────────────────────────────────────────────
 
     @Test

@@ -365,6 +365,34 @@ When the user confirms a date in the picker:
 
 The DatePicker is day-precision only. Year-only and year-month inputs must be entered via the text field directly. The DatePicker does not replace the text field; it is a convenience shortcut for full-date entry.
 
+The DatePicker does not disable or otherwise constrain dates later than the capture date (§9.1). It remains exactly as described above; the order rule is enforced only at Save.
+
+### 9.1 Reference Date Must Not Be After Capture Date
+
+A Reference date must not represent a calendar date later than the session's capture date (`capture.timestampMs`). Equal dates are valid. This is validated in addition to, not instead of, the format/plausibility rules in Section 11.
+
+**Precision-aware comparison.** The comparison is made only at the precision the user actually entered — a missing month or day is never invented:
+
+- `YYYY` is compared by year only. A Reference year equal to or earlier than the capture year is valid; a later year is invalid.
+- `YYYY-MM` is compared by year and month. Equal or earlier is valid; later is invalid.
+- `YYYY-MM-DD` is compared by year, month, and day. The same day as capture is valid; a later day is invalid.
+
+Example, for a capture date of `2026-08-27`: `2025`, `2026`, `2026-07`, `2026-08`, `2026-08-26`, and `2026-08-27` are all valid; `2027`, `2026-09`, and `2026-08-28` are all invalid.
+
+**Capture date derivation.** The capture date used for this comparison is derived from `capture.timestampMs` using the device's local/default timezone — the same convention already used for the displayed capture date elsewhere in the editor and for Compare's date labels (`COMPARE_FLOW_V1.md §41.4`). This is not a new timezone interpretation; validation and every other visible capture-date-derived text always agree.
+
+**No automatic correction.** An invalid entry is never silently changed, rounded, or clamped to the capture date. The value the user typed remains visible in the field after a failed Save so they can correct it themselves.
+
+**Legacy sessions (grandfathering).** A session created before this rule existed may already contain a Reference date later than its capture date. This is not migrated, corrected, or flagged merely because the session is opened, viewed, or has an unrelated field edited:
+
+- Viewing the session, and opening/cancelling the editor, are unaffected.
+- Editing any other field (Title, Description, Location, etc.) and saving succeeds normally while the legacy invalid Reference date is left byte-for-byte unchanged — the order rule is never evaluated against a Reference date the user did not touch.
+- Only once the user explicitly changes the Reference date field does the new value have to satisfy the rule: the same later date (or any other later date) is rejected; the capture date itself or any earlier date is accepted.
+
+This mirrors the legacy-preservation approach already established for Country in §10.4 — a stricter rule introduced later never retroactively blocks unrelated edits to a session that predates it.
+
+**Validation error message intent:** "Reference date can't be later than the capture date." This is a distinct message from the existing format/plausibility error (§11) — the field's single error state distinguishes which of the two rules failed and shows the corresponding text.
+
 ---
 
 ## 10. Location UX
@@ -506,6 +534,8 @@ Any other input format causes a validation error on the Reference date field.
 
 **Validation error message intent:** "Enter a year (e.g. 2008), year-month (e.g. 2008-06), or full date (e.g. 2008-06-15)."
 
+In addition to the format/plausibility check above, a Reference date that changed from its loaded value must also not be later than the capture date — see §9.1 for the full precision-aware comparison, legacy-grandfathering, and error-message contract. This second check only runs once the format check above has already passed, and only when the Reference date field was actually changed.
+
 ### Location Fields
 
 - No format validation
@@ -519,7 +549,7 @@ Any other input format causes a validation error on the Reference date field.
 | Field | Can cause save failure | Blank behavior |
 |---|---|---|
 | Title | No | Treated as absent (remove) |
-| Reference date | Yes, if non-empty and invalid format | Treated as absent (remove) |
+| Reference date | Yes, if non-empty and invalid format, or if changed and later than capture date (§9.1) | Treated as absent (remove) |
 | Location display name | No | Treated as absent |
 | City | No | Treated as absent |
 | Country | No | Treated as absent |

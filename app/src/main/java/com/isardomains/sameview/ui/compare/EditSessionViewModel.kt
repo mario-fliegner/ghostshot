@@ -62,8 +62,12 @@ internal data class InitialSessionFields(
  * (after blank normalization). The Save button is enabled when [isDirty] is true and [isSaving]
  * is false.
  *
- * [onSave] validates the reference date field first. On validation failure, sets [referenceDateError]
- * and returns without writing. On validation success, writes changed field groups in order:
+ * [onSave] validates the reference date field first: format/plausibility validation always runs;
+ * order validation (reference date must not be after capture date) runs only when the field was
+ * changed from its loaded value, so a pre-existing legacy value that already violates the order
+ * rule never blocks an unrelated save. On validation failure, sets [referenceDateError] (to
+ * [REFERENCE_DATE_ERROR_FORMAT] or [REFERENCE_DATE_ERROR_ORDER]) and returns without writing.
+ * On validation success, writes changed field groups in order:
  * content (title+description) → referenceDate → location. Emits [EditSessionEvent.SaveComplete]
  * when all writes succeed (or no writes were needed); emits [EditSessionEvent.SaveFailed] if any
  * storage write returns false.
@@ -128,12 +132,33 @@ class EditSessionViewModel @Inject constructor(
         updateIsDirty()
     }
 
+    companion object {
+        /**
+         * [referenceDateError] value when the entered Reference Date fails format/plausibility
+         * validation (`SessionStorage.isValidReferenceDate`) — unchanged, pre-existing rule.
+         */
+        internal const val REFERENCE_DATE_ERROR_FORMAT = "format"
+
+        /**
+         * [referenceDateError] value when the entered Reference Date is later than the Capture
+         * Date (`SESSION_METADATA_EDITOR_V1.md §9`). Only ever set when Reference Date was
+         * explicitly changed from its loaded value — an untouched legacy invalid value never
+         * produces this error (or any error).
+         */
+        internal const val REFERENCE_DATE_ERROR_ORDER = "order"
+    }
+
     private val _referenceDateField = MutableStateFlow("")
     /** Current value of reference.date; empty string when absent. */
     val referenceDateField: StateFlow<String> = _referenceDateField.asStateFlow()
 
     internal val _referenceDateError = MutableStateFlow<String?>(null)
-    /** Current validation error for the reference date field; null when no error is present. */
+    /**
+     * Current validation error for the reference date field; null when no error is present.
+     * When non-null, the value is either [REFERENCE_DATE_ERROR_FORMAT] or
+     * [REFERENCE_DATE_ERROR_ORDER], distinguishing which rule failed so the Screen can show the
+     * correct message.
+     */
     val referenceDateError: StateFlow<String?> = _referenceDateError.asStateFlow()
 
     /** Updates the reference date field as the user types and clears any existing validation error. */
@@ -373,7 +398,26 @@ class EditSessionViewModel @Inject constructor(
             // Validate first — before setting isSaving — so a validation failure is not treated
             // as a save attempt.
             if (!isValidReferenceDateInput(_referenceDateField.value)) {
-                _referenceDateError.value = "error"
+                _referenceDateError.value = REFERENCE_DATE_ERROR_FORMAT
+                return@launch
+            }
+
+            // Order validation (Reference Date must not be after Capture Date) applies only when
+            // Reference Date has actually changed from its loaded value. A pre-existing, untouched
+            // legacy value that already violates this rule is never retroactively blocked —
+            // grandfathered exactly like Issue #2's legacy Country handling
+            // (SESSION_METADATA_EDITOR_V1.md §9). Also skipped when no real capture timestamp is
+            // known (captureTimestampMs <= 0L, i.e. absent/malformed capture.timestampMs) — there
+            // is no reliable capture date to compare against in that case.
+            val normalizedRefDateForOrderCheck = normalizeField(_referenceDateField.value)
+            val referenceDateChanged =
+                normalizedRefDateForOrderCheck != normalizeField(initialReferenceDate)
+            if (referenceDateChanged &&
+                normalizedRefDateForOrderCheck != null &&
+                _captureTimestampMs.value > 0L &&
+                isReferenceDateAfterCapture(normalizedRefDateForOrderCheck, _captureTimestampMs.value)
+            ) {
+                _referenceDateError.value = REFERENCE_DATE_ERROR_ORDER
                 return@launch
             }
 

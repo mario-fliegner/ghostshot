@@ -35,6 +35,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.Calendar
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -576,6 +577,102 @@ class EditSessionScreenTest {
             context.getString(R.string.edit_session_reference_date_error)
         ).assertDoesNotExist()
     }
+
+    // ── Issue #3: Reference Date must not be after Capture Date ──────────────
+
+    @Test
+    fun referenceDate_laterThanCapture_showsOrderErrorText_en() {
+        val sessionId = createSession(captureTimestampMs = captureTimestampFor(2026, Calendar.AUGUST, 27))
+        setEditSessionContent(sessionId, locale = Locale.US)
+
+        composeRule.onNodeWithTag("edit_session_reference_date_field")
+            .performScrollTo()
+            .performTextInput("2026-08-28")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Reference date can't be later than the capture date.")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun referenceDate_laterThanCapture_showsOrderErrorText_de() {
+        val sessionId = createSession(captureTimestampMs = captureTimestampFor(2026, Calendar.AUGUST, 27))
+        setEditSessionContent(sessionId, locale = Locale.GERMANY)
+
+        composeRule.onNodeWithTag("edit_session_reference_date_field")
+            .performScrollTo()
+            .performTextInput("2026-08-28")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Das Referenzdatum darf nicht nach dem Aufnahmedatum liegen.")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun referenceDate_sameAsCapture_isAccepted_noOrderError() {
+        val sessionId = createSession(captureTimestampMs = captureTimestampFor(2026, Calendar.AUGUST, 27))
+        setEditSessionContent(sessionId)
+
+        composeRule.onNodeWithTag("edit_session_reference_date_field")
+            .performScrollTo()
+            .performTextInput("2026-08-27")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Reference date can't be later than the capture date.")
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun referenceDate_legacyInvalidValue_visibleOnOpen() {
+        val sessionId = createSession(
+            referenceDate = "2026-09-01",
+            captureTimestampMs = captureTimestampFor(2026, Calendar.AUGUST, 27)
+        )
+        setEditSessionContent(sessionId)
+
+        composeRule.onNodeWithTag("edit_session_reference_date_field")
+            .performScrollTo()
+            .assert(hasText("2026-09-01"))
+        // No error is shown merely for having opened the editor — the order rule has not run yet.
+        composeRule.onNodeWithText("Reference date can't be later than the capture date.")
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun referenceDate_legacyInvalidValueUntouched_unrelatedTitleEdit_savesSuccessfully() {
+        val sessionId = createSession(
+            referenceDate = "2026-09-01",
+            captureTimestampMs = captureTimestampFor(2026, Calendar.AUGUST, 27)
+        )
+        setEditSessionContent(sessionId)
+
+        composeRule.onNodeWithTag("edit_session_title_field").performTextInput("New Title")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Reference date can't be later than the capture date.")
+            .assertDoesNotExist()
+        val json = JSONObject(
+            File(File(context.filesDir, "sessions/$sessionId"), "metadata.json").readText()
+        )
+        assertEquals("2026-09-01", json.optJSONObject("reference")?.optString("date", ""))
+    }
+
+    /** Returns a local-timezone epoch millisecond timestamp for the given calendar date, noon local time. */
+    private fun captureTimestampFor(year: Int, month: Int, day: Int): Long =
+        Calendar.getInstance().apply {
+            set(year, month, day, 12, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
 
     // ── Group 6: Privacy Mode Disclosure ──────────────────────────────────────
 

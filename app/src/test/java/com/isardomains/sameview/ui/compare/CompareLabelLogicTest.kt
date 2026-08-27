@@ -253,4 +253,77 @@ class CompareLabelLogicTest {
             set(Calendar.MILLISECOND, 0)
         }.timeInMillis
     }
+
+    // ── isReferenceDateAfterCapture (Issue #3) ────────────────────────────────
+
+    @Test
+    fun isReferenceDateAfterCapture_dayBefore_isFalse() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(false, isReferenceDateAfterCapture("2026-08-26", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_dayEqual_isFalse() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(false, isReferenceDateAfterCapture("2026-08-27", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_dayAfter_isTrue() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(true, isReferenceDateAfterCapture("2026-08-28", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_yearOnly_sameYear_isFalse() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(false, isReferenceDateAfterCapture("2026", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_yearOnly_earlierYear_isFalse() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(false, isReferenceDateAfterCapture("2025", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_yearOnly_laterYear_isTrue() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(true, isReferenceDateAfterCapture("2027", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_yearMonth_sameMonth_isFalse() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(false, isReferenceDateAfterCapture("2026-08", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_yearMonth_earlierMonth_isFalse() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(false, isReferenceDateAfterCapture("2026-07", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_yearMonth_laterMonth_isTrue() {
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27)
+        assertEquals(true, isReferenceDateAfterCapture("2026-09", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_earlierYear_monthIrrelevant_isFalse() {
+        // A year-only comparison must short-circuit on year alone: an earlier year is never
+        // "after", regardless of what month/day the capture falls on.
+        val capture = makeTimestamp(2026, Calendar.JANUARY, 1)
+        assertEquals(false, isReferenceDateAfterCapture("2025-12", capture))
+    }
+
+    @Test
+    fun isReferenceDateAfterCapture_doesNotMutateOrThrow_forLocalTimezoneBoundary() {
+        // Local-timezone derivation (Calendar.getInstance()) at a near-midnight capture instant
+        // must still agree with itself for the same local calendar day, regardless of host TZ.
+        val capture = makeTimestamp(2026, Calendar.AUGUST, 27) // noon local time, unambiguous day
+        assertEquals(false, isReferenceDateAfterCapture("2026-08-27", capture))
+        assertEquals(true, isReferenceDateAfterCapture("2026-08-28", capture))
+    }
 }

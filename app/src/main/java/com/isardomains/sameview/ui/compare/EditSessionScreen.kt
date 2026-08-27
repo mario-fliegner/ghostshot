@@ -394,8 +394,13 @@ fun EditSessionScreen(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 if (referenceError != null) {
+                    val errorText = if (referenceError == EditSessionViewModel.REFERENCE_DATE_ERROR_ORDER) {
+                        stringResource(R.string.edit_session_reference_date_order_error)
+                    } else {
+                        stringResource(R.string.edit_session_reference_date_error)
+                    }
                     Text(
-                        text = stringResource(R.string.edit_session_reference_date_error),
+                        text = errorText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )

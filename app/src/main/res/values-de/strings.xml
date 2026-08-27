@@ -360,6 +360,7 @@
     <string name="edit_session_reference_date_help">Wann wurde das Referenzfoto aufgenommen?\nBeispiele: 2008, 2008-06 oder 2008-06-15.</string>
     <string name="edit_session_reference_metadata_preserved_hint">Metadaten des Referenz-Originals konnten nicht entfernt werden.</string>
     <string name="edit_session_reference_date_error">Gib ein Jahr (z. B. 2008), Jahr-Monat (z. B. 2008-06) oder ein vollständiges Datum (z. B. 2008-06-15) ein.</string>
+    <string name="edit_session_reference_date_order_error">Das Referenzdatum darf nicht nach dem Aufnahmedatum liegen.</string>
     <string name="edit_session_label_captured_on">Aufgenommen am</string>
     <string name="edit_session_created">Erstellt am %s</string>
     <string name="edit_session_pick_date_content_description">Datum auswählen</string>
