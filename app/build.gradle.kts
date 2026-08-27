@@ -12,7 +12,7 @@ android {
     defaultConfig {
         applicationId = "com.isardomains.sameview"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 100
         versionName = "1.0"
 
