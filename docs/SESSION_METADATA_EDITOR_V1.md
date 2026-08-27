@@ -176,6 +176,8 @@ The editor presents exactly six editable fields in V1:
 
 All six fields are optional. No field is required for a valid session save.
 
+`location.countryCode` is written alongside `location.country` whenever the user makes an explicit Country selection (§10), but it is not a seventh user-facing field or a separate ISO-code input — the user never sees or enters it directly. See `SESSION_METADATA_V1.md §6.9` for the full field contract.
+
 ### Card Structure
 
 The form is organized into four `SettingsCard` sections:
@@ -210,6 +212,7 @@ When the editor opens, each editable field is pre-populated from the current ses
 - `location.displayName` → pre-fill Place name field; empty when absent
 - `location.city` → pre-fill City field; empty when absent
 - `location.country` → pre-fill Country field; empty when absent
+- `location.countryCode` → read alongside `location.country` for internal state only; not shown to the user directly (§10)
 - `capture.timestampMs` → shown read-only in Current photo card; not pre-filled into any editable field
 
 The pre-populated values are the current saved state. They represent the last persisted values, not live ViewModel state.
@@ -368,21 +371,56 @@ The DatePicker is day-precision only. Year-only and year-month inputs must be en
 
 ### Input Model
 
-Location fields are **free text fields** with no format constraints or controlled vocabulary.
+Place Name and City are **free text fields** with no format constraints or controlled vocabulary. The user types whatever they know; the app stores exactly what they type (after trimming leading/trailing whitespace).
 
-The user types whatever they know. The app stores exactly what they type (after trimming leading/trailing whitespace).
+Country is different: tapping the Country field opens a dedicated Country picker (§10.1) rather than a keyboard. New or actively changed Country values are constrained to the picker's offline country list; the user cannot type an arbitrary new Country string. A legacy Country value already stored in a session (from before this picker existed) is preserved and displayed exactly as-is until the user actively changes it — see §10.4.
 
 ### Three Independent Fields
 
-Location Display Name, City, and Country are three independent text fields. The user may fill any combination: all three, just one, or none.
+Location Display Name, City, and Country remain three independent pieces of location information. The user may fill any combination: all three, just one, or none. Filling one does not require filling the others. This independence is unchanged by Country's new entry mechanism — only *how* Country is entered has changed, not its relationship to the other two fields.
 
-Filling one field does not require filling the others. No field is required by the presence of another field.
+### 10.1 Country Picker
+
+Tapping the Country field opens a dedicated country picker instead of enabling text entry. The picker:
+
+- works completely offline — no network request, no geocoding service, no remote country-list API, no INTERNET permission, no new permission of any kind
+- shows a localized title (e.g. DE `"Land auswählen"`, EN `"Select country"`)
+- presents the complete country list, alphabetically sorted in the current app language, immediately visible on open — no search is required to browse and select
+- displays localized country names in the current app language (DE: `Deutschland`, `Österreich`, …; EN: `Germany`, `Austria`, …)
+- includes a local search/filter field
+- returns to the editor when the user taps a country, applying the selection
+
+The user is never required to know or select an ISO 3166-1 alpha-2 code; the code is derived internally from the selection (`SESSION_METADATA_V1.md §6.9`).
+
+### 10.2 Search / Filtering
+
+- No minimum query length; the complete alphabetical list is usable immediately, without typing anything
+- Filtering begins from the first entered character — no three-character minimum
+- Filtering is local/offline, case-insensitive, locale-aware, and diacritic-friendly where practical
+- The ISO alpha-2 code may additionally match as a search convenience, but is never the primary visible label
+
+Examples: DE `"deu"` → `Deutschland`; EN `"ger"` → `Germany`; `"DE"` may also match Germany/Deutschland as a convenience.
+
+### 10.3 Offline Country Dataset
+
+The country list is available entirely on-device: ISO 3166-1 alpha-2 identity, with localized display names, for SameView's supported app languages (currently DE, EN). No runtime network dependency is used or permitted. The specific on-device data source (platform locale data, or an app-bundled dataset) is an implementation decision for the corresponding code-implementation gate, not fixed by this specification.
+
+### 10.4 Legacy Country Preservation
+
+Existing sessions may contain an arbitrary, pre-picker `location.country` value (e.g. `"USA"`, `"UK"`, `"Östereich"`, old formatting, or a typo). These values are never silently rewritten, normalized, corrected, mapped, trimmed beyond existing sanitization, or deleted merely because the session is opened or another field is edited:
+
+- Editing an unrelated field (Title, Description, Reference date, Place Name, City) leaves a legacy Country value byte-for-byte unchanged; no `location.countryCode` is invented; save is never blocked by a non-canonical legacy Country value.
+- A legacy value that happens to exactly match a canonical localized country name is still not silently upgraded — the app never infers or backfills `location.countryCode` from existing text.
+- Opening the Country picker and then cancelling or dismissing it without selecting a country leaves the existing value unchanged, assigns no `location.countryCode`, and does not by itself mark the session dirty.
+- Only an explicit valid selection in the picker replaces `location.country` (with the newly localized snapshot) and writes the paired `location.countryCode`. No fuzzy or automatic correction of a legacy value is ever performed.
+
+Full contract: `SESSION_METADATA_V1.md §6.9.4`.
 
 ### Blank/Empty Handling
 
-A field left blank or containing only whitespace is treated as absent. Blank values are never stored.
+A field left blank or containing only whitespace is treated as absent. Blank values are never stored. This applies to Place Name and City exactly as before.
 
-At Save time, each location field is sanitized:
+At Save time, Place Name and City are sanitized:
 - Trimmed (leading/trailing whitespace removed)
 - Pasted line breaks replaced with a single space (single-line fields)
 - Tabs replaced with a single space
@@ -392,26 +430,41 @@ At Save time, each location field is sanitized:
 - International characters, emojis, and normal punctuation are preserved unchanged
 - No length limits are applied
 
-### Removing Location Data
+A value produced by an explicit Country selection is already a clean canonical string and passes through the same sanitization harmlessly (a no-op). A legacy free-text Country value is likewise sanitized on any save that touches the `location.*` block, exactly as it already was before this change — this is unrelated to whether the value is canonical.
 
-The user may clear one or more location fields. At Save:
-- If all three location fields are empty after trimming: the entire `location` block is removed from `metadata.json` (handled by `updateLocation()`)
-- If at least one location field is non-empty: only the non-empty fields are written; the others are absent
+### Clearing Location Data
 
-Location removal requires no confirmation.
+The user may clear one or more location fields; for Country, the picker/editor provides a clear action per existing SameView editor clear-affordance conventions (no unrelated redesign). At Save:
+
+- If Place Name, City, and Country are all empty after normalization: the entire `location` block is removed from `metadata.json` (handled by `updateLocation()`)
+- If at least one is non-empty: only the non-empty fields are written; the others are absent
+- Clearing Country removes both `location.country` and `location.countryCode` together, and never affects Place Name or City
+
+Location removal requires no confirmation, consistent with existing behavior.
 
 ### No GPS Coupling
 
 Location fields have no relationship to GPS coordinates:
-- `location.displayName`, `location.city`, `location.country` are never auto-populated from GPS coordinates
+
+- `location.displayName`, `location.city`, `location.country`, `location.countryCode` are never auto-populated from GPS coordinates
 - No reverse geocoding is performed
 - Changing location fields does not affect `captureLocation` or `referenceLocation` in `metadata.json`
 
-This is a hard rule defined by `GPS_RECREATION_SYSTEM_V1.md §12` and `SESSION_METADATA_V1.md §9.2`.
+This is a hard rule defined by `GPS_RECREATION_SYSTEM_V1.md §12` and `SESSION_METADATA_V1.md §9.2`. The offline Country picker's on-device ISO 3166-1 dataset (§10.3) is a local list, not a geocoding or geographic lookup service, and does not create a GPS coupling.
+
+### 10.5 Country Error / Edge States
+
+- **Country dataset unavailable or unexpectedly empty:** no crash, no metadata corruption; the existing Country value is left untouched; a localized, understandable empty/failure state is shown in the picker; no network fallback is attempted.
+- **Missing localized display name for a valid ISO code:** no crash; the ISO alpha-2 code itself is shown as the deterministic last-resort fallback; no translated name is invented.
+- **Unmappable legacy value:** not treated as a validation error during ordinary editing; never blocks saving unrelated fields (§10.4).
+- **Picker dismissed/cancelled:** no mutation of either field; no false dirty-state solely from opening and cancelling the picker.
+- **Valid selection:** `location.country` and `location.countryCode` are updated together and always correspond to the same country.
+- **Explicit clear:** both fields are removed together.
+- **Persistence failure:** reuses the existing metadata-editor storage-write error contract (§12) — no separate error-handling system is introduced for Country.
 
 ### Display of Existing Location Data
 
-When a session already has location data, the editor pre-fills the corresponding fields from the stored values. The user sees what was previously saved and can edit or clear it.
+When a session already has location data, the editor pre-fills the corresponding fields from the stored values. The user sees what was previously saved and can edit or clear it. For Country, this includes legacy free-text values (§10.4), displayed exactly as stored.
 
 ---
 
@@ -449,7 +502,8 @@ Any other input format causes a validation error on the Reference date field.
 - No format validation
 - No maximum length enforced in V1
 - Blank/whitespace is treated as absent, not as an error
-- Location fields never cause a save failure
+- Location fields never cause a save failure, including a legacy, non-canonical Country value (§10.4)
+- A Country value produced by the picker is canonical by construction: the picker's own list is the only source of new/changed Country values, so no invalid new Country state is representable through the UI
 
 ### Summary
 
@@ -504,16 +558,16 @@ The editor uses exactly the following existing storage functions:
 |---|---|
 | `content.title` and/or `content.description` | `SessionStorage.updateContent()` |
 | `reference.date` | `SessionStorage.updateReferenceDate()` |
-| `location.*` | `SessionStorage.updateLocation()` |
+| `location.*` (including `countryCode`) | `SessionStorage.updateLocation()` |
 
-No new storage functions are introduced for V1.
+No new storage functions are introduced for V1. `updateLocation()` persists `location.displayName`, `location.city`, `location.country`, and `location.countryCode` as a single four-value unit; `countryCode` is not a separate user-facing field or a separate write call (§10.1, `SESSION_METADATA_V1.md §6.9`).
 
 ### Write Strategy
 
 On Save, the editor writes each changed group independently in sequence:
 1. If Title or Description changed: call `updateContent(title, description)`
 2. If Reference date changed: call `updateReferenceDate()`
-3. If any location field changed: call `updateLocation()` (with all three location values as a unit)
+3. If any location value changed: call `updateLocation()` (with all four location values — `displayName`, `city`, `country`, `countryCode` — as a unit)
 
 "Changed" means the current field value differs from the pre-populated initial value at editor open (after blank normalization). Title and Description are treated as a unit: if either changes, `updateContent()` is called with both current values.
 
@@ -537,7 +591,8 @@ These fields are immutable after session creation and must not be touched by the
 - Blank Title only → `updateContent(null, description)` (removes title, keeps description)
 - Blank Description only → `updateContent(title, null)` (keeps title, removes description)
 - Blank Reference date → `updateReferenceDate(null)` (removes date)
-- All blank location fields → `updateLocation(null, null, null)` (removes location block)
+- All blank/absent location values → `updateLocation(null, null, null, null)` (removes location block)
+- Explicit Country clear (with Place Name/City unchanged) → `updateLocation(displayName, city, null, null)` — clears `country` and `countryCode` together without affecting the other two values
 
 The storage functions handle the actual JSON mutation; the editor's job is to pass the correct null/non-null values.
 
@@ -554,8 +609,9 @@ The editor must read the current values of the following fields before displayin
 - `location.displayName`
 - `location.city`
 - `location.country`
+- `location.countryCode`
 
-These values are needed to pre-populate the form fields and to establish the initial state for dirty tracking.
+These values are needed to pre-populate the form fields and to establish the initial state for dirty tracking. `location.countryCode` is read alongside `location.country` for internal state only — it does not pre-populate a separate user-facing field (§10.1).
 
 ### How to Obtain the Initial State
 
@@ -577,8 +633,9 @@ If `ScannedSession` is extended to carry the new fields:
 - `locationDisplayName: String?` — new field; may be null
 - `locationCity: String?` — new field; may be null
 - `locationCountry: String?` — new field; may be null
+- `locationCountryCode: String?` — new field; may be null; absence is not an error and is never inferred from `locationCountry` (`SESSION_METADATA_V1.md §6.9.4`)
 
-New `ScannedSession` fields must have null defaults so that existing session scan results (v2/v3 sessions without these fields) remain valid without changes to call sites.
+New `ScannedSession` fields must have null defaults so that existing session scan results (v2/v3 sessions without these fields, and v4–v6 sessions predating `countryCode`) remain valid without changes to call sites.
 
 `SessionScanner` reads these fields from the `reference` and `location` blocks; absent blocks and absent fields return null silently (forward and backward compatible per `SESSION_METADATA_V1.md §12.3`).
 
@@ -638,14 +695,17 @@ No changes to the compare slider, image rendering, session timestamp display, de
 - The Back navigation icon must have a content description
 - Inline validation error messages must be associated with their field semantically (so screen readers announce the error in context)
 - The confirmation dialog (unsaved changes) must be announced correctly by the accessibility system
+- The Country field must communicate, via its label/content description, that it opens a country selection rather than behaving as a free-text entry field
+- The Country picker's title, search field, each selectable country row, and the clear action must each have an accessible label or content description
+- Existing SameView accessibility/touch-target conventions (§16 of this document; the app-wide ≥48dp touch-target convention) apply to the picker exactly as to any other interactive element
 
 ### Input Fields
 
-Standard Material 3 `OutlinedTextField` or `TextField` components are preferred. These provide built-in accessibility semantics for labels, hints, and error states.
+Standard Material 3 `OutlinedTextField` or `TextField` components are preferred for Place Name and City. These provide built-in accessibility semantics for labels, hints, and error states. Country uses a non-editable, tap-to-open field paired with a selection surface (§10.1) rather than a `TextField` accepting keyboard input.
 
 ### No Custom Accessibility Work Required for V1
 
-V1 does not require custom semantics trees or non-standard accessibility annotations beyond what Material 3 components provide by default, provided that all fields have correctly set labels and the error states are wired to the `isError` parameter.
+V1 does not require custom semantics trees or non-standard accessibility annotations beyond what Material 3 components provide by default, provided that all fields (including the Country picker's title, search field, rows, and clear action) have correctly set labels and the error states are wired to the `isError` parameter where applicable. The Country picker does not require a redesign of the surrounding editor.
 
 ---
 
@@ -671,6 +731,10 @@ All user-facing text must use string resources. No hardcoded user-visible string
 | Field label "Location" | `edit_session_field_location_display_name` |
 | Field label "City" | `edit_session_field_city` |
 | Field label "Country" | `edit_session_field_country` |
+| Country picker title ("Select country") | `edit_session_country_picker_title` |
+| Country picker search field hint | `edit_session_country_picker_search_hint` |
+| Country picker empty/failure state | `edit_session_country_picker_empty` |
+| Country clear action content description | `edit_session_country_clear_content_description` |
 | Reference date placeholder hint | `edit_session_reference_date_hint` |
 | Reference date validation error | `edit_session_reference_date_error` |
 | Discard dialog title "Discard changes?" | `edit_session_discard_dialog_title` |

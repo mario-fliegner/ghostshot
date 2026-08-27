@@ -223,6 +223,8 @@ referenceLocation           Object?    Optional GPS EXIF from reference image (s
 
 `session.comparisonId` is a later additive field within schema version 6 — it is not a new schema version and does not appear as its own row above. See §6.8.
 
+`location.countryCode` is a later additive field within schema version 6 — it is not a new schema version and does not appear as its own row above. See §6.9.
+
 ---
 
 ## 6. Metadata Model (v4) — Current Production
@@ -648,6 +650,125 @@ A v6 session after `session.comparisonId` has been assigned (either at creation 
 
 This is a separate, additive example, not a replacement for §6.7.3: a v6 session without `session.comparisonId` (as shown in §6.7.3) remains fully valid. The field's presence is not required for a v6 session to be valid.
 
+### 6.9 Schema v6 — Canonical Country Identity (`location.countryCode`)
+
+#### 6.9.1 Purpose and Relationship to `location.country`
+
+`location.countryCode` is introduced as an optional, additive field within the existing metadata version 6 — it does not introduce a new metadata version. It provides a stable, language-neutral identity for the country the user has explicitly selected, alongside the existing localized `location.country` string.
+
+It is a distinct concept from `location.country`:
+
+| | `location.country` | `location.countryCode` |
+| --- | --- | --- |
+| Nature | Localized, human-readable display text | Canonical, language-neutral identity |
+| Format | Free text (legacy) or localized display snapshot (new selections) | ISO 3166-1 alpha-2, uppercase |
+| Required? | Optional; may be absent | Optional; may be absent |
+| Present before this addition? | Yes, since v4 | No — newly introduced |
+| Written by | User typing (legacy) or the Country picker (new) | Only the Country picker, alongside `country` |
+
+Introducing `location.countryCode` does not change `location.country`'s existing storage path, type, or role in any way. `location.country` remains valid and fully functional on its own, exactly as it always has been.
+
+#### 6.9.2 Field Rules
+
+```text
+location.countryCode   String?   Canonical country identity; ISO 3166-1 alpha-2, uppercase
+                                  (e.g. "DE", "AT", "US", "GB")
+```
+
+- Optional and additive: sessions at versions 2–6 legitimately may not contain it. Its absence never invalidates an otherwise valid session, and existing readers/scanners continue to accept every currently supported version ({2, 3, 4, 5, 6}) unchanged.
+- Determined entirely offline, from the on-device ISO 3166-1 country dataset used by the Country picker; no network lookup, no external service.
+- Written only together with a corresponding `location.country` localized snapshot, as a pair describing the same country.
+- Not secret — safe to persist, export, and log at a minimal, informational level.
+
+#### 6.9.3 New / Explicitly Changed Selections
+
+When the user taps the Country field and explicitly selects a country from the picker, the app writes both fields together:
+
+- `location.country` — the localized display name in the app's current language at the moment of selection
+- `location.countryCode` — the corresponding ISO 3166-1 alpha-2 code, uppercase
+
+Both are written as a single, consistent pair. Neither is written without the other from an explicit selection.
+
+#### 6.9.4 Existing / Legacy Country Values — No Backfill
+
+Existing sessions may already contain a `location.country` value with no `location.countryCode` — either because the session predates this field, or because the stored value is arbitrary free text (e.g. `"USA"`, `"UK"`, a typo, or old formatting) from the prior free-text entry model.
+
+These legacy values are not migrated in bulk merely because the app updates, and not migrated merely because the session is opened, viewed, or has an unrelated field edited. In particular:
+
+- opening, scanning, editing (of any field other than Country), or exporting a session does not by itself assign `location.countryCode`;
+- no background or startup migration walks existing sessions to add it;
+- a legacy `location.country` value that happens to exactly match a canonical localized country name is still not backfilled with a `countryCode` — the app never infers a code from existing text;
+- a legacy value that does not match any canonical country is preserved exactly as stored and never blocks saving unrelated fields.
+
+`location.countryCode` is assigned only when the user takes the explicit action of selecting a country through the Country picker (§10 of `SESSION_METADATA_EDITOR_V1.md`). Opening the picker and then cancelling or dismissing it without a selection does not assign or change either field.
+
+#### 6.9.5 Persistence and Update Behavior
+
+Assignment of `location.countryCode` is part of the existing targeted `location.*` write path (`SessionStorage.updateLocation()`, see §12.2), governed by the same rules as any other Category 4 (User Content) write: existing content and unknown/additive fields must remain preserved, the update must not silently rewrite unrelated user metadata, and a failed write must not leave `metadata.json` partially written (§12.4).
+
+Explicitly clearing Country removes both `location.country` and `location.countryCode` together; it does not affect `location.displayName` or `location.city`.
+
+#### 6.9.6 Export Behavior
+
+Because `location.countryCode` is not secret, normal SameView backup/export (`SESSION_BACKUP_EXPORT_V1.md`) includes it exactly as it does any other metadata field, under the existing full-fidelity, byte-for-byte rule (§13.1): if present in `metadata.json`, it remains part of the exported metadata; normal export never removes, regenerates, or infers it.
+
+#### 6.9.7 Cross-Locale / Future Consumer Note
+
+`location.countryCode` exists so that a future consumer (for example, a SameView Web viewer) can display the country in its own display language, by resolving the ISO 3166-1 alpha-2 code locally rather than depending on the Android app's language at the time of writing. For example, a session saved by the German-language Android app as `"country": "Deutschland", "countryCode": "DE"` allows an English-language consumer to independently display "Germany" from `countryCode` alone. This document defines only the Android-side metadata field; it does not prescribe how any other consumer implements localization.
+
+Legacy metadata without `countryCode` remains fully usable by any consumer via the existing `location.country` string, exactly as it is today.
+
+#### 6.9.8 Scanner Validation
+
+For any supported version where `location.countryCode` is present, `SessionScanner` additionally validates:
+
+- the value is a string;
+- the value is a two-letter uppercase ISO 3166-1 alpha-2 code.
+
+Absence of `location.countryCode` remains valid for every supported version and must not cause validation to reject an otherwise valid session. A `location.country` value present without a corresponding `location.countryCode` is not an error at any version.
+
+#### 6.9.9 Example
+
+A v6 session with an explicitly selected Country (German-language app):
+
+```json
+{
+  "version": 6,
+  "location": {
+    "displayName": "Zugspitze Summit",
+    "city": "Garmisch-Partenkirchen",
+    "country": "Deutschland",
+    "countryCode": "DE",
+    "userEdited": true
+  }
+}
+```
+
+The same country, saved by the English-language app:
+
+```json
+{
+  "location": {
+    "country": "Germany",
+    "countryCode": "DE"
+  }
+}
+```
+
+A legacy v6 session with a pre-existing free-text Country value and no `countryCode` remains fully valid:
+
+```json
+{
+  "version": 6,
+  "location": {
+    "country": "Östereich",
+    "userEdited": true
+  }
+}
+```
+
+This is a separate, additive example, not a replacement for §6.3: a v6 (or any supported version) session without `location.countryCode` remains fully valid. The field's presence is not required for a session to be valid.
+
 ---
 
 ## 7. Reference Date Rules
@@ -791,7 +912,7 @@ The capture date must not be reconstructed from EXIF at read time. The stored va
 
 ### 9.1 Location is Pure User Metadata
 
-`location.displayName`, `location.city`, and `location.country` are user-authored free-text fields. They represent the user's knowledge of where a session's photos were taken.
+`location.displayName`, `location.city`, and `location.country` represent the user's knowledge of where a session's photos were taken. `location.displayName` and `location.city` are user-authored free-text fields. `location.country` holds either a legacy free-text value (sessions saved before the Country picker existed, or any value not actively changed by the user) or a localized display snapshot written by the Country picker for an explicit new selection — see §6.9 for the full `location.country` / `location.countryCode` contract.
 
 These fields are entirely independent of GPS coordinates. No automatic relationship between GPS coordinates and location text fields exists or is implied.
 
@@ -835,8 +956,18 @@ The city or municipality as the user knows it.
 The country as the user knows it.
 
 - Examples: "Deutschland", "USA", "France"
-- Free text; no ISO 3166 requirement for v4
+- Legacy sessions and any value not actively changed by the user: free text, no ISO 3166 requirement
+- Values written by an explicit new Country selection: the localized display name of the selected country, in the app's current language at the time of selection
 - Optional; may be absent even when `city` is present
+- See §6.9 for the full contract, including its pairing with `location.countryCode`
+
+**`location.countryCode`**
+
+The canonical, language-neutral identity of an explicitly selected country. See §6.9 for the full field contract.
+
+- Optional; absent on legacy sessions and whenever `location.country` has not been set via an explicit Country selection
+- ISO 3166-1 alpha-2, uppercase (e.g. "DE")
+- Never inferred or backfilled from an existing `location.country` value
 
 **`location.userEdited`**
 
@@ -852,16 +983,17 @@ Boolean flag. Set to `true` when any location field has been explicitly entered 
 
 ### 9.5 Display Rules
 
-- Location text is displayed as user-entered
-- No formatting, normalization, or translation is applied by the app beyond minimal sanitization on save
-- On save, location fields are trimmed; zero-width and Bidi override characters are removed; pasted line breaks are replaced with a space; normal international characters, emojis, and punctuation are preserved unchanged; no length limits are applied
-- Locale of the viewer (website, export) does not alter stored location text
+- `location.displayName` and `location.city` text is displayed as user-entered
+- No formatting, normalization, or translation is applied by the app to `displayName`/`city`, or to a legacy/unedited `location.country` value, beyond minimal sanitization on save
+- On save, free-text location fields are trimmed; zero-width and Bidi override characters are removed; pasted line breaks are replaced with a space; normal international characters, emojis, and punctuation are preserved unchanged; no length limits are applied
+- An explicit new Country selection is the one exception: the app itself writes the localized display name for `location.country` at save time (see §6.9.3) — this is not a transformation of user-typed text, since no free text is typed for a new Country selection
+- Locale of the viewer (website, export) does not alter stored location text; a viewer may independently localize display using `location.countryCode` where present (§6.9.7), without altering the stored `location.country` string
 
 ### 9.6 What Location is NOT
 
 - Not GPS coordinates
 - Not auto-populated from GPS
-- Not validated against any geographic database
+- Not validated against any remote/external geographic database or geocoding service — the offline, on-device ISO 3166-1 list used by the Country picker (§6.9) is a local, deterministic dataset, not a geocoding lookup
 - Not a required field
 - Not a rendering input
 - Not a session-identity field
