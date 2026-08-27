@@ -142,10 +142,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -2036,14 +2038,12 @@ private fun OverlayVisibilityWarning(
 ) {
     val description = stringResource(R.string.overlay_visibility_warning_description)
     val bubbleText = stringResource(R.string.overlay_visibility_warning_bubble)
-    val view = LocalView.current
     var isBubbleVisible by remember { mutableStateOf(false) }
     var hintRequest by remember { mutableStateOf(0) }
 
     LaunchedEffect(hintRequest) {
         if (hintRequest > 0) {
             isBubbleVisible = true
-            view.announceForAccessibility(bubbleText)
             delay(1800)
             isBubbleVisible = false
         }
@@ -2093,18 +2093,24 @@ private fun OverlayVisibilityWarning(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(SameViewOverlayScrim.copy(alpha = 0.68f))
-                    .padding(horizontal = 8.dp, vertical = 5.dp)
-            ) {
-                Text(
-                    text = bubbleText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = SameViewTextPrimary,
-                    maxLines = 2
-                )
+            key(hintRequest) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(SameViewOverlayScrim.copy(alpha = 0.68f))
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                        .semantics(mergeDescendants = true) {
+                            testTag = "overlay_visibility_warning_bubble_content"
+                            liveRegion = LiveRegionMode.Polite
+                        }
+                ) {
+                    Text(
+                        text = bubbleText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SameViewTextPrimary,
+                        maxLines = 2
+                    )
+                }
             }
         }
     }
@@ -2116,14 +2122,12 @@ private fun FormatMismatchHint(
 ) {
     val description = stringResource(R.string.reference_format_mismatch_description)
     val bubbleText = stringResource(R.string.reference_format_mismatch_bubble)
-    val view = LocalView.current
     var isBubbleVisible by remember { mutableStateOf(false) }
     var hintRequest by remember { mutableStateOf(0) }
 
     LaunchedEffect(hintRequest) {
         if (hintRequest > 0) {
             isBubbleVisible = true
-            view.announceForAccessibility(bubbleText)
             delay(1800)
             isBubbleVisible = false
         }
@@ -2173,18 +2177,24 @@ private fun FormatMismatchHint(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(SameViewOverlayScrim.copy(alpha = 0.68f))
-                    .padding(horizontal = 8.dp, vertical = 5.dp)
-            ) {
-                Text(
-                    text = bubbleText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = SameViewTextPrimary,
-                    maxLines = 2
-                )
+            key(hintRequest) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(SameViewOverlayScrim.copy(alpha = 0.68f))
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                        .semantics(mergeDescendants = true) {
+                            testTag = "format_mismatch_hint_bubble_content"
+                            liveRegion = LiveRegionMode.Polite
+                        }
+                ) {
+                    Text(
+                        text = bubbleText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SameViewTextPrimary,
+                        maxLines = 2
+                    )
+                }
             }
         }
     }

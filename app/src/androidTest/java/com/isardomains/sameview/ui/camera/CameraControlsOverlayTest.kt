@@ -17,6 +17,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -29,6 +32,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
@@ -676,6 +680,22 @@ class CameraControlsOverlayTest {
 
         assert(bubbleBounds.top > badgeBounds.bottom)
         assert(bubbleBounds.left > badgeBounds.left)
+    }
+
+    @Test
+    fun formatMismatchBubble_hasLiveRegionSemantics() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://sameview/test-reference"),
+            isLandscape = false,
+            hasViewportMismatch = true
+        )
+
+        composeRule.onNodeWithContentDescription(mismatchDescription()).performClick()
+        composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithTag("format_mismatch_hint_bubble_content", useUnmergedTree = true)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
     @Test
@@ -1456,6 +1476,22 @@ class CameraControlsOverlayTest {
         )
 
         composeRule.onAllNodesWithContentDescription(overlayVisibilityWarningDescription()).assertCountEquals(0)
+    }
+
+    @Test
+    fun overlayVisibilityWarningBubble_hasLiveRegionSemantics() {
+        setControlsContent(
+            referenceUri = Uri.parse("content://sameview/test-reference"),
+            isLandscape = false,
+            isOverlayNearlyInvisible = true
+        )
+
+        composeRule.onNodeWithContentDescription(overlayVisibilityWarningDescription()).performClick()
+        composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithTag("overlay_visibility_warning_bubble_content", useUnmergedTree = true)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
     @Test
