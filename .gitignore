@@ -27,3 +27,4 @@ captures/
 # Android build outputs
 app/release/
 .run/
+_SameView_Exports/
