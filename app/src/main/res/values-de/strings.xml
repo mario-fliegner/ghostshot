@@ -368,7 +368,10 @@
     <string name="edit_session_field_city">Stadt</string>
     <string name="edit_session_placeholder_city">z. B. München</string>
     <string name="edit_session_field_country">Land</string>
-    <string name="edit_session_placeholder_country">z. B. Deutschland</string>
+    <string name="edit_session_country_picker_title">Land auswählen</string>
+    <string name="edit_session_country_picker_search_hint">Suchen</string>
+    <string name="edit_session_country_picker_empty">Keine Länder gefunden</string>
+    <string name="edit_session_country_clear_content_description">Land entfernen</string>
     <!-- Session bearbeiten — Speicher-Fehler -->
     <string name="edit_session_save_failed">Änderungen konnten nicht gespeichert werden</string>
     <!-- Session bearbeiten — Verwerfen-Dialog -->

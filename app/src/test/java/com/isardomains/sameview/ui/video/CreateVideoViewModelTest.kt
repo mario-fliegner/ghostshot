@@ -33,6 +33,7 @@ import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import java.io.File
+import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CreateVideoViewModelTest {
@@ -345,6 +346,9 @@ class CreateVideoViewModelTest {
         // loadOverlayMetadata() with the default reader (empty file → null values).
         // Re-running it with the injected snapshot reader overwrites those values.
         vm.overlayMetadataReader = { _ -> snapshot }
+        // Default test locale — avoids touching the mocked Context's (unstubbed) resources chain.
+        // Tests asserting locale-specific Country localization override this explicitly.
+        vm.currentUiLocale = { Locale.US }
         vm.loadOverlayMetadata()
         return vm
     }
@@ -506,6 +510,79 @@ class CreateVideoViewModelTest {
         )
         advanceUntilIdle()
         assertFalse("Expected isLocationAvailable=false when no location data", vm.isLocationAvailable.value)
+    }
+
+    // ── Issue #2: locale-aware Country in the overlay location line ───────────
+
+    @Test
+    fun locationLine_validCountryCode_de_resolvesToLocalizedName() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, "München", "Germany", locationCountryCode = "DE")
+        )
+        vm.currentUiLocale = { Locale.GERMANY }
+        vm.loadOverlayMetadata()
+        advanceUntilIdle()
+        assertEquals("München, Deutschland", vm.locationPreviewText.value)
+    }
+
+    @Test
+    fun locationLine_validCountryCode_en_resolvesToLocalizedName() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, "München", "Deutschland", locationCountryCode = "DE")
+        )
+        vm.currentUiLocale = { Locale.US }
+        vm.loadOverlayMetadata()
+        advanceUntilIdle()
+        assertEquals("München, Germany", vm.locationPreviewText.value)
+    }
+
+    @Test
+    fun locationLine_legacyNoCountryCode_showsStoredCountryUnchanged() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, null, "Östereich")
+        )
+        vm.currentUiLocale = { Locale.US }
+        vm.loadOverlayMetadata()
+        advanceUntilIdle()
+        assertEquals("Östereich", vm.locationPreviewText.value)
+    }
+
+    @Test
+    fun locationLine_malformedCountryCode_fallsBackToStoredCountry() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, null, "Germany", locationCountryCode = "ZZZ")
+        )
+        vm.currentUiLocale = { Locale.GERMANY }
+        vm.loadOverlayMetadata()
+        advanceUntilIdle()
+        assertEquals("Germany", vm.locationPreviewText.value)
+    }
+
+    // T-U-Issue2-parity: preview text and the final VideoOverlay.locationLine passed to the
+    // renderer must agree — both are sourced from the same single computeLocationLine() call.
+    @Test
+    fun locationLine_previewAndFinalOverlay_agreeOnLocalizedCountry() = runTest {
+        val vm = createViewModelWithSnapshot(
+            OverlayMetadataSnapshot(null, null, 0L, "München", "Germany", locationCountryCode = "DE")
+        )
+        vm.currentUiLocale = { Locale.GERMANY }
+        vm.loadOverlayMetadata()
+        advanceUntilIdle()
+        vm.updateLocationEnabled(true)
+
+        var capturedConfig: VideoRenderConfig? = null
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        vm.pipelineRunner = { config, _, _, _ ->
+            capturedConfig = config
+            gate.await()
+            Result.success(fakeUri)
+        }
+        vm.startExport()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals("München, Deutschland", vm.locationPreviewText.value)
+        assertEquals(vm.locationPreviewText.value, capturedConfig?.overlay?.locationLine)
     }
 
     // ── Block 8.1 tests — displayName + separate title/date ──────────────────

@@ -714,7 +714,9 @@ Because `location.countryCode` is not secret, normal SameView backup/export (`SE
 
 #### 6.9.7 Cross-Locale / Future Consumer Note
 
-`location.countryCode` exists so that a future consumer (for example, a SameView Web viewer) can display the country in its own display language, by resolving the ISO 3166-1 alpha-2 code locally rather than depending on the Android app's language at the time of writing. For example, a session saved by the German-language Android app as `"country": "Deutschland", "countryCode": "DE"` allows an English-language consumer to independently display "Germany" from `countryCode` alone. This document defines only the Android-side metadata field; it does not prescribe how any other consumer implements localization.
+`location.countryCode` exists so that any consumer — the SameView Android app itself, or a future consumer such as a SameView Web viewer — can display the country in its own display language, by resolving the ISO 3166-1 alpha-2 code locally rather than depending on the language active at the time of writing. For example, a session saved by the German-language Android app as `"country": "Deutschland", "countryCode": "DE"` allows an English-language display context to independently show "Germany" from `countryCode` alone.
+
+The SameView Android app itself does exactly this: every user-facing Country display (Edit Session, Compare, Compare Library, Share Comparison Image, Video Export) resolves `location.country` for display via the shared `CountryCatalog.resolveDisplayName` function whenever `location.countryCode` is present and valid for the current SameView UI locale, falling back to the stored `location.country` string unchanged otherwise. This is purely a read-time display transform — it never rewrites `location.country`, never assigns or infers `location.countryCode`, and does not depend on or alter the app's language setting. See `SESSION_METADATA_EDITOR_V1.md §10.6` for the full display contract. This document defines only the metadata field itself; it does not prescribe how any other (non-Android) consumer implements localization.
 
 Legacy metadata without `countryCode` remains fully usable by any consumer via the existing `location.country` string, exactly as it is today.
 
@@ -987,7 +989,7 @@ Boolean flag. Set to `true` when any location field has been explicitly entered 
 - No formatting, normalization, or translation is applied by the app to `displayName`/`city`, or to a legacy/unedited `location.country` value, beyond minimal sanitization on save
 - On save, free-text location fields are trimmed; zero-width and Bidi override characters are removed; pasted line breaks are replaced with a space; normal international characters, emojis, and punctuation are preserved unchanged; no length limits are applied
 - An explicit new Country selection is the one exception: the app itself writes the localized display name for `location.country` at save time (see §6.9.3) — this is not a transformation of user-typed text, since no free text is typed for a new Country selection
-- Locale of the viewer (website, export) does not alter stored location text; a viewer may independently localize display using `location.countryCode` where present (§6.9.7), without altering the stored `location.country` string
+- Locale of the viewer (SameView Android app, website, export) never alters stored location text. For Country specifically, the SameView Android app itself independently localizes the *displayed* value using `location.countryCode` where valid (§6.9.7), without ever altering the stored `location.country` string; any other viewer may do the same
 
 ### 9.6 What Location is NOT
 

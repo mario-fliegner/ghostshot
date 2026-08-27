@@ -65,6 +65,7 @@ internal data class ShareMetadataSnapshot(
     val locationDisplayName: String?,
     val locationCity: String?,
     val locationCountry: String?,
+    val locationCountryCode: String? = null,
     /** Width ÷ height of the session viewport; defaults to portrait 9:16. */
     val viewportRatio: Float = 9f / 16f,
     /** Parsed from metadata.json → branding block. */
@@ -220,6 +221,13 @@ class ShareComparisonViewModel @Inject constructor(
         readMetadata(dir)
     }
 
+    /**
+     * Explicit current SameView UI locale, used only to resolve a localized Country display name
+     * from a valid `location.countryCode` (`CountryCatalog.resolveDisplayName`). Never reads
+     * `Locale.getDefault()` implicitly. Replaceable in tests.
+     */
+    internal var currentUiLocale: () -> Locale = { context.resources.configuration.locales.get(0) }
+
     /** Override in tests to avoid real MediaStore writes and rendering. */
     internal var shareRunner: suspend (ShareRenderConfig, ContentResolver) -> Uri = { config, resolver ->
         ShareImageRenderer().render(config, resolver)
@@ -350,7 +358,11 @@ class ShareComparisonViewModel @Inject constructor(
             val title = snapshot.title?.trim()?.takeIf { it.isNotEmpty() }
             val dateLine = computeDateLine(snapshot.referenceDate, snapshot.captureTimestampMs)
             val locationLine = computeLocationLine(
-                snapshot.locationDisplayName, snapshot.locationCity, snapshot.locationCountry
+                snapshot.locationDisplayName,
+                snapshot.locationCity,
+                snapshot.locationCountry,
+                snapshot.locationCountryCode,
+                currentUiLocale
             )
 
             computedTitle = title
@@ -519,11 +531,19 @@ class ShareComparisonViewModel @Inject constructor(
     private fun computeLocationLine(
         displayName: String?,
         city: String?,
-        country: String?
+        country: String?,
+        countryCode: String?,
+        localeProvider: () -> Locale
     ): String? {
         val dn = displayName?.trim()?.takeIf { it.isNotEmpty() }
         val c = city?.trim()?.takeIf { it.isNotEmpty() }
-        val cn = country?.trim()?.takeIf { it.isNotEmpty() }
+        // localeProvider() is invoked only when there's actually a Country to resolve — mirrors
+        // computeDateLine's early-return-before-touching-context pattern above.
+        val cn = if (country != null || countryCode != null) {
+            CountryCatalog.resolveDisplayName(country, countryCode, localeProvider())
+        } else {
+            null
+        }
         val cityCountry = when {
             c != null && cn != null -> "$c, $cn"
             c != null -> c
@@ -554,6 +574,8 @@ class ShareComparisonViewModel @Inject constructor(
                 ?.trim()?.takeIf { it.isNotEmpty() }
             val locationCountry = json.optJSONObject("location")?.optString("country", null)
                 ?.trim()?.takeIf { it.isNotEmpty() }
+            val locationCountryCode = json.optJSONObject("location")?.optString("countryCode", null)
+                ?.trim()?.takeIf { it.isNotEmpty() }
             val vw = json.optJSONObject("viewport")?.optInt("width", 0) ?: 0
             val vh = json.optJSONObject("viewport")?.optInt("height", 0) ?: 0
             val viewportRatio = if (vw > 0 && vh > 0) vw.toFloat() / vh.toFloat() else 9f / 16f
@@ -563,7 +585,8 @@ class ShareComparisonViewModel @Inject constructor(
             val brandingMeta = if (brandingType != null) SessionBrandingMeta(brandingType, brandingBuiltinId) else null
             ShareMetadataSnapshot(
                 title, referenceDate, captureTimestampMs,
-                locationDisplayName, locationCity, locationCountry, viewportRatio, brandingMeta
+                locationDisplayName, locationCity, locationCountry, locationCountryCode,
+                viewportRatio, brandingMeta
             )
         } catch (_: Exception) {
             ShareMetadataSnapshot(null, null, 0L, null, null, null)

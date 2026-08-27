@@ -369,6 +369,9 @@ class MainActivity : ComponentActivity() {
                         val locationCountry = uiState.savedSessions
                             .find { it.sessionId == sessionId }
                             ?.locationCountry
+                        val locationCountryCode = uiState.savedSessions
+                            .find { it.sessionId == sessionId }
+                            ?.locationCountryCode
                         val isFavorite = uiState.savedSessions
                             .find { it.sessionId == sessionId }
                             ?.isFavorite
@@ -437,6 +440,7 @@ class MainActivity : ComponentActivity() {
                                 locationDisplayName = locationDisplayName,
                                 locationCity = locationCity,
                                 locationCountry = locationCountry,
+                                locationCountryCode = locationCountryCode,
                                 onEditSession = if (sessionId != null) {
                                     { navController.navigate(editSessionRoute(sessionId)) }
                                 } else null,

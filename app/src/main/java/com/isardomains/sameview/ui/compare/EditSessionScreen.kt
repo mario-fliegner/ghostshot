@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
@@ -48,6 +51,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -114,6 +119,7 @@ fun EditSessionScreen(
     val locationDisplayName by viewModel.locationDisplayNameField.collectAsStateWithLifecycle()
     val locationCity by viewModel.locationCityField.collectAsStateWithLifecycle()
     val locationCountry by viewModel.locationCountryField.collectAsStateWithLifecycle()
+    val locationCountryCode by viewModel.locationCountryCodeField.collectAsStateWithLifecycle()
     val isDirty by viewModel.isDirty.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
@@ -123,6 +129,15 @@ fun EditSessionScreen(
     // ── UI derivations ─────────────────────────────────────────────────────────
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val currentLocale = LocalConfiguration.current.locales.get(0)
+
+    // Display-only: resolves the visible Country text from the canonical countryCode for the
+    // current SameView UI locale, without ever touching the ViewModel's stored/dirty-tracked
+    // country/countryCode state (SESSION_METADATA_V1.md §6.9.7). A locale change alone re-renders
+    // this value but never marks the session dirty and is never written back on Save.
+    val resolvedLocationCountry = remember(locationCountry, locationCountryCode, currentLocale) {
+        CountryCatalog.resolveDisplayName(locationCountry, locationCountryCode, currentLocale) ?: ""
+    }
 
     val referenceImageUri = remember(viewModel.sessionId) {
         Uri.fromFile(File(context.filesDir, "sessions/${viewModel.sessionId}/reference.jpg"))
@@ -143,6 +158,7 @@ fun EditSessionScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showSavingDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showCountryPicker by remember { mutableStateOf(false) }
 
     // ── Back handling ──────────────────────────────────────────────────────────
     BackHandler(enabled = isSaving || isDirty) {
@@ -467,18 +483,46 @@ fun EditSessionScreen(
                     modifier = Modifier.fillMaxWidth().testTag("edit_session_city_field")
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+                val countryInteractionSource = remember { MutableInteractionSource() }
+                LaunchedEffect(countryInteractionSource) {
+                    countryInteractionSource.interactions.collect { interaction ->
+                        if (interaction is PressInteraction.Release) {
+                            showCountryPicker = true
+                        }
+                    }
+                }
                 OutlinedTextField(
-                    value = locationCountry,
-                    onValueChange = viewModel::onLocationCountryChanged,
+                    value = resolvedLocationCountry,
+                    onValueChange = {},
+                    readOnly = true,
+                    interactionSource = countryInteractionSource,
                     label = { Text(stringResource(R.string.edit_session_field_country)) },
-                    placeholder = { Text(stringResource(R.string.edit_session_placeholder_country)) },
+                    trailingIcon = {
+                        if (resolvedLocationCountry.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onCountryCleared() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.edit_session_country_clear_content_description)
+                                )
+                            }
+                        }
+                    },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth().testTag("edit_session_country_field")
                 )
             }
             } // inner Column
+
+            if (showCountryPicker) {
+                CountryPickerSheet(
+                    currentLocale = currentLocale,
+                    onCountrySelected = { entry ->
+                        viewModel.onCountrySelected(entry.displayName, entry.code)
+                        showCountryPicker = false
+                    },
+                    onDismiss = { showCountryPicker = false }
+                )
+            }
         } // outer Column
     }
 }

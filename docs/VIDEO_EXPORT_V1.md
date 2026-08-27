@@ -1709,7 +1709,7 @@ This overlay is not a branding element and does not conflict with §13.6.
 
 A preview line appears directly below the toggle, always visible regardless of whether the toggle is enabled or disabled. It shows exactly the location text that will appear in the exported video.
 
-**Data source:** `location.displayName`, `location.city`, and `location.country` from `metadata.json`.
+**Data source:** `location.displayName`, `location.city`, `location.country`, and `location.countryCode` from `metadata.json`.
 
 `location.displayName` is included as a prefix when available, using the middle dot (·) separator. Priority: `displayName · city, country` when all present; falls back gracefully when any field is absent.
 
@@ -1725,6 +1725,8 @@ A preview line appears directly below the toggle, always visible regardless of w
 | city only | `Kitzbühel` |
 | country only | `Österreich` |
 | none | Toggle disabled — see §32.4 |
+
+In this table, `country` means the **resolved display value**: localized from `location.countryCode` for the current SameView UI locale when valid, otherwise the stored `location.country` string unchanged (`SESSION_METADATA_V1.md §6.9.7`). The preview line and the final rendered overlay both consume this same single resolved value — they never disagree (§32.11). `displayName`/`city` are always the stored values verbatim, never localized.
 
 ### 32.4 Disabled State
 
@@ -1800,7 +1802,7 @@ Line spacing between all overlay lines: approximately 20 % of the text size.
 
 ### 32.11 VideoRenderConfig
 
-`locationLine` is a field of the `VideoOverlay` data class (see §31.11). `CreateVideoViewModel` computes the location line from `metadata.json` — joining `location.city` and `location.country` with a comma separator — before constructing `VideoRenderConfig`. When `locationLine` is null (toggle disabled or no city/country data): the location line is not rendered and no existing frame is affected.
+`locationLine` is a field of the `VideoOverlay` data class (see §31.11). `CreateVideoViewModel` computes the location line from `metadata.json` — joining `location.city` and the resolved Country display value (§32.3) with a comma separator — before constructing `VideoRenderConfig`. This single computed string is used for both the preview text and the final overlay, so they cannot diverge. When `locationLine` is null (toggle disabled or no city/country data): the location line is not rendered and no existing frame is affected.
 
 ### 32.12 Interaction with Title/Date Overlay and Branding Endcard
 

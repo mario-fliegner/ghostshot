@@ -281,13 +281,21 @@ internal object SessionStorage {
     }
 
     /**
-     * Updates [location.displayName], [location.city], [location.country], and [location.userEdited]
-     * in the session's metadata.json.
+     * Updates [location.displayName], [location.city], [location.country], [location.countryCode],
+     * and [location.userEdited] in the session's metadata.json.
      *
      * Each string parameter is trimmed; blank strings are treated as null (field absent).
      * When at least one field is non-null after normalization: sets the respective fields and
      * sets [location.userEdited] to true. Fields that are null after normalization are removed.
-     * When all three fields are null after normalization: removes the entire [location] block.
+     * When all four fields are null after normalization: removes the entire [location] block.
+     *
+     * [countryCode] has no default value and is not optional to omit: every caller must always pass
+     * the full intended state of all four location values, exactly as already required for
+     * [displayName]/[city]/[country]. This is a full-replacement API, not a partial patch — passing
+     * `null` for [countryCode] removes it. A caller that wants to preserve an existing
+     * [location.countryCode] while changing an unrelated location value (e.g. City) must read the
+     * current value first and pass it through unchanged, exactly as already required for the other
+     * three fields today.
      *
      * [captureLocation] and [referenceLocation] are never modified.
      * All other metadata.json fields are preserved unchanged.
@@ -299,7 +307,8 @@ internal object SessionStorage {
         sessionId: String,
         displayName: String?,
         city: String?,
-        country: String?
+        country: String?,
+        countryCode: String?
     ): Boolean {
         return try {
             val sessionDir = resolveDirectSessionDir(sessionsRoot, sessionId) ?: return false
@@ -307,6 +316,7 @@ internal object SessionStorage {
             val normalizedDisplayName = displayName?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
             val normalizedCity = city?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
             val normalizedCountry = country?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
+            val normalizedCountryCode = countryCode?.let { MetadataTextSanitizer.sanitizeSingleLine(it) }
 
             val metadataFile = File(sessionDir, "metadata.json")
             if (!metadataFile.exists()) return false
@@ -317,12 +327,14 @@ internal object SessionStorage {
                 return false
             }
 
-            val hasAnyField = normalizedDisplayName != null || normalizedCity != null || normalizedCountry != null
+            val hasAnyField = normalizedDisplayName != null || normalizedCity != null ||
+                normalizedCountry != null || normalizedCountryCode != null
             if (hasAnyField) {
                 val location = json.optJSONObject("location") ?: JSONObject()
                 if (normalizedDisplayName != null) location.put("displayName", normalizedDisplayName) else location.remove("displayName")
                 if (normalizedCity != null) location.put("city", normalizedCity) else location.remove("city")
                 if (normalizedCountry != null) location.put("country", normalizedCountry) else location.remove("country")
+                if (normalizedCountryCode != null) location.put("countryCode", normalizedCountryCode) else location.remove("countryCode")
                 location.put("userEdited", true)
                 json.put("location", location)
             } else {

@@ -34,6 +34,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import java.io.File
+import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ShareComparisonViewModelTest {
@@ -80,6 +81,9 @@ class ShareComparisonViewModelTest {
         val handle = SavedStateHandle(mapOf("sessionId" to testSessionId))
         val vm = ShareComparisonViewModel(handle, context, globalBrandingRepository)
         vm.ioDispatcher = Dispatchers.Main
+        // Default test locale — avoids touching the mocked Context's (unstubbed) resources chain.
+        // Tests asserting locale-specific Country localization override this explicitly.
+        vm.currentUiLocale = { Locale.US }
         vm.metadataReader = metadataReader
         vm.hqSourceChecker = hqSourceChecker
         vm.captureFileResolver = captureFileResolver
@@ -347,6 +351,60 @@ class ShareComparisonViewModelTest {
 
         assertTrue(vm.isLocationAvailable.value)
         assertNotNull(vm.locationPreviewText.value)
+    }
+
+    // ── Issue #2: locale-aware Country in the location line ───────────────────
+
+    @Test
+    fun locationLine_validCountryCode_de_resolvesToLocalizedName() = runTest {
+        val vm = createViewModel(metadataReader = { _ ->
+            ShareMetadataSnapshot(null, null, 0L, null, "München", "Germany", locationCountryCode = "DE")
+        })
+        vm.currentUiLocale = { Locale.GERMANY }
+        vm.loadMetadata()
+        vm.onLocationToggled(true)
+        advanceUntilIdle()
+
+        assertEquals("München, Deutschland", vm.buildCaptionData()?.locationLine)
+    }
+
+    @Test
+    fun locationLine_validCountryCode_en_resolvesToLocalizedName() = runTest {
+        val vm = createViewModel(metadataReader = { _ ->
+            ShareMetadataSnapshot(null, null, 0L, null, "München", "Deutschland", locationCountryCode = "DE")
+        })
+        vm.currentUiLocale = { Locale.US }
+        vm.loadMetadata()
+        vm.onLocationToggled(true)
+        advanceUntilIdle()
+
+        assertEquals("München, Germany", vm.buildCaptionData()?.locationLine)
+    }
+
+    @Test
+    fun locationLine_legacyNoCountryCode_showsStoredCountryUnchanged() = runTest {
+        val vm = createViewModel(metadataReader = { _ ->
+            ShareMetadataSnapshot(null, null, 0L, null, null, "Östereich")
+        })
+        vm.currentUiLocale = { Locale.US }
+        vm.loadMetadata()
+        vm.onLocationToggled(true)
+        advanceUntilIdle()
+
+        assertEquals("Östereich", vm.buildCaptionData()?.locationLine)
+    }
+
+    @Test
+    fun locationLine_malformedCountryCode_fallsBackToStoredCountry() = runTest {
+        val vm = createViewModel(metadataReader = { _ ->
+            ShareMetadataSnapshot(null, null, 0L, null, null, "Germany", locationCountryCode = "ZZZ")
+        })
+        vm.currentUiLocale = { Locale.GERMANY }
+        vm.loadMetadata()
+        vm.onLocationToggled(true)
+        advanceUntilIdle()
+
+        assertEquals("Germany", vm.buildCaptionData()?.locationLine)
     }
 
     @Test

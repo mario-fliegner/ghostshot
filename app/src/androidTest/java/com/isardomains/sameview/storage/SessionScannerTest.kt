@@ -54,6 +54,7 @@ class SessionScannerTest {
         locationDisplayName: String? = null,
         locationCity: String? = null,
         locationCountry: String? = null,
+        locationCountryCode: String? = null,
         isFavorite: Boolean? = null
     ) {
         val json = JSONObject().apply {
@@ -69,11 +70,14 @@ class SessionScannerTest {
             if (referenceDate != null) {
                 put("reference", JSONObject().apply { put("date", referenceDate) })
             }
-            if (locationDisplayName != null || locationCity != null || locationCountry != null) {
+            if (locationDisplayName != null || locationCity != null || locationCountry != null ||
+                locationCountryCode != null
+            ) {
                 put("location", JSONObject().apply {
                     if (locationDisplayName != null) put("displayName", locationDisplayName)
                     if (locationCity != null) put("city", locationCity)
                     if (locationCountry != null) put("country", locationCountry)
+                    if (locationCountryCode != null) put("countryCode", locationCountryCode)
                 })
             }
             if (isFavorite != null) {
@@ -570,6 +574,77 @@ class SessionScannerTest {
         assertNull(result[0].locationDisplayName)
         assertNull(result[0].locationCity)
         assertNull(result[0].locationCountry)
+        assertNull(result[0].locationCountryCode)
+    }
+
+    // ── Issue #2: locationCountryCode parsing ─────────────────────────────────
+
+    @Test
+    fun session_withCountryCode_isRead() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(
+            dir,
+            timestamp = 5_000L,
+            locationCountry = "Deutschland",
+            locationCountryCode = "DE"
+        )
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertEquals("Deutschland", result[0].locationCountry)
+        assertEquals("DE", result[0].locationCountryCode)
+    }
+
+    @Test
+    fun session_withoutCountryCode_legacyCountryOnly_countryCodeIsNull() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, timestamp = 5_000L, locationCountry = "Östereich")
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertEquals("Östereich", result[0].locationCountry)
+        assertNull(result[0].locationCountryCode)
+    }
+
+    @Test
+    fun session_withMalformedCountryCode_preservedAsRawString_noValidationAtScanTime() {
+        // The scanner never validates or drops a malformed code — CountryCatalog (the display-time
+        // resolver), not SessionScanner, decides validity (SESSION_METADATA_V1.md §6.9.8).
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(
+            dir,
+            timestamp = 5_000L,
+            locationCountry = "Germany",
+            locationCountryCode = "not-a-real-code"
+        )
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertEquals("Germany", result[0].locationCountry)
+        assertEquals("not-a-real-code", result[0].locationCountryCode)
+    }
+
+    @Test
+    fun session_withCountryCodeOnly_noStoredCountry_isRead() {
+        val dir = createSessionDir("2026-04-24_10-00-00")
+        writeMetadata(dir, timestamp = 5_000L, locationCountryCode = "DE")
+        touch(dir, "reference.jpg")
+        touch(dir, "capture.jpg")
+
+        val result = SessionScanner.scan(testRoot)
+
+        assertEquals(1, result.size)
+        assertNull(result[0].locationCountry)
+        assertEquals("DE", result[0].locationCountryCode)
     }
 
     // ── Block A: isFavorite scanner tests ─────────────────────────────────────

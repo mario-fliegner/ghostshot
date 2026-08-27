@@ -466,6 +466,15 @@ This is a hard rule defined by `GPS_RECREATION_SYSTEM_V1.md §12` and `SESSION_M
 
 When a session already has location data, the editor pre-fills the corresponding fields from the stored values. The user sees what was previously saved and can edit or clear it. For Country, this includes legacy free-text values (§10.4), displayed exactly as stored.
 
+### 10.6 Locale-Aware Country Trigger Display
+
+The Country trigger field's **visible text** is distinct from the pre-filled/dirty-tracked state described above: it is resolved for display via the same central resolver used everywhere else in the app (`CountryCatalog.resolveDisplayName`, see `SESSION_METADATA_V1.md §6.9.7`), not shown as the raw stored `location.country` string.
+
+- When a valid canonical `location.countryCode` exists, the trigger shows the localized country name for the current SameView UI locale (e.g. a session stored as `"country": "Germany", "countryCode": "DE"` shows `Deutschland` when the app is running in German), even though `location.country` itself still reads `"Germany"`.
+- When `location.countryCode` is missing, invalid, or unresolvable, the trigger shows the stored `location.country` value exactly, unchanged from §10.4/§10.5.
+- This resolution happens purely at render time. It never rewrites `location.country`, never assigns or infers `location.countryCode`, and a locale change alone never marks the editor dirty (`SESSION_METADATA_EDITOR_V1.md §8`) — only an explicit Country selection or clear (§10.1, §10.4) changes the persisted snapshot.
+- Every other user-facing Country display in SameView (Compare, Compare Library, Share Comparison Image, Video Export) follows the identical rule via the same resolver; see `COMPARE_FLOW_V1.md`, `SHARE_COMPARISON_IMAGE_V1.md`, and `VIDEO_EXPORT_V1.md`.
+
 ---
 
 ## 11. Validation Rules
@@ -653,7 +662,7 @@ The editor must not rely on a full `SessionScanner` re-scan of all sessions to u
 
 `CompareScreen` displays a metadata header above the compare slider (see `COMPARE_FLOW_V1.md §42`):
 - `content.title` — shown as the primary line when present
-- `location.displayName`, `location.city`, `location.country` — shown as a compact location line when present
+- `location.displayName`, `location.city`, `location.country` — shown as a compact location line when present; the Country component is resolved for display per §10.6 (localized from `location.countryCode` when valid, otherwise the stored `location.country` unchanged) — `location.displayName`/`location.city` are always shown exactly as stored
 - `Created <date>` fallback — shown when no user-authored metadata is present and a timestamp is available
 
 The header is hidden in fullscreen mode.

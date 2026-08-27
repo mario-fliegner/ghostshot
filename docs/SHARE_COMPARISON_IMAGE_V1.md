@@ -468,6 +468,8 @@ Priority logic (identical to `VIDEO_EXPORT_V1.md §32.3` and `COMPARE_FLOW_V1.md
 | country only | `Österreich` |
 | none | (no location line) |
 
+In this table, `country` means the **resolved display value**: localized from `location.countryCode` for the current SameView UI locale when valid, otherwise the stored `location.country` string unchanged (`SESSION_METADATA_V1.md §6.9.7`). This resolution is computed once and shared by both the preview text and the final rendered caption — they never disagree. `displayName`/`city` are always the stored values verbatim, never localized.
+
 Separator between `displayName` and city/country: middle dot `·` (U+00B7).
 
 ### 11.5 Line Ordering

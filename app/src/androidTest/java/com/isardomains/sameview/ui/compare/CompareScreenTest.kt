@@ -46,6 +46,7 @@ import org.junit.runner.RunWith
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -1607,6 +1608,63 @@ class CompareScreenTest {
         assertTrue("Location line must not overflow screen right edge", headerBounds.right <= rootBounds.right)
     }
 
+    // ── Issue #2: locale-aware Country in the metadata location line ─────────
+
+    @Test
+    fun metadataHeader_validCountryCode_de_showsLocalizedName() {
+        val germanConfig = Configuration().apply { setLocale(Locale.GERMANY) }
+        setHostContent {
+            CompositionLocalProvider(LocalConfiguration provides germanConfig) {
+                CompareScreen(
+                    referenceImageUri = null,
+                    captureImageUri = null,
+                    onBack = {},
+                    timestamp = fakeTimestamp,
+                    locationCity = "München",
+                    locationCountry = "Germany",
+                    locationCountryCode = "DE"
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertIsDisplayed()
+        composeRule.onNodeWithText("München, Deutschland", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun metadataHeader_validCountryCode_en_showsLocalizedName() {
+        val usConfig = Configuration().apply { setLocale(Locale.US) }
+        setHostContent {
+            CompositionLocalProvider(LocalConfiguration provides usConfig) {
+                CompareScreen(
+                    referenceImageUri = null,
+                    captureImageUri = null,
+                    onBack = {},
+                    timestamp = fakeTimestamp,
+                    locationCity = "München",
+                    locationCountry = "Deutschland",
+                    locationCountryCode = "DE"
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("compare_screen_metadata_location").assertIsDisplayed()
+        composeRule.onNodeWithText("München, Germany", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun metadataHeader_legacyNoCountryCode_showsStoredCountryUnchanged() {
+        setCompareContent(
+            referenceImageUri = null,
+            captureImageUri = null,
+            timestamp = fakeTimestamp,
+            locationCity = "Kitzbühel",
+            locationCountry = "Östereich"
+        )
+
+        composeRule.onNodeWithText("Kitzbühel, Östereich", substring = true).assertIsDisplayed()
+    }
+
     @Test
     fun metadataHeader_landscape_showsTitleAndLocation() {
         val landscapeConfig = Configuration().apply { orientation = Configuration.ORIENTATION_LANDSCAPE }
@@ -1791,6 +1849,7 @@ class CompareScreenTest {
         locationDisplayName: String? = null,
         locationCity: String? = null,
         locationCountry: String? = null,
+        locationCountryCode: String? = null,
         isFavorite: Boolean = false,
         onToggleFavorite: (() -> Unit)? = null,
         onShareComparisonImage: (() -> Unit)? = null
@@ -1807,6 +1866,7 @@ class CompareScreenTest {
                 locationDisplayName = locationDisplayName,
                 locationCity = locationCity,
                 locationCountry = locationCountry,
+                locationCountryCode = locationCountryCode,
                 isFavorite = isFavorite,
                 onToggleFavorite = onToggleFavorite,
                 onShareComparisonImage = onShareComparisonImage

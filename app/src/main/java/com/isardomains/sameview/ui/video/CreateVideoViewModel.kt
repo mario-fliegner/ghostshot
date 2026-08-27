@@ -8,6 +8,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isardomains.sameview.R
+import com.isardomains.sameview.ui.compare.CountryCatalog
 import com.isardomains.sameview.ui.compare.computeCompareLabels
 import com.isardomains.sameview.ui.settings.SettingsRepository
 import com.isardomains.sameview.video.VideoExportFormat
@@ -77,7 +78,8 @@ internal data class OverlayMetadataSnapshot(
     val locationCountry: String?,
     val locationDisplayName: String? = null,
     /** Width-to-height ratio of the session viewport; 4/3 default when unavailable. */
-    val viewportRatio: Float = 4f / 3f
+    val viewportRatio: Float = 4f / 3f,
+    val locationCountryCode: String? = null
 )
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -150,6 +152,13 @@ class CreateVideoViewModel @Inject constructor(
         readOverlayMetadata(sessionDir)
     }
 
+    /**
+     * Explicit current SameView UI locale, used only to resolve a localized Country display name
+     * from a valid `location.countryCode` (`CountryCatalog.resolveDisplayName`). Never reads
+     * `Locale.getDefault()` implicitly. Replaceable in tests.
+     */
+    internal var currentUiLocale: () -> Locale = { context.resources.configuration.locales.get(0) }
+
     /** Injectable dispatcher for the overlay metadata IO read; override in tests. */
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
@@ -179,7 +188,13 @@ class CreateVideoViewModel @Inject constructor(
             val snapshot = overlayMetadataReader(sessionDir)
             val title = snapshot.title?.trim()?.takeIf { it.isNotEmpty() }
             val dateLine = computeDateLine(snapshot.referenceDate, snapshot.captureTimestampMs)
-            val locationLine = computeLocationLine(snapshot.locationDisplayName, snapshot.locationCity, snapshot.locationCountry)
+            val locationLine = computeLocationLine(
+                snapshot.locationDisplayName,
+                snapshot.locationCity,
+                snapshot.locationCountry,
+                snapshot.locationCountryCode,
+                currentUiLocale
+            )
 
             computedTitle = title
             computedDateLine = dateLine
@@ -362,10 +377,22 @@ class CreateVideoViewModel @Inject constructor(
         return "${labels.left} → ${labels.right}"
     }
 
-    private fun computeLocationLine(displayName: String?, city: String?, country: String?): String? {
+    private fun computeLocationLine(
+        displayName: String?,
+        city: String?,
+        country: String?,
+        countryCode: String?,
+        localeProvider: () -> Locale
+    ): String? {
         val dn = displayName?.trim()?.takeIf { it.isNotEmpty() }
         val c = city?.trim()?.takeIf { it.isNotEmpty() }
-        val cn = country?.trim()?.takeIf { it.isNotEmpty() }
+        // localeProvider() is invoked only when there's actually a Country to resolve — mirrors
+        // computeDateLine's early-return-before-touching-context pattern above.
+        val cn = if (country != null || countryCode != null) {
+            CountryCatalog.resolveDisplayName(country, countryCode, localeProvider())
+        } else {
+            null
+        }
         val cityCountry = when {
             c != null && cn != null -> "$c, $cn"
             c != null -> c
@@ -396,10 +423,21 @@ class CreateVideoViewModel @Inject constructor(
                 ?.trim()?.takeIf { it.isNotEmpty() }
             val locationCountry = json.optJSONObject("location")?.optString("country", null)
                 ?.trim()?.takeIf { it.isNotEmpty() }
+            val locationCountryCode = json.optJSONObject("location")?.optString("countryCode", null)
+                ?.trim()?.takeIf { it.isNotEmpty() }
             val vw = json.optJSONObject("viewport")?.optInt("width", 0) ?: 0
             val vh = json.optJSONObject("viewport")?.optInt("height", 0) ?: 0
             val viewportRatio = if (vw > 0 && vh > 0) vw.toFloat() / vh.toFloat() else 4f / 3f
-            OverlayMetadataSnapshot(title, referenceDate, captureTimestampMs, locationCity, locationCountry, locationDisplayName, viewportRatio)
+            OverlayMetadataSnapshot(
+                title = title,
+                referenceDate = referenceDate,
+                captureTimestampMs = captureTimestampMs,
+                locationCity = locationCity,
+                locationCountry = locationCountry,
+                locationDisplayName = locationDisplayName,
+                viewportRatio = viewportRatio,
+                locationCountryCode = locationCountryCode
+            )
         } catch (_: Exception) {
             OverlayMetadataSnapshot(null, null, 0L, null, null)
         }

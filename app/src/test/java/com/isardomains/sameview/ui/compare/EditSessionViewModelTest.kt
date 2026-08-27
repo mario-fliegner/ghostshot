@@ -70,7 +70,7 @@ class EditSessionViewModelTest {
         sessionId: String = TEST_SESSION_ID,
         contentUpdater: (File, String, String?, String?) -> Boolean = { _, _, _, _ -> true },
         referenceDateUpdater: (File, String, String?) -> Boolean = { _, _, _ -> true },
-        locationUpdater: (File, String, String?, String?, String?) -> Boolean = { _, _, _, _, _ -> true },
+        locationUpdater: (File, String, String?, String?, String?, String?) -> Boolean = { _, _, _, _, _, _ -> true },
         favoriteUpdater: (File, String, Boolean) -> Boolean = { _, _, _ -> true },
         reader: (File, String) -> InitialSessionFields = { _, _ ->
             InitialSessionFields("", "", "", "", "")
@@ -192,6 +192,19 @@ class EditSessionViewModelTest {
         assertEquals("", vm.locationDisplayNameField.value)
         assertEquals("", vm.locationCityField.value)
         assertEquals("", vm.locationCountryField.value)
+    }
+
+    @Test
+    fun initialState_malformedPersistedCountryCode_loadsWithoutCrash() = runTest(testDispatcher) {
+        // countryCode is read via optString with no format validation (SessionStorage never
+        // validates on write either) — an unexpected persisted value must never crash the load.
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "Somewhere", locationCountryCode = "not-a-real-code")
+        }
+        advanceUntilIdle()
+        assertEquals("Somewhere", vm.locationCountryField.value)
+        assertEquals("not-a-real-code", vm.locationCountryCodeField.value)
+        assertFalse(vm.isDirty.value)
     }
 
     // ── Loading state ──────────────────────────────────────────────────────────
@@ -322,13 +335,62 @@ class EditSessionViewModelTest {
     }
 
     @Test
-    fun onLocationCountryChanged_updatesState() = runTest(testDispatcher) {
+    fun onCountrySelected_updatesCountryAndCountryCode_together() = runTest(testDispatcher) {
         val vm = createViewModel { _, _ ->
             InitialSessionFields("", "", "", "", "")
         }
         advanceUntilIdle()
-        vm.onLocationCountryChanged("Deutschland")
+        vm.onCountrySelected("Deutschland", "DE")
         assertEquals("Deutschland", vm.locationCountryField.value)
+        assertEquals("DE", vm.locationCountryCodeField.value)
+    }
+
+    @Test
+    fun onCountryCleared_clearsCountryAndCountryCode_together() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "Deutschland", locationCountryCode = "DE")
+        }
+        advanceUntilIdle()
+        vm.onCountryCleared()
+        assertEquals("", vm.locationCountryField.value)
+        assertEquals("", vm.locationCountryCodeField.value)
+    }
+
+    @Test
+    fun onCountryCleared_doesNotAffectDisplayNameOrCity() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "Zugspitze Summit", "Garmisch-Partenkirchen", "Deutschland", locationCountryCode = "DE")
+        }
+        advanceUntilIdle()
+        vm.onCountryCleared()
+        assertEquals("Zugspitze Summit", vm.locationDisplayNameField.value)
+        assertEquals("Garmisch-Partenkirchen", vm.locationCityField.value)
+    }
+
+    @Test
+    fun legacyNonCanonicalCountry_unrelatedTitleEdit_preservesCountry_inventsNoCode() = runTest(testDispatcher) {
+        // SESSION_METADATA_EDITOR_V1.md §10.4: a legacy Country value never changes, and no
+        // countryCode is ever invented, merely because an unrelated field is edited.
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "Östereich")
+        }
+        advanceUntilIdle()
+        vm.onTitleChanged("New Title")
+        assertEquals("Östereich", vm.locationCountryField.value)
+        assertEquals("", vm.locationCountryCodeField.value)
+    }
+
+    @Test
+    fun validLookingLegacyCountry_unrelatedEdit_doesNotInferCountryCode() = runTest(testDispatcher) {
+        // A legacy value that happens to match a canonical name ("Germany") is still not
+        // silently upgraded with an inferred countryCode.
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "Germany")
+        }
+        advanceUntilIdle()
+        vm.onLocationCityChanged("Berlin")
+        assertEquals("Germany", vm.locationCountryField.value)
+        assertEquals("", vm.locationCountryCodeField.value)
     }
 
     // ── Block F: isDirty tracking ─────────────────────────────────────────────
@@ -392,6 +454,37 @@ class EditSessionViewModelTest {
         }
         advanceUntilIdle()
         vm.onTitleChanged("   ")
+        assertFalse(vm.isDirty.value)
+    }
+
+    @Test
+    fun isDirty_trueAfterCountrySelected() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "")
+        }
+        advanceUntilIdle()
+        vm.onCountrySelected("Deutschland", "DE")
+        assertTrue(vm.isDirty.value)
+    }
+
+    @Test
+    fun isDirty_trueAfterCountryCleared() = runTest(testDispatcher) {
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("", "", "", "", "Deutschland", locationCountryCode = "DE")
+        }
+        advanceUntilIdle()
+        vm.onCountryCleared()
+        assertTrue(vm.isDirty.value)
+    }
+
+    @Test
+    fun isDirty_falseAfterUnrelatedEdit_withLegacyNonCanonicalCountry() = runTest(testDispatcher) {
+        // Editing an unrelated field must not mark Country/countryCode dirty on its own.
+        val vm = createViewModel { _, _ ->
+            InitialSessionFields("original", "", "", "", "Östereich")
+        }
+        advanceUntilIdle()
+        vm.onTitleChanged("original") // no-op change, still normalizes equal
         assertFalse(vm.isDirty.value)
     }
 
@@ -490,24 +583,27 @@ class EditSessionViewModelTest {
         var capturedDisplayName: String? = "SENTINEL"
         var capturedCity: String? = "SENTINEL"
         var capturedCountry: String? = "SENTINEL"
+        var capturedCountryCode: String? = "SENTINEL"
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
-            locationUpdater = { _, _, dn, city, country ->
+            locationUpdater = { _, _, dn, city, country, countryCode ->
                 capturedDisplayName = dn
                 capturedCity = city
                 capturedCountry = country
+                capturedCountryCode = countryCode
                 true
             }
         )
         advanceUntilIdle()
         vm.onLocationDisplayNameChanged("  Summit  ")
         vm.onLocationCityChanged("  Garmisch  ")
-        vm.onLocationCountryChanged("  Deutschland  ")
+        vm.onCountrySelected("Deutschland", "DE")
         vm.onSave()
         advanceUntilIdle()
         assertEquals("Summit", capturedDisplayName)
         assertEquals("Garmisch", capturedCity)
         assertEquals("Deutschland", capturedCountry)
+        assertEquals("DE", capturedCountryCode)
     }
 
     @Test
@@ -515,24 +611,29 @@ class EditSessionViewModelTest {
         var capturedDisplayName: String? = "SENTINEL"
         var capturedCity: String? = "SENTINEL"
         var capturedCountry: String? = "SENTINEL"
+        var capturedCountryCode: String? = "SENTINEL"
         val vm = createViewModel(
-            reader = { _, _ -> InitialSessionFields("", "", "existing", "München", "Deutschland") },
-            locationUpdater = { _, _, dn, city, country ->
+            reader = { _, _ ->
+                InitialSessionFields("", "", "existing", "München", "Deutschland", locationCountryCode = "DE")
+            },
+            locationUpdater = { _, _, dn, city, country, countryCode ->
                 capturedDisplayName = dn
                 capturedCity = city
                 capturedCountry = country
+                capturedCountryCode = countryCode
                 true
             }
         )
         advanceUntilIdle()
         vm.onLocationDisplayNameChanged("")
         vm.onLocationCityChanged("")
-        vm.onLocationCountryChanged("")
+        vm.onCountryCleared()
         vm.onSave()
         advanceUntilIdle()
         assertNull(capturedDisplayName)
         assertNull(capturedCity)
         assertNull(capturedCountry)
+        assertNull(capturedCountryCode)
     }
 
     // ── Block F: onSave — events ──────────────────────────────────────────────
@@ -560,7 +661,7 @@ class EditSessionViewModelTest {
             reader = { _, _ -> InitialSessionFields("same", "2008", "Place", "City", "Country") },
             contentUpdater = { _, _, _, _ -> anyUpdaterCalled = true; true },
             referenceDateUpdater = { _, _, _ -> anyUpdaterCalled = true; true },
-            locationUpdater = { _, _, _, _, _ -> anyUpdaterCalled = true; true }
+            locationUpdater = { _, _, _, _, _, _ -> anyUpdaterCalled = true; true }
         )
         advanceUntilIdle()
         val events = mutableListOf<EditSessionEvent>()
@@ -611,7 +712,7 @@ class EditSessionViewModelTest {
     fun onSave_locationUpdaterFails_emitsSaveFailed() = runTest(testDispatcher) {
         val vm = createViewModel(
             reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
-            locationUpdater = { _, _, _, _, _ -> false }
+            locationUpdater = { _, _, _, _, _, _ -> false }
         )
         advanceUntilIdle()
         vm.onLocationCityChanged("München")
@@ -650,7 +751,7 @@ class EditSessionViewModelTest {
             reader = { _, _ -> InitialSessionFields("", "", "", "", "") },
             contentUpdater = { _, _, _, _ -> callOrder.add("content"); true },
             referenceDateUpdater = { _, _, _ -> callOrder.add("referenceDate"); true },
-            locationUpdater = { _, _, _, _, _ -> callOrder.add("location"); true }
+            locationUpdater = { _, _, _, _, _, _ -> callOrder.add("location"); true }
         )
         advanceUntilIdle()
         vm.onTitleChanged("T")

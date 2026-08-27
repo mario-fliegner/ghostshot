@@ -1579,7 +1579,7 @@ The portrait `CompareMetadataHeader` and the landscape TopAppBar metadata are bo
 
 ### Data sources
 
-`location.displayName`, `location.city`, `location.country` are read from `metadata.json` via `SessionScanner` (added to `ScannedSession`) and passed to `CompareScreen` via `MainActivity`, following the same pattern as `sessionTitle`.
+`location.displayName`, `location.city`, `location.country`, and `location.countryCode` are read from `metadata.json` via `SessionScanner` (added to `ScannedSession`) and passed to `CompareScreen` via `MainActivity`, following the same pattern as `sessionTitle`. The Country text actually shown in the metadata header is resolved for display from `location.country`/`location.countryCode` for the current SameView UI locale (`SESSION_METADATA_V1.md §6.9.7`, `SESSION_METADATA_EDITOR_V1.md §10.6`) — `location.displayName`/`location.city` are shown exactly as read, with no resolution step.
 
 `CompareInput`, `SavedSessionRef`, and `SessionStorage` are unchanged — location fields are user-authored metadata, never set at capture time.
 

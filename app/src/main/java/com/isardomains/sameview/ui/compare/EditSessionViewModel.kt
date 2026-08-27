@@ -47,7 +47,8 @@ internal data class InitialSessionFields(
     val captureTimestampMs: Long = 0L,
     val referenceSourceDisplayName: String = "",
     val isFavorite: Boolean = false,
-    val referenceSourceMetadataPreserved: Boolean = false
+    val referenceSourceMetadataPreserved: Boolean = false,
+    val locationCountryCode: String = ""
 )
 
 /**
@@ -88,6 +89,7 @@ class EditSessionViewModel @Inject constructor(
     private var initialLocationDisplayName = ""
     private var initialLocationCity = ""
     private var initialLocationCountry = ""
+    private var initialLocationCountryCode = ""
 
     // ── Favourite state (independent of form dirty tracking) ──────────────────
 
@@ -164,6 +166,10 @@ class EditSessionViewModel @Inject constructor(
     /** Current value of location.country; empty string when absent. */
     val locationCountryField: StateFlow<String> = _locationCountryField.asStateFlow()
 
+    private val _locationCountryCodeField = MutableStateFlow("")
+    /** Current value of location.countryCode; empty string when absent. */
+    val locationCountryCodeField: StateFlow<String> = _locationCountryCodeField.asStateFlow()
+
     /** Updates the location display name field as the user types. */
     fun onLocationDisplayNameChanged(value: String) {
         _locationDisplayNameField.value = value
@@ -176,9 +182,27 @@ class EditSessionViewModel @Inject constructor(
         updateIsDirty()
     }
 
-    /** Updates the country field as the user types. */
-    fun onLocationCountryChanged(value: String) {
-        _locationCountryField.value = value
+    /**
+     * Called when the user explicitly selects a country from the Country picker. Updates
+     * [locationCountryField] and [locationCountryCodeField] together, as a pair, per
+     * `SESSION_METADATA_V1.md §6.9.3`. Country is no longer free-typed (§10 of
+     * `SESSION_METADATA_EDITOR_V1.md`); a legacy or non-canonical value is preserved unchanged
+     * until this function is called.
+     */
+    fun onCountrySelected(displayName: String, countryCode: String) {
+        _locationCountryField.value = displayName
+        _locationCountryCodeField.value = countryCode
+        updateIsDirty()
+    }
+
+    /**
+     * Called when the user explicitly clears the Country field. Clears both
+     * [locationCountryField] and [locationCountryCodeField] together; does not affect
+     * [locationDisplayNameField] or [locationCityField].
+     */
+    fun onCountryCleared() {
+        _locationCountryField.value = ""
+        _locationCountryCodeField.value = ""
         updateIsDirty()
     }
 
@@ -226,7 +250,8 @@ class EditSessionViewModel @Inject constructor(
             normalizeField(_referenceDateField.value) != normalizeField(initialReferenceDate) ||
             normalizeField(_locationDisplayNameField.value) != normalizeField(initialLocationDisplayName) ||
             normalizeField(_locationCityField.value) != normalizeField(initialLocationCity) ||
-            normalizeField(_locationCountryField.value) != normalizeField(initialLocationCountry)
+            normalizeField(_locationCountryField.value) != normalizeField(initialLocationCountry) ||
+            normalizeField(_locationCountryCodeField.value) != normalizeField(initialLocationCountryCode)
     }
 
     // ── Events ────────────────────────────────────────────────────────────────
@@ -245,9 +270,17 @@ class EditSessionViewModel @Inject constructor(
     internal var sessionReferenceDateUpdater: (File, String, String?) -> Boolean =
         { root, id, date -> SessionStorage.updateReferenceDate(root, id, date) }
 
-    /** Replaceable for unit tests. Defaults to [SessionStorage.updateLocation]. */
-    internal var sessionLocationUpdater: (File, String, String?, String?, String?) -> Boolean =
-        { root, id, dn, city, country -> SessionStorage.updateLocation(root, id, dn, city, country) }
+    /**
+     * Replaceable for unit tests. Defaults to [SessionStorage.updateLocation].
+     *
+     * The last parameter (`countryCode`) has no default and is always passed explicitly by
+     * [onSave] — this is a full-replacement write, not a partial patch, matching
+     * [SessionStorage.updateLocation]'s existing contract for the other three location values.
+     */
+    internal var sessionLocationUpdater: (File, String, String?, String?, String?, String?) -> Boolean =
+        { root, id, dn, city, country, countryCode ->
+            SessionStorage.updateLocation(root, id, dn, city, country, countryCode)
+        }
 
     /** Replaceable for unit tests. Defaults to [SessionStorage.updateFavorite]. */
     internal var sessionFavoriteUpdater: (File, String, Boolean) -> Boolean =
@@ -278,6 +311,7 @@ class EditSessionViewModel @Inject constructor(
                 locationDisplayName = locationObj?.optString("displayName", "") ?: "",
                 locationCity = locationObj?.optString("city", "") ?: "",
                 locationCountry = locationObj?.optString("country", "") ?: "",
+                locationCountryCode = locationObj?.optString("countryCode", "") ?: "",
                 captureTimestampMs = captureObj?.optLong("timestampMs", 0L) ?: 0L,
                 referenceSourceDisplayName = referenceObj?.run {
                     // v5 sessions write "sourceUri"; v2–v4 sessions write "sourceDisplayName".
@@ -304,12 +338,14 @@ class EditSessionViewModel @Inject constructor(
                 initialLocationDisplayName = fields.locationDisplayName
                 initialLocationCity = fields.locationCity
                 initialLocationCountry = fields.locationCountry
+                initialLocationCountryCode = fields.locationCountryCode
                 _titleField.value = fields.title
                 _descriptionField.value = fields.description
                 _referenceDateField.value = fields.referenceDate
                 _locationDisplayNameField.value = fields.locationDisplayName
                 _locationCityField.value = fields.locationCity
                 _locationCountryField.value = fields.locationCountry
+                _locationCountryCodeField.value = fields.locationCountryCode
                 _captureTimestampMs.value = fields.captureTimestampMs
                 _referenceSourceDisplayName.value = fields.referenceSourceDisplayName
                 _isFavorite.value = fields.isFavorite
@@ -351,6 +387,7 @@ class EditSessionViewModel @Inject constructor(
                 val normalizedDisplayName = normalizeField(_locationDisplayNameField.value)
                 val normalizedCity = normalizeField(_locationCityField.value)
                 val normalizedCountry = normalizeField(_locationCountryField.value)
+                val normalizedCountryCode = normalizeField(_locationCountryCodeField.value)
 
                 // 1. Write content (title + description) if either changed.
                 val contentChanged =
@@ -371,16 +408,20 @@ class EditSessionViewModel @Inject constructor(
                     if (!ok) { _events.emit(EditSessionEvent.SaveFailed); return@launch }
                 }
 
-                // 3. Write location if any location field changed.
+                // 3. Write location if any location value changed. countryCode is always passed
+                // explicitly alongside the other three values — this is a full-replacement write,
+                // so an unrelated change (e.g. City only) still passes the current, unchanged
+                // country/countryCode pair through, rather than omitting it and erasing it.
                 val locationChanged =
                     normalizedDisplayName != normalizeField(initialLocationDisplayName) ||
                     normalizedCity != normalizeField(initialLocationCity) ||
-                    normalizedCountry != normalizeField(initialLocationCountry)
+                    normalizedCountry != normalizeField(initialLocationCountry) ||
+                    normalizedCountryCode != normalizeField(initialLocationCountryCode)
                 if (locationChanged) {
                     val ok = withContext(ioDispatcher) {
                         sessionLocationUpdater(
                             sessionsRoot, sessionId,
-                            normalizedDisplayName, normalizedCity, normalizedCountry
+                            normalizedDisplayName, normalizedCity, normalizedCountry, normalizedCountryCode
                         )
                     }
                     if (!ok) { _events.emit(EditSessionEvent.SaveFailed); return@launch }
@@ -394,6 +435,7 @@ class EditSessionViewModel @Inject constructor(
                 initialLocationDisplayName = normalizedDisplayName ?: ""
                 initialLocationCity = normalizedCity ?: ""
                 initialLocationCountry = normalizedCountry ?: ""
+                initialLocationCountryCode = normalizedCountryCode ?: ""
                 updateIsDirty()
 
                 _events.emit(EditSessionEvent.SaveComplete)

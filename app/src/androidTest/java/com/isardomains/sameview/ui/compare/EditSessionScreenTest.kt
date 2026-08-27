@@ -1,5 +1,6 @@
 package com.isardomains.sameview.ui.compare
 
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Build
@@ -7,6 +8,8 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -32,6 +35,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -169,6 +173,262 @@ class EditSessionScreenTest {
         composeRule.onNodeWithTag("edit_session_country_field")
             .performScrollTo()
             .assert(hasText("Deutschland"))
+    }
+
+    // ── Group 2.1: Country Picker (Issue #2) ──────────────────────────────────
+
+    @Test
+    fun countryPicker_tapField_opensPicker() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_country_field").performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("edit_session_country_picker_list").assertIsDisplayed()
+    }
+
+    @Test
+    fun countryPicker_selectCountry_updatesTriggerField_andEnablesSave() {
+        setEditSessionContent(createEmptySession())
+
+        composeRule.onNodeWithTag("edit_session_country_field").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_country_picker_search")
+            .performTextInput("Germany")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_country_picker_row_DE").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("edit_session_country_field")
+            .performScrollTo()
+            .assert(hasText("Germany"))
+        composeRule.onNodeWithTag("edit_session_save_button").assertIsEnabled()
+    }
+
+    @Test
+    fun countryPicker_cancelViaBackPress_preservesOriginalValue() {
+        setEditSessionContent(
+            createSession(locationCountry = "Germany", locationCountryCode = "DE")
+        )
+
+        composeRule.onNodeWithTag("edit_session_country_field").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_country_picker_list").assertIsDisplayed()
+
+        androidx.test.espresso.Espresso.pressBack()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("edit_session_country_field")
+            .performScrollTo()
+            .assert(hasText("Germany"))
+        composeRule.onNodeWithTag("edit_session_save_button").assertIsNotEnabled()
+    }
+
+    @Test
+    fun countryPicker_legacyNonCanonicalValue_remainsVisible_untouched() {
+        setEditSessionContent(createSession(locationCountry = "Östereich"))
+
+        composeRule.onNodeWithTag("edit_session_country_field")
+            .performScrollTo()
+            .assert(hasText("Östereich"))
+    }
+
+    @Test
+    fun countryPicker_unrelatedTitleEdit_preservesLegacyCountry_afterSave() {
+        val sessionId = createSession(locationCountry = "Östereich")
+        setEditSessionContent(sessionId)
+
+        composeRule.onNodeWithTag("edit_session_title_field").performTextInput("New Title")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").performClick()
+        composeRule.waitForIdle()
+
+        val location = readSavedLocation(sessionId)
+        assertEquals("Östereich", location.optString("country", ""))
+        assertEquals(false, location.has("countryCode"))
+    }
+
+    @Test
+    fun countryPicker_explicitSelection_overwritesLegacyValue_andPersistsCode_afterSave() {
+        val sessionId = createSession(locationCountry = "Östereich")
+        setEditSessionContent(sessionId)
+
+        composeRule.onNodeWithTag("edit_session_country_field").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_country_picker_search").performTextInput("Austria")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_country_picker_row_AT").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").performClick()
+        composeRule.waitForIdle()
+
+        val location = readSavedLocation(sessionId)
+        assertEquals("Austria", location.optString("country", ""))
+        assertEquals("AT", location.optString("countryCode", ""))
+    }
+
+    @Test
+    fun countryPicker_explicitClear_removesBothFields_afterSave() {
+        val sessionId = createSession(locationCountry = "Germany", locationCountryCode = "DE")
+        setEditSessionContent(sessionId)
+
+        composeRule.onNodeWithContentDescription(
+            context.getString(R.string.edit_session_country_clear_content_description)
+        ).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_save_button").performClick()
+        composeRule.waitForIdle()
+
+        val location = readSavedLocation(sessionId)
+        assertEquals(false, location.has("country"))
+        assertEquals(false, location.has("countryCode"))
+    }
+
+    // ── Issue #2: locale-aware Country display in the trigger field ──────────
+
+    @Test
+    fun countryTrigger_validCode_de_showsLocalizedName() {
+        val sessionId = createSession(locationCountry = "Germany", locationCountryCode = "DE")
+        setEditSessionContent(sessionId, locale = Locale.GERMANY)
+
+        composeRule.onNodeWithTag("edit_session_country_field")
+            .performScrollTo()
+            .assert(hasText("Deutschland"))
+    }
+
+    @Test
+    fun countryTrigger_validCode_en_showsLocalizedName() {
+        val sessionId = createSession(locationCountry = "Deutschland", locationCountryCode = "DE")
+        setEditSessionContent(sessionId, locale = Locale.US)
+
+        composeRule.onNodeWithTag("edit_session_country_field")
+            .performScrollTo()
+            .assert(hasText("Germany"))
+    }
+
+    @Test
+    fun countryTrigger_localeDisplayChange_doesNotEnableSave() {
+        // A locale-driven re-render of the trigger's visible text is not a user edit — Save must
+        // stay disabled, and no metadata write occurs (SESSION_METADATA_V1.md §6.9.7).
+        val sessionId = createSession(locationCountry = "Germany", locationCountryCode = "DE")
+        setEditSessionContent(sessionId, locale = Locale.GERMANY)
+
+        composeRule.onNodeWithTag("edit_session_country_field")
+            .performScrollTo()
+            .assert(hasText("Deutschland"))
+        composeRule.onNodeWithTag("edit_session_save_button").assertIsNotEnabled()
+
+        val location = readSavedLocation(sessionId)
+        assertEquals("Germany", location.optString("country", ""))
+        assertEquals("DE", location.optString("countryCode", ""))
+    }
+
+    @Test
+    fun countryTrigger_legacyNoCode_showsExactStoredValue_regardlessOfLocale() {
+        val sessionId = createSession(locationCountry = "Östereich")
+        setEditSessionContent(sessionId, locale = Locale.US)
+
+        composeRule.onNodeWithTag("edit_session_country_field")
+            .performScrollTo()
+            .assert(hasText("Östereich"))
+    }
+
+    @Test
+    fun countryPickerSheet_de_showsGermanNames_listVisibleImmediately() {
+        setCountryPickerSheetContent(locale = Locale.GERMANY)
+
+        // The full list renders immediately with no search required (asserted here); "Deutschland"
+        // is then located via search purely because the LazyColumn only composes rows within its
+        // viewport, and it sorts well past the initial screen in an unfiltered ~195-country list.
+        composeRule.onNodeWithTag("edit_session_country_picker_list").assertIsDisplayed()
+        composeRule.onNodeWithTag("edit_session_country_picker_search").performTextInput("Deutschland")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_country_picker_row_DE").assertIsDisplayed()
+        composeRule.onNodeWithTag("edit_session_country_picker_row_DE")
+            .assert(hasText("Deutschland"))
+    }
+
+    @Test
+    fun countryPickerSheet_en_showsEnglishNames_listVisibleImmediately() {
+        setCountryPickerSheetContent(locale = Locale.US)
+
+        composeRule.onNodeWithTag("edit_session_country_picker_list").assertIsDisplayed()
+        composeRule.onNodeWithTag("edit_session_country_picker_search").performTextInput("Germany")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_country_picker_row_DE").assertIsDisplayed()
+        composeRule.onNodeWithTag("edit_session_country_picker_row_DE")
+            .assert(hasText("Germany"))
+    }
+
+    @Test
+    fun countryPickerSheet_filtersFromFirstCharacter() {
+        setCountryPickerSheetContent(locale = Locale.GERMANY)
+
+        composeRule.onNodeWithTag("edit_session_country_picker_search").performTextInput("d")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("edit_session_country_picker_row_DE").assertIsDisplayed()
+    }
+
+    @Test
+    fun countryPickerSheet_isoCodeSearchMatch() {
+        // "JP" is chosen because no English country display name starts with or contains "jp",
+        // so a match can only come from the code tier — an unambiguous test of the ISO-code
+        // secondary-match rule (CountryCatalog.filter ranks it after any name match; "DE" would be
+        // a poor choice here since several English names start with "De", outranking the code match).
+        setCountryPickerSheetContent(locale = Locale.US)
+
+        composeRule.onNodeWithTag("edit_session_country_picker_search").performTextInput("JP")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("edit_session_country_picker_row_JP").assertIsDisplayed()
+        composeRule.onNodeWithTag("edit_session_country_picker_row_JP").assert(hasText("Japan"))
+    }
+
+    @Test
+    fun countryPickerSheet_noResults_showsEmptyState() {
+        setCountryPickerSheetContent(locale = Locale.US)
+
+        composeRule.onNodeWithTag("edit_session_country_picker_search")
+            .performTextInput("zzzzznotacountryzzzzz")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("edit_session_country_picker_no_results").assertIsDisplayed()
+    }
+
+    @Test
+    fun countryPickerSheet_selectingRow_invokesCallback_withMatchingCodeAndName() {
+        var selected: CountryEntry? = null
+        setCountryPickerSheetContent(
+            locale = Locale.US,
+            onCountrySelected = { selected = it }
+        )
+
+        composeRule.onNodeWithTag("edit_session_country_picker_search").performTextInput("Germany")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("edit_session_country_picker_row_DE").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals("DE", selected?.code)
+        assertEquals("Germany", selected?.displayName)
+    }
+
+    @Test
+    fun countryPickerSheet_rows_haveAccessibleContentDescription() {
+        setCountryPickerSheetContent(locale = Locale.US)
+
+        composeRule.onNodeWithTag("edit_session_country_picker_search").performTextInput("Germany")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("edit_session_country_picker_row_DE")
+            .assert(androidx.compose.ui.test.hasContentDescription("Germany"))
+    }
+
+    /** Reads the `location` block from a session's saved metadata.json, or an empty JSONObject if absent. */
+    private fun readSavedLocation(sessionId: String): JSONObject {
+        val metadataFile = File(File(context.filesDir, "sessions/$sessionId"), "metadata.json")
+        val json = JSONObject(metadataFile.readText())
+        return json.optJSONObject("location") ?: JSONObject()
     }
 
     // ── Group 3: Save-Button-State ────────────────────────────────────────────
@@ -419,6 +679,7 @@ class EditSessionScreenTest {
         locationDisplayName: String = "",
         locationCity: String = "",
         locationCountry: String = "",
+        locationCountryCode: String = "",
         captureTimestampMs: Long = 0L,
         isFavorite: Boolean = false,
         referenceSourcePreservation: String? = null
@@ -451,11 +712,14 @@ class EditSessionScreenTest {
                 if (description.isNotEmpty()) put("description", description)
             })
         }
-        if (locationDisplayName.isNotEmpty() || locationCity.isNotEmpty() || locationCountry.isNotEmpty()) {
+        if (locationDisplayName.isNotEmpty() || locationCity.isNotEmpty() || locationCountry.isNotEmpty() ||
+            locationCountryCode.isNotEmpty()
+        ) {
             json.put("location", JSONObject().apply {
                 if (locationDisplayName.isNotEmpty()) put("displayName", locationDisplayName)
                 if (locationCity.isNotEmpty()) put("city", locationCity)
                 if (locationCountry.isNotEmpty()) put("country", locationCountry)
+                if (locationCountryCode.isNotEmpty()) put("countryCode", locationCountryCode)
             })
         }
         json.put("additional", org.json.JSONObject().apply {
@@ -477,7 +741,8 @@ class EditSessionScreenTest {
 
     private fun setEditSessionContent(
         sessionId: String,
-        onBack: () -> Unit = {}
+        onBack: () -> Unit = {},
+        locale: Locale? = null
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -493,17 +758,56 @@ class EditSessionScreenTest {
             val vm = viewModel!!
             activity.setContent {
                 SameViewTheme {
-                    EditSessionScreen(
-                        sessionId = sessionId,
-                        onBack = onBack,
-                        viewModel = vm
-                    )
+                    val screenContent = @androidx.compose.runtime.Composable {
+                        EditSessionScreen(
+                            sessionId = sessionId,
+                            onBack = onBack,
+                            viewModel = vm
+                        )
+                    }
+                    if (locale != null) {
+                        val localizedConfiguration = Configuration(LocalConfiguration.current).apply {
+                            setLocale(locale)
+                        }
+                        CompositionLocalProvider(LocalConfiguration provides localizedConfiguration) {
+                            screenContent()
+                        }
+                    } else {
+                        screenContent()
+                    }
                 }
             }
         }
         composeRule.waitForIdle()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             viewModel?.isLoading?.value == false
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Renders [CountryPickerSheet] standalone with an explicit [locale], independent of the
+     * device/emulator's own locale — [CountryPickerSheet] takes [Locale] as a parameter rather
+     * than reading it internally, so this gives deterministic DE/EN test coverage regardless of
+     * the test environment's configured locale.
+     */
+    private fun setCountryPickerSheetContent(
+        locale: Locale,
+        onCountrySelected: (CountryEntry) -> Unit = {},
+        onDismiss: () -> Unit = {}
+    ) {
+        wakeTestDevice()
+        scenario = ActivityScenario.launch(ComponentActivity::class.java)
+        scenario?.onActivity { activity ->
+            activity.setContent {
+                SameViewTheme {
+                    CountryPickerSheet(
+                        currentLocale = locale,
+                        onCountrySelected = onCountrySelected,
+                        onDismiss = onDismiss
+                    )
+                }
+            }
         }
         composeRule.waitForIdle()
     }

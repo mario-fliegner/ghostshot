@@ -79,6 +79,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
@@ -781,10 +782,14 @@ private fun CompareSessionTile(
     modifier: Modifier = Modifier
 ) {
     val timestamp = formatTimestamp(session.timestamp)
+    val currentLocale = LocalConfiguration.current.locales.get(0)
+    val resolvedCountry = remember(session.locationCountry, session.locationCountryCode, currentLocale) {
+        CountryCatalog.resolveDisplayName(session.locationCountry, session.locationCountryCode, currentLocale)
+    }
     val locationText = formatLibraryLocation(
         session.locationDisplayName,
         session.locationCity,
-        session.locationCountry
+        resolvedCountry
     )
     val hasTitle = !session.title.isNullOrEmpty()
     val hasLocation = locationText != null

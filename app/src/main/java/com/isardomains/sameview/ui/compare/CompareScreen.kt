@@ -187,6 +187,7 @@ fun CompareScreen(
     locationDisplayName: String? = null,
     locationCity: String? = null,
     locationCountry: String? = null,
+    locationCountryCode: String? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
@@ -199,6 +200,10 @@ fun CompareScreen(
     var showMoreMenu by remember { mutableStateOf(false) }
     var showExportMenu by remember { mutableStateOf(false) }
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val currentLocale = LocalConfiguration.current.locales.get(0)
+    val resolvedLocationCountry = remember(locationCountry, locationCountryCode, currentLocale) {
+        CountryCatalog.resolveDisplayName(locationCountry, locationCountryCode, currentLocale)
+    }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     val compareContentScale = if (isFullscreen) ContentScale.Crop else ContentScale.Fit
     val guideTipScope = rememberCoroutineScope()
@@ -337,7 +342,7 @@ fun CompareScreen(
                             title = sessionTitle,
                             locationDisplayName = locationDisplayName,
                             locationCity = locationCity,
-                            locationCountry = locationCountry,
+                            locationCountry = resolvedLocationCountry,
                             timestamp = timestamp,
                             modifier = Modifier
                                 .weight(1f)
@@ -497,7 +502,7 @@ fun CompareScreen(
                             title = sessionTitle,
                             locationDisplayName = locationDisplayName,
                             locationCity = locationCity,
-                            locationCountry = locationCountry,
+                            locationCountry = resolvedLocationCountry,
                             timestamp = timestamp
                         )
                     }

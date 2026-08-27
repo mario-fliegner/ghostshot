@@ -19,6 +19,7 @@ data class ScannedSession(
     val locationDisplayName: String? = null,
     val locationCity: String? = null,
     val locationCountry: String? = null,
+    val locationCountryCode: String? = null,
     val isFavorite: Boolean = false,
     val branding: SessionBranding? = null
 )
@@ -208,6 +209,9 @@ internal object SessionScanner {
         val locationDisplayName = locationObj?.optString("displayName", "")?.takeIf { it.isNotEmpty() }
         val locationCity = locationObj?.optString("city", "")?.takeIf { it.isNotEmpty() }
         val locationCountry = locationObj?.optString("country", "")?.takeIf { it.isNotEmpty() }
+        // Preserved exactly as read, valid or not — the display-time resolver (CountryCatalog),
+        // not the scanner, decides validity (SESSION_METADATA_V1.md §6.9.8).
+        val locationCountryCode = locationObj?.optString("countryCode", "")?.takeIf { it.isNotEmpty() }
 
         val additionalObj: JSONObject? = json.optJSONObject("additional")
         val isFavorite: Boolean = additionalObj?.optBoolean("isFavorite", false) ?: false
@@ -249,6 +253,7 @@ internal object SessionScanner {
             locationDisplayName = locationDisplayName,
             locationCity = locationCity,
             locationCountry = locationCountry,
+            locationCountryCode = locationCountryCode,
             isFavorite = isFavorite,
             branding = branding
         )

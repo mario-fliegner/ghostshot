@@ -1,5 +1,6 @@
 package com.isardomains.sameview.ui.compare
 
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.view.WindowManager
@@ -12,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -41,6 +43,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -698,7 +701,8 @@ class CompareLibraryScreenTest {
         onSetLibrarySortOrder: (LibrarySortOrder) -> Unit = {},
         isBackupInProgress: Boolean = false,
         isDeletionInProgress: Boolean = false,
-        windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact
+        windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
+        locale: Locale? = null
     ) {
         wakeTestDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
@@ -710,22 +714,32 @@ class CompareLibraryScreenTest {
             }
             activity.setContent {
                 SameViewTheme {
-                    CompareLibraryScreen(
-                        sessions = sessions,
-                        onRefresh = onRefresh,
-                        onSessionClick = onSessionClick,
-                        onBack = onBack,
-                        onDeleteSessions = onDeleteSessions,
-                        onBackupSessions = onBackupSessions,
-                        onToggleFavorite = onToggleFavorite,
-                        libraryFilter = libraryFilter,
-                        librarySortOrder = librarySortOrder,
-                        onSetLibraryFilter = onSetLibraryFilter,
-                        onSetLibrarySortOrder = onSetLibrarySortOrder,
-                        isBackupInProgress = isBackupInProgress,
-                        isDeletionInProgress = isDeletionInProgress,
-                        windowWidthSizeClass = windowWidthSizeClass
-                    )
+                    val screenContent = @androidx.compose.runtime.Composable {
+                        CompareLibraryScreen(
+                            sessions = sessions,
+                            onRefresh = onRefresh,
+                            onSessionClick = onSessionClick,
+                            onBack = onBack,
+                            onDeleteSessions = onDeleteSessions,
+                            onBackupSessions = onBackupSessions,
+                            onToggleFavorite = onToggleFavorite,
+                            libraryFilter = libraryFilter,
+                            librarySortOrder = librarySortOrder,
+                            onSetLibraryFilter = onSetLibraryFilter,
+                            onSetLibrarySortOrder = onSetLibrarySortOrder,
+                            isBackupInProgress = isBackupInProgress,
+                            isDeletionInProgress = isDeletionInProgress,
+                            windowWidthSizeClass = windowWidthSizeClass
+                        )
+                    }
+                    if (locale != null) {
+                        val localizedConfig = Configuration().apply { setLocale(locale) }
+                        CompositionLocalProvider(LocalConfiguration provides localizedConfig) {
+                            screenContent()
+                        }
+                    } else {
+                        screenContent()
+                    }
                 }
             }
         }
@@ -910,6 +924,7 @@ class CompareLibraryScreenTest {
         locationDisplayName: String? = null,
         locationCity: String? = null,
         locationCountry: String? = null,
+        locationCountryCode: String? = null,
         isFavorite: Boolean = false,
         timestamp: Long = fakeTimestamp
     ) = ScannedSession(
@@ -921,6 +936,7 @@ class CompareLibraryScreenTest {
         locationDisplayName = locationDisplayName,
         locationCity = locationCity,
         locationCountry = locationCountry,
+        locationCountryCode = locationCountryCode,
         isFavorite = isFavorite
     )
 
@@ -976,6 +992,52 @@ class CompareLibraryScreenTest {
             .format(Date(fakeTimestamp))
         composeRule.onNodeWithText("Goldener Herbst").assertIsDisplayed()
         composeRule.onNodeWithText(expectedTimestamp).assertIsDisplayed()
+    }
+
+    // ── Issue #2: locale-aware Country on tiles ───────────────────────────────
+
+    @Test
+    fun tile_validCountryCode_de_showsLocalizedName() {
+        val session = createFakeSession(
+            locationCity = "München",
+            locationCountry = "Germany",
+            locationCountryCode = "DE"
+        )
+        setLibraryContent(sessions = listOf(session), locale = Locale.GERMANY)
+
+        composeRule.onNodeWithText("München, Deutschland").assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_validCountryCode_en_showsLocalizedName() {
+        val session = createFakeSession(
+            locationCity = "München",
+            locationCountry = "Deutschland",
+            locationCountryCode = "DE"
+        )
+        setLibraryContent(sessions = listOf(session), locale = Locale.US)
+
+        composeRule.onNodeWithText("München, Germany").assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_legacyNoCountryCode_showsStoredCountryUnchanged() {
+        val session = createFakeSession(locationCity = "Kitzbühel", locationCountry = "Österreich")
+        setLibraryContent(sessions = listOf(session), locale = Locale.US)
+
+        composeRule.onNodeWithText("Kitzbühel, Österreich").assertIsDisplayed()
+    }
+
+    @Test
+    fun tile_malformedCountryCode_fallsBackToStoredCountry() {
+        val session = createFakeSession(
+            locationCity = "München",
+            locationCountry = "Germany",
+            locationCountryCode = "ZZZ"
+        )
+        setLibraryContent(sessions = listOf(session), locale = Locale.GERMANY)
+
+        composeRule.onNodeWithText("München, Germany").assertIsDisplayed()
     }
 
     @Test
