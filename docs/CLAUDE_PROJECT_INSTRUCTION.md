@@ -825,3 +825,79 @@ The canonical rule is:
 - adding the permission must occur only in the actual approved Hosted implementation phase
 
 `AndroidManifest.xml` is not modified by this addendum. The INTERNET permission is not yet declared and is not yet used.
+
+### Addendum (2026-08-28 – DeinWackelbild Network Exception)
+
+This addendum documents a second approved architectural exception, alongside the Hosted Comparison exception above. It supplements the existing rules above without removing or weakening them for normal/local SameView functionality — see "PRIVACY / PLAY COMPLIANCE" and the "Remains Explicitly Out of Scope" list, both cross-referenced here.
+
+SameView remains offline-first. DeinWackelbild V1 introduces one additional explicit, narrowly scoped online capability, entirely separate from Hosted Comparison. This addendum approves that architectural capability; it does not itself implement any permission, dependency, or networking code.
+
+#### Explicitly approved online feature
+
+DeinWackelbild V1 is an explicitly approved SameView online feature. Its network purpose is narrowly limited to the user-initiated transfer of the two prepared Comparison images to DeinWackelbild.de and the retrieval/opening of the resulting checkout/configurator URL, as specified in `docs/deinwackelbild/DEINWACKELBILD_INTEGRATION_V1.md`.
+
+#### Explicit user action
+
+No DeinWackelbild network request may occur merely because:
+
+- SameView starts
+- CompareScreen opens
+- the Share menu opens
+- the Wackelbild screen opens
+- the user previews via tilt/swipe
+- the user toggles the date option
+
+Network activity begins only after the explicit approved order action ("Bestelle dein Wackelbild") and any required quality-fallback confirmation.
+
+#### INTERNET permission governance
+
+The Android `INTERNET` permission is permitted for the approved SameView online features. The canonical manifest rule (see "Manifest rule" under the Hosted Comparison addendum above) is updated as follows: the explicitly approved online exceptions are
+
+- Hosted Comparison
+- DeinWackelbild V1
+
+This is not unrestricted network permission. Any future unrelated online feature requires its own explicit approval added to this document before the `INTERNET` permission may be relied upon for it.
+
+#### Privacy restrictions
+
+The DeinWackelbild exception does not authorize:
+
+- analytics
+- telemetry
+- tracking
+- advertising SDKs
+- unrelated uploads
+- unrelated API calls
+- automatic background uploads
+- user profiling
+- persistent order tracking
+
+Only the purpose-limited handoff defined in `docs/deinwackelbild/DEINWACKELBILD_INTEGRATION_V1.md` is approved.
+
+#### Data minimization
+
+- Only temporary prepared transfer images and the minimum technical handoff fields may be sent.
+- No SameView session/Comparison identifier is sent as `external_reference`.
+- No GPS/EXIF/device/session metadata is intentionally included in transfer JPEGs.
+- Existing persisted session/original files are never modified by the transfer.
+- Motion/sensor data is not sent.
+
+Full behavioral detail lives in `docs/deinwackelbild/DEINWACKELBILD_INTEGRATION_V1.md`; it is not duplicated here.
+
+#### No background-network expansion
+
+This approval does not authorize a persistent WorkManager/foreground-service order uploader or automatic resume after process loss. Any such future behavior would require a separate explicit decision.
+
+#### Release/compliance consequence
+
+Adding and shipping this capability requires the relevant Privacy Policy, Google Play Data Safety, and release-hardening documentation to be re-reviewed before release. These external compliance items are not yet complete.
+
+#### Manifest rule (updated)
+
+The canonical INTERNET-permission rule now reads:
+
+- INTERNET permission is forbidden unless required by an explicitly approved SameView online feature
+- Hosted Comparison and DeinWackelbild V1 are such approved features
+- adding the permission for DeinWackelbild must occur only in the actual approved DeinWackelbild implementation phase
+
+`AndroidManifest.xml` is not modified by this addendum. The INTERNET permission is not yet declared and is not yet used.

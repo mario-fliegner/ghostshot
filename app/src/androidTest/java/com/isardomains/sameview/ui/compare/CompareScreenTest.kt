@@ -1312,6 +1312,128 @@ class CompareScreenTest {
         composeRule.onNodeWithTag("compare_screen_export_button").assertDoesNotExist()
     }
 
+    // --- T-I-09: Export menu shows Wackelbild item alongside Share image and Create video ---
+
+    @Test
+    fun t_i_09_exportMenu_wackelbildItem_visibleWithValidSession() {
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2026-01-01_12-00-00",
+                onCreateVideo = {},
+                isCreateVideoAvailable = true,
+                onShareComparisonImage = {},
+                isShareComparisonAvailable = true,
+                onCreateWackelbild = {}
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_export_share_item").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_export_create_video_item").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_export_wackelbild_item").assertIsDisplayed()
+        composeRule.onNodeWithTag("compare_screen_export_wackelbild_item").assertIsEnabled()
+    }
+
+    // --- T-I-10: Wackelbild item is ordered after Share image and Create video ---
+
+    @Test
+    fun t_i_10_exportMenu_wackelbildItem_orderedAfterCreateVideoItem() {
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2026-01-01_12-00-00",
+                onCreateVideo = {},
+                isCreateVideoAvailable = true,
+                onShareComparisonImage = {},
+                isShareComparisonAvailable = true,
+                onCreateWackelbild = {}
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+        composeRule.waitForIdle()
+
+        val shareTop = composeRule.onNodeWithTag("compare_screen_export_share_item").getUnclippedBoundsInRoot().top
+        val createVideoTop = composeRule.onNodeWithTag("compare_screen_export_create_video_item").getUnclippedBoundsInRoot().top
+        val wackelbildTop = composeRule.onNodeWithTag("compare_screen_export_wackelbild_item").getUnclippedBoundsInRoot().top
+
+        assertTrue("Create video item must be positioned below Share image item", createVideoTop > shareTop)
+        assertTrue("Wackelbild item must be positioned below Create video item", wackelbildTop > createVideoTop)
+    }
+
+    // --- T-I-11: Tap Wackelbild item invokes only onCreateWackelbild ---
+
+    @Test
+    fun t_i_11_exportMenu_wackelbildItem_tapInvokesOnlyWackelbildCallback() {
+        var wackelbildCount = 0
+        var createVideoCount = 0
+        var shareCount = 0
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2026-01-01_12-00-00",
+                onCreateVideo = { createVideoCount++ },
+                isCreateVideoAvailable = true,
+                onShareComparisonImage = { shareCount++ },
+                isShareComparisonAvailable = true,
+                onCreateWackelbild = { wackelbildCount++ }
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_export_wackelbild_item").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, wackelbildCount)
+        assertEquals(0, createVideoCount)
+        assertEquals(0, shareCount)
+    }
+
+    // --- T-I-12: Tap Wackelbild item closes the export menu ---
+
+    @Test
+    fun t_i_12_exportMenu_wackelbildItem_tapClosesMenu() {
+        setHostContent {
+            CompareScreen(
+                referenceImageUri = null,
+                captureImageUri = null,
+                onBack = {},
+                sessionId = "2026-01-01_12-00-00",
+                onCreateVideo = {},
+                isCreateVideoAvailable = true,
+                onShareComparisonImage = {},
+                isShareComparisonAvailable = true,
+                onCreateWackelbild = {}
+            )
+        }
+
+        composeRule.onNodeWithTag("compare_screen_export_button").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("compare_screen_export_wackelbild_item").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("compare_screen_export_wackelbild_item").assertDoesNotExist()
+    }
+
+    // --- Wackelbild item absent when sessionId is null (no session context) ---
+
+    @Test
+    fun exportMenu_wackelbildItem_notVisibleWhenSessionIdIsNull() {
+        setCompareContent(referenceImageUri = null, captureImageUri = null)
+
+        composeRule.onNodeWithTag("compare_screen_export_button").assertDoesNotExist()
+        composeRule.onNodeWithTag("compare_screen_export_wackelbild_item").assertDoesNotExist()
+    }
+
     // --- FitBounds tests ---
 
     @Test

@@ -306,6 +306,7 @@
     <string name="export_entry_content_description">Export</string>
     <string name="export_menu_share_comparison_image">Share image</string>
     <string name="export_menu_create_video">Create video</string>
+    <string name="export_menu_create_wackelbild">Create lenticular print</string>
 
     <!-- Share Comparison Image screen -->
     <string name="share_comparison_screen_title">Share image</string>

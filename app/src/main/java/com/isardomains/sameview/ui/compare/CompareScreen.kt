@@ -49,6 +49,7 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -183,6 +184,7 @@ fun CompareScreen(
     isCreateVideoAvailable: Boolean = false,
     onShareComparisonImage: (() -> Unit)? = null,
     isShareComparisonAvailable: Boolean = false,
+    onCreateWackelbild: (() -> Unit)? = null,
     referenceDate: String? = null,
     locationDisplayName: String? = null,
     locationCity: String? = null,
@@ -417,6 +419,17 @@ fun CompareScreen(
                                         onCreateVideo?.invoke()
                                     },
                                     modifier = Modifier.testTag("compare_screen_export_create_video_item")
+                                )
+                                HorizontalDivider()
+                                // 3. Wackelbild erstellen
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.export_menu_create_wackelbild)) },
+                                    enabled = true,
+                                    onClick = {
+                                        showExportMenu = false
+                                        onCreateWackelbild?.invoke()
+                                    },
+                                    modifier = Modifier.testTag("compare_screen_export_wackelbild_item")
                                 )
                             }
                         }

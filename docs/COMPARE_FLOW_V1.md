@@ -1626,8 +1626,12 @@ Tapping the Export icon opens a `DropdownMenu`:
 
 ```text
 ─────────────────────────────────
-  Share image   → ShareComparisonScreen
-  Share video   → CreateVideoScreen (unchanged behavior)
+  Share image           → ShareComparisonScreen
+  Share video            → CreateVideoScreen (unchanged behavior)
+  ─────────────────────
+  Wackelbild erstellen  → DeinWackelbild entry point (menu item + callback only; see
+                           docs/deinwackelbild/DEINWACKELBILD_IMPLEMENTATION_PLAN_V1.md
+                           Block 1 — no destination is wired yet)
 ─────────────────────────────────
 ```
 
