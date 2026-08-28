@@ -1540,4 +1540,31 @@ Implementation plan: `deinwackelbild/DEINWACKELBILD_IMPLEMENTATION_PLAN_V1.md`
 - `pixel2Api29` Managed Device, `WackelbildScreenTest` (new, 12 tests) — see final Block 2 report for pass/fail detail
 - No unrelated existing test was modified
 
-No Block 3 (sensor/swipe) work has been performed yet.
+**Block 3 completed** — local tilt/swipe interaction:
+
+- `WackelbildViewModel` now also resolves `captureFile = File(context.filesDir, "sessions/$sessionId/capture.jpg")` and owns a `visibleImage: StateFlow<WackelbildImageSide>` (`REFERENCE`/`CAPTURE`, always starting at `REFERENCE`). The existing single local fallback (`wackelbild_preview_fallback`) now covers a missing/undecodable `reference.jpg` **or** `capture.jpg` uniformly — no degraded one-image mode.
+- New `TiltProvider.kt`, a narrow duplicate of `CompassProvider` (`Sensor.TYPE_ROTATION_VECTOR`, no runtime permission, identical display-rotation remap table), reading `orientationAngles[2]` (roll) instead of `orientationAngles[0]` (azimuth). `CompassProvider.kt` is unchanged.
+- New `TiltHysteresisStateMachine.kt` — a pure, Android-independent state machine (`NEUTRAL`/`TOWARD_REFERENCE`/`TOWARD_CAPTURE`) with an angle-wrap-safe delta, a switch threshold, and a re-arm band, so ordinary hand jitter never causes repeated switching. Placeholder tuning constants (`THRESHOLD_DEGREES = 9f`, `REARM_DEGREES = 6f`) are explicitly marked `// TODO(real-device tuning)` and are not final.
+- Neutral posture is calibrated by `WackelbildViewModel` (not `TiltProvider`) from the first sensor reading after `onScreenActive()`; it is cleared on `onScreenInactive()`/`onScreenLeft()` and recalibrated on every subsequent resume — always relative to current device posture, never persisted.
+- Swipe/sensor arbitration follows the exact required rule: a manual swipe (or the accessibility toggle) sets the image immediately and arms `swipeOverrideActive`; the hysteresis machine keeps observing underneath but its output is ignored until an explicit `NEUTRAL` transition is observed (`neutralObservedSinceOverride`), and only the *next* threshold-crossing transition after that clears the override and hands control back to the sensor — `SWIPE -> neutral/re-arm observed -> new threshold crossing -> sensor resumes`. An unchanged tilt reading at swipe time can never undo the manual choice.
+- Horizontal swipe is implemented in `WackelbildScreen.kt` on the preview region only, via `detectDragGestures` accumulating per-axis distance and only consuming/firing once a gesture is clearly horizontal past a small threshold; a clearly vertical or ambiguous gesture never toggles.
+- The preview is now structurally outside the screen's vertical-scroll container (only the interaction-hint area below it scrolls), resolving swipe/scroll contention without any new axis-arbitration code, per the implementation plan's `ShareComparisonScreen`+`CompareScreen`-composition approach.
+- Sensor-unavailable UX: `wackelbild_hint_tilt_title` ("Handy leicht neigen" / "Tilt your phone") when a sensor exists, `wackelbild_hint_swipe_title` ("Über das Bild wischen" / "Swipe over the image") otherwise, same `wackelbild_hint_subtitle` either way. No hardware/error message is ever shown.
+- Accessibility: the preview region exposes a custom accessibility action (`wackelbild_accessibility_toggle_action`, reusing the existing `compare_label_reference`/`compare_label_capture` strings for the current-image announcement) so a screen-reader user can switch images without tilting or swiping. No new visible control was added.
+- Lifecycle observation (`ON_RESUME`/`ON_PAUSE`/disposal) is owned entirely by the `WackelbildScreen`/`WackelbildScreenContent` composable layer via `DisposableEffect`+`LifecycleEventObserver`, calling `viewModel.onScreenActive()`/`onScreenInactive()`/`onScreenLeft()`. `WackelbildViewModel` has no dependency on `Lifecycle`/`LifecycleOwner`/`LifecycleEventObserver`.
+- No `WackelbildPreview.kt` file was created — the preview composable lives inside `WackelbildScreen.kt` as originally scoped.
+- No runtime permission was added; no date/HQ/network/order work was performed.
+
+**Not yet implemented (later blocks):** date overlay, HQ print reconstruction, network/API handoff, Custom Tab, temp-file lifecycle.
+
+**Verification:**
+
+- `testDebugUnitTest` — new `TiltProviderTest`, `TiltHysteresisStateMachineTest`, `WackelbildViewModelTest` plus the full existing suite
+- `compileDebugAndroidTestKotlin` — compiles against the extended `WackelbildScreenTest`
+- `pixel2Api29` Managed Device, extended `WackelbildScreenTest`
+- `assembleDebug`
+- No unrelated existing test was modified; no unauthorized file was touched
+
+**Real-device validation still required:** tilt "feel" (threshold/re-arm constants), left/right intuitiveness after real device rotation, and swipe/sensor arbitration timing have not been validated on physical hardware in this block — the placeholder constants above are not final.
+
+Block 4 (date overlay) has not been started.

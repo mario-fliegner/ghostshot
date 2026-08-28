@@ -295,6 +295,10 @@
     <string name="wackelbild_screen_title">Wackelbild erstellen</string>
     <string name="wackelbild_preview_error_title">Dieses Bild kann nicht angezeigt werden</string>
     <string name="wackelbild_preview_error_body">Das Referenzbild für diesen Vergleich konnte nicht geladen werden.</string>
+    <string name="wackelbild_hint_tilt_title">Handy leicht neigen</string>
+    <string name="wackelbild_hint_swipe_title">Über das Bild wischen</string>
+    <string name="wackelbild_hint_subtitle">Sieh dir dein Wackelbild an.</string>
+    <string name="wackelbild_accessibility_toggle_action">Bild wechseln</string>
 
     <!-- Vergleich teilen-Screen -->
     <string name="share_comparison_screen_title">Bild teilen</string>

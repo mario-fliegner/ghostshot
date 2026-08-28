@@ -310,6 +310,10 @@
     <string name="wackelbild_screen_title">Create lenticular print</string>
     <string name="wackelbild_preview_error_title">This image can\'t be shown</string>
     <string name="wackelbild_preview_error_body">The reference image for this comparison couldn\'t be loaded.</string>
+    <string name="wackelbild_hint_tilt_title">Tilt your phone</string>
+    <string name="wackelbild_hint_swipe_title">Swipe over the image</string>
+    <string name="wackelbild_hint_subtitle">See your lenticular print in action.</string>
+    <string name="wackelbild_accessibility_toggle_action">Switch image</string>
 
     <!-- Share Comparison Image screen -->
     <string name="share_comparison_screen_title">Share image</string>
