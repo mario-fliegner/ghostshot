@@ -59,6 +59,7 @@ import com.isardomains.sameview.ui.compare.EditSessionScreen
 import com.isardomains.sameview.ui.compare.EditSessionViewModel
 import com.isardomains.sameview.ui.compare.ShareComparisonScreen
 import com.isardomains.sameview.ui.compare.ShareComparisonViewModel
+import com.isardomains.sameview.ui.wackelbild.WackelbildScreen
 import com.isardomains.sameview.ui.settings.LibraryFilter
 import com.isardomains.sameview.ui.settings.LibrarySortOrder
 import com.isardomains.sameview.ui.settings.SettingsScreen
@@ -82,6 +83,9 @@ private const val ROUTE_EDIT_SESSION_WITH_ARGS = "$ROUTE_EDIT_SESSION/{$ARG_EDIT
 private const val ROUTE_SHARE_COMPARISON = "share_comparison"
 private const val ARG_SHARE_COMPARISON_SESSION_ID = "sessionId"
 private const val ROUTE_SHARE_COMPARISON_WITH_ARGS = "$ROUTE_SHARE_COMPARISON/{$ARG_SHARE_COMPARISON_SESSION_ID}"
+private const val ROUTE_WACKELBILD = "wackelbild"
+private const val ARG_WACKELBILD_SESSION_ID = "sessionId"
+private const val ROUTE_WACKELBILD_WITH_ARGS = "$ROUTE_WACKELBILD/{$ARG_WACKELBILD_SESSION_ID}"
 private const val ARG_REFERENCE_URI = "referenceUri"
 private const val ARG_CAPTURE_URI = "captureUri"
 private const val ARG_SESSION_ID = "sessionId"
@@ -457,6 +461,9 @@ class MainActivity : ComponentActivity() {
                                     { navController.navigate(shareComparisonRoute(sessionId)) }
                                 } else null,
                                 isShareComparisonAvailable = isShareComparisonAvailable,
+                                onCreateWackelbild = if (sessionId != null) {
+                                    { navController.navigate(wackelbildRoute(sessionId)) }
+                                } else null,
                                 isFavorite = isFavorite,
                                 onToggleFavorite = if (sessionId != null) {
                                     { viewModel.toggleFavorite(sessionId) }
@@ -566,6 +573,16 @@ class MainActivity : ComponentActivity() {
                             windowWidthSizeClass = windowSizeClass.widthSizeClass
                         )
                     }
+                    composable(
+                        route = ROUTE_WACKELBILD_WITH_ARGS,
+                        arguments = listOf(
+                            navArgument(ARG_WACKELBILD_SESSION_ID) {
+                                type = NavType.StringType
+                            }
+                        )
+                    ) {
+                        WackelbildScreen(onBack = { navController.popBackStack() })
+                    }
                 }
             }
         }
@@ -604,6 +621,9 @@ private fun editSessionRoute(sessionId: String): String =
 
 private fun shareComparisonRoute(sessionId: String): String =
     "$ROUTE_SHARE_COMPARISON/${Uri.encode(sessionId)}"
+
+private fun wackelbildRoute(sessionId: String): String =
+    "$ROUTE_WACKELBILD/${Uri.encode(sessionId)}"
 
 
 

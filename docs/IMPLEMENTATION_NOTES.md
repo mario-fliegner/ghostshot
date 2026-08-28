@@ -1511,3 +1511,33 @@ Implementation plan: `implementation_plans/GUIDE_TIPS_IMPLEMENTATION_PLAN.md`
 | `assembleDebug` | BUILD SUCCESSFUL |
 
 No open Guide Tips implementation tasks remain.
+
+---
+
+### DeinWackelbild Integration — Block 1 & Block 2 complete (2026-08-28)
+
+Full specification: `deinwackelbild/DEINWACKELBILD_INTEGRATION_V1.md`
+Implementation plan: `deinwackelbild/DEINWACKELBILD_IMPLEMENTATION_PLAN_V1.md`
+
+**Block 1 completed** — Compare menu entry only: `CompareScreen`'s Export dropdown gained a divider and a third item ("Wackelbild erstellen" / `export_menu_create_wackelbild`, test tag `compare_screen_export_wackelbild_item`), wired to a new optional `onCreateWackelbild` callback parameter. No navigation destination existed yet at this point.
+
+**Block 2 completed** — real destination and navigation wiring:
+
+- `MainActivity.kt`: `ROUTE_WACKELBILD`/`ARG_WACKELBILD_SESSION_ID`/`ROUTE_WACKELBILD_WITH_ARGS` constants and `wackelbildRoute(sessionId)` builder, modeled exactly on the existing `shareComparisonRoute` pattern; `onCreateWackelbild` now navigates to `wackelbild/{sessionId}`.
+- New `WackelbildScreen.kt`/`WackelbildViewModel.kt` in package `com.isardomains.sameview.ui.wackelbild`. The Hilt-backed `WackelbildScreen` is a thin wrapper delegating to an `internal` stateless `WackelbildScreenContent(referenceFile: File, onBack, windowWidthSizeClass)`, so instrumentation tests exercise the exact production UI without needing a Hilt-provided `SavedStateHandle`.
+- `WackelbildViewModel` resolves only `sessionId` (from `SavedStateHandle`) and `referenceFile = File(context.filesDir, "sessions/$sessionId/reference.jpg")` — no `metadata.json` parsing, no persisted/derived aspect-ratio state.
+- The local preview is sized from the **intrinsic dimensions of the successfully decoded `reference.jpg`** (via Coil's `AsyncImagePainter.state`), not from session metadata and not from a hardcoded fallback ratio; capped at a moderate maximum height so the preview never fills the whole screen, using the same behavioral (not code-shared) pattern as `ShareComparisonPreview`'s aspect-ratio-driven, height-capped sizing.
+- `ContentScale.Fit` is used throughout — no additional crop is ever introduced beyond what is already baked into the persisted `reference.jpg`.
+- A single local fallback state (`wackelbild_preview_fallback`) covers both a missing `reference.jpg` and a present-but-undecodable one, driven uniformly by Coil's `AsyncImagePainter.State.Error` (plus a defensive check that a `Success` state's intrinsic dimensions are actually positive). The fallback keeps the normal TopAppBar/Back available; it performs no file repair and no network request.
+- Standard `Scaffold`/`TopAppBar`/Back shell, cloned from `ShareComparisonScreen`; `widthIn(max = 680.dp)` on Expanded, matching the existing responsive pattern.
+
+**Not yet implemented (later blocks):** tilt/swipe interaction, date overlay, HQ print reconstruction, network/API handoff, Custom Tab, temp-file lifecycle. Opening the Wackelbild screen in Block 2 performs no network request — no networking dependency exists in the app yet.
+
+**Verification:**
+
+- `testDebugUnitTest` — BUILD SUCCESSFUL
+- `assembleDebug` — BUILD SUCCESSFUL
+- `pixel2Api29` Managed Device, `WackelbildScreenTest` (new, 12 tests) — see final Block 2 report for pass/fail detail
+- No unrelated existing test was modified
+
+No Block 3 (sensor/swipe) work has been performed yet.

@@ -292,6 +292,9 @@
     <string name="export_menu_share_comparison_image">Bild teilen</string>
     <string name="export_menu_create_video">Video erstellen</string>
     <string name="export_menu_create_wackelbild">Wackelbild erstellen</string>
+    <string name="wackelbild_screen_title">Wackelbild erstellen</string>
+    <string name="wackelbild_preview_error_title">Dieses Bild kann nicht angezeigt werden</string>
+    <string name="wackelbild_preview_error_body">Das Referenzbild für diesen Vergleich konnte nicht geladen werden.</string>
 
     <!-- Vergleich teilen-Screen -->
     <string name="share_comparison_screen_title">Bild teilen</string>

@@ -307,6 +307,9 @@
     <string name="export_menu_share_comparison_image">Share image</string>
     <string name="export_menu_create_video">Create video</string>
     <string name="export_menu_create_wackelbild">Create lenticular print</string>
+    <string name="wackelbild_screen_title">Create lenticular print</string>
+    <string name="wackelbild_preview_error_title">This image can\'t be shown</string>
+    <string name="wackelbild_preview_error_body">The reference image for this comparison couldn\'t be loaded.</string>
 
     <!-- Share Comparison Image screen -->
     <string name="share_comparison_screen_title">Share image</string>
