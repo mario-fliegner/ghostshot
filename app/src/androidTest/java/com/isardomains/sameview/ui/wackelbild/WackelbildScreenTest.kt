@@ -14,9 +14,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -39,12 +43,18 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Block 3 instrumentation coverage for [WackelbildScreenContent].
+ * Block 3/4 instrumentation coverage for [WackelbildScreenContent].
  *
  * Exercises the exact production composable directly (no Hilt/ViewModel involved — the
  * `internal` [WackelbildScreenContent] takes files/state/callbacks directly, matching the split
  * already used elsewhere in this codebase to keep screen content testable without a Hilt
  * harness) so there is no risk of a test-only stub drifting from the real screen.
+ *
+ * Date-badge text is passed into [launch] pre-formatted, exactly as the real
+ * [WackelbildViewModel]/[DateBadgeFormatter] would already have produced it — formatting
+ * precision/locale correctness is covered by [DateBadgeFormatterTest] and
+ * [WackelbildViewModelTest]; these tests confirm the screen displays whatever it is given
+ * unmodified and wires the toggle/switching behavior correctly.
  */
 @RunWith(AndroidJUnit4::class)
 class WackelbildScreenTest {
@@ -69,29 +79,41 @@ class WackelbildScreenTest {
             .executeShellCommand("input keyevent KEYCODE_WAKEUP")
     }
 
+    /** Mutable UI state a real ViewModel would own, standing in for it in these content-level tests. */
+    private class WackelbildTestState(
+        val visibleImage: MutableState<WackelbildImageSide>,
+        val dateOverlayEnabled: MutableState<Boolean>
+    )
+
     /**
      * Launches [WackelbildScreenContent] with a small stateful wrapper standing in for the real
-     * ViewModel's `visibleImage` StateFlow — [onSwipeDetected]/[onAccessibilityToggle] toggle it
-     * exactly like [WackelbildViewModel.onSwipeDetected]/[WackelbildViewModel.onAccessibilityToggle]
-     * do, so swipe/accessibility tests observe the real resulting UI. Lifecycle callbacks are
-     * pass-through so tests can assert on invocation directly, mirroring [backButton_invokesCallback].
+     * ViewModel's `visibleImage`/`dateOverlayEnabled` StateFlows —
+     * [onSwipeDetected]/[onAccessibilityToggle] toggle `visibleImage` exactly like
+     * [WackelbildViewModel.onSwipeDetected]/[WackelbildViewModel.onAccessibilityToggle] do, and
+     * the date toggle callback updates `dateOverlayEnabled` directly (the "don't enable while
+     * unavailable" rule is `SettingsSwitchRow`'s own `enabled`-gated `clickable`, already
+     * exercised for real here — and is separately unit-tested at the ViewModel level). Lifecycle
+     * callbacks are pass-through so tests can assert on invocation directly.
      */
     private fun launch(
         referenceFile: File,
         captureFile: File,
         isSensorAvailable: Boolean = true,
+        isDateOverlayAvailable: Boolean = false,
+        referenceDateBadgeText: String? = null,
+        captureDateBadgeText: String? = null,
         onBack: () -> Unit = {},
         onScreenActive: () -> Unit = {},
         onScreenInactive: () -> Unit = {},
         onScreenLeft: () -> Unit = {},
         windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact
-    ): MutableState<WackelbildImageSide> {
+    ): WackelbildTestState {
         // A screen-off/locked device leaves the Activity below RESUMED, which in turn defers
         // Coil's lifecycle-aware image request — see the established pattern in
         // ShareComparisonScreenTest/CompareScreenTest.
         wakeDevice()
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
-        lateinit var visibleImageState: MutableState<WackelbildImageSide>
+        lateinit var testState: WackelbildTestState
         scenario?.onActivity { activity ->
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -101,12 +123,18 @@ class WackelbildScreenTest {
             activity.setContent {
                 SameViewTheme {
                     val visibleImage = remember { mutableStateOf(WackelbildImageSide.REFERENCE) }
-                    visibleImageState = visibleImage
+                    val dateOverlayEnabled = remember { mutableStateOf(false) }
+                    testState = WackelbildTestState(visibleImage, dateOverlayEnabled)
                     WackelbildScreenContent(
                         referenceFile = referenceFile,
                         captureFile = captureFile,
                         visibleImage = visibleImage.value,
                         isSensorAvailable = isSensorAvailable,
+                        dateOverlayEnabled = dateOverlayEnabled.value,
+                        isDateOverlayAvailable = isDateOverlayAvailable,
+                        referenceDateBadgeText = referenceDateBadgeText,
+                        captureDateBadgeText = captureDateBadgeText,
+                        onDateOverlayToggled = { dateOverlayEnabled.value = it },
                         onSwipeDetected = { visibleImage.value = visibleImage.value.opposite() },
                         onAccessibilityToggle = { visibleImage.value = visibleImage.value.opposite() },
                         onScreenActive = onScreenActive,
@@ -120,7 +148,7 @@ class WackelbildScreenTest {
         }
         composeRule.waitForIdle()
         waitForPreviewResolved()
-        return visibleImageState
+        return testState
     }
 
     private fun WackelbildImageSide.opposite(): WackelbildImageSide =
@@ -175,6 +203,40 @@ class WackelbildScreenTest {
     private fun validReference(): File = createJpeg(320, 400)
     private fun validCapture(): File = createJpeg(320, 400)
 
+    /** Large enough (9:16-ish) that the pre-fix flat 500dp cap would have engaged. */
+    private fun tallPortraitImage(): File = createJpeg(1080, 1920)
+
+    private fun assertBadgeInsideImage(imageTag: String, toleranceDp: Float = 2f) {
+        val imageBounds = composeRule.onNodeWithTag(imageTag).getUnclippedBoundsInRoot()
+        val badgeBounds = composeRule.onNodeWithTag("wackelbild_date_badge").getUnclippedBoundsInRoot()
+
+        assertTrue(
+            "badge left (${badgeBounds.left.value}) must be >= image left (${imageBounds.left.value})",
+            badgeBounds.left.value >= imageBounds.left.value - toleranceDp
+        )
+        assertTrue(
+            "badge top (${badgeBounds.top.value}) must be >= image top (${imageBounds.top.value})",
+            badgeBounds.top.value >= imageBounds.top.value - toleranceDp
+        )
+        assertTrue(
+            "badge right (${badgeBounds.right.value}) must be <= image right (${imageBounds.right.value})",
+            badgeBounds.right.value <= imageBounds.right.value + toleranceDp
+        )
+        assertTrue(
+            "badge bottom (${badgeBounds.bottom.value}) must be <= image bottom (${imageBounds.bottom.value})",
+            badgeBounds.bottom.value <= imageBounds.bottom.value + toleranceDp
+        )
+    }
+
+    private fun assertBadgeEdgeSpacing(imageTag: String, expectedMarginDp: Float = 8f, toleranceDp: Float = 2f) {
+        val imageBounds = composeRule.onNodeWithTag(imageTag).getUnclippedBoundsInRoot()
+        val badgeBounds = composeRule.onNodeWithTag("wackelbild_date_badge").getUnclippedBoundsInRoot()
+        val rightSpacing = imageBounds.right.value - badgeBounds.right.value
+        val bottomSpacing = imageBounds.bottom.value - badgeBounds.bottom.value
+        assertEquals(expectedMarginDp, rightSpacing, toleranceDp)
+        assertEquals(expectedMarginDp, bottomSpacing, toleranceDp)
+    }
+
     private fun SemanticsNodeInteraction.performCustomAccessibilityAction(label: String) {
         val node = fetchSemanticsNode()
         val actions = node.config[SemanticsActions.CustomActions]
@@ -216,11 +278,11 @@ class WackelbildScreenTest {
 
     @Test
     fun validCapture_displaysAfterToggle() {
-        val visibleImage = launch(referenceFile = validReference(), captureFile = validCapture())
+        val state = launch(referenceFile = validReference(), captureFile = validCapture())
         composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
             .performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
-        assertEquals(WackelbildImageSide.CAPTURE, visibleImage.value)
+        assertEquals(WackelbildImageSide.CAPTURE, state.visibleImage.value)
         composeRule.onNodeWithTag("wackelbild_capture_image").assertIsDisplayed()
         composeRule.onNodeWithTag("wackelbild_reference_image").assertDoesNotExist()
     }
@@ -274,29 +336,29 @@ class WackelbildScreenTest {
 
     @Test
     fun horizontalSwipe_left_togglesOnce() {
-        val visibleImage = launch(referenceFile = validReference(), captureFile = validCapture())
+        val state = launch(referenceFile = validReference(), captureFile = validCapture())
         composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
             .performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
-        assertEquals(WackelbildImageSide.CAPTURE, visibleImage.value)
+        assertEquals(WackelbildImageSide.CAPTURE, state.visibleImage.value)
     }
 
     @Test
     fun horizontalSwipe_reverseDirection_alsoTogglesOnce() {
-        val visibleImage = launch(referenceFile = validReference(), captureFile = validCapture())
+        val state = launch(referenceFile = validReference(), captureFile = validCapture())
         composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
             .performTouchInput { swipeRight() }
         composeRule.waitForIdle()
-        assertEquals(WackelbildImageSide.CAPTURE, visibleImage.value)
+        assertEquals(WackelbildImageSide.CAPTURE, state.visibleImage.value)
     }
 
     @Test
     fun verticalGesture_doesNotToggle() {
-        val visibleImage = launch(referenceFile = validReference(), captureFile = validCapture())
+        val state = launch(referenceFile = validReference(), captureFile = validCapture())
         composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
             .performTouchInput { swipeUp() }
         composeRule.waitForIdle()
-        assertEquals(WackelbildImageSide.REFERENCE, visibleImage.value)
+        assertEquals(WackelbildImageSide.REFERENCE, state.visibleImage.value)
     }
 
     // --- Sensor-availability hint text ---
@@ -319,12 +381,12 @@ class WackelbildScreenTest {
 
     @Test
     fun accessibilityAction_togglesImage() {
-        val visibleImage = launch(referenceFile = validReference(), captureFile = validCapture())
+        val state = launch(referenceFile = validReference(), captureFile = validCapture())
         val toggleLabel = context.getString(R.string.wackelbild_accessibility_toggle_action)
         composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
             .performCustomAccessibilityAction(toggleLabel)
         composeRule.waitForIdle()
-        assertEquals(WackelbildImageSide.CAPTURE, visibleImage.value)
+        assertEquals(WackelbildImageSide.CAPTURE, state.visibleImage.value)
     }
 
     // --- Lifecycle callbacks ---
@@ -372,8 +434,12 @@ class WackelbildScreenTest {
 
     @Test
     fun portraitReference_previewContainerMatchesIntrinsicRatio() {
-        // 320x400 => ratio 0.8, chosen to stay under the 500dp preview height cap on
-        // standard test-device widths so the assertion below is exact, not cap-affected.
+        // 320x400 => ratio 0.8, moderate enough that the 62%-of-content-area height cap is
+        // unlikely to engage on standard test-device widths, so the assertion below reflects
+        // the width-driven (uncapped) case; the cap-engaged case is covered separately by
+        // preview_tallPortraitImage_heightDoesNotExceed62PercentOfAvailableContent below, and
+        // ratio preservation under the cap is proven there via effectiveWidth = effectiveHeight
+        // * ratio regardless of which branch engages.
         launch(referenceFile = createJpeg(320, 400), captureFile = createJpeg(320, 400))
         composeRule.waitForIdle()
 
@@ -418,14 +484,311 @@ class WackelbildScreenTest {
         assertEquals(containerH, imageH, 1f)
     }
 
-    // --- No Block 4 (date/order/network) UI exists yet ---
+    // --- Date toggle (Block 4) ---
 
     @Test
-    fun noBlock4Ui_existsYet() {
+    fun dateToggle_isVisible() {
+        launch(referenceFile = validReference(), captureFile = validCapture())
+        composeRule.onNodeWithTag("wackelbild_date_toggle").assertIsDisplayed()
+    }
+
+    @Test
+    fun dateToggle_defaultsOff() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        // ToggleableState lives on SettingsSwitchRow's inner Switch, which is its own semantics
+        // merge boundary -- the row's own (merged) node does not carry it.
+        composeRule.onNodeWithTag("wackelbild_date_toggle").onChild().assertIsOff()
+    }
+
+    @Test
+    fun dateToggle_withUsableReferenceDate_isEnabled() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").assertIsEnabled()
+    }
+
+    @Test
+    fun dateToggle_withoutReferenceDate_isDisabled() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = false
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").assertIsNotEnabled()
+    }
+
+    @Test
+    fun dateToggle_disabled_showsSupportingHintText() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = false
+        )
+        val expectedHint = context.getString(R.string.wackelbild_date_unavailable_hint)
+        composeRule.onNodeWithTag("wackelbild_date_unavailable_hint").assertIsDisplayed()
+        composeRule.onNodeWithText(expectedHint).assertIsDisplayed()
+    }
+
+    @Test
+    fun dateBadge_overlayOff_noBadgeShown() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun dateBadge_overlayOn_referenceVisible_showsReferenceBadge() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("wackelbild_date_badge").assertIsDisplayed()
+        composeRule.onNodeWithText("2008").assertIsDisplayed()
+    }
+
+    @Test
+    fun dateBadge_switchToCapture_updatesImmediately() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008",
+            captureDateBadgeText = "3 Aug 2026"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
+            .performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("3 Aug 2026").assertIsDisplayed()
+        composeRule.onNodeWithText("2008").assertDoesNotExist()
+    }
+
+    @Test
+    fun dateBadge_switchBackToReference_referenceBadgeReturns() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008",
+            captureDateBadgeText = "3 Aug 2026"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        val interactiveArea = composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
+        interactiveArea.performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+        interactiveArea.performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("2008").assertIsDisplayed()
+        composeRule.onNodeWithText("3 Aug 2026").assertDoesNotExist()
+    }
+
+    @Test
+    fun dateBadge_referenceYearOnly_displaysOnlyYear() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("2008").assertIsDisplayed()
+    }
+
+    @Test
+    fun dateBadge_referenceYearMonth_doesNotInventADay() {
+        launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "Jun 2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        // Exactly the given year-month text, displayed verbatim -- no day number appended.
+        composeRule.onNodeWithText("Jun 2008").assertIsDisplayed()
+    }
+
+    @Test
+    fun dateBadge_missingCaptureTimestamp_toggleStaysEnabled_noInventedCaptureBadge() {
+        val state = launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008",
+            captureDateBadgeText = null
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").assertIsEnabled()
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("2008").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
+            .performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        assertEquals(WackelbildImageSide.CAPTURE, state.visibleImage.value)
+        composeRule.onNodeWithTag("wackelbild_capture_image").assertIsDisplayed()
+        composeRule.onNodeWithTag("wackelbild_date_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun dateToggleRow_present_swipeStillTogglesImage() {
+        val state = launch(
+            referenceFile = validReference(),
+            captureFile = validCapture(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
+            .performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+        assertEquals(WackelbildImageSide.CAPTURE, state.visibleImage.value)
+    }
+
+    // --- Preview size (Block 4C/4D layout fix) ---
+
+    @Test
+    fun preview_tallPortraitImage_heightDoesNotExceed62PercentOfAvailableContent() {
+        launch(referenceFile = tallPortraitImage(), captureFile = tallPortraitImage())
+        composeRule.waitForIdle()
+
+        val contentBounds = composeRule.onNodeWithTag("wackelbild_content_area").getUnclippedBoundsInRoot()
+        val previewBounds = composeRule.onNodeWithTag("wackelbild_reference_preview_container")
+            .getUnclippedBoundsInRoot()
+        val contentHeightDp = (contentBounds.bottom - contentBounds.top).value
+        val previewHeightDp = (previewBounds.bottom - previewBounds.top).value
+        val maxAllowedDp = contentHeightDp * 0.62f
+
+        assertTrue(
+            "Preview height ($previewHeightDp dp) must not exceed 62% of available content " +
+                "height ($contentHeightDp dp -> max $maxAllowedDp dp)",
+            previewHeightDp <= maxAllowedDp + 1f
+        )
+        assertTrue("Preview must remain non-zero/visible", previewHeightDp > 0f)
+    }
+
+    @Test
+    fun dateToggleRow_isDisplayedWithoutScrolling_forTallPortraitImage() {
+        launch(
+            referenceFile = tallPortraitImage(),
+            captureFile = tallPortraitImage(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("wackelbild_date_toggle").assertIsDisplayed()
+    }
+
+    @Test
+    fun interactionHint_isDisplayedWithoutScrolling_forTallPortraitImage() {
+        launch(referenceFile = tallPortraitImage(), captureFile = tallPortraitImage())
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("wackelbild_hint_title").assertIsDisplayed()
+        composeRule.onNodeWithTag("wackelbild_hint_subtitle").assertIsDisplayed()
+    }
+
+    // --- Date badge position (Block 4C/4D layout fix) ---
+
+    @Test
+    fun dateBadge_boundsFullyInsideImage_portrait() {
+        launch(
+            referenceFile = tallPortraitImage(),
+            captureFile = tallPortraitImage(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        assertBadgeInsideImage("wackelbild_reference_image")
+    }
+
+    @Test
+    fun dateBadge_rightBottomSpacing_isApproximatelyEightDp_portrait() {
+        launch(
+            referenceFile = tallPortraitImage(),
+            captureFile = tallPortraitImage(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        assertBadgeEdgeSpacing("wackelbild_reference_image")
+    }
+
+    @Test
+    fun dateBadge_boundsFullyInsideImage_landscape() {
+        launch(
+            referenceFile = createJpeg(400, 300),
+            captureFile = createJpeg(400, 300),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        assertBadgeInsideImage("wackelbild_reference_image")
+    }
+
+    @Test
+    fun dateBadge_rightBottomSpacing_isApproximatelyEightDp_landscape() {
+        launch(
+            referenceFile = createJpeg(400, 300),
+            captureFile = createJpeg(400, 300),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        assertBadgeEdgeSpacing("wackelbild_reference_image")
+    }
+
+    @Test
+    fun dateBadge_afterSwitchingToCapture_boundsFullyInsideImage_andSpacingHolds() {
+        launch(
+            referenceFile = tallPortraitImage(),
+            captureFile = tallPortraitImage(),
+            isDateOverlayAvailable = true,
+            referenceDateBadgeText = "2008",
+            captureDateBadgeText = "3 Aug 2026"
+        )
+        composeRule.onNodeWithTag("wackelbild_date_toggle").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("wackelbild_preview_interactive_area")
+            .performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        assertBadgeInsideImage("wackelbild_capture_image")
+        assertBadgeEdgeSpacing("wackelbild_capture_image")
+    }
+
+    // --- No Block 5 (order/upload/network) UI exists yet ---
+
+    @Test
+    fun noBlock5Ui_existsYet() {
         launch(referenceFile = validReference(), captureFile = validCapture())
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("wackelbild_date_toggle").assertDoesNotExist()
         composeRule.onNodeWithTag("wackelbild_order_button").assertDoesNotExist()
         composeRule.onNodeWithTag("wackelbild_loading_spinner").assertDoesNotExist()
     }

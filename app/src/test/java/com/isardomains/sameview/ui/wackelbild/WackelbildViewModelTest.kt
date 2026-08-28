@@ -6,6 +6,15 @@ import android.hardware.SensorManager
 import android.view.Surface
 import androidx.lifecycle.SavedStateHandle
 import java.io.File
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -16,6 +25,7 @@ import org.junit.Test
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class WackelbildViewModelTest {
 
     private val testSessionId = "2026-06-21_10-00-00"
@@ -53,12 +63,25 @@ class WackelbildViewModelTest {
         context = mock {
             on { filesDir } doReturn File("/fake/files")
         }
+        // StandardTestDispatcher: the date-metadata coroutine launched from WackelbildViewModel's
+        // init is queued but not run immediately, mirroring ShareComparisonViewModelTest's own
+        // precedent — this lets a test override metadataReader/currentUiLocale before the queued
+        // coroutine actually executes via advanceUntilIdle(). Tests that don't care about date
+        // state never advance it, so it simply never runs — harmless.
+        Dispatchers.setMain(StandardTestDispatcher())
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     private fun createViewModel(
         tiltProvider: TestTiltProvider = TestTiltProvider(available = true),
         hysteresisStateMachine: TiltHysteresisStateMachine =
-            TiltHysteresisStateMachine(thresholdDegrees = 12f, rearmDegrees = 6f)
+            TiltHysteresisStateMachine(thresholdDegrees = 12f, rearmDegrees = 6f),
+        metadataReader: ((File) -> WackelbildDateMetadata)? = null,
+        locale: Locale = Locale.US
     ): Pair<WackelbildViewModel, TestTiltProvider> {
         val handle = SavedStateHandle(mapOf("sessionId" to testSessionId))
         val vm = WackelbildViewModel(
@@ -68,6 +91,15 @@ class WackelbildViewModelTest {
             displayRotationProvider = { Surface.ROTATION_0 },
             hysteresisStateMachine = hysteresisStateMachine
         )
+        vm.currentUiLocale = { locale }
+        // Route the metadata read through the same StandardTestDispatcher installed as Main
+        // (see setUp()) rather than the real Dispatchers.IO thread pool, so advanceUntilIdle()
+        // can deterministically wait for it -- mirrors ShareComparisonViewModelTest's identical
+        // `vm.ioDispatcher = Dispatchers.Main` precedent.
+        vm.ioDispatcher = Dispatchers.Main
+        if (metadataReader != null) {
+            vm.metadataReader = metadataReader
+        }
         return Pair(vm, tiltProvider)
     }
 
@@ -258,5 +290,134 @@ class WackelbildViewModelTest {
         val (unavailable, _) = createViewModel(tiltProvider = TestTiltProvider(available = false))
         assertTrue(available.isSensorAvailable)
         assertFalse(unavailable.isSensorAvailable)
+    }
+
+    // --- date overlay availability (Reference date only -- capture.timestampMs never gates it) ---
+
+    @Test
+    fun dateOverlay_referenceDatePresent_availableTrue() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata("2008-06", 1751359200000L) }
+        )
+        advanceUntilIdle()
+        assertTrue(vm.isDateOverlayAvailable.value)
+    }
+
+    @Test
+    fun dateOverlay_referenceDateMissing_availableFalse() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata(null, 1751359200000L) }
+        )
+        advanceUntilIdle()
+        assertFalse(vm.isDateOverlayAvailable.value)
+    }
+
+    @Test
+    fun dateOverlay_malformedReferenceDate_availableFalse() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata("not-a-date", 1751359200000L) }
+        )
+        advanceUntilIdle()
+        assertFalse(vm.isDateOverlayAvailable.value)
+    }
+
+    @Test
+    fun dateOverlay_captureTimestampMissing_withValidReference_availabilityRemainsTrue() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata("2008-06", 0L) }
+        )
+        advanceUntilIdle()
+        assertTrue(vm.isDateOverlayAvailable.value)
+        assertNull(vm.captureDateBadgeText.value)
+        assertNotNull(vm.referenceDateBadgeText.value)
+    }
+
+    @Test
+    fun dateOverlay_defaultState_isOff() {
+        val (vm, _) = createViewModel()
+        assertFalse(vm.dateOverlayEnabled.value)
+    }
+
+    @Test
+    fun dateOverlay_enablingWhenAvailable_turnsOn() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata("2008-06", 1751359200000L) }
+        )
+        advanceUntilIdle()
+        vm.onDateOverlayToggled(true)
+        assertTrue(vm.dateOverlayEnabled.value)
+    }
+
+    @Test
+    fun dateOverlay_disabling_turnsOff() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata("2008-06", 1751359200000L) }
+        )
+        advanceUntilIdle()
+        vm.onDateOverlayToggled(true)
+        vm.onDateOverlayToggled(false)
+        assertFalse(vm.dateOverlayEnabled.value)
+    }
+
+    @Test
+    fun dateOverlay_enablingWhenUnavailable_remainsOff() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata(null, 0L) }
+        )
+        advanceUntilIdle()
+        vm.onDateOverlayToggled(true)
+        assertFalse(vm.dateOverlayEnabled.value)
+    }
+
+    @Test
+    fun dateOverlay_doesNotInterfereWithVisibleImageState() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata("2008-06", 1751359200000L) }
+        )
+        advanceUntilIdle()
+        vm.onDateOverlayToggled(true)
+        vm.onSwipeDetected()
+        assertEquals(WackelbildImageSide.CAPTURE, vm.visibleImage.value)
+        assertTrue(vm.dateOverlayEnabled.value)
+    }
+
+    @Test
+    fun dateOverlay_doesNotInterfereWithSwipeTiltArbitration() = runTest {
+        val (vm, tilt) = createViewModel(
+            metadataReader = { WackelbildDateMetadata("2008-06", 1751359200000L) }
+        )
+        advanceUntilIdle()
+        vm.onDateOverlayToggled(true)
+
+        vm.onScreenActive()
+        tilt.simulateRoll(0f)
+        tilt.simulateRoll(20f) // sensor -> CAPTURE
+        assertEquals(WackelbildImageSide.CAPTURE, vm.visibleImage.value)
+
+        vm.onSwipeDetected() // -> REFERENCE, override active
+        assertEquals(WackelbildImageSide.REFERENCE, vm.visibleImage.value)
+        assertTrue(vm.swipeOverrideActive)
+        // Date overlay state is untouched by the tilt/swipe arbitration sequence.
+        assertTrue(vm.dateOverlayEnabled.value)
+    }
+
+    @Test
+    fun dateOverlay_metadataReadFailure_doesNotCrash() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { throw RuntimeException("boom") }
+        )
+        advanceUntilIdle()
+        assertFalse(vm.isDateOverlayAvailable.value)
+        assertNull(vm.referenceDateBadgeText.value)
+        assertNull(vm.captureDateBadgeText.value)
+    }
+
+    @Test
+    fun dateOverlay_missingCaptureTimestamp_neverInventsCaptureDate() = runTest {
+        val (vm, _) = createViewModel(
+            metadataReader = { WackelbildDateMetadata("2008-06", 0L) }
+        )
+        advanceUntilIdle()
+        assertNull(vm.captureDateBadgeText.value)
     }
 }

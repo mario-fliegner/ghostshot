@@ -299,6 +299,8 @@
     <string name="wackelbild_hint_swipe_title">Über das Bild wischen</string>
     <string name="wackelbild_hint_subtitle">Sieh dir dein Wackelbild an.</string>
     <string name="wackelbild_accessibility_toggle_action">Bild wechseln</string>
+    <string name="wackelbild_date_toggle_label">Datum anzeigen</string>
+    <string name="wackelbild_date_unavailable_hint">Referenzdatum hinzufügen, um das Datum anzuzeigen.</string>
 
     <!-- Vergleich teilen-Screen -->
     <string name="share_comparison_screen_title">Bild teilen</string>

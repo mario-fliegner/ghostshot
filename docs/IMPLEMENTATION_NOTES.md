@@ -1567,4 +1567,21 @@ Implementation plan: `deinwackelbild/DEINWACKELBILD_IMPLEMENTATION_PLAN_V1.md`
 
 **Real-device validation still required:** tilt "feel" (threshold/re-arm constants), left/right intuitiveness after real device rotation, and swipe/sensor arbitration timing have not been validated on physical hardware in this block — the placeholder constants above are not final.
 
-Block 4 (date overlay) has not been started.
+**Block 4 completed** — Date overlay preview:
+
+- `WackelbildViewModel` gained its first metadata read: a narrow `reference.date` / `capture.timestampMs`-only read of `metadata.json` (no title/location/branding/GPS/visibility/favorite), via an injectable `metadataReader` seam and `viewModelScope.launch(ioDispatcher)`, mirroring `ShareComparisonViewModel`'s `readMetadata`/`currentUiLocale` precedent (`context.resources.configuration.locales.get(0)`, never `Locale.getDefault()`). Missing/corrupt metadata or a throwing reader is caught and treated as "no date" — never a crash.
+- New `DateBadgeFormatter.kt` — a small pure helper (no Android `Context`) reusing `CompareLabelLogic`'s length-based precision technique (4/≥7/≥10 → year / year+month / full date) without modifying that file. Reference precision is preserved exactly; Capture always formats as a full date from `capture.timestampMs`, with no time-of-day.
+- `dateOverlayEnabled` (temporary `MutableStateFlow`, default `false`, no DataStore/SavedStateHandle/metadata write) and `isDateOverlayAvailable` (**Reference date only** — `capture.timestampMs` never gates availability, per the explicit review correction). Attempting to enable while unavailable is a no-op.
+- If Capture's date is defensively unavailable while Reference is valid, the toggle stays enabled, the Reference badge still works, and Capture simply shows no badge — never an invented date.
+- UI: the toggle row sits directly below the preview and above the interaction hint, inside the existing scrollable column, using the existing `SettingsSwitchRow` plus a local supporting-text `Text` (mirroring `ShareComparisonScreen`'s private `InfoToggleRow` shape, since `SettingsSwitchRow` has no `supportingText` parameter — `SettingsComponents.kt` itself was not modified).
+- The date badge is a runtime-only Compose overlay anchored to the actual displayed image's bottom-right corner (the existing preview `Box` is already sized to the image's own intrinsic ratio, so no separate letterbox-aware geometry was needed). Fixed, non-tunable geometry: `6.dp` corner radius, `8.dp` horizontal / `4.dp` vertical internal padding, `8.dp` right/bottom image-edge margin, `MaterialTheme.typography.labelMedium`, `SameViewAppSurface` background, white text, no shadow/border/pill shape.
+- The badge switches immediately with the existing Block-3 `visibleImage` state — no new visible-image state, no fade/crossfade/animation/haptic/sound.
+- Accessibility: the badge has no separate semantics node (avoiding the Block-3 `mergeDescendants` pitfall); its text is instead appended to the existing preview `contentDescription` when the overlay is enabled.
+- No persisted file is mutated — the badge exists only in Compose state. No HQ/print/transfer rendering was added; that belongs to a later block.
+- Tests: new `DateBadgeFormatterTest` (pure JVM), additive `WackelbildViewModelTest` coverage (availability rules, defensive Capture handling, toggle default/on/off, non-interference with tilt/swipe/visible-image state, metadata-read-failure safety), additive `WackelbildScreenTest` coverage (toggle visibility/enablement/hint text, badge show/hide/switching, exact-text display, missing-Capture behavior). All existing Block 1–3 tests remain green and unmodified in behavior.
+
+**Not yet implemented (later blocks):** HQ print reconstruction, date rendering into transfer JPEGs, network/API handoff, Custom Tab, temp-file lifecycle.
+
+**Real-device validation still required for Block 4** (visual only): badge legibility/contrast on light and dark photos, corner-radius/padding at real density, bottom-right margin in Portrait vs. Landscape, instant switching with no flicker, and German/English date-format correctness.
+
+Block 5 (print/HQ two-file renderer and transfer-image date rendering) has not been started.

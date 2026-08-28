@@ -314,6 +314,8 @@
     <string name="wackelbild_hint_swipe_title">Swipe over the image</string>
     <string name="wackelbild_hint_subtitle">See your lenticular print in action.</string>
     <string name="wackelbild_accessibility_toggle_action">Switch image</string>
+    <string name="wackelbild_date_toggle_label">Show date</string>
+    <string name="wackelbild_date_unavailable_hint">Add a reference date to show the date.</string>
 
     <!-- Share Comparison Image screen -->
     <string name="share_comparison_screen_title">Share image</string>

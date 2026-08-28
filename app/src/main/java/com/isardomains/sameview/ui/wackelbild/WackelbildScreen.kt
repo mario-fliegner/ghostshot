@@ -2,6 +2,7 @@
 package com.isardomains.sameview.ui.wackelbild
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -56,11 +60,21 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Size
 import com.isardomains.sameview.R
+import com.isardomains.sameview.ui.settings.SettingsSwitchRow
+import com.isardomains.sameview.ui.theme.SameViewAppSurface
+import com.isardomains.sameview.ui.theme.SameViewSettingsSecondaryText
 import java.io.File
 import kotlin.math.abs
 
-private const val MAX_PREVIEW_HEIGHT_DP = 500
+// Reuses CreateVideoScreen's own calibrated "media preview sharing a content column with
+// sibling controls" ratio (see CreateVideoScreen.kt's `maxCardHeight = maxHeight * 0.62f`) — not
+// a newly invented value.
+private const val PREVIEW_HEIGHT_FRACTION_OF_CONTENT = 0.62f
 private const val SWIPE_THRESHOLD_DP = 24
+private val DATE_BADGE_CORNER_RADIUS = 6.dp
+private val DATE_BADGE_HORIZONTAL_PADDING = 8.dp
+private val DATE_BADGE_VERTICAL_PADDING = 4.dp
+private val DATE_BADGE_IMAGE_EDGE_MARGIN = 8.dp
 
 /**
  * DeinWackelbild entry destination (Block 3 scope).
@@ -79,11 +93,20 @@ fun WackelbildScreen(
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact
 ) {
     val visibleImage by viewModel.visibleImage.collectAsState()
+    val dateOverlayEnabled by viewModel.dateOverlayEnabled.collectAsState()
+    val isDateOverlayAvailable by viewModel.isDateOverlayAvailable.collectAsState()
+    val referenceDateBadgeText by viewModel.referenceDateBadgeText.collectAsState()
+    val captureDateBadgeText by viewModel.captureDateBadgeText.collectAsState()
     WackelbildScreenContent(
         referenceFile = viewModel.referenceFile,
         captureFile = viewModel.captureFile,
         visibleImage = visibleImage,
         isSensorAvailable = viewModel.isSensorAvailable,
+        dateOverlayEnabled = dateOverlayEnabled,
+        isDateOverlayAvailable = isDateOverlayAvailable,
+        referenceDateBadgeText = referenceDateBadgeText,
+        captureDateBadgeText = captureDateBadgeText,
+        onDateOverlayToggled = viewModel::onDateOverlayToggled,
         onSwipeDetected = viewModel::onSwipeDetected,
         onAccessibilityToggle = viewModel::onAccessibilityToggle,
         onScreenActive = viewModel::onScreenActive,
@@ -110,6 +133,11 @@ internal fun WackelbildScreenContent(
     captureFile: File,
     visibleImage: WackelbildImageSide,
     isSensorAvailable: Boolean,
+    dateOverlayEnabled: Boolean,
+    isDateOverlayAvailable: Boolean,
+    referenceDateBadgeText: String?,
+    captureDateBadgeText: String?,
+    onDateOverlayToggled: (Boolean) -> Unit,
     onSwipeDetected: () -> Unit,
     onAccessibilityToggle: () -> Unit,
     onScreenActive: () -> Unit,
@@ -163,38 +191,57 @@ internal fun WackelbildScreenContent(
         val contentMaxWidth =
             if (windowWidthSizeClass == WindowWidthSizeClass.Expanded) 680.dp else Dp.Unspecified
 
-        Column(
+        // The actual available content-area height (post top-bar, post-padding) — the basis for
+        // the preview's height cap below, never full device/window height including system bars.
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .testTag("wackelbild_screen_root"),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .testTag("wackelbild_content_area")
         ) {
-            // Structurally outside the scrollable content below (see WackelbildInteractionHint
-            // Column) so the swipe gesture never contends with vertical scroll.
-            WackelbildPreview(
-                referenceFile = referenceFile,
-                captureFile = captureFile,
-                visibleImage = visibleImage,
-                onSwipeDetected = onSwipeDetected,
-                onAccessibilityToggle = onAccessibilityToggle,
-                modifier = Modifier
-                    .widthIn(max = contentMaxWidth)
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            )
+            val availableContentHeight = maxHeight
+
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .widthIn(max = contentMaxWidth)
-                    .align(Alignment.CenterHorizontally)
-                    .padding(horizontal = 16.dp),
+                    .fillMaxSize()
+                    .testTag("wackelbild_screen_root"),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                WackelbildInteractionHint(isSensorAvailable = isSensorAvailable)
-                Spacer(modifier = Modifier.height(16.dp))
+                // Structurally outside the scrollable content below (see WackelbildInteractionHint
+                // Column) so the swipe gesture never contends with vertical scroll.
+                WackelbildPreview(
+                    referenceFile = referenceFile,
+                    captureFile = captureFile,
+                    visibleImage = visibleImage,
+                    dateOverlayEnabled = dateOverlayEnabled,
+                    referenceDateBadgeText = referenceDateBadgeText,
+                    captureDateBadgeText = captureDateBadgeText,
+                    availableContentHeight = availableContentHeight,
+                    onSwipeDetected = onSwipeDetected,
+                    onAccessibilityToggle = onAccessibilityToggle,
+                    modifier = Modifier
+                        .widthIn(max = contentMaxWidth)
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .widthIn(max = contentMaxWidth)
+                        .align(Alignment.CenterHorizontally)
+                        .padding(horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    WackelbildDateToggleRow(
+                        checked = dateOverlayEnabled,
+                        enabled = isDateOverlayAvailable,
+                        onCheckedChange = onDateOverlayToggled
+                    )
+                    WackelbildInteractionHint(isSensorAvailable = isSensorAvailable)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
     }
@@ -213,6 +260,10 @@ private fun WackelbildPreview(
     referenceFile: File,
     captureFile: File,
     visibleImage: WackelbildImageSide,
+    dateOverlayEnabled: Boolean,
+    referenceDateBadgeText: String?,
+    captureDateBadgeText: String?,
+    availableContentHeight: Dp,
     onSwipeDetected: () -> Unit,
     onAccessibilityToggle: () -> Unit,
     modifier: Modifier = Modifier
@@ -250,7 +301,7 @@ private fun WackelbildPreview(
     val captureFailed = hasFailed(captureLoadState, captureRatio)
 
     if (referenceFailed || captureFailed) {
-        WackelbildPreviewFallback(modifier = modifier)
+        WackelbildPreviewFallback(availableContentHeight = availableContentHeight, modifier = modifier)
         return
     }
 
@@ -265,79 +316,157 @@ private fun WackelbildPreview(
     val captureLabel = stringResource(R.string.compare_label_capture)
     val toggleActionLabel = stringResource(R.string.wackelbild_accessibility_toggle_action)
 
-    BoxWithConstraints(
-        modifier = modifier.testTag("wackelbild_reference_preview_container")
-    ) {
-        val availableW = maxWidth
-        val compH = (availableW / referenceRatio).coerceAtMost(MAX_PREVIEW_HEIGHT_DP.dp)
+    // The badge text for whichever image is currently visible — null when the overlay is off or
+    // that side's date is defensively unavailable (e.g. a missing Capture timestamp never
+    // invents a badge; Reference stays valid and switching back to it still works).
+    val visibleBadgeText = if (dateOverlayEnabled) {
+        if (visibleImage == WackelbildImageSide.REFERENCE) referenceDateBadgeText else captureDateBadgeText
+    } else {
+        null
+    }
 
+    BoxWithConstraints(modifier = modifier) {
+        val availableW = maxWidth
+        val maxPreviewHeight = availableContentHeight * PREVIEW_HEIGHT_FRACTION_OF_CONTENT
+        val heightFromWidth = availableW / referenceRatio
+        val effectiveHeight = heightFromWidth.coerceAtMost(maxPreviewHeight)
+        // Recomputed from the (possibly capped) height, never left at the full availableW —
+        // this is what guarantees the box below always matches the image's own aspect ratio,
+        // whether or not the height cap engaged, so the badge anchored inside it never lands in
+        // unused letterbox space.
+        val effectiveWidth = effectiveHeight * referenceRatio
+
+        // This outer BoxWithConstraints is forced to the full lane width by the caller's
+        // `fillMaxWidth()` (so there is comfortable centered space around a narrower/capped
+        // preview) — its own bounds are therefore NOT the image bounds. `testTag` sits on this
+        // inner box instead, which is sized at exactly effectiveWidth x effectiveHeight and is
+        // the actual image-bounds container that the badge (below) is anchored inside of.
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .width(availableW)
-                .height(compH)
-                .pointerInput(Unit) {
-                    val thresholdPx = SWIPE_THRESHOLD_DP.dp.toPx()
-                    var totalDx = 0f
-                    var totalDy = 0f
-                    var fired = false
-                    detectDragGestures(
-                        onDragStart = {
-                            totalDx = 0f
-                            totalDy = 0f
-                            fired = false
-                        },
-                        onDrag = { change, dragAmount ->
-                            totalDx += dragAmount.x
-                            totalDy += dragAmount.y
-                            // Only ever consume/act once the gesture is clearly horizontal —
-                            // an ambiguous or clearly-vertical gesture is left unconsumed.
-                            val isHorizontalIntent = abs(totalDx) > abs(totalDy)
-                            if (isHorizontalIntent) {
-                                if (!fired && abs(totalDx) > thresholdPx) {
-                                    fired = true
-                                    currentOnSwipeDetected()
-                                }
-                                change.consume()
-                            }
-                        }
-                    )
-                }
-                // Not merged: the child Image already sets contentDescription = null (no
-                // meaningful child semantics to fold in), and merging here would hide the
-                // Image's own testTag from onNodeWithTag's default merged-tree queries.
-                .semantics {
-                    contentDescription =
-                        if (visibleImage == WackelbildImageSide.REFERENCE) referenceLabel else captureLabel
-                    customActions = listOf(
-                        CustomAccessibilityAction(toggleActionLabel) {
-                            currentOnAccessibilityToggle()
-                            true
-                        }
-                    )
-                }
-                .testTag("wackelbild_preview_interactive_area"),
-            contentAlignment = Alignment.Center
+                .width(effectiveWidth)
+                .height(effectiveHeight)
+                .testTag("wackelbild_reference_preview_container")
         ) {
-            when (visibleImage) {
-                WackelbildImageSide.REFERENCE -> Image(
-                    painter = referencePainter,
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("wackelbild_reference_image")
-                )
-                WackelbildImageSide.CAPTURE -> Image(
-                    painter = capturePainter,
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("wackelbild_capture_image")
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        val thresholdPx = SWIPE_THRESHOLD_DP.dp.toPx()
+                        var totalDx = 0f
+                        var totalDy = 0f
+                        var fired = false
+                        detectDragGestures(
+                            onDragStart = {
+                                totalDx = 0f
+                                totalDy = 0f
+                                fired = false
+                            },
+                            onDrag = { change, dragAmount ->
+                                totalDx += dragAmount.x
+                                totalDy += dragAmount.y
+                                // Only ever consume/act once the gesture is clearly horizontal —
+                                // an ambiguous or clearly-vertical gesture is left unconsumed.
+                                val isHorizontalIntent = abs(totalDx) > abs(totalDy)
+                                if (isHorizontalIntent) {
+                                    if (!fired && abs(totalDx) > thresholdPx) {
+                                        fired = true
+                                        currentOnSwipeDetected()
+                                    }
+                                    change.consume()
+                                }
+                            }
+                        )
+                    }
+                    // Not merged: the child Image already sets contentDescription = null (no
+                    // meaningful child semantics to fold in), and merging here would hide the
+                    // Image's own testTag from onNodeWithTag's default merged-tree queries.
+                    .semantics {
+                        val imageLabel =
+                            if (visibleImage == WackelbildImageSide.REFERENCE) referenceLabel else captureLabel
+                        contentDescription = if (visibleBadgeText != null) {
+                            "$imageLabel, $visibleBadgeText"
+                        } else {
+                            imageLabel
+                        }
+                        customActions = listOf(
+                            CustomAccessibilityAction(toggleActionLabel) {
+                                currentOnAccessibilityToggle()
+                                true
+                            }
+                        )
+                    }
+                    .testTag("wackelbild_preview_interactive_area"),
+                contentAlignment = Alignment.Center
+            ) {
+                when (visibleImage) {
+                    WackelbildImageSide.REFERENCE -> Image(
+                        painter = referencePainter,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("wackelbild_reference_image")
+                    )
+                    WackelbildImageSide.CAPTURE -> Image(
+                        painter = capturePainter,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("wackelbild_capture_image")
+                    )
+                }
+                // A separate wrapping Box for the 8dp image-edge margin, kept structurally apart
+                // from WackelbildDateBadge's own styling modifiers — chaining both the outer
+                // margin and the inner clip/background/padding onto one node made the badge's
+                // own testTag bounds double-count both paddings. This wrapper's outer edge is
+                // flush with this Box (the actual image bounds), so the badge inside it sits
+                // exactly 8dp from the real image edge, not unused letterbox space.
+                if (visibleBadgeText != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = DATE_BADGE_IMAGE_EDGE_MARGIN,
+                                bottom = DATE_BADGE_IMAGE_EDGE_MARGIN
+                            )
+                    ) {
+                        WackelbildDateBadge(text = visibleBadgeText)
+                    }
+                }
             }
         }
+    }
+}
+
+/**
+ * Fixed-geometry runtime date badge (Block 4 preview only — never rendered into a persisted or
+ * transfer JPEG). Geometry/style is approved as-is, not implementation-time tunable: 6.dp corner
+ * radius, 8.dp horizontal / 4.dp vertical internal padding, `labelMedium` typography,
+ * [SameViewAppSurface] background, white text, no shadow, no border, no pill shape.
+ */
+@Composable
+private fun WackelbildDateBadge(text: String) {
+    Box(
+        // testTag first: a testTag chained after a padding() modifier on the same node reports
+        // bounds that exclude that padding (proven empirically — the badge's measured bounds
+        // were inset by an extra 8dp, matching the horizontal padding below, until this was
+        // reordered). Placed first, its bounds correctly cover the full clipped/background box.
+        modifier = Modifier
+            .testTag("wackelbild_date_badge")
+            .clip(RoundedCornerShape(DATE_BADGE_CORNER_RADIUS))
+            .background(SameViewAppSurface)
+            .padding(
+                horizontal = DATE_BADGE_HORIZONTAL_PADDING,
+                vertical = DATE_BADGE_VERTICAL_PADDING
+            )
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White
+        )
     }
 }
 
@@ -353,10 +482,10 @@ private fun hasFailed(state: AsyncImagePainter.State, intrinsicRatio: Float?): B
         (state is AsyncImagePainter.State.Success && intrinsicRatio == null)
 
 @Composable
-private fun WackelbildPreviewFallback(modifier: Modifier = Modifier) {
+private fun WackelbildPreviewFallback(availableContentHeight: Dp, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .height(MAX_PREVIEW_HEIGHT_DP.dp)
+            .height(availableContentHeight * PREVIEW_HEIGHT_FRACTION_OF_CONTENT)
             .testTag("wackelbild_preview_fallback"),
         contentAlignment = Alignment.Center
     ) {
@@ -369,6 +498,39 @@ private fun WackelbildPreviewFallback(modifier: Modifier = Modifier) {
             Text(
                 text = stringResource(R.string.wackelbild_preview_error_body),
                 style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+/**
+ * Date-overlay toggle row, placed directly below the preview and above the interaction hint, no
+ * card/Options heading — per spec §9.9. `SettingsSwitchRow` has no `supportingText` parameter, so
+ * this mirrors `ShareComparisonScreen`'s local `InfoToggleRow` shape (a plain `Column` with the
+ * switch row followed by a supporting `Text` shown only while unavailable) rather than modifying
+ * that shared component.
+ */
+@Composable
+private fun WackelbildDateToggleRow(
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        SettingsSwitchRow(
+            label = stringResource(R.string.wackelbild_date_toggle_label),
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            testTag = "wackelbild_date_toggle"
+        )
+        if (!enabled) {
+            Text(
+                text = stringResource(R.string.wackelbild_date_unavailable_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = SameViewSettingsSecondaryText,
+                modifier = Modifier.testTag("wackelbild_date_unavailable_hint")
             )
         }
     }
