@@ -91,6 +91,14 @@ class WackelbildViewModel @Inject constructor(
 
     private var hysteresisStateMachine: TiltHysteresisStateMachine = TiltHysteresisStateMachine()
 
+    /**
+     * Owns the disposable `cacheDir/wackelbild/` temp-file lifecycle. Block 6 scope: only the
+     * one-time orphan sweep below. No operation directory is created and no active-operation
+     * state is tracked here yet — that belongs to the later block that introduces a real
+     * preparation/upload operation.
+     */
+    private var tempFileManager: WackelbildTempFileManager = WackelbildTempFileManager(context.cacheDir)
+
     private val sessionDir: File = File(context.filesDir, "sessions/$sessionId")
 
     /** Overridable in unit tests; production default performs the narrow metadata.json read. */
@@ -111,11 +119,13 @@ class WackelbildViewModel @Inject constructor(
         context: Context,
         tiltProvider: TiltProvider? = null,
         displayRotationProvider: (() -> Int)? = null,
-        hysteresisStateMachine: TiltHysteresisStateMachine? = null
+        hysteresisStateMachine: TiltHysteresisStateMachine? = null,
+        tempFileManager: WackelbildTempFileManager? = null
     ) : this(savedStateHandle, context) {
         if (tiltProvider != null) this.tiltProvider = tiltProvider
         if (displayRotationProvider != null) this.displayRotationProvider = displayRotationProvider
         if (hysteresisStateMachine != null) this.hysteresisStateMachine = hysteresisStateMachine
+        if (tempFileManager != null) this.tempFileManager = tempFileManager
     }
 
     /**
@@ -148,6 +158,13 @@ class WackelbildViewModel @Inject constructor(
     val captureDateBadgeText: StateFlow<String?> = _captureDateBadgeText.asStateFlow()
 
     init {
+        // One-time orphan sweep of cacheDir/wackelbild/, run once per fresh ViewModel instance
+        // (i.e. once per genuine Wackelbild screen entry, not on recomposition/ON_RESUME). No
+        // operation directory exists yet at this point, so every child present is orphaned by
+        // construction and safe to remove unconditionally (Block 6 scope).
+        viewModelScope.launch {
+            withContext(ioDispatcher) { tempFileManager.sweepStaleOperationDirs() }
+        }
         viewModelScope.launch {
             val metadata = try {
                 withContext(ioDispatcher) { metadataReader(sessionDir) }

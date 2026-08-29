@@ -6,6 +6,7 @@ import android.hardware.SensorManager
 import android.view.Surface
 import androidx.lifecycle.SavedStateHandle
 import java.io.File
+import java.nio.file.Files
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,6 +31,7 @@ class WackelbildViewModelTest {
 
     private val testSessionId = "2026-06-21_10-00-00"
     private lateinit var context: Context
+    private lateinit var tempCacheDir: File
 
     /** Mirrors CameraViewModelTest's TestCompassProvider pattern for the sibling TiltProvider. */
     private class TestTiltProvider(
@@ -58,10 +60,24 @@ class WackelbildViewModelTest {
         }
     }
 
+    /** Counts sweep invocations while delegating to the real implementation, so tests can prove
+     * both "sweep ran" (via real filesystem side effects) and "sweep ran exactly once". */
+    private class TestTempFileManager(cacheDir: File) : WackelbildTempFileManager(cacheDir) {
+        var sweepCallCount = 0
+            private set
+
+        override fun sweepStaleOperationDirs() {
+            sweepCallCount++
+            super.sweepStaleOperationDirs()
+        }
+    }
+
     @Before
     fun setUp() {
+        tempCacheDir = Files.createTempDirectory("wb-viewmodel-test-").toFile()
         context = mock {
             on { filesDir } doReturn File("/fake/files")
+            on { cacheDir } doReturn tempCacheDir
         }
         // StandardTestDispatcher: the date-metadata coroutine launched from WackelbildViewModel's
         // init is queued but not run immediately, mirroring ShareComparisonViewModelTest's own
@@ -74,6 +90,7 @@ class WackelbildViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        tempCacheDir.deleteRecursively()
     }
 
     private fun createViewModel(
@@ -81,7 +98,8 @@ class WackelbildViewModelTest {
         hysteresisStateMachine: TiltHysteresisStateMachine =
             TiltHysteresisStateMachine(thresholdDegrees = 12f, rearmDegrees = 6f),
         metadataReader: ((File) -> WackelbildDateMetadata)? = null,
-        locale: Locale = Locale.US
+        locale: Locale = Locale.US,
+        tempFileManager: WackelbildTempFileManager? = null
     ): Pair<WackelbildViewModel, TestTiltProvider> {
         val handle = SavedStateHandle(mapOf("sessionId" to testSessionId))
         val vm = WackelbildViewModel(
@@ -89,7 +107,8 @@ class WackelbildViewModelTest {
             context,
             tiltProvider = tiltProvider,
             displayRotationProvider = { Surface.ROTATION_0 },
-            hysteresisStateMachine = hysteresisStateMachine
+            hysteresisStateMachine = hysteresisStateMachine,
+            tempFileManager = tempFileManager
         )
         vm.currentUiLocale = { locale }
         // Route the metadata read through the same StandardTestDispatcher installed as Main
@@ -419,5 +438,45 @@ class WackelbildViewModelTest {
         )
         advanceUntilIdle()
         assertNull(vm.captureDateBadgeText.value)
+    }
+
+    // --- Block 6: temp-file orphan sweep at fresh ViewModel creation ---
+
+    @Test
+    fun init_triggersSweepExactlyOnce() = runTest {
+        val tempFileManager = TestTempFileManager(tempCacheDir)
+        val (_, _) = createViewModel(tempFileManager = tempFileManager)
+        advanceUntilIdle()
+        assertEquals(1, tempFileManager.sweepCallCount)
+    }
+
+    @Test
+    fun init_sweep_removesStaleOperationDirectory() = runTest {
+        val realManager = WackelbildTempFileManager(tempCacheDir)
+        val staleDir = realManager.createOperationDir("stale-op")
+        realManager.referenceCandidateFile(staleDir).writeText("leftover")
+        assertTrue(staleDir.exists())
+
+        createViewModel(tempFileManager = TestTempFileManager(tempCacheDir))
+        advanceUntilIdle()
+
+        assertFalse(staleDir.exists())
+    }
+
+    @Test
+    fun init_sweep_doesNotMutateSessionFiles() = runTest {
+        // Sentinel placed directly under cacheDir, outside cacheDir/wackelbild/, mirroring the
+        // real risk this test guards against: sweep must never escape the dedicated root even
+        // for a sibling directory that happens to share a session-shaped name.
+        val sessionsDir = File(tempCacheDir, "sessions/$testSessionId")
+        sessionsDir.mkdirs()
+        val referenceFile = File(sessionsDir, "reference.jpg")
+        referenceFile.writeText("persisted session data")
+
+        createViewModel(tempFileManager = TestTempFileManager(tempCacheDir))
+        advanceUntilIdle()
+
+        assertTrue(referenceFile.exists())
+        assertEquals("persisted session data", referenceFile.readText())
     }
 }
