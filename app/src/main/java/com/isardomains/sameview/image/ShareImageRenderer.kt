@@ -200,7 +200,7 @@ class ShareImageRenderer {
      *
      * Returns null on any failure; callers fall back to capture.jpg.
      */
-    private fun decodeHqCapture(file: File, targetW: Int, targetH: Int): Bitmap? {
+    internal fun decodeHqCapture(file: File, targetW: Int, targetH: Int): Bitmap? {
         return try {
             val source = ImageDecoder.createSource(file)
             ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
@@ -290,7 +290,7 @@ class ShareImageRenderer {
      * Falls back to reference.jpg on any failure (missing file, decode error, OOM).
      * reference.jpg failure propagates as IOException to abort the render entirely.
      */
-    private fun renderHqReference(
+    internal fun renderHqReference(
         sessionDir: File,
         compW: Int,
         compH: Int,
@@ -316,7 +316,7 @@ class ShareImageRenderer {
     }
 
     /** Decodes reference.jpg as a fallback. Throws [IOException] if the file cannot be decoded. */
-    private fun decodeReferenceFallback(sessionDir: File): Bitmap =
+    internal fun decodeReferenceFallback(sessionDir: File): Bitmap =
         BitmapFactory.decodeFile(File(sessionDir, "reference.jpg").absolutePath)
             ?: throw IOException("Cannot decode reference source in ${sessionDir.name}")
 
