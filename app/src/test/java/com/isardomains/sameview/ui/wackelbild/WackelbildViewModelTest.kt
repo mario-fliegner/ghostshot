@@ -5,11 +5,21 @@ import android.content.Context
 import android.hardware.SensorManager
 import android.view.Surface
 import androidx.lifecycle.SavedStateHandle
+import com.isardomains.sameview.image.wackelbild.WackelbildDateOverlay
+import com.isardomains.sameview.image.wackelbild.WackelbildPrintPair
+import com.isardomains.sameview.image.wackelbild.WackelbildPrintResult
+import com.isardomains.sameview.net.deinwackelbild.CreateHandoffRequest
+import com.isardomains.sameview.net.deinwackelbild.CreateHandoffResponse
+import com.isardomains.sameview.net.deinwackelbild.DeinWackelbildApiClient
+import com.isardomains.sameview.net.deinwackelbild.DeinWackelbildResult
+import com.isardomains.sameview.net.deinwackelbild.DeinWackelbildSlot
+import com.isardomains.sameview.net.deinwackelbild.UploadResponse
 import java.io.File
 import java.nio.file.Files
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -99,7 +109,9 @@ class WackelbildViewModelTest {
             TiltHysteresisStateMachine(thresholdDegrees = 12f, rearmDegrees = 6f),
         metadataReader: ((File) -> WackelbildDateMetadata)? = null,
         locale: Locale = Locale.US,
-        tempFileManager: WackelbildTempFileManager? = null
+        tempFileManager: WackelbildTempFileManager? = null,
+        apiClient: DeinWackelbildApiClient? = null,
+        renderPrintPair: (suspend (File, File, WackelbildDateOverlay?) -> WackelbildPrintResult)? = null
     ): Pair<WackelbildViewModel, TestTiltProvider> {
         val handle = SavedStateHandle(mapOf("sessionId" to testSessionId))
         val vm = WackelbildViewModel(
@@ -108,7 +120,9 @@ class WackelbildViewModelTest {
             tiltProvider = tiltProvider,
             displayRotationProvider = { Surface.ROTATION_0 },
             hysteresisStateMachine = hysteresisStateMachine,
-            tempFileManager = tempFileManager
+            tempFileManager = tempFileManager,
+            apiClient = apiClient,
+            renderPrintPair = renderPrintPair
         )
         vm.currentUiLocale = { locale }
         // Route the metadata read through the same StandardTestDispatcher installed as Main
@@ -479,4 +493,162 @@ class WackelbildViewModelTest {
         assertTrue(referenceFile.exists())
         assertEquals("persisted session data", referenceFile.readText())
     }
+
+    // --- Block 8: handoff operation orchestration (thin ViewModel-level wiring only --
+    // retry/restart/idempotency/semantic-validation matrix is exhaustively covered by
+    // WackelbildHandoffOrchestratorTest and deliberately not duplicated here) ---
+
+    private class FakeApiClient(
+        private val createResult: DeinWackelbildResult<CreateHandoffResponse>,
+        private val uploadOneResult: DeinWackelbildResult<UploadResponse>,
+        private val uploadTwoResult: DeinWackelbildResult<UploadResponse>
+    ) : DeinWackelbildApiClient {
+        override suspend fun createHandoff(request: CreateHandoffRequest, idempotencyKey: String) = createResult
+
+        override suspend fun uploadImage(uploadUrl: String, handoffToken: String, slot: DeinWackelbildSlot, file: File) =
+            if (slot == DeinWackelbildSlot.ONE) uploadOneResult else uploadTwoResult
+    }
+
+    private fun successfulApiClient(checkoutUrl: String = "https://deinwackelbild.de/checkout/h1"): DeinWackelbildApiClient =
+        FakeApiClient(
+            createResult = DeinWackelbildResult.Success(
+                CreateHandoffResponse(
+                    handoffId = "h1", handoffToken = "tok", partner = "sameview", status = "awaiting_files",
+                    expiresAt = "2026-08-30T12:00:00Z", maxFileBytes = 20_971_520L, acceptedTypes = listOf("image/jpeg"),
+                    uploadedSlots = emptyList(), uploadUrl = "https://deinwackelbild.de/upload/h1", checkoutUrl = null
+                )
+            ),
+            uploadOneResult = DeinWackelbildResult.Success(UploadResponse("h1", "awaiting_files", listOf("one"), null)),
+            uploadTwoResult = DeinWackelbildResult.Success(UploadResponse("h1", "ready", listOf("one", "two"), checkoutUrl))
+        )
+
+    private fun fakeRenderer(usedFallback: Boolean = false): suspend (File, File, WackelbildDateOverlay?) -> WackelbildPrintResult =
+        { _, outputDir, _ ->
+            val ref = File(outputDir, "image_one.jpg").also { it.parentFile?.mkdirs(); it.writeBytes(byteArrayOf(1)) }
+            val cap = File(outputDir, "image_two.jpg").also { it.parentFile?.mkdirs(); it.writeBytes(byteArrayOf(2)) }
+            WackelbildPrintResult.Success(WackelbildPrintPair(ref, cap), usedFallback)
+        }
+
+    @Test
+    fun operationState_initialValue_isIdle() {
+        val (vm, _) = createViewModel()
+        assertEquals(WackelbildOperationState.Idle, vm.operationState.value)
+    }
+
+    @Test
+    fun startOperation_happyPath_updatesStateToReady() = runTest {
+        val (vm, _) = createViewModel(
+            apiClient = successfulApiClient(checkoutUrl = "https://deinwackelbild.de/checkout/h1"),
+            renderPrintPair = fakeRenderer(usedFallback = false)
+        )
+        vm.startOperation()
+        advanceUntilIdle()
+        assertEquals(
+            WackelbildOperationState.Ready("https://deinwackelbild.de/checkout/h1", usedFallback = false),
+            vm.operationState.value
+        )
+    }
+
+    @Test
+    fun startOperation_secondStartWhileActive_ignored() = runTest {
+        var renderCallCount = 0
+        val (vm, _) = createViewModel(
+            apiClient = successfulApiClient(),
+            renderPrintPair = { _, _, _ ->
+                renderCallCount++
+                awaitCancellation() // hang, so the first operation stays active
+            }
+        )
+        vm.startOperation()
+        advanceUntilIdle() // let it reach Preparing and suspend inside the (hanging) renderer
+        vm.startOperation() // second call while the first is still active/suspended in the renderer
+        advanceUntilIdle()
+        // No exception, no crash -- and critically, the renderer (and hence the whole downstream
+        // flow) never runs a second time.
+        assertEquals(1, renderCallCount)
+        assertEquals(WackelbildOperationState.Preparing, vm.operationState.value)
+        vm.cancelOperation()
+    }
+
+    @Test
+    fun fallbackConfirmation_stateExposed_whenRendererUsesFallback() = runTest {
+        val (vm, _) = createViewModel(
+            apiClient = successfulApiClient(),
+            renderPrintPair = fakeRenderer(usedFallback = true)
+        )
+        vm.startOperation()
+        advanceUntilIdle()
+        assertEquals(WackelbildOperationState.AwaitingFallbackConfirmation, vm.operationState.value)
+    }
+
+    @Test
+    fun confirmFallbackAndContinue_resumesPendingConfirmation() = runTest {
+        val (vm, _) = createViewModel(
+            apiClient = successfulApiClient(checkoutUrl = "https://deinwackelbild.de/checkout/h1"),
+            renderPrintPair = fakeRenderer(usedFallback = true)
+        )
+        vm.startOperation()
+        advanceUntilIdle()
+        assertEquals(WackelbildOperationState.AwaitingFallbackConfirmation, vm.operationState.value)
+
+        vm.confirmFallbackAndContinue()
+        advanceUntilIdle()
+
+        assertEquals(
+            WackelbildOperationState.Ready("https://deinwackelbild.de/checkout/h1", usedFallback = true),
+            vm.operationState.value
+        )
+    }
+
+    @Test
+    fun confirmFallbackAndContinue_doubleCallSafe() = runTest {
+        val (vm, _) = createViewModel(
+            apiClient = successfulApiClient(),
+            renderPrintPair = fakeRenderer(usedFallback = true)
+        )
+        vm.startOperation()
+        advanceUntilIdle()
+
+        vm.confirmFallbackAndContinue()
+        vm.confirmFallbackAndContinue() // must not throw, must not start a second job
+        advanceUntilIdle()
+
+        assertTrue(vm.operationState.value is WackelbildOperationState.Ready)
+    }
+
+    @Test
+    fun cancelOperation_whileAwaitingFallback_resetsToIdle() = runTest {
+        val (vm, _) = createViewModel(
+            apiClient = successfulApiClient(),
+            renderPrintPair = fakeRenderer(usedFallback = true)
+        )
+        vm.startOperation()
+        advanceUntilIdle()
+        assertEquals(WackelbildOperationState.AwaitingFallbackConfirmation, vm.operationState.value)
+
+        vm.cancelOperation()
+
+        assertEquals(WackelbildOperationState.Idle, vm.operationState.value)
+    }
+
+    @Test
+    fun cancelOperation_duringActiveOperation_resetsToIdle_noReadyEmittedAfter() = runTest {
+        val (vm, _) = createViewModel(
+            apiClient = successfulApiClient(),
+            renderPrintPair = { _, _, _ -> awaitCancellation() }
+        )
+        vm.startOperation()
+        advanceUntilIdle() // runs until it suspends inside the (hanging) renderer -- reaches Preparing
+
+        vm.cancelOperation()
+        advanceUntilIdle()
+
+        assertEquals(WackelbildOperationState.Idle, vm.operationState.value)
+    }
+
+    // Note: onCleared() is `protected` (inherited from androidx.lifecycle.ViewModel) and cannot be
+    // invoked directly from this unrelated test class -- no test in this codebase does so. Its body
+    // is a single operationJob?.cancel() call, structurally identical to half of cancelOperation(),
+    // which is exercised by cancelOperation_duringActiveOperation_resetsToIdle_noReadyEmittedAfter
+    // and cancelOperation_whileAwaitingFallback_resetsToIdle above.
 }

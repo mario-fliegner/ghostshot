@@ -6,13 +6,20 @@ import android.view.Surface
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.isardomains.sameview.image.wackelbild.WackelbildDateOverlay
+import com.isardomains.sameview.image.wackelbild.WackelbildPrintRenderer
+import com.isardomains.sameview.image.wackelbild.WackelbildPrintResult
+import com.isardomains.sameview.net.deinwackelbild.DeinWackelbildApiClient
+import com.isardomains.sameview.net.deinwackelbild.OkHttpDeinWackelbildApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -99,6 +106,32 @@ class WackelbildViewModel @Inject constructor(
      */
     private var tempFileManager: WackelbildTempFileManager = WackelbildTempFileManager(context.cacheDir)
 
+    /**
+     * Block 8: real DeinWackelbild handoff orchestration.
+     *
+     * `partnerKey = ""` is a deliberate, inert Block-9-pending placeholder, not a real/dummy
+     * credential -- there is no `INTERNET` permission yet (Block 10), so no request built with this
+     * client can ever actually reach the network regardless of the key's value. Block 9 replaces
+     * this one line with the real `BuildConfig`-sourced key; nothing else about this field changes.
+     */
+    private var apiClient: DeinWackelbildApiClient =
+        OkHttpDeinWackelbildApiClient(OkHttpDeinWackelbildApiClient.createDefaultCallFactory(), partnerKey = "")
+
+    /** Overridable in unit tests to avoid real Android Bitmap/Canvas APIs, which don't run on the
+     * JVM. Production default is the real Block-5 renderer, unchanged. */
+    private var renderPrintPair: suspend (File, File, WackelbildDateOverlay?) -> WackelbildPrintResult =
+        WackelbildPrintRenderer()::renderPrintPair
+
+    /** Stateless; holds no per-ViewModel mutable state, so no test-seam override is needed (see
+     * [WackelbildHandoffOrchestrator]'s own doc comment). */
+    private val orchestrator = WackelbildHandoffOrchestrator()
+
+    private var operationJob: Job? = null
+    private var fallbackConfirmation: CompletableDeferred<Unit>? = null
+
+    private val _operationState = MutableStateFlow<WackelbildOperationState>(WackelbildOperationState.Idle)
+    val operationState: StateFlow<WackelbildOperationState> = _operationState.asStateFlow()
+
     private val sessionDir: File = File(context.filesDir, "sessions/$sessionId")
 
     /** Overridable in unit tests; production default performs the narrow metadata.json read. */
@@ -120,12 +153,16 @@ class WackelbildViewModel @Inject constructor(
         tiltProvider: TiltProvider? = null,
         displayRotationProvider: (() -> Int)? = null,
         hysteresisStateMachine: TiltHysteresisStateMachine? = null,
-        tempFileManager: WackelbildTempFileManager? = null
+        tempFileManager: WackelbildTempFileManager? = null,
+        apiClient: DeinWackelbildApiClient? = null,
+        renderPrintPair: (suspend (File, File, WackelbildDateOverlay?) -> WackelbildPrintResult)? = null
     ) : this(savedStateHandle, context) {
         if (tiltProvider != null) this.tiltProvider = tiltProvider
         if (displayRotationProvider != null) this.displayRotationProvider = displayRotationProvider
         if (hysteresisStateMachine != null) this.hysteresisStateMachine = hysteresisStateMachine
         if (tempFileManager != null) this.tempFileManager = tempFileManager
+        if (apiClient != null) this.apiClient = apiClient
+        if (renderPrintPair != null) this.renderPrintPair = renderPrintPair
     }
 
     /**
@@ -301,5 +338,83 @@ class WackelbildViewModel @Inject constructor(
             TiltHysteresisState.TOWARD_REFERENCE -> WackelbildImageSide.REFERENCE
             TiltHysteresisState.NEUTRAL -> return
         }
+    }
+
+    // --- DeinWackelbild handoff operation (Block 8) ---
+
+    /**
+     * Starts one real handoff operation. A no-op while an operation is already active (i.e.
+     * [operationJob] is still running, including while suspended in
+     * [WackelbildOperationState.AwaitingFallbackConfirmation]) -- at most one active operation is
+     * ever allowed per ViewModel instance.
+     */
+    fun startOperation() {
+        if (operationJob?.isActive == true) return
+        val dateOverlay = currentDateOverlayInput()
+        operationJob = viewModelScope.launch {
+            val result = orchestrator.execute(
+                sessionDir = sessionDir,
+                tempFileManager = tempFileManager,
+                apiClient = apiClient,
+                dateOverlay = dateOverlay,
+                renderPrintPair = renderPrintPair,
+                awaitFallbackConfirmation = ::awaitFallbackConfirmation,
+                onPhaseChange = { _operationState.value = it }
+            )
+            _operationState.value = result
+        }
+    }
+
+    private fun currentDateOverlayInput(): WackelbildDateOverlay? =
+        if (_dateOverlayEnabled.value) {
+            WackelbildDateOverlay(referenceText = _referenceDateBadgeText.value, captureText = _captureDateBadgeText.value)
+        } else {
+            null
+        }
+
+    /** Bridges the orchestrator's required fallback-confirmation suspension point to a one-shot
+     * external signal. Suspends until [confirmFallbackAndContinue] completes it, or until
+     * cancellation (explicit [cancelOperation] or [onCleared]) propagates through it normally --
+     * there is no implicit-approval path and no default. */
+    private suspend fun awaitFallbackConfirmation() {
+        val deferred = CompletableDeferred<Unit>()
+        fallbackConfirmation = deferred
+        _operationState.value = WackelbildOperationState.AwaitingFallbackConfirmation
+        try {
+            deferred.await()
+        } finally {
+            if (fallbackConfirmation === deferred) {
+                fallbackConfirmation = null
+            }
+        }
+    }
+
+    /** Resumes an operation paused at [WackelbildOperationState.AwaitingFallbackConfirmation]. Safe
+     * no-op if no confirmation is currently pending or it was already resolved -- a second call
+     * never starts a second job and never re-renders. */
+    fun confirmFallbackAndContinue() {
+        fallbackConfirmation?.complete(Unit)
+    }
+
+    /** Cancels the active operation, if any. Safe to call with no active operation, safe to call
+     * repeatedly, and safe at every phase including while paused awaiting fallback confirmation --
+     * cancelling [operationJob] unblocks a suspended [CompletableDeferred.await] the same way it
+     * unblocks any other suspension point in [WackelbildHandoffOrchestrator.execute]. Cancellation
+     * is never represented as [WackelbildOperationState.Failed]; state resets to
+     * [WackelbildOperationState.Idle] synchronously, independent of how long the cancelled
+     * coroutine takes to actually finish unwinding. */
+    fun cancelOperation() {
+        operationJob?.cancel()
+        _operationState.value = WackelbildOperationState.Idle
+    }
+
+    /** Cancels an active operation on ViewModel destruction. Actual temp-file cleanup is the
+     * cancelled operation's own `finally` (see [WackelbildHandoffOrchestrator.execute]), not this
+     * method -- and neither this nor that `finally` is guaranteed to run to completion if the
+     * process is killed outright; Block 6's next-entry sweep remains the only recovery for that
+     * case. */
+    override fun onCleared() {
+        super.onCleared()
+        operationJob?.cancel()
     }
 }
