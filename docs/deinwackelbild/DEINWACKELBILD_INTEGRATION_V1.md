@@ -944,10 +944,14 @@ If the process is lost after a server-side handoff has been created, that tempor
 The pilot API supplied by DeinWackelbild defines the high-level sequence:
 
 1. create a partner handoff using a stable Idempotency-Key;
-2. upload first JPEG to slot `one`;
-3. upload second JPEG to slot `two`;
+2. upload the Reference JPEG to slot `one`;
+3. upload the Capture JPEG to slot `two`;
 4. wait for `status=ready` and a non-null `checkout_url`;
 5. open the exact returned URL in an Android Custom Tab.
+
+**Confirmed (Block 7B doc sync):** V1 requires **no separate polling/status endpoint**. The second successful upload's own response directly carries `status=ready` and the non-null `checkout_url` — "wait for" in step 4 above means reading that same response, not a follow-up request.
+
+**Confirmed slot mapping (Block 7B doc sync):** SameView's Reference image maps to slot `one`; the Capture image maps to slot `two`. The API defines only the slot names; this assignment is SameView's own locked V1 product/technical decision.
 
 Retries belonging to the same active user operation reuse the same Idempotency-Key as required by the API.
 

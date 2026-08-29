@@ -333,7 +333,7 @@ class WackelbildPrintRenderer(private val shareRenderer: ShareImageRenderer = Sh
 }
 ```
 
-**Correction N — pair mapping.** `WackelbildPrintPair` exposes semantic, typed fields (`referenceFile: File`, `captureFile: File`) — renderer-internal code never exposes only generic `one`/`two` fields. The eventual mapping from `referenceFile`/`captureFile` to the DeinWackelbild API's `one`/`two` upload slots is an explicit decision made once, at the network integration call site (Block 7+), not inferred from field order or asserted here as a partner-spec-defined contract — the supplied API contract documents `one`/`two` as slot names but does not itself dictate which SameView image goes in which slot, so this plan does not claim otherwise. The `image_one.jpg`/`image_two.jpg` temp-file names (§11) are a separate, deliberately generic on-disk naming choice and are not assumed to already encode the eventual slot mapping.
+**Correction N — pair mapping, now locked (Block 7B doc sync).** `WackelbildPrintPair` exposes semantic, typed fields (`referenceFile: File`, `captureFile: File`) — renderer-internal code never exposes only generic `one`/`two` fields. The DeinWackelbild API contract itself defines only the slot *names* `one`/`two`, not which SameView image goes in which — that semantic assignment was, until this doc sync, an explicit open decision deferred to the network-integration call site rather than silently inferred from field order or on-disk file-naming order. **That decision is now made:** SameView V1's locked mapping is **Reference → slot `one`**, **Capture → slot `two`**. This mapping is a deliberate SameView product/technical choice, not something the partner API mandates — it is documented here so the choice, once made, is not silently reinterpreted later. It happens to align with the existing `image_one.jpg`/`image_two.jpg` temp-file naming (§11) — Reference renders to `image_one.jpg`, Capture to `image_two.jpg` — though that alignment is a confirmation of a sensible existing convention, not the reason the decision was made; no temp-file is renamed as a result of this correction.
 
 ```kotlin
 sealed class WackelbildPrintResult {
@@ -609,10 +609,12 @@ Following this codebase's established convention (every ViewModel exposes inject
 ```kotlin
 interface DeinWackelbildApiClient {
     suspend fun createHandoff(request: CreateHandoffRequest, idempotencyKey: String): DeinWackelbildResult<CreateHandoffResponse>
-    suspend fun uploadImage(handoffToken: String, slot: Slot, file: File): DeinWackelbildResult<UploadResponse>
+    suspend fun uploadImage(uploadUrl: String, handoffToken: String, slot: Slot, file: File): DeinWackelbildResult<UploadResponse>
 }
 class OkHttpDeinWackelbildApiClient(private val client: OkHttpClient, private val baseUrl: String, private val partnerKey: String) : DeinWackelbildApiClient
 ```
+
+**Dynamic upload target (confirmed pilot contract, Block 7B doc sync).** `createHandoff` uses the fixed create endpoint (`POST {baseUrl}/partner-handoffs`, §50). `uploadImage` does **not** construct or derive its own URL — it takes the exact `uploadUrl` string returned by the preceding `createHandoff` call's `CreateHandoffResponse.uploadUrl` and posts to it verbatim; SameView must never reconstruct or guess the upload endpoint. Upload authentication uses the header `X-DWB-Handoff-Token: <handoffToken>`; the partner key (`X-DWB-Partner-Key`) is sent only on the create call and never on upload requests. The confirmed multipart body has exactly two parts: a text field named `slot` (value `"one"` or `"two"`) and a file field named `file` (the JPEG, media type `image/jpeg`) — exactly one image per upload request.
 
 Unit tests inject a fake `DeinWackelbildApiClient` implementation directly — **no MockWebServer dependency is added**, since the interface boundary already gives full test control without needing a real (even fake) socket, consistent with how `ShareComparisonViewModel` tests fake `shareRunner`/`hqSourceChecker` rather than standing up real MediaStore/filesystem infrastructure.
 
@@ -631,10 +633,30 @@ Per the supplied DeinWackelbild V1 API contract (§50), upload connection/write 
 ## 14.1 DTOs (`net/deinwackelbild/DeinWackelbildDtos.kt`)
 
 ```kotlin
-data class CreateHandoffRequest(val partner: String = "sameview", val locale: String)
-data class CreateHandoffResponse(val handoffId: String, val handoffToken: String, val uploadUrl: String)
-data class UploadResponse(val slot: String, val status: String, val checkoutUrl: String? = null)
-data class DeinWackelbildErrorEnvelope(val code: String?, val message: String?)   // parsed only for logging classification, never shown to user verbatim
+data class CreateHandoffRequest(val partner: String = "sameview", val locale: String? = null)
+// external_reference deliberately omitted -- SameView V1 never sends it (spec §27).
+
+data class CreateHandoffResponse(
+    val handoffId: String,
+    val handoffToken: String,
+    val partner: String,
+    val status: String,          // "awaiting_files" expected immediately after create
+    val expiresAt: String,
+    val maxFileBytes: Long,
+    val acceptedTypes: List<String>,
+    val uploadedSlots: List<String>,
+    val uploadUrl: String,
+    val checkoutUrl: String?      // null immediately after create
+)
+
+data class UploadResponse(
+    val handoffId: String,
+    val status: String,           // "awaiting_files" after slot one, "ready" after slot two
+    val uploadedSlots: List<String>,
+    val checkoutUrl: String?       // non-null only once status == "ready"
+)
+
+data class DeinWackelbildErrorEnvelope(val code: String?, val message: String?, val dataStatus: Int?)   // parsed only for logging classification, never shown to user verbatim
 sealed class DeinWackelbildResult<out T> {
     data class Success<T>(val value: T) : DeinWackelbildResult<T>()
     data class Failure(val classification: DeinWackelbildErrorClassification, val httpStatus: Int?) : DeinWackelbildResult<Nothing>()
@@ -642,9 +664,14 @@ sealed class DeinWackelbildResult<out T> {
 enum class DeinWackelbildErrorClassification {
     RETRYABLE_NETWORK, RETRYABLE_SERVER, RATE_LIMITED,
     INVALID_REQUEST, EXPIRED_HANDOFF, INTEGRATION_UNAVAILABLE,
-    FILE_TOO_LARGE, INVALID_IMAGE, DIMENSION_MISMATCH, PERMANENT_LOCAL
+    FILE_TOO_LARGE, INVALID_IMAGE, DIMENSION_MISMATCH, PERMANENT_LOCAL,
+    INCOMPLETE_HANDOFF, MALFORMED_RESPONSE, UNEXPECTED_HTTP_STATUS
 }
 ```
+
+**Three additive values (Block 7 implementation, not present when this section was originally drafted):** `INCOMPLETE_HANDOFF` -- HTTP `409` ("both files not yet complete"); the raw client still classifies this like any other non-2xx status even though Block 8 treats it specially ("re-upload the missing slot only," not a top-level failure). `MALFORMED_RESPONSE` -- a 2xx response whose body is unparseable JSON, is missing a required field, or contains a syntactically invalid `upload_url`/`checkout_url`; this is a raw-client/protocol-level fact, never downgraded from a known HTTP-status classification when only the *error* body fails to parse (§13). `UNEXPECTED_HTTP_STATUS` -- any HTTP status outside the documented set, a safety catch-all so every non-2xx response always classifies to something.
+
+**Confirmed wire contract (Block 7B doc sync).** The fields above match the pilot API's confirmed JSON response shape: create returns `handoff_id`, `handoff_token`, `partner`, `status`, `expires_at`, `max_file_bytes`, `accepted_types`, `uploaded_slots`, `upload_url`, `checkout_url` (`status=awaiting_files`/`checkout_url=null` immediately after create); upload returns `handoff_id`, `status`, `uploaded_slots`, `checkout_url`. Any additive/unknown JSON field beyond this list must remain ignorable for V1 forward compatibility — parsing must not fail merely because the server adds a field this DTO set doesn't know about. The confirmed WordPress REST error envelope is `{"code": "...", "message": "...", "data": {"status": <int>}}` — `DeinWackelbildErrorEnvelope.dataStatus` is the nested `data.status` value; `code`/`message` are parsed only for internal classification/logging, never shown to the user verbatim (spec §30: no raw server error text without an explicit later UX authorization).
 
 JSON parsing uses `org.json.JSONObject` directly (this codebase's established convention — no `kotlinx.serialization`/`Moshi`/`Gson` exists anywhere in the repo, confirmed in Gate 1's dependency research; introducing one would be an unjustified new dependency for four small, fixed response shapes that are trivially hand-parsed the same way `metadata.json` already is throughout this codebase).
 
@@ -664,7 +691,16 @@ data class HandoffState(
 )
 ```
 
-Drives create → upload-one → upload-two → (checkout URL available once both slots report ready, per spec §26 — this plan assumes, pending Olaf/API confirmation per §30, that `checkoutUrl` becomes non-null on the second successful upload's response; if the installed pilot instead requires a separate polling call, this state machine's ready-detection step is the sole place that changes). Idempotency key is generated once per **user-visible operation** (fresh UUID at the moment "Bestelle dein Wackelbild" is pressed) and reused across automatic retries of that same operation; a new explicit press after a completed/abandoned flow generates a new key (spec §15/§26).
+**Confirmed V1 flow (Block 7B doc sync — supersedes the earlier pending-confirmation hedge below the previous version of this paragraph):**
+
+1. Create handoff (`POST /partner-handoffs`).
+2. Upload Reference to slot `one` (locked mapping, §9.3 Correction N).
+3. Upload Capture to slot `two` (locked mapping, §9.3 Correction N).
+4. The second successful upload's own `200` response directly returns `status=ready` and a non-null `checkout_url` — confirmed by the pilot contract.
+5. **No separate V1 polling/status endpoint exists or is required.** The ready-detection step is exactly "read `checkoutUrl` off the slot-two `UploadResponse`," nothing more.
+6. Later Custom Tab logic (a subsequent block, not this one) opens the exact returned `checkout_url` verbatim.
+
+Idempotency key is generated once per **user-visible operation** (fresh UUID at the moment "Bestelle dein Wackelbild" is pressed) and reused across automatic retries of that same operation; a new explicit press after a completed/abandoned flow generates a new key (spec §15/§26). **Confirmed `Idempotency-Key` format (Block 7B doc sync):** required on every create request; 8–100 characters; allowed characters `[A-Za-z0-9._-]` (letters, digits, `.`, `_`, `-`); a repeated create request with the same still-valid key returns the same handoff rather than creating a new one. Generating a value satisfying this format, retaining it across retries, and deciding when to regenerate it all remain Block 8 responsibilities — Block 7's client only accepts an already-generated key as a parameter and places it correctly on the wire.
 
 ## 14.3 ViewModel-level operation state
 
@@ -1241,7 +1277,7 @@ Fixed by the supplied DeinWackelbild V1 API contract (§50) and **not** open que
 
 Items that genuinely cannot be resolved from repository evidence and require external input beyond the supplied written API contract:
 
-- Whether the actual installed pilot endpoint's behavior matches the supplied contract exactly, especially whether `checkout_url` becomes available on the second upload's response or requires a separate poll call (§14.2's ready-detection assumption) — the supplied contract does not explicitly state this either way.
+- ~~Whether the actual installed pilot endpoint's behavior matches the supplied contract exactly, especially whether `checkout_url` becomes available on the second upload's response or requires a separate poll call (§14.2's ready-detection assumption)~~ — **resolved (Block 7B doc sync):** confirmed by the pilot contract — the second successful upload's own response returns `status=ready`/`checkout_url` directly; no V1 polling/status call exists.
 - Exact backoff intervals between the three documented retry attempts, if Olaf's installed implementation imposes constraints beyond the contract's "increasing delay" (§14.6 placeholder: 1s/2s/4s).
 - DeinWackelbild-supported locale matrix (§17.2).
 - Final English product wording sign-off (§17.1's recommendation is a proposal, not a locked decision).
