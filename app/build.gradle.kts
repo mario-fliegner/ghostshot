@@ -1,9 +1,32 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
 }
+
+// DeinWackelbild partner-key provisioning (Block 9).
+//
+// Debug/non-release: local.properties -> environment variable -> blank.
+// Release: environment variable only -> blank. Release deliberately never reads
+// `deinWackelbildPartnerKeyLocal` -- this is the safety gate preventing a developer's local
+// pilot/test key from being embedded in a release APK/AAB merely because it exists in their
+// local.properties. See DEINWACKELBILD_IMPLEMENTATION_PLAN_V1.md §15.
+val deinWackelbildLocalProperties = Properties().apply {
+    val localPropsFile = rootProject.file("local.properties")
+    if (localPropsFile.exists()) localPropsFile.inputStream().use { load(it) }
+}
+val deinWackelbildPartnerKeyLocal: String? = deinWackelbildLocalProperties.getProperty("DEINWACKELBILD_PARTNER_KEY")
+val deinWackelbildPartnerKeyEnv: String? = System.getenv("DEINWACKELBILD_PARTNER_KEY")
+
+fun escapeForBuildConfigStringLiteral(value: String): String =
+    value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
 
 android {
     namespace = "com.isardomains.sameview"
@@ -17,6 +40,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Debug/non-release policy: local.properties, then env var, then blank.
+        buildConfigField(
+            "String",
+            "DEINWACKELBILD_PARTNER_KEY",
+            "\"${escapeForBuildConfigStringLiteral(deinWackelbildPartnerKeyLocal ?: deinWackelbildPartnerKeyEnv ?: "")}\""
+        )
     }
 
     androidResources {
@@ -30,6 +60,15 @@ android {
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
+            )
+
+            // Release safety gate: environment variable only, blank otherwise. This override
+            // deliberately contains no reference to `deinWackelbildPartnerKeyLocal` -- a local
+            // pilot/test key in local.properties can never reach a release build.
+            buildConfigField(
+                "String",
+                "DEINWACKELBILD_PARTNER_KEY",
+                "\"${escapeForBuildConfigStringLiteral(deinWackelbildPartnerKeyEnv ?: "")}\""
             )
         }
     }

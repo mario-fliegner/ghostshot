@@ -6,6 +6,7 @@ import android.view.Surface
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.isardomains.sameview.BuildConfig
 import com.isardomains.sameview.image.wackelbild.WackelbildDateOverlay
 import com.isardomains.sameview.image.wackelbild.WackelbildPrintRenderer
 import com.isardomains.sameview.image.wackelbild.WackelbildPrintResult
@@ -109,13 +110,18 @@ class WackelbildViewModel @Inject constructor(
     /**
      * Block 8: real DeinWackelbild handoff orchestration.
      *
-     * `partnerKey = ""` is a deliberate, inert Block-9-pending placeholder, not a real/dummy
-     * credential -- there is no `INTERNET` permission yet (Block 10), so no request built with this
-     * client can ever actually reach the network regardless of the key's value. Block 9 replaces
-     * this one line with the real `BuildConfig`-sourced key; nothing else about this field changes.
+     * `partnerKey` is sourced from `BuildConfig.DEINWACKELBILD_PARTNER_KEY` (Block 9's
+     * build-type-gated provisioning -- see `app/build.gradle.kts` and
+     * `DEINWACKELBILD_IMPLEMENTATION_PLAN_V1.md` §15). There is still no `INTERNET` permission
+     * (Block 10), so no request built with this client can actually reach the network yet
+     * regardless of the key's value; a blank key is rejected locally by
+     * `OkHttpDeinWackelbildApiClient.createHandoff`.
      */
     private var apiClient: DeinWackelbildApiClient =
-        OkHttpDeinWackelbildApiClient(OkHttpDeinWackelbildApiClient.createDefaultCallFactory(), partnerKey = "")
+        OkHttpDeinWackelbildApiClient(
+            OkHttpDeinWackelbildApiClient.createDefaultCallFactory(),
+            partnerKey = BuildConfig.DEINWACKELBILD_PARTNER_KEY
+        )
 
     /** Overridable in unit tests to avoid real Android Bitmap/Canvas APIs, which don't run on the
      * JVM. Production default is the real Block-5 renderer, unchanged. */

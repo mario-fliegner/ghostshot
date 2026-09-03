@@ -791,31 +791,56 @@ No HTTP/API terminology (status codes, "handoff", "token", "Idempotency-Key") ev
 
 No existing repository precedent exists (confirmed absence of any secrets-gradle-plugin, `buildConfigField`, or `local.properties`-reading code — Gate 1 finding, re-confirmed by direct `app/build.gradle.kts` read in §2, which contains zero `buildConfigField` calls today).
 
-**Chosen mechanism: `local.properties` (already git-ignored, confirmed at `.gitignore:10`) → `buildConfigField`, with a CI/release environment-variable fallback.**
+**Chosen mechanism, implemented in Block 9: `local.properties` → `buildConfigField`, with a build-type-gated environment-variable policy — not the same source-resolution chain for both build types.**
 
-`app/build.gradle.kts` (planned addition, not made in this gate):
+```text
+Debug / non-release BuildConfig value:
+    local.properties  →  environment variable  →  ""
+
+Release BuildConfig value:
+    environment variable only  →  ""
+```
+
+**Release never reads `local.properties`.** This is the critical safety rule: a developer's local pilot/test key sitting in their own `local.properties` must never be embedded in a release APK/AAB merely because the file happens to contain it. The release `buildConfigField` expression contains no reference at all to the local-properties-derived value — this is enforced structurally in `app/build.gradle.kts`, not by a runtime check.
+
+Implemented in `app/build.gradle.kts` (Block 9):
+
 ```kotlin
-val partnerKeyProps = Properties().apply {
+val deinWackelbildLocalProperties = Properties().apply {
     val localPropsFile = rootProject.file("local.properties")
-    if (localPropsFile.exists()) load(localPropsFile.inputStream())
+    if (localPropsFile.exists()) localPropsFile.inputStream().use { load(it) }
 }
-val deinWackelbildPartnerKey: String =
-    (partnerKeyProps.getProperty("DEINWACKELBILD_PARTNER_KEY")
-        ?: System.getenv("DEINWACKELBILD_PARTNER_KEY")
-        ?: "")
+val deinWackelbildPartnerKeyLocal: String? = deinWackelbildLocalProperties.getProperty("DEINWACKELBILD_PARTNER_KEY")
+val deinWackelbildPartnerKeyEnv: String? = System.getenv("DEINWACKELBILD_PARTNER_KEY")
+
+fun escapeForBuildConfigStringLiteral(value: String): String =
+    value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
 
 android {
     defaultConfig {
-        buildConfigField("String", "DEINWACKELBILD_PARTNER_KEY", "\"$deinWackelbildPartnerKey\"")
+        // Debug/non-release policy: local.properties, then env var, then blank.
+        buildConfigField("String", "DEINWACKELBILD_PARTNER_KEY",
+            "\"${escapeForBuildConfigStringLiteral(deinWackelbildPartnerKeyLocal ?: deinWackelbildPartnerKeyEnv ?: "")}\"")
+    }
+    buildTypes {
+        release {
+            // Release safety gate: environment variable only, blank otherwise.
+            // Deliberately no reference to deinWackelbildPartnerKeyLocal.
+            buildConfigField("String", "DEINWACKELBILD_PARTNER_KEY",
+                "\"${escapeForBuildConfigStringLiteral(deinWackelbildPartnerKeyEnv ?: "")}\"")
+        }
     }
 }
 ```
 
+AGP's per-buildType `buildConfigField` override is authoritative over `defaultConfig`'s value for the same field name in that variant — this is standard AGP merge behavior, requires no additional guard, and is verified in Block 9 by `assembleDebug`/`assembleRelease` plus one synthetic-environment-variable release build (never the real key).
+
 **Complete flow:**
-- **Local developer setup:** developer adds `DEINWACKELBILD_PARTNER_KEY=<pilot key>` to their own `local.properties` (never committed — already git-ignored for the entire file). The expected key name and setup steps are documented in a new tracked file, `docs/deinwackelbild/PARTNER_KEY_SETUP.md` (created in Block 9, alongside the `buildConfigField` wiring), which contains only the key **name** and instructions, never a real value. This is the single deterministic location for this documentation (Correction H) — not `local.properties.example` (a loose, un-conventional file for this repository) and not a new top-level `README.md` (none currently exists; creating one would be unrelated scope expansion for this feature).
-- **CI/release build setup:** release builds read `DEINWACKELBILD_PARTNER_KEY` from a CI-injected environment variable (exact CI mechanism — GitHub Actions secret, or whatever this repo's actual release pipeline uses — is an **open item requiring the release-environment owner**, §30, since no CI configuration file was found/inspected as part of this plan's repository scope).
-- **Debug vs. release handling:** the same `buildConfigField` mechanism serves both build types from the same source-resolution chain (`local.properties` first, env var fallback) — no separate debug-only or release-only key is planned unless the actual pilot/production key pair requires it (open item, §30, since only one pilot key was supplied per the spec's §50 baseline).
-- **Behavior when the key is missing/blank:** `BuildConfig.DEINWACKELBILD_PARTNER_KEY.isBlank()` is checked once at `DeinWackelbildApiClient` construction (or lazily before the first `createHandoff` call); if blank, the create-handoff call fails **locally**, before any network request, surfacing the same `INTEGRATION_UNAVAILABLE` user-facing state as a real `401` — this is a deliberate, testable, non-crashing behavior for a missing-key build (e.g., a contributor's local build without the pilot key configured).
+
+- **Local developer setup:** developer adds `DEINWACKELBILD_PARTNER_KEY=<pilot key>` to their own `local.properties` (never committed — already git-ignored for the entire file, confirmed at `.gitignore:10`). This pilot/test key is usable for local **debug** builds only. No separate setup document exists for this — one property does not justify a third source of truth beyond this section and `IMPLEMENTATION_NOTES.md` (Block-9B Correction A; a previously proposed `PARTNER_KEY_SETUP.md` was rejected for this reason and was never created).
+- **CI/release build setup:** release builds read `DEINWACKELBILD_PARTNER_KEY` **only** from an environment variable — the production key must be supplied externally this way. The exact CI mechanism (GitHub Actions secret, or whatever this repo's actual release pipeline uses) remains an **open item requiring the release-environment owner**, since no CI configuration file exists anywhere in this repository.
+- **Debug vs. release handling:** resolved in Block 9 (previously open) — debug/non-release and release deliberately use **different** source-resolution chains, exactly as shown above. This is a closed decision, not an open item.
+- **Behavior when the key is missing/blank:** `OkHttpDeinWackelbildApiClient.createHandoff()` checks `partnerKey.isBlank()` before constructing any `Request`; if blank, it returns `Failure(DeinWackelbildErrorClassification.INTEGRATION_UNAVAILABLE)` locally, with zero network calls — the same classification the orchestrator already maps to `WackelbildOperationFailureCategory.INTEGRATION_UNAVAILABLE` for a real HTTP 401. This is deliberate, testable, non-crashing behavior, and it does **not** fail the build: a release build with no environment-provided key still assembles successfully; the integration simply reports itself unavailable the moment an operation is started.
 - **Key never placed in a URL:** always sent as the request header `X-DWB-Partner-Key` (Correction D — the documented DeinWackelbild V1 API contract header, §50, not an open question; the alternative `Authorization: Bearer` form is not used unless Olaf later supplies a newer API contract) on the create-handoff call only, never on upload calls (per spec §26's "partner key only on create" and the supplied API's own contract), never appended to any query string.
 - **Key never logged — no logging interceptor at all (Correction H):** no `HttpLoggingInterceptor` dependency is added; this plan does not use OkHttp's logging-interceptor artifact in any build type. Any feature-specific debug logging (gated by the existing `BuildConfig.DEBUG` convention, used ~35 times elsewhere in this codebase) is manual and minimal — at most the `DeinWackelbildErrorClassification` enum value and the HTTP status code for a failed call — and **never** logs request/response headers or bodies. This structurally excludes the partner-key header and any request/response payload content from ever reaching Logcat, without relying on interceptor log-level configuration to enforce it.
 - **Tests never require a real production key:** unit tests inject the fake `DeinWackelbildApiClient` from §13.1, which never touches `BuildConfig` or `OkHttpClient` at all; a real key is needed only for the final manual pilot-acceptance pass (§25/§26), never for `testDebugUnitTest`/`connectedDebugAndroidTest`.
@@ -937,11 +962,10 @@ String resources for each state are listed in §17.1 above (no additional dialog
 | `app/src/main/java/com/isardomains/sameview/image/wackelbild/WackelbildPrintRenderer.kt` | Create | 5 | Two-file HQ/fallback pipeline (§9.3) | **High** — core correctness of the feature |
 | `app/src/main/java/com/isardomains/sameview/image/wackelbild/DateBadgeRenderer.kt` | Create | 5 | Bitmap-side date badge (§8.3) | Medium |
 | `gradle/libs.versions.toml` | Modify | 7, 10 | Add OkHttp + `androidx.browser` versions/coordinates | Medium — first new runtime deps in the app |
-| `app/build.gradle.kts` | Modify | 7, 9, 10 | Add dependencies; `buildConfigField` for partner key | **High** — build/release-critical file |
-| `app/src/main/java/com/isardomains/sameview/net/deinwackelbild/*.kt` (DTOs, client, state machine, locale mapper) | Create | 7, 8 | API integration (§13, §14, §17.2) | **High** — first network code in this app |
+| `app/build.gradle.kts` | Modify | 7, 9, 10 | ✅ **Implemented (Block 9).** Add dependencies (Block 7/10); build-type-gated `buildConfigField` for `DEINWACKELBILD_PARTNER_KEY` (Block 9, §15) | **High** — build/release-critical file |
+| `app/src/main/java/com/isardomains/sameview/net/deinwackelbild/*.kt` (DTOs, client, state machine, locale mapper) | Create | 7, 8 | API integration (§13, §14, §17.2); `OkHttpDeinWackelbildApiClient.createHandoff()` additionally gained the Block 9 blank-key guard (§15) | **High** — first network code in this app |
 | `app/src/main/java/com/isardomains/sameview/ui/wackelbild/WackelbildCustomTabLauncher.kt` | Create | 10 | Custom Tab launch/failure (§16) | Medium |
 | `local.properties` (developer-local, not committed) | N/A — never a repo file change | 9 | Developer key entry (§15) | N/A |
-| `docs/deinwackelbild/PARTNER_KEY_SETUP.md` | Create | 9 | Deterministic key-name/setup documentation (§15 Correction H) | Low |
 | `app/src/main/AndroidManifest.xml` | Modify | 10 | Add `INTERNET` permission | **High** — release/Play/privacy-critical; gated on Gate 2's governance addendum, already satisfied |
 | `app/proguard-rules.pro` | Modify only if Block 10's `assembleRelease` check surfaces a need | 10 | Potential OkHttp/androidx.browser keep rules | Low (OkHttp ships its own consumer rules; expected no-op) |
 | Test files mirroring every new class above | Create | 13 (bulk), plus incrementally per-block | Unit + instrumentation coverage (§24) | Low individually |
@@ -1292,7 +1316,7 @@ Items that genuinely cannot be resolved from repository evidence and require ext
 - DeinWackelbild-supported locale matrix (§17.2).
 - Final English product wording sign-off (§17.1's recommendation is a proposal, not a locked decision).
 - CI/release-pipeline mechanism for injecting `DEINWACKELBILD_PARTNER_KEY` in release builds (§15) — no CI configuration file was found/inspected as part of this repository-scoped plan.
-- Whether a separate debug vs. release/production key pair is needed (§15).
+- ~~Whether a separate debug vs. release/production key pair is needed (§15)~~ — **resolved (Block 9):** no separate key pair is needed; a single `DEINWACKELBILD_PARTNER_KEY` field is provisioned with a build-type-gated source-resolution chain (`local.properties → env → blank` for debug/non-release; `env → blank` for release, never consulting `local.properties`) — see §15.
 - Privacy Policy / Google Play Data Safety / partner-commission-disclosure content (§27) — legal/compliance, not technical.
 - Real-device tilt threshold/hysteresis final tuning values (§7.3) — **resolved:** locked at `9f`/`6f`, no longer open (Block 5B Correction D†).
 - ~~Real-device badge corner-radius final visual sign-off (§8.3's proposed `boxHeight × 0.25` default)~~ — **resolved:** §8.3's proportional-fraction model (Block 5B Correction H†) is fully deterministic and derived directly from Block 4's shipped, already-visually-approved constants; no further open design choice remains, though a routine real-device print-resolution visual spot-check remains part of §25 as with any new rendering code.

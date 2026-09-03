@@ -189,6 +189,22 @@ class OkHttpDeinWackelbildApiClientTest {
     }
 
     @Test
+    fun createHandoff_blankPartnerKey_integrationUnavailable_noRequestMade() = runTest {
+        var called = false
+        val factory = Call.Factory { req -> called = true; FakeCall(req, response = fakeResponse(req, 201, validCreateResponseJson())) }
+        val client = OkHttpDeinWackelbildApiClient(factory, partnerKey = "")
+
+        val result = client.createHandoff(CreateHandoffRequest(), validIdempotencyKey)
+
+        assertFalse(called)
+        assertTrue(result is DeinWackelbildResult.Failure)
+        assertEquals(
+            DeinWackelbildErrorClassification.INTEGRATION_UNAVAILABLE,
+            (result as DeinWackelbildResult.Failure).error.classification
+        )
+    }
+
+    @Test
     fun createHandoff_invalidIdempotencyKey_noRequestMade() = runTest {
         var called = false
         val factory = Call.Factory { req -> called = true; FakeCall(req, response = fakeResponse(req, 201, validCreateResponseJson())) }

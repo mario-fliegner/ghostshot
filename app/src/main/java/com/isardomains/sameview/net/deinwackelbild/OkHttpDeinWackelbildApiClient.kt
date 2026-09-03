@@ -40,6 +40,11 @@ class OkHttpDeinWackelbildApiClient(
         request: CreateHandoffRequest,
         idempotencyKey: String
     ): DeinWackelbildResult<CreateHandoffResponse> {
+        if (partnerKey.isBlank()) {
+            return DeinWackelbildResult.Failure(
+                DeinWackelbildApiError(DeinWackelbildErrorClassification.INTEGRATION_UNAVAILABLE)
+            )
+        }
         if (!isValidIdempotencyKey(idempotencyKey)) {
             return DeinWackelbildResult.Failure(
                 DeinWackelbildApiError(DeinWackelbildErrorClassification.PERMANENT_LOCAL)
