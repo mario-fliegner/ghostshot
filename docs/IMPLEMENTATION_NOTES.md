@@ -28,7 +28,7 @@ Permissions:
 - CAMERA
 - ACCESS_FINE_LOCATION (GPS Recreation System; foreground-only; lazy request in Settings)
 - ACCESS_MEDIA_LOCATION (companion permission; allows Photo Picker to return unredacted GPS EXIF)
-- No INTERNET permission
+- INTERNET (added for the approved Hosted Comparison / DeinWackelbild V1 network exceptions only, per `CLAUDE_PROJECT_INSTRUCTION.md`; no DeinWackelbild network call is currently user-triggerable — Block 11 UI wiring is not yet implemented; no background networking, analytics, or tracking was added)
 - No READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE permission
 
 Current release state:
@@ -382,7 +382,7 @@ The saved MediaStore capture is never composited with the overlay.
 ## Storage / Privacy / Release Hardening
 
 - Manifest declares CAMERA only
-- The app has no INTERNET permission
+- INTERNET is declared solely for the approved DeinWackelbild/Hosted Comparison network exceptions (per `CLAUDE_PROJECT_INSTRUCTION.md`); no DeinWackelbild network call is currently user-triggerable, since Block 11 UI wiring is not yet implemented
 - No analytics, telemetry, tracking, upload, or network feature is implemented
 - Android Photo Picker is used for reference image selection
 - Captures are saved through MediaStore under `Pictures/SameView`
@@ -1678,3 +1678,20 @@ Implementation plan: `deinwackelbild/DEINWACKELBILD_IMPLEMENTATION_PLAN_V1.md`
 **Not touched:** `AndroidManifest.xml`, strings, `WackelbildScreen.kt`, `WackelbildViewModelTest.kt`, `WackelbildHandoffOrchestrator.kt`, `WackelbildPrintRenderer.kt`, `WackelbildTempFileManager.kt`, `MainActivity.kt`/navigation, camera/session code, CI configuration. No `PARTNER_KEY_SETUP.md` or other new documentation file was created.
 
 **Not yet implemented (later blocks):** `INTERNET` permission and real integration activation (Block 10); CTA/consent UI, Custom Tab launch (Block 11+); real pilot-server validation (after Block 10 activation). No real network request is possible or was attempted in Block 9.
+
+**Block 10 completed — manifest/dependency/Custom Tab infrastructure (2026-09-03).** Adds the app's network-capability surface and Custom Tab launch infrastructure. Still not user-activatable: no CTA, no consent dialog, no `startOperation()`/`confirmFallbackAndContinue()`/launcher caller anywhere in production code.
+
+- **`AndroidManifest.xml`:** added `<uses-permission android:name="android.permission.INTERNET" />`, grouped with the existing `<uses-permission>` declarations. No other manifest change — no `ACCESS_NETWORK_STATE` (already present transitively via `androidx.media3:media3-common:1.5.1`, unrelated to this feature), no `networkSecurityConfig`, no `usesCleartextTraffic` override (minSdk 29 already defaults cleartext to disabled), no new exported component, no `<queries>` entry, no deep link.
+- **`gradle/libs.versions.toml` / `app/build.gradle.kts`:** added `androidx.browser:browser:1.10.0` (current stable per Google Maven metadata at implementation time, superseding the plan's original `1.9.0` placeholder) as a single `implementation(libs.androidx.browser)` line.
+- **New `ui/wackelbild/WackelbildCustomTabLauncher.kt`:** `fun launch(context: Context, url: String): Boolean` — parses the given URL as-is via `Uri.parse`, opens it in a `CustomTabsIntent`, returns `true` on successful invocation, `false` only on `ActivityNotFoundException` (no broader catch). No HTTPS validation (already validated upstream), no logging, no WebView fallback, no persisted state. Not referenced from `WackelbildScreen.kt`, `WackelbildViewModel.kt`, `MainActivity.kt`, or any other production call site — wiring is Block 11's responsibility.
+- **No dedicated launcher test:** intentional — no Robolectric exists in this repo, and the real launch outcome (successful Custom Tab open vs. `ActivityNotFoundException`) depends on whatever browser/Custom-Tab provider happens to be installed on the test device, which would make an instrumented test of the real OS call non-deterministic. Block 11 tests launch success/failure deterministically through a fake launcher seam at the ViewModel level instead.
+- **Merged-manifest verification (both `assembleDebug`/`assembleRelease` variants):** `INTERNET` is present in both merged manifests, attributed to the app's own `AndroidManifest.xml` in the manifest-merger blame report; `ACCESS_NETWORK_STATE` remains attributed to `androidx.media3:media3-common:1.5.1`, unchanged; `androidx.browser:browser:1.10.0` contributes no permission, activity, service, provider, exported component, or `<queries>` entry of its own.
+- **No ProGuard change:** `assembleRelease`/`bundleRelease` succeeded without any `app/proguard-rules.pro` modification.
+
+**Files created:** `ui/wackelbild/WackelbildCustomTabLauncher.kt`.
+
+**Files modified:** `AndroidManifest.xml`, `gradle/libs.versions.toml`, `app/build.gradle.kts`.
+
+**Not touched:** `WackelbildScreen.kt`, `WackelbildViewModel.kt`, `WackelbildHandoffOrchestrator.kt`, `WackelbildPrintRenderer.kt`, `WackelbildTempFileManager.kt`, strings, `MainActivity.kt`/navigation, `net/deinwackelbild/*` API client/DTOs, `BuildConfig` partner-key wiring, camera/session code, `app/proguard-rules.pro`, `RELEASE_HARDENING_AUDIT_V2.md` (Block 14 owns its stale INTERNET claim), `CLAUDE_PROJECT_INSTRUCTION.md`.
+
+**Not yet implemented (later blocks):** CTA/consent dialog/spinner/fallback dialog/Back-confirmation, `startOperation()`/`confirmFallbackAndContinue()`/Custom Tab launch wiring, first real pilot network call (Block 11); error/cancellation polish against the real API (Block 12); release/privacy/documentation hardening including the `RELEASE_HARDENING_AUDIT_V2.md` correction (Block 14). No real network request is possible or was attempted in Block 10 — the app now merely has the *capability*; nothing in the current UI exercises it. Block 10 is not Play-release-ready: Google Play Data Safety review/update, Privacy Policy disclosure, and partner/commission disclosure review all remain open external items.
